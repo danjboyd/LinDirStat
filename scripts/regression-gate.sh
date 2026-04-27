@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+packager="$HOME/git/gnustep/gnustep-packager/scripts/gnustep-packager.ps1"
+xctest_root="${TOOLS_XCTEST_ROOT:-$HOME/git/Arlen/vendor/tools-xctest}"
+gnustep_makefiles="$HOME/.local/share/gnustep-cli/System/Library/Makefiles"
+
+if [[ -f "$gnustep_makefiles/GNUstep.sh" ]]; then
+  set +u
+  # shellcheck disable=SC1091
+  . "$gnustep_makefiles/GNUstep.sh"
+  set -u
+fi
+
+cd "$repo_root"
+
+python3 "$HOME/git/gnustep/gnustep-cli-new/scripts/internal/build.py" --execute .
+TOOLS_XCTEST_ROOT="$xctest_root" make -C Tests
+LD_LIBRARY_PATH="$xctest_root/XCTest/obj:${LD_LIBRARY_PATH:-}" "$xctest_root/obj/xctest" Tests/LinDirStatTests.bundle
+
+./scripts/windirstat-parity-gate.sh
+
+pwsh "$packager" -Manifest package.manifest.json -Command manifest-check
+pwsh "$packager" -Manifest package.manifest.json -Command build
+pwsh "$packager" -Manifest package.manifest.json -Command stage
+pwsh "$packager" -Manifest package.manifest.json -Command validate

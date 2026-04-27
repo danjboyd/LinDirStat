@@ -1,0 +1,137 @@
+{
+  "$schema": "./../gnustep/gnustep-packager/schemas/gnustep-packager.schema.json",
+  "schemaVersion": 1,
+  "profiles": [
+    "gnustep-gui"
+  ],
+  "package": {
+    "id": "org.lindirstat.LinDirStat",
+    "name": "LinDirStat",
+    "displayName": "LinDirStat",
+    "version": "0.1.0",
+    "manufacturer": "Daniel Boyd",
+    "summary": "GNUstep disk usage viewer inspired by WinDirStat.",
+    "license": "TBD",
+    "homepage": "https://github.com/danjboyd/LinDirStat"
+  },
+  "pipeline": {
+    "workingDirectory": ".",
+    "shell": {
+      "kind": "bash",
+      "bootstrapCommands": [],
+      "environment": {}
+    },
+    "build": {
+      "command": "./scripts/package-build.sh"
+    },
+    "stage": {
+      "command": "./scripts/package-stage.sh dist/stage",
+      "outputRoot": "dist/stage"
+    }
+  },
+  "payload": {
+    "layoutVersion": 1,
+    "stageRoot": "dist/stage",
+    "appRoot": "app",
+    "runtimeRoot": "runtime",
+    "metadataRoot": "metadata",
+    "runtimeSeedPaths": [
+      "runtime/bin/defaults"
+    ]
+  },
+  "launch": {
+    "entryRelativePath": "app/LinDirStat.app/LinDirStat",
+    "workingDirectory": "app/LinDirStat.app",
+    "arguments": [],
+    "env": {
+      "GSTheme": {
+        "value": "Adwaita",
+        "policy": "ifUnset"
+      }
+    }
+  },
+  "packagedDefaults": {
+    "defaultTheme": "Adwaita",
+    "appDomain": {
+      "domain": "org.lindirstat.LinDirStat",
+      "values": {
+        "FirstRunComplete": true,
+        "DefaultFixtureScanEnabled": true
+      }
+    }
+  },
+  "outputs": {
+    "root": "dist",
+    "packageRoot": "dist/packages",
+    "logRoot": "dist/logs",
+    "tempRoot": "dist/tmp",
+    "validationRoot": "dist/validation"
+  },
+  "validation": {
+    "smoke": {
+      "enabled": true,
+      "kind": "staged-layout",
+      "requiredPaths": [
+        "metadata/icons/lindirstat.png",
+        "metadata/licenses/LinDirStat.txt",
+        "runtime/bin/defaults",
+        "runtime/config/theme.conf"
+      ],
+      "timeoutSeconds": 30
+    },
+    "logs": {
+      "retainOnSuccess": true
+    },
+    "packageContract": {
+      "requiredContent": [
+        {
+          "kind": "notice-report"
+        },
+        {
+          "kind": "metadata-file",
+          "path": "metadata/icons/lindirstat.png"
+        }
+      ]
+    },
+    "installedResult": {
+      "requiredPaths": [
+        "usr/metadata/icons/lindirstat.png"
+      ]
+    }
+  },
+  "integrations": {
+    "shortcutName": "LinDirStat"
+  },
+  "compliance": {
+    "runtimeNotices": [
+      {
+        "name": "LinDirStat",
+        "version": "0.1.0",
+        "license": "TBD",
+        "source": "LinDirStat application source",
+        "homepage": "https://github.com/danjboyd/LinDirStat",
+        "stageRelativePath": "metadata/licenses/LinDirStat.txt"
+      },
+      {
+        "name": "WinDirStat Reference Source",
+        "license": "GPL-2.0-or-later",
+        "source": "Local reference source only; not linked into LinDirStat",
+        "homepage": "https://github.com/windirstat/windirstat",
+        "stageRelativePath": "metadata/licenses/WinDirStat-reference.txt"
+      }
+    ]
+  },
+  "backends": {
+    "msi": {
+      "enabled": false
+    },
+    "appimage": {
+      "enabled": true,
+      "desktopEntryName": "lindirstat.desktop",
+      "iconRelativePath": "metadata/icons/lindirstat.png",
+      "smoke": {
+        "mode": "launch-only"
+      }
+    }
+  }
+}

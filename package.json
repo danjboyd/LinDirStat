@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "id": "org.lindirstat.lindirstat",
+  "name": "LinDirStat",
+  "kind": "gui-app"
+}

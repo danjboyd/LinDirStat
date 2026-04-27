@@ -1,0 +1,22 @@
+# Local Codex/operator notes.
+.codex
+CODEX.local.md
+
+# GNUstep and build outputs.
+obj/
+*.app/
+*.bundle/
+*.debug/
+*.dSYM/
+DerivedData/
+build/
+dist/
+out/
+
+# Script/runtime caches.
+__pycache__/
+*.py[cod]
+
+# Editor and OS noise.
+*~
+.DS_Store

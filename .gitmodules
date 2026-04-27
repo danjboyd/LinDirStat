@@ -1,0 +1,3 @@
+[submodule "references/WinDirStat"]
+	path = references/WinDirStat
+	url = https://github.com/windirstat/windirstat.git

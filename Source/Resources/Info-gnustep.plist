@@ -1,0 +1,4 @@
+{
+  ApplicationName = LinDirStat;
+  ApplicationDescription = "GNUstep disk usage viewer inspired by WinDirStat";
+}

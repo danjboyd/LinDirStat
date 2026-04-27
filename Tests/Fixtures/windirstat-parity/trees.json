@@ -1,0 +1,140 @@
+{
+  "fixtures": [
+    {
+      "name": "balanced-mixed",
+      "tree": {
+        "name": "root",
+        "children": [
+          { "name": "video.mkv", "size": 4200000000 },
+          { "name": "archive.zip", "size": 1800000000 },
+          {
+            "name": "src",
+            "children": [
+              { "name": "main.m", "size": 650000 },
+              { "name": "view.m", "size": 510000 },
+              { "name": "model.h", "size": 110000 },
+              { "name": "notes.txt", "size": 250000 }
+            ]
+          },
+          {
+            "name": "assets",
+            "children": [
+              { "name": "hero.png", "size": 25000000 },
+              { "name": "icon.png", "size": 950000 },
+              { "name": "sound.wav", "size": 15500000 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "many-small-files",
+      "tree": {
+        "name": "root",
+        "children": [
+          { "name": "bundle.dat", "size": 8000000 },
+          { "name": "a.log", "size": 1400000 },
+          { "name": "b.log", "size": 1300000 },
+          { "name": "c.log", "size": 1200000 },
+          { "name": "d.tmp", "size": 900000 },
+          { "name": "e.tmp", "size": 850000 },
+          { "name": "f.tmp", "size": 800000 },
+          { "name": "g.txt", "size": 750000 },
+          { "name": "h.txt", "size": 700000 },
+          { "name": "i.txt", "size": 650000 },
+          { "name": "j.bin", "size": 500000 },
+          { "name": "k.bin", "size": 450000 },
+          { "name": "l.bin", "size": 400000 }
+        ]
+      }
+    },
+    {
+      "name": "deep-project",
+      "tree": {
+        "name": "root",
+        "children": [
+          {
+            "name": "Users",
+            "children": [
+              {
+                "name": "dan",
+                "children": [
+                  {
+                    "name": "git",
+                    "children": [
+                      { "name": "build.o", "size": 74000000 },
+                      { "name": "cache.db", "size": 51000000 },
+                      { "name": "README.md", "size": 18000 },
+                      { "name": "main.swift", "size": 220000 }
+                    ]
+                  },
+                  { "name": "Downloads.iso", "size": 2600000000 }
+                ]
+              }
+            ]
+          },
+          { "name": "swapfile", "size": 1073741824 },
+          { "name": "empty.zero", "size": 0 }
+        ]
+      }
+    },
+    {
+      "name": "extreme-ratios",
+      "tree": {
+        "name": "root",
+        "children": [
+          { "name": "disk-image.iso", "size": 9000000000 },
+          { "name": "vm.qcow2", "size": 3200000000 },
+          {
+            "name": "thumbnails",
+            "children": [
+              { "name": "thumb-001.jpg", "size": 12000 },
+              { "name": "thumb-002.jpg", "size": 11000 },
+              { "name": "thumb-003.jpg", "size": 10000 },
+              { "name": "thumb-004.jpg", "size": 9000 },
+              { "name": "thumb-005.jpg", "size": 8000 }
+            ]
+          },
+          {
+            "name": "logs",
+            "children": [
+              { "name": "app.log", "size": 60000000 },
+              { "name": "app.log.1", "size": 55000000 },
+              { "name": "app.log.2", "size": 45000000 },
+              { "name": "trace", "size": 30000000 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "extension-collisions",
+      "tree": {
+        "name": "root",
+        "children": [
+          { "name": ".bashrc", "size": 4000 },
+          { "name": "README", "size": 18000 },
+          { "name": "README.md", "size": 24000 },
+          { "name": "photo.JPG", "size": 5000000 },
+          { "name": "photo.jpg", "size": 4500000 },
+          { "name": "archive.tar.gz", "size": 90000000 },
+          { "name": "data.backup.GZ", "size": 87000000 },
+          {
+            "name": "nested",
+            "children": [
+              { "name": "index.HTML", "size": 36000 },
+              { "name": "index.html", "size": 34000 },
+              { "name": "style.CSS", "size": 28000 },
+              { "name": "style.css", "size": 26000 }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "sizes": [
+    [760, 220],
+    [900, 260],
+    [1200, 360]
+  ]
+}
