@@ -323,9 +323,15 @@
 
   _currentScanPath = [scanPath copy];
 
-  _scanSession = [[LDScanSession alloc] init];
-  [_scanSession setSortMetric:_sizeMetric];
-  [_scanSession startAsyncScanPath:scanPath];
+  LDScanSession *session = [[LDScanSession alloc] init];
+  _scanSession = session;
+  [session setSortMetric:_sizeMetric];
+  [session startAsyncScanPath:scanPath completion:^{
+    // Ignore a scan that was replaced before it finished.
+    if (session == _scanSession) {
+      [self finishAsyncScan];
+    }
+  }];
 
   [_pathField setStringValue:scanPath];
   [_window setTitle:[NSString stringWithFormat:@"Scanning — %@", [scanPath lastPathComponent]]];
@@ -333,6 +339,7 @@
   [self updateScanStatus];
   [self updateCommandState];
 
+  // Progress only; completion arrives through the session's completion block.
   _scanTimer = [NSTimer scheduledTimerWithTimeInterval:0.15
                                                 target:self
                                               selector:@selector(scanTimerFired:)
@@ -353,17 +360,13 @@
 - (void)scanTimerFired:(NSTimer *)timer
 {
   (void)timer;
-  if (![_scanSession isFinished]) {
-    [self updateScanStatus];
-    return;
-  }
-  [_scanTimer invalidate];
-  _scanTimer = nil;
-  [self finishAsyncScan];
+  [self updateScanStatus];
 }
 
 - (void)finishAsyncScan
 {
+  [_scanTimer invalidate];
+  _scanTimer = nil;
   LDFileNode *root = [_scanSession rootNode];
   [_treemapView setDimmed:NO];
   [self updateCommandState];

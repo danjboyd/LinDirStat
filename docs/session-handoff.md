@@ -14,6 +14,12 @@ Step A:
 - Physical size is the default; Treemap > Use Logical Size switches all panes.
 - `/usr/share/doc` (45k files) now scans and displays in about 2 s; previously 15-20 s with a frozen window.
 
+Since then:
+
+- The project builds with ARC.
+- Scanning uses a libdispatch worker pool (`-[LDScanner threadCount]`, default 4) and the session reports completion on the main queue.
+- The Adwaita shadow and rounded corners need the theme's patched libs-back; see `docs/development.md`.
+
 Step B:
 
 - `LDTreemap` (in `LDTreemapLayout.m`) is a port of WinDirStat's `CTreeMap`: KDirStat and SequoiaView layouts, cushion shading with the real defaults, the equalized palette and rank-based colors.
@@ -30,7 +36,6 @@ make -C Source && LINDIRSTAT_SCAN_PATH=/usr/share/doc openapp Source/LinDirStat.
 
 ## Where To Resume
 
-- Convert the project to ARC (clang + libobjc2 `gnustep-2.2` runtime supports `-fobjc-arc`).
 - Step C, window chrome: `NSSplitView` panes, WinDirStat menus and toolbar, custom-drawn subtree-percentage cells with depth colors and pacman, file icons, sortable headers, compact rows, three-field status bar. Use standard controls and system colors only; see the look-and-feel principle in `AGENTS.md`.
 - Step D onwards: clean-up actions (trash, open, reveal), refresh selected, drive picker, largest files, duplicates, search, CSV, filters, settings, dark mode.
 
@@ -38,4 +43,4 @@ make -C Source && LINDIRSTAT_SCAN_PATH=/usr/share/doc openapp Source/LinDirStat.
 
 - The subtree percent column is still ASCII text.
 - Menus are minimal (File and Treemap only).
-- Scanning is single-threaded.
+- Memory is about 340 bytes per entry (tree plus treemap cells) against roughly 150 for WinDirStat's `CItem`; see the plan in the session notes.

@@ -1,6 +1,7 @@
 include $(GNUSTEP_MAKEFILES)/common.make
 
-ADDITIONAL_OBJCFLAGS += -fobjc-arc
+ADDITIONAL_OBJCFLAGS += -fobjc-arc -I$(GNUSTEP_MAKEFILES)/../../../include
+ADDITIONAL_TOOL_LIBS += -ldispatch
 
 TOOL_NAME = windirstat-parity-exporter
 

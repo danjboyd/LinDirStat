@@ -13,7 +13,7 @@ Status values:
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Directory scan | partial | Background scanner using `fstatat`, staying on the root filesystem (mount points are shown but not entered), counting hard links once, recording physical (`st_blocks`) and logical sizes, mtime and mode. Children are sorted once on the scan thread. Single-threaded; exclusion filters, symlink following and refresh-selected remain. |
+| Directory scan | partial | Background scanner using `fstatat`, staying on the root filesystem (mount points are shown but not entered), counting hard links once, recording physical (`st_blocks`) and logical sizes, mtime and mode. Directories are read by a pool of 4 libdispatch workers (WinDirStat's default threads per drive); children are sorted once after the scan. Completion is delivered on the main queue and Stop returns partial results. Exclusion filters, symlink following, refresh-selected and suspend/resume remain. |
 | Size semantics | matched | Physical size by default like WinDirStat; Treemap > Use Logical Size switches every pane. Directories contribute no bytes of their own. |
 | Directory tree pane | partial | Expandable outline with name, subtree percent, percent, size, files, subdirs, last change (newest in subtree) and mode. Synchronized with treemap selection. Custom-drawn percentage bars, pacman, icons, sortable headers remain (Step C). |
 | Extension/type pane | partial | Rank-based WinDirStat colors with cushioned swatches, bytes, % bytes, files; selecting an extension highlights its files in the treemap. Descriptions remain. |

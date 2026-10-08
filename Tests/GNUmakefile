@@ -1,6 +1,6 @@
 include $(GNUSTEP_MAKEFILES)/common.make
 
-ADDITIONAL_OBJCFLAGS += -fobjc-arc
+ADDITIONAL_OBJCFLAGS += -fobjc-arc -I$(GNUSTEP_MAKEFILES)/../../../include
 
 BUNDLE_NAME = LinDirStatTests
 NEEDS_GUI = yes
@@ -30,7 +30,7 @@ ifneq ($(TOOLS_XCTEST_ROOT),)
 LinDirStatTests_INCLUDE_DIRS += -I$(TOOLS_XCTEST_ROOT)
 LinDirStatTests_LIB_DIRS += -L$(TOOLS_XCTEST_ROOT)/XCTest/obj
 endif
-LinDirStatTests_BUNDLE_LIBS += -lXCTest
+LinDirStatTests_BUNDLE_LIBS += -lXCTest -ldispatch
 LinDirStatTests_RESOURCE_FILES =
 
 include $(GNUSTEP_MAKEFILES)/bundle.make

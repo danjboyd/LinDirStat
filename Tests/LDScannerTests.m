@@ -201,4 +201,63 @@
   XCTAssertEqual((NSUInteger)0, [[child children] count]);
 }
 
+- (void)buildWideTreeAt:(NSString *)root depth:(int)depth seed:(unsigned int *)seed
+{
+  NSFileManager *manager = [NSFileManager defaultManager];
+  int i = 0;
+  for (i = 0; i < 6; i++) {
+    *seed = *seed * 1103515245u + 12345u;
+    NSString *file = [root stringByAppendingPathComponent:[NSString stringWithFormat:@"f%d.%@", i, (i % 3 == 0) ? @"log" : @"dat"]];
+    [[NSMutableData dataWithLength:(*seed >> 8) % 20000] writeToFile:file atomically:NO];
+  }
+  if (depth == 0) {
+    return;
+  }
+  for (i = 0; i < 4; i++) {
+    NSString *directory = [root stringByAppendingPathComponent:[NSString stringWithFormat:@"d%d", i]];
+    [manager createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:NULL];
+    [self buildWideTreeAt:directory depth:depth - 1 seed:seed];
+  }
+}
+
+- (void)testParallelScanMatchesSerialScan
+{
+  unsigned int seed = 7;
+  [self buildWideTreeAt:[self temporaryRoot] depth:4 seed:&seed];
+
+  LDScanner *serial = [[LDScanner alloc] init];
+  [serial setThreadCount:1];
+  LDFileNode *serialRoot = [serial scanPath:[self temporaryRoot] session:[[LDScanSession alloc] init]];
+
+  LDScanner *parallel = [[LDScanner alloc] init];
+  [parallel setThreadCount:8];
+  LDScanSession *session = [[LDScanSession alloc] init];
+  LDFileNode *parallelRoot = [parallel scanPath:[self temporaryRoot] session:session];
+
+  XCTAssertEqual((NSUInteger)341, [parallelRoot directoryCount]);
+  XCTAssertEqual((NSUInteger)2046, [parallelRoot fileCount]);
+  XCTAssertEqual((NSUInteger)2046, [session filesScanned]);
+  XCTAssertEqual([serialRoot aggregateSize], [parallelRoot aggregateSize]);
+  XCTAssertEqualObjects([serialRoot snapshotDictionary], [parallelRoot snapshotDictionary]);
+}
+
+- (void)testParallelScanCountsHardLinksOnce
+{
+  NSString *original = [self writeFile:@"original.bin" bytes:30000];
+  int i = 0;
+  for (i = 0; i < 20; i++) {
+    NSString *directory = [[self temporaryRoot] stringByAppendingPathComponent:[NSString stringWithFormat:@"links%d", i]];
+    [[NSFileManager defaultManager] createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:NULL];
+    NSString *linked = [directory stringByAppendingPathComponent:@"linked.bin"];
+    XCTAssertEqual(0, link([original fileSystemRepresentation], [linked fileSystemRepresentation]));
+  }
+
+  LDScanner *scanner = [[LDScanner alloc] init];
+  [scanner setThreadCount:8];
+  LDFileNode *root = [scanner scanPath:[self temporaryRoot] session:[[LDScanSession alloc] init]];
+
+  XCTAssertEqual((unsigned long long)30000, [root aggregateSize]);
+  XCTAssertEqual((NSUInteger)21, [root fileCount]);
+}
+
 @end

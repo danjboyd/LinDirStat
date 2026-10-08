@@ -28,6 +28,7 @@ typedef enum {
   volatile BOOL _asyncFinished;
   NSString *_asyncPath;
   LDSizeMetric _sortMetric;
+  NSUInteger _threadCount;
 }
 
 - (LDScanSessionState)state;
@@ -44,6 +45,8 @@ typedef enum {
 - (unsigned long long)bytesScanned;
 - (void)recordFileWithBytes:(unsigned long long)bytes;
 - (void)recordDirectory;
+// Batched form used by scanner workers, once per directory read.
+- (void)recordFiles:(NSUInteger)files directories:(NSUInteger)directories bytes:(unsigned long long)bytes;
 
 - (NSTimeInterval)elapsedTime;
 
@@ -60,7 +63,14 @@ typedef enum {
 - (void)cancel;
 - (BOOL)isCanceled;
 - (BOOL)isFinished;
+// Number of directories read concurrently (see -[LDScanner threadCount]).
+- (NSUInteger)threadCount;
+- (void)setThreadCount:(NSUInteger)threadCount;
+
+// Scans on a libdispatch queue. completion, if given, runs on the main queue
+// once the tree is complete (or the scan was canceled).
 - (void)startAsyncScanPath:(NSString *)path;
+- (void)startAsyncScanPath:(NSString *)path completion:(void (^)(void))completion;
 - (BOOL)waitUntilFinishedBeforeDate:(NSDate *)deadline;
 - (NSDictionary *)snapshotDictionary;
 

@@ -2,6 +2,8 @@
 #import "LDFileNode.h"
 #import "LDScanner.h"
 
+#include <dispatch/dispatch.h>
+
 @implementation LDScanSession
 
 - (id)init
@@ -10,6 +12,7 @@
   if (self) {
     _lock = [[NSLock alloc] init];
     _sortMetric = LDSizeMetricPhysical;
+    _threadCount = [LDScanner defaultThreadCount];
   }
   return self;
 }
@@ -24,6 +27,8 @@
 - (BOOL)isFinished { return __atomic_load_n(&_asyncFinished, __ATOMIC_ACQUIRE); }
 - (LDSizeMetric)sortMetric { return _sortMetric; }
 - (void)setSortMetric:(LDSizeMetric)sortMetric { _sortMetric = sortMetric; }
+- (NSUInteger)threadCount { return _threadCount; }
+- (void)setThreadCount:(NSUInteger)threadCount { _threadCount = threadCount; }
 
 - (void)incrementSkippedCount { __atomic_add_fetch(&_skippedCount, 1, __ATOMIC_RELAXED); }
 - (void)incrementErrorCount { __atomic_add_fetch(&_errorCount, 1, __ATOMIC_RELAXED); }
@@ -37,6 +42,13 @@
 - (void)recordDirectory
 {
   __atomic_add_fetch(&_directoriesScanned, 1, __ATOMIC_RELAXED);
+}
+
+- (void)recordFiles:(NSUInteger)files directories:(NSUInteger)directories bytes:(unsigned long long)bytes
+{
+  __atomic_add_fetch(&_filesScanned, files, __ATOMIC_RELAXED);
+  __atomic_add_fetch(&_directoriesScanned, directories, __ATOMIC_RELAXED);
+  __atomic_add_fetch(&_bytesScanned, bytes, __ATOMIC_RELAXED);
 }
 
 - (NSString *)currentPath
@@ -123,20 +135,26 @@
 
 - (void)startAsyncScanPath:(NSString *)path
 {
-  _asyncPath = [path copy];
-  __atomic_store_n(&_asyncFinished, NO, __ATOMIC_RELEASE);
-  // NSThread retains the session until runAsyncScan returns.
-  [NSThread detachNewThreadSelector:@selector(runAsyncScan) toTarget:self withObject:nil];
+  [self startAsyncScanPath:path completion:nil];
 }
 
-- (void)runAsyncScan
+- (void)startAsyncScanPath:(NSString *)path completion:(void (^)(void))completion
 {
-  @autoreleasepool {
-    LDScanner *scanner = [[LDScanner alloc] init];
-    [scanner setSortMetric:_sortMetric];
-    [scanner scanPath:_asyncPath session:self];
-  }
-  __atomic_store_n(&_asyncFinished, YES, __ATOMIC_RELEASE);
+  _asyncPath = [path copy];
+  __atomic_store_n(&_asyncFinished, NO, __ATOMIC_RELEASE);
+  // The blocks keep the session alive until the scan and completion are done.
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    @autoreleasepool {
+      LDScanner *scanner = [[LDScanner alloc] init];
+      [scanner setSortMetric:_sortMetric];
+      [scanner setThreadCount:_threadCount];
+      [scanner scanPath:_asyncPath session:self];
+    }
+    __atomic_store_n(&_asyncFinished, YES, __ATOMIC_RELEASE);
+    if (completion) {
+      dispatch_async(dispatch_get_main_queue(), completion);
+    }
+  });
 }
 
 - (BOOL)waitUntilFinishedBeforeDate:(NSDate *)deadline
