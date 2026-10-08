@@ -24,6 +24,7 @@ static const NSUInteger LDDefaultScanThreads = 4;
     pthread_mutex_init(&_sharedStateLock, NULL);
     _workCondition = [[NSCondition alloc] init];
     _pendingDirectories = [[NSMutableArray alloc] init];
+    _arenas = [[NSMutableArray alloc] init];
     _sortMetric = LDSizeMetricPhysical;
     _threadCount = LDDefaultScanThreads;
   }
@@ -105,80 +106,61 @@ static const NSUInteger LDDefaultScanThreads = 4;
 // Returns the shared key instance for a file name's extension. Short ASCII
 // extensions are parsed straight from the dirent bytes, so the common case
 // allocates nothing that outlives the lookup.
-- (NSString *)internedExtensionKeyForName:(NSString *)name rawName:(const char *)rawName cache:(NSMutableDictionary *)cache
+- (NSString *)internedExtensionKeyForNode:(LDFileNode *)node cache:(NSMutableDictionary *)cache
 {
+  const char *rawName = [node nameBytes];
+  const char *dot = strrchr(rawName, '.');
+  if (dot == NULL || dot == rawName || dot[1] == '\0') {
+    return @"<none>";
+  }
+
   char buffer[32];
   size_t length = 0;
-  BOOL simple = NO;
-  if (rawName) {
-    const char *dot = strrchr(rawName, '.');
-    if (dot == NULL || dot == rawName || dot[1] == '\0') {
-      return @"<none>";
+  const char *cursor = dot + 1;
+  while (*cursor) {
+    unsigned char c = (unsigned char)*cursor++;
+    if (c >= 0x80 || length >= sizeof(buffer)) {
+      return [self internKey:[LDExtensionStats extensionKeyForFilename:[node displayName]] cache:cache];
     }
-    simple = YES;
-    const char *cursor = dot + 1;
-    while (*cursor && simple) {
-      unsigned char c = (unsigned char)*cursor++;
-      if (c >= 0x80 || length >= sizeof(buffer)) {
-        simple = NO;
-      } else {
-        buffer[length++] = (char)((c >= 'A' && c <= 'Z') ? c + ('a' - 'A') : c);
-      }
-    }
+    buffer[length++] = (char)((c >= 'A' && c <= 'Z') ? c + ('a' - 'A') : c);
   }
-
-  if (simple) {
-    NSString *probe = [[NSString alloc] initWithBytesNoCopy:buffer
-                                                     length:length
-                                                   encoding:NSASCIIStringEncoding
-                                               freeWhenDone:NO];
-    return [self internKey:probe cache:cache];
-  }
-  return [self internKey:[LDExtensionStats extensionKeyForFilename:name] cache:cache];
+  NSString *probe = [[NSString alloc] initWithBytesNoCopy:buffer
+                                                   length:length
+                                                 encoding:NSASCIIStringEncoding
+                                             freeWhenDone:NO];
+  return [self internKey:probe cache:cache];
 }
 
-// Builds a node from stat data. Hard-link duplicates and special files keep
+// Fills in a node from stat data. Hard-link duplicates and special files keep
 // their identity in the tree but contribute no bytes, so totals match `du`.
-- (LDFileNode *)nodeNamed:(NSString *)name rawName:(const char *)rawName path:(NSString *)path info:(const struct stat *)info session:(LDScanSession *)session cache:(NSMutableDictionary *)cache
+- (void)applyStat:(const struct stat *)info toNode:(LDFileNode *)node session:(LDScanSession *)session cache:(NSMutableDictionary *)cache
 {
-  LDFileNodeKind kind = [self kindForMode:info->st_mode];
-  unsigned long long size = 0;
-  unsigned long long allocated = 0;
-  if (kind == LDFileNodeKindFile || kind == LDFileNodeKindSymlink) {
-    size = (unsigned long long)info->st_size;
-    allocated = (unsigned long long)info->st_blocks * 512ULL;
-  }
-
-  NSString *errorCode = nil;
+  LDFileNodeKind kind = [node kind];
   if (kind == LDFileNodeKindFile && info->st_nlink > 1) {
     if (![self insertKey:[self identityKeyForStat:info] intoSet:_visitedHardLinks]) {
-      errorCode = @"hard_link_duplicate";
-      size = 0;
-      allocated = 0;
+      [node setSize:0 allocatedSize:0];
+      [node setError:LDFileNodeErrorHardLinkDuplicate errorNumber:0];
       [session incrementSkippedCount];
     }
   } else if (kind == LDFileNodeKindSpecial) {
-    errorCode = @"special_file";
+    [node setError:LDFileNodeErrorSpecialFile errorNumber:0];
     [session incrementSkippedCount];
-  }
-
-  LDFileNode *node = nil;
-  if (path) {
-    node = [LDFileNode nodeWithPath:path kind:kind size:size];
-    [node setAllocatedSize:allocated];
-  } else {
-    node = [LDFileNode nodeWithName:name kind:kind size:size allocatedSize:allocated];
   }
   [node setModificationTime:(NSTimeInterval)info->st_mtime];
   [node setMode:(unsigned int)info->st_mode];
-  if (errorCode) {
-    [node setErrorCode:errorCode];
-  }
   if (kind == LDFileNodeKindFile || kind == LDFileNodeKindSymlink) {
-    [node setExtensionKey:[self internedExtensionKeyForName:name rawName:rawName cache:cache]];
+    [node setExtensionKey:[self internedExtensionKeyForNode:node cache:cache]];
   }
+}
 
-  return node;
+- (void)sizesForStat:(const struct stat *)info kind:(LDFileNodeKind)kind size:(unsigned long long *)size allocated:(unsigned long long *)allocated
+{
+  *size = 0;
+  *allocated = 0;
+  if (kind == LDFileNodeKindFile || kind == LDFileNodeKindSymlink) {
+    *size = (unsigned long long)info->st_size;
+    *allocated = (unsigned long long)info->st_blocks * 512ULL;
+  }
 }
 
 #pragma mark - Scanning
@@ -188,15 +170,17 @@ static const NSUInteger LDDefaultScanThreads = 4;
   [_visitedHardLinks removeAllObjects];
   [_visitedDirectories removeAllObjects];
   [_pendingDirectories removeAllObjects];
+  [_arenas removeAllObjects];
   _activeWorkers = 0;
   [session markScanning];
   [session setCurrentPath:path];
 
   // The root follows symlinks so scanning a linked folder scans its target.
   struct stat info;
-  if (stat([path fileSystemRepresentation], &info) != 0) {
+  const char *rootPath = [path fileSystemRepresentation];
+  if (stat(rootPath, &info) != 0) {
     LDFileNode *missing = [LDFileNode nodeWithPath:path kind:LDFileNodeKindSpecial size:0];
-    [missing setErrorCode:[NSString stringWithFormat:@"stat_failed:%s", strerror(errno)]];
+    [missing setError:LDFileNodeErrorStatFailed errorNumber:errno];
     [session incrementErrorCount];
     [session incrementSkippedCount];
     [session setRootNode:missing];
@@ -205,16 +189,22 @@ static const NSUInteger LDDefaultScanThreads = 4;
   }
 
   _rootDevice = info.st_dev;
-  LDFileNode *root = [self nodeNamed:[path lastPathComponent] rawName:NULL path:path info:&info session:session cache:nil];
-  if ([root kind] == LDFileNodeKindDirectory) {
+  LDFileNodeKind kind = [self kindForMode:info.st_mode];
+  unsigned long long size = 0;
+  unsigned long long allocated = 0;
+  [self sizesForStat:&info kind:kind size:&size allocated:&allocated];
+  LDFileNode *root = [LDFileNode nodeWithPath:path kind:kind size:size];
+  [root setAllocatedSize:allocated];
+  [self applyStat:&info toNode:root session:session cache:nil];
+  if (kind == LDFileNodeKindDirectory) {
     [session recordDirectory];
-  } else {
-    [session recordFileWithBytes:[root allocatedSize]];
-  }
-  if ([root kind] == LDFileNodeKindDirectory) {
     [_visitedDirectories addObject:[self identityKeyForStat:&info]];
-    [_pendingDirectories addObject:@[root, path]];
+    [_pendingDirectories addObject:@[root, [NSData dataWithBytes:rootPath length:strlen(rootPath)]]];
     [self runWorkersWithSession:session];
+    [(LDDirectoryNode *)root setOwnedStorage:[_arenas copy]];
+    [_arenas removeAllObjects];
+  } else {
+    [session recordFileWithBytes:allocated];
   }
 
   [root recalculateAggregateSize];
@@ -233,6 +223,10 @@ static const NSUInteger LDDefaultScanThreads = 4;
   dispatch_apply(_threadCount, queue, ^(size_t worker) {
     (void)worker;
     NSMutableDictionary *keyCache = [NSMutableDictionary dictionary];
+    LDNameArena *arena = [[LDNameArena alloc] init];
+    [_workCondition lock];
+    [_arenas addObject:arena];
+    [_workCondition unlock];
     while (YES) {
       NSArray *job = nil;
       [_workCondition lock];
@@ -251,10 +245,11 @@ static const NSUInteger LDDefaultScanThreads = 4;
 
       NSArray *subdirectories = nil;
       @autoreleasepool {
-        LDFileNode *node = [job objectAtIndex:0];
-        NSString *path = [job objectAtIndex:1];
-        [session setCurrentPath:path];
-        subdirectories = [self readDirectoryNode:node path:path session:session cache:keyCache];
+        subdirectories = [self readDirectoryNode:[job objectAtIndex:0]
+                                       pathBytes:[job objectAtIndex:1]
+                                         session:session
+                                           arena:arena
+                                           cache:keyCache];
       }
 
       [_workCondition lock];
@@ -266,19 +261,32 @@ static const NSUInteger LDDefaultScanThreads = 4;
   });
 }
 
-// Reads one directory, adding its entries as children of node. Returns the
-// subdirectories still to scan as [node, path] pairs.
-- (NSArray *)readDirectoryNode:(LDFileNode *)node path:(NSString *)path session:(LDScanSession *)session cache:(NSMutableDictionary *)cache
+// Reads one directory, adding its entries as children of node. Paths stay
+// raw bytes so names that are not valid UTF-8 still open. Returns the
+// subdirectories still to scan as [node, path bytes] pairs.
+- (NSArray *)readDirectoryNode:(LDFileNode *)node
+                     pathBytes:(NSData *)pathBytes
+                       session:(LDScanSession *)session
+                         arena:(LDNameArena *)arena
+                         cache:(NSMutableDictionary *)cache
 {
-  DIR *directory = opendir([path fileSystemRepresentation]);
+  size_t pathLength = [pathBytes length];
+  char *path = malloc(pathLength + 1);
+  memcpy(path, [pathBytes bytes], pathLength);
+  path[pathLength] = '\0';
+  [session setCurrentPath:[[NSFileManager defaultManager] stringWithFileSystemRepresentation:path length:pathLength]];
+
+  DIR *directory = opendir(path);
   if (directory == NULL) {
-    [node setErrorCode:@"directory_unreadable"];
+    free(path);
+    [node setError:LDFileNodeErrorDirectoryUnreadable errorNumber:errno];
     [session incrementErrorCount];
     [session incrementSkippedCount];
     return nil;
   }
 
   int directoryFD = dirfd(directory);
+  BOOL rootIsSlash = (pathLength == 1 && path[0] == '/');
   NSMutableArray *subdirectories = [NSMutableArray array];
   NSUInteger files = 0;
   NSUInteger directories = 0;
@@ -293,48 +301,50 @@ static const NSUInteger LDDefaultScanThreads = 4;
     }
 
     size_t nameLength = strlen(entry->d_name);
-    NSString *name = [[NSString alloc] initWithBytes:entry->d_name
-                                              length:nameLength
-                                            encoding:NSUTF8StringEncoding];
-    if (name == nil) {
-      // Not valid UTF-8; fall back to the locale's filesystem encoding.
-      name = [[NSFileManager defaultManager] stringWithFileSystemRepresentation:entry->d_name length:nameLength];
-    }
-    if (name == nil) {
+    struct stat info;
+    if (fstatat(directoryFD, entry->d_name, &info, AT_SYMLINK_NOFOLLOW) != 0) {
+      LDFileNode *failed = [LDFileNode nodeWithNameBytes:entry->d_name length:nameLength arena:arena
+                                                    kind:LDFileNodeKindSpecial size:0 allocatedSize:0];
+      [failed setError:LDFileNodeErrorStatFailed errorNumber:errno];
+      [session incrementErrorCount];
       [session incrementSkippedCount];
+      [node addChild:failed];
       continue;
     }
 
-    struct stat info;
-    LDFileNode *child = nil;
-    if (fstatat(directoryFD, entry->d_name, &info, AT_SYMLINK_NOFOLLOW) != 0) {
-      child = [LDFileNode nodeWithName:name kind:LDFileNodeKindSpecial size:0 allocatedSize:0];
-      [child setErrorCode:[NSString stringWithFormat:@"stat_failed:%s", strerror(errno)]];
-      [session incrementErrorCount];
+    LDFileNodeKind kind = [self kindForMode:info.st_mode];
+    unsigned long long size = 0;
+    unsigned long long allocated = 0;
+    [self sizesForStat:&info kind:kind size:&size allocated:&allocated];
+    LDFileNode *child = [LDFileNode nodeWithNameBytes:entry->d_name length:nameLength arena:arena
+                                                 kind:kind size:size allocatedSize:allocated];
+    [self applyStat:&info toNode:child session:session cache:cache];
+    [node addChild:child];
+
+    if (kind != LDFileNodeKindDirectory) {
+      files++;
+      bytes += [child allocatedSize];
+      continue;
+    }
+    directories++;
+    if (![self shouldDescendIntoDevice:info.st_dev]) {
+      [child setError:LDFileNodeErrorMountPoint errorNumber:0];
+      [session incrementSkippedCount];
+    } else if (![self insertKey:[self identityKeyForStat:&info] intoSet:_visitedDirectories]) {
+      [child setError:LDFileNodeErrorDirectoryCycle errorNumber:0];
       [session incrementSkippedCount];
     } else {
-      child = [self nodeNamed:name rawName:entry->d_name path:nil info:&info session:session cache:cache];
-      if ([child kind] == LDFileNodeKindDirectory) {
-        directories++;
-      } else {
-        files++;
-        bytes += [child allocatedSize];
+      NSMutableData *childPath = [NSMutableData dataWithCapacity:pathLength + nameLength + 1];
+      [childPath appendBytes:path length:pathLength];
+      if (!rootIsSlash) {
+        [childPath appendBytes:"/" length:1];
       }
-      if ([child kind] == LDFileNodeKindDirectory) {
-        if (![self shouldDescendIntoDevice:info.st_dev]) {
-          [child setErrorCode:@"mount_point"];
-          [session incrementSkippedCount];
-        } else if (![self insertKey:[self identityKeyForStat:&info] intoSet:_visitedDirectories]) {
-          [child setErrorCode:@"directory_cycle"];
-          [session incrementSkippedCount];
-        } else {
-          [subdirectories addObject:@[child, [path stringByAppendingPathComponent:name]]];
-        }
-      }
+      [childPath appendBytes:entry->d_name length:nameLength];
+      [subdirectories addObject:@[child, childPath]];
     }
-    [node addChild:child];
   }
   closedir(directory);
+  free(path);
   [session recordFiles:files directories:directories bytes:bytes];
   return subdirectories;
 }

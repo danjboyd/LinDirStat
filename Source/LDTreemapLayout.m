@@ -140,8 +140,8 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
     _rootNode = rootNode;
     _metric = metric;
     _options = options;
-    _width = MAX(width, 0);
-    _height = MAX(height, 0);
+    _width = MIN(MAX(width, 0), LDTreemapMaxSide);
+    _height = MIN(MAX(height, 0), LDTreemapMaxSide);
     [self layout];
   }
   return self;
@@ -155,26 +155,45 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
 - (NSUInteger)cellCount { return _cellCount; }
 - (const LDTreemapCell *)cells { return _cells; }
 
-- (NSInteger)appendCellForNode:(LDFileNode *)node rect:(LDTreemapRect)rect parent:(NSInteger)parent
+- (NSInteger)appendCellForNode:(LDFileNode *)node rect:(LDTreemapRect)rect
 {
   if (_cellCount == _cellCapacity) {
     _cellCapacity = MAX((NSUInteger)64, _cellCapacity * 2);
     _cells = realloc(_cells, _cellCapacity * sizeof(LDTreemapCell));
   }
   LDTreemapCell *cell = &_cells[_cellCount];
-  memset(cell, 0, sizeof(LDTreemapCell));
   cell->node = node;
-  cell->rect = rect;
+  cell->left = (int16_t)rect.left;
+  cell->top = (int16_t)rect.top;
+  cell->right = (int16_t)rect.right;
+  cell->bottom = (int16_t)rect.bottom;
   cell->firstChild = -1;
-  if (parent >= 0) {
-    LDTreemapCell *parentCell = &_cells[parent];
-    memcpy(cell->surface, parentCell->surface, sizeof(cell->surface));
-    cell->ridgeHeight = parentCell->ridgeHeight * _options.scaleFactor;
-    cell->depth = parentCell->depth + 1;
-  } else {
-    cell->ridgeHeight = _options.height;
-  }
+  cell->childCount = 0;
   return (NSInteger)_cellCount++;
+}
+
+- (LDTreemapRect)rectOfCell:(NSUInteger)index
+{
+  LDTreemapCell *cell = &_cells[index];
+  LDTreemapRect rect = {cell->left, cell->top, cell->right, cell->bottom};
+  return rect;
+}
+
+- (LDFileNode *)nodeOfCell:(NSUInteger)index
+{
+  return _cells[index].node;
+}
+
+- (BOOL)cellIsLargeEnough:(NSUInteger)index
+{
+  int gridWidth = _options.grid ? 1 : 0;
+  LDTreemapCell *cell = &_cells[index];
+  return cell->right - cell->left > gridWidth && cell->bottom - cell->top > gridWidth;
+}
+
+- (BOOL)isCellRendered:(NSUInteger)index
+{
+  return [self cellIsLargeEnough:index] && [_cells[index].node isLeaf];
 }
 
 - (unsigned long long)sizeOfNode:(LDFileNode *)node
@@ -196,6 +215,8 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
   return children;
 }
 
+// Port of the layout half of CTreeMap::DrawTreeMap. Cells are visited in
+// creation order, which is breadth-first, so no explicit stack is needed.
 - (void)layout
 {
   free(_cells);
@@ -208,50 +229,30 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
   }
 
   LDTreemapRect area = {0, 0, _width, _height};
-  [self appendCellForNode:_rootNode rect:area parent:-1];
+  [self appendCellForNode:_rootNode rect:area];
   if ([self sizeOfNode:_rootNode] == 0) {
     return;
   }
 
-  BOOL cushions = LDTreemapOptionsUseCushions(_options);
-  int gridWidth = _options.grid ? 1 : 0;
-  NSMutableArray *stack = [NSMutableArray arrayWithObject:[NSNumber numberWithInteger:0]];
-  while ([stack count] > 0) {
-    NSInteger index = [[stack lastObject] integerValue];
-    [stack removeLastObject];
-
-    LDTreemapCell *cell = &_cells[index];
-    LDTreemapRect rect = cell->rect;
-    if (LDTreemapRectWidth(rect) <= gridWidth || LDTreemapRectHeight(rect) <= gridWidth) {
-      continue;
-    }
-    if (cushions && index != 0) {
-      LDAddRidge(rect, cell->surface, cell->ridgeHeight);
-    }
-
-    LDFileNode *node = cell->node;
-    NSArray *children = [node isLeaf] ? nil : [self sizedChildrenOfNode:node];
-    if ([node isLeaf]) {
-      cell->rendered = YES;
-      continue;
-    }
-    if ([children count] == 0) {
-      continue;
-    }
-
-    NSInteger firstChild = (NSInteger)_cellCount;
-    if (_options.style == LDTreemapStyleSequoiaView) {
-      [self layoutSequoiaChildren:children ofCell:index];
-    } else {
-      [self layoutKDirStatChildren:children ofCell:index];
-    }
-    cell = &_cells[index];
-    cell->firstChild = firstChild;
-    cell->childCount = _cellCount - (NSUInteger)firstChild;
-
-    NSUInteger i = 0;
-    for (i = 0; i < cell->childCount; i++) {
-      [stack addObject:[NSNumber numberWithInteger:firstChild + (NSInteger)i]];
+  NSUInteger index = 0;
+  for (index = 0; index < _cellCount; index++) {
+    @autoreleasepool {
+      LDFileNode *node = _cells[index].node;
+      if (![self cellIsLargeEnough:index] || [node isLeaf]) {
+        continue;
+      }
+      NSArray *children = [self sizedChildrenOfNode:node];
+      if ([children count] == 0) {
+        continue;
+      }
+      int32_t firstChild = (int32_t)_cellCount;
+      if (_options.style == LDTreemapStyleSequoiaView) {
+        [self layoutSequoiaChildren:children ofCell:(NSInteger)index];
+      } else {
+        [self layoutKDirStatChildren:children ofCell:(NSInteger)index];
+      }
+      _cells[index].firstChild = firstChild;
+      _cells[index].childCount = (uint32_t)(_cellCount - (NSUInteger)firstChild);
     }
   }
 }
@@ -287,7 +288,7 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
 // Port of the KDirStat branch of CTreeMap::DrawTreeMap.
 - (void)layoutKDirStatChildren:(NSArray *)children ofCell:(NSInteger)index
 {
-  LDTreemapRect parentRect = _cells[index].rect;
+  LDTreemapRect parentRect = [self rectOfCell:(NSUInteger)index];
   NSUInteger count = [children count];
   double parentSize = (double)[self sizeOfNode:_cells[index].node];
 
@@ -354,7 +355,7 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
         childRect.top = (int)left;
         childRect.bottom = right;
       }
-      [self appendCellForNode:[children objectAtIndex:c] rect:childRect parent:index];
+      [self appendCellForNode:[children objectAtIndex:c] rect:childRect];
       left = fRight;
     }
     top = fBottom;
@@ -369,7 +370,7 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
 // Port of the SequoiaView branch of CTreeMap::DrawTreeMap.
 - (void)layoutSequoiaChildren:(NSArray *)children ofCell:(NSInteger)index
 {
-  LDTreemapRect remaining = _cells[index].rect;
+  LDTreemapRect remaining = [self rectOfCell:(NSUInteger)index];
   NSUInteger count = [children count];
   double remainingSize = (double)[self sizeOfNode:_cells[index].node];
   double sizePerSquarePixel = remainingSize / LDTreemapRectWidth(remaining) / LDTreemapRectHeight(remaining);
@@ -432,7 +433,7 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
         childRect.top = rowRect.top;
         childRect.bottom = rowRect.bottom;
       }
-      [self appendCellForNode:[children objectAtIndex:i] rect:childRect parent:index];
+      [self appendCellForNode:[children objectAtIndex:i] rect:childRect];
       fBegin = fEnd;
     }
 
@@ -452,33 +453,51 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
 
 - (NSInteger)cellIndexAtX:(int)x y:(int)y
 {
-  if (_cellCount == 0 || !LDTreemapRectContainsPoint(_cells[0].rect, x, y)) {
+  if (_cellCount == 0 || !LDTreemapRectContainsPoint([self rectOfCell:0], x, y)) {
     return -1;
   }
 
-  int gridWidth = _options.grid ? 1 : 0;
-  NSInteger index = 0;
+  NSUInteger index = 0;
   while (YES) {
     LDTreemapCell *cell = &_cells[index];
-    if (LDTreemapRectWidth(cell->rect) <= gridWidth
-        || LDTreemapRectHeight(cell->rect) <= gridWidth
-        || cell->firstChild < 0) {
-      return index;
+    if (![self cellIsLargeEnough:index] || cell->firstChild < 0) {
+      return (NSInteger)index;
     }
     NSInteger next = -1;
-    NSUInteger i = 0;
+    uint32_t i = 0;
     for (i = 0; i < cell->childCount; i++) {
-      NSInteger childIndex = cell->firstChild + (NSInteger)i;
-      if (LDTreemapRectContainsPoint(_cells[childIndex].rect, x, y)) {
-        next = childIndex;
+      NSUInteger childIndex = (NSUInteger)cell->firstChild + i;
+      if (LDTreemapRectContainsPoint([self rectOfCell:childIndex], x, y)) {
+        next = (NSInteger)childIndex;
         break;
       }
     }
     if (next < 0) {
-      return index;
+      return (NSInteger)index;
     }
-    index = next;
+    index = (NSUInteger)next;
   }
+}
+
+- (void)enumerateRenderedCellsUsingBlock:(void (^)(NSUInteger index, NSUInteger depth))block
+{
+  if (_cellCount == 0) {
+    return;
+  }
+  // Parents precede their children, so depths fill in one pass.
+  uint16_t *depths = calloc(_cellCount, sizeof(uint16_t));
+  NSUInteger index = 0;
+  for (index = 0; index < _cellCount; index++) {
+    LDTreemapCell *cell = &_cells[index];
+    uint32_t i = 0;
+    for (i = 0; cell->firstChild >= 0 && i < cell->childCount; i++) {
+      depths[(NSUInteger)cell->firstChild + i] = depths[index] + 1;
+    }
+    if ([self isCellRendered:index]) {
+      block(index, depths[index]);
+    }
+  }
+  free(depths);
 }
 
 - (NSInteger)cellIndexForNode:(LDFileNode *)node
@@ -527,6 +546,14 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
   return [LDExtensionColor paletteColorAtIndex:paletteIndex];
 }
 
+typedef struct {
+  NSUInteger index;
+  double surface[4];
+  double height;
+} LDRenderFrame;
+
+// Port of the drawing half of CTreeMap::DrawTreeMap: walks the cells
+// depth-first, adding each cell's ridge to its parent's cushion surface.
 - (NSData *)renderRGBAWithColorIndexes:(NSDictionary *)colorIndexes
 {
   NSMutableData *data = [NSMutableData dataWithLength:(NSUInteger)_width * (NSUInteger)_height * 4];
@@ -544,41 +571,69 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
   LDDrawSolidRect(bitmap, _width, area, _options.gridColor, LDPaletteBrightness);
   BOOL cushions = LDTreemapOptionsUseCushions(_options);
   NSMutableDictionary *colorCache = [NSMutableDictionary dictionary];
-  NSUInteger i = 0;
-  for (i = 0; i < _cellCount; i++) {
-    LDTreemapCell *cell = &_cells[i];
-    if (!cell->rendered) {
+
+  NSUInteger capacity = 256;
+  NSUInteger depth = 0;
+  LDRenderFrame *stack = malloc(capacity * sizeof(LDRenderFrame));
+  stack[0].index = 0;
+  memset(stack[0].surface, 0, sizeof(stack[0].surface));
+  stack[0].height = _options.height;
+  depth = 1;
+
+  while (depth > 0) {
+    LDRenderFrame frame = stack[--depth];
+    LDTreemapCell *cell = &_cells[frame.index];
+    if (![self cellIsLargeEnough:frame.index]) {
       continue;
     }
-    LDTreemapRect rect = cell->rect;
-    if (_options.grid) {
-      rect.top++;
-      rect.left++;
-      if (LDTreemapRectWidth(rect) <= 0 || LDTreemapRectHeight(rect) <= 0) {
-        continue;
-      }
+    LDTreemapRect rect = [self rectOfCell:frame.index];
+    if (cushions && frame.index != 0) {
+      LDAddRidge(rect, frame.surface, frame.height);
     }
 
-    LDRGBColor color;
-    LDFileNodeKind kind = [cell->node kind];
-    if (kind == LDFileNodeKindFile || kind == LDFileNodeKindSymlink) {
-      NSString *key = [cell->node extensionKey];
-      NSNumber *cached = [colorCache objectForKey:key];
-      if (!cached) {
-        cached = [NSNumber numberWithUnsignedInt:[LDTreemap colorForNode:cell->node colorIndexes:colorIndexes]];
-        [colorCache setObject:cached forKey:key];
+    if ([cell->node isLeaf]) {
+      if (_options.grid) {
+        rect.top++;
+        rect.left++;
+        if (LDTreemapRectWidth(rect) <= 0 || LDTreemapRectHeight(rect) <= 0) {
+          continue;
+        }
       }
-      color = [cached unsignedIntValue];
-    } else {
-      color = LDRGB(0, 0, 0);
+      LDRGBColor color = LDRGB(0, 0, 0);
+      LDFileNodeKind kind = [cell->node kind];
+      if (kind == LDFileNodeKindFile || kind == LDFileNodeKindSymlink) {
+        NSString *key = [cell->node extensionKey];
+        NSNumber *cached = [colorCache objectForKey:key];
+        if (!cached) {
+          cached = [NSNumber numberWithUnsignedInt:[LDTreemap colorForNode:cell->node colorIndexes:colorIndexes]];
+          [colorCache setObject:cached forKey:key];
+        }
+        color = [cached unsignedIntValue];
+      }
+      if (cushions) {
+        LDDrawCushion(bitmap, _width, rect, frame.surface, color, _options.brightness, _options);
+      } else {
+        LDDrawSolidRect(bitmap, _width, rect, color, _options.brightness);
+      }
+      continue;
     }
 
-    if (cushions) {
-      LDDrawCushion(bitmap, _width, rect, cell->surface, color, _options.brightness, _options);
-    } else {
-      LDDrawSolidRect(bitmap, _width, rect, color, _options.brightness);
+    if (cell->firstChild < 0) {
+      continue;
+    }
+    if (depth + cell->childCount > capacity) {
+      capacity = MAX(capacity * 2, depth + cell->childCount);
+      stack = realloc(stack, capacity * sizeof(LDRenderFrame));
+    }
+    uint32_t i = 0;
+    for (i = 0; i < cell->childCount; i++) {
+      LDRenderFrame *child = &stack[depth++];
+      child->index = (NSUInteger)cell->firstChild + i;
+      memcpy(child->surface, frame.surface, sizeof(child->surface));
+      child->height = frame.height * _options.scaleFactor;
     }
   }
+  free(stack);
   return data;
 }
 
@@ -634,23 +689,18 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
                                                      width:(int)floor(rect.size.width)
                                                     height:(int)floor(rect.size.height)
                                                    options:options];
-  const LDTreemapCell *cells = [treemap cells];
-  NSUInteger i = 0;
-  for (i = 0; i < [treemap cellCount]; i++) {
-    if (!cells[i].rendered) {
-      continue;
-    }
-    LDTreemapRect r = cells[i].rect;
+  [treemap enumerateRenderedCellsUsingBlock:^(NSUInteger index, NSUInteger depth) {
+    LDTreemapRect r = [treemap rectOfCell:index];
+    LDFileNode *node = [treemap nodeOfCell:index];
     NSRect itemRect = NSMakeRect(rect.origin.x + r.left,
                                  rect.origin.y + r.top,
                                  LDTreemapRectWidth(r),
                                  LDTreemapRectHeight(r));
-    NSString *extensionKey = [cells[i].node extensionKey];
-    [items addObject:[LDTreemapItem itemWithNode:cells[i].node
+    [items addObject:[LDTreemapItem itemWithNode:node
                                             rect:itemRect
-                                    extensionKey:extensionKey
-                                           depth:cells[i].depth]];
-  }
+                                    extensionKey:[node extensionKey]
+                                           depth:depth]];
+  }];
   return items;
 }
 

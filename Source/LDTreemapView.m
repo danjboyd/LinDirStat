@@ -250,7 +250,7 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
   if (index < 0) {
     return;
   }
-  NSRect rect = [self viewRectForCellRect:[_treemap cells][index].rect];
+  NSRect rect = [self viewRectForCellRect:[_treemap rectOfCell:(NSUInteger)index]];
   // A single selection grows 1px outward where the view allows it.
   NSRect area = [self treemapArea];
   if (NSMinX(area) < NSMinX(rect)) { rect.origin.x -= 1.0; rect.size.width += 1.0; }
@@ -262,19 +262,19 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 
 - (void)drawExtensionHighlights
 {
-  const LDTreemapCell *cells = [_treemap cells];
   NSUInteger count = [_treemap cellCount];
   NSUInteger i = 0;
   for (i = 0; i < count; i++) {
-    if (!cells[i].rendered) {
+    if (![_treemap isCellRendered:i]) {
       continue;
     }
-    LDFileNodeKind kind = [cells[i].node kind];
+    LDFileNode *node = [_treemap nodeOfCell:i];
+    LDFileNodeKind kind = [node kind];
     if (kind != LDFileNodeKindFile && kind != LDFileNodeKindSymlink) {
       continue;
     }
-    if ([[cells[i].node extensionKey] isEqualToString:_highlightedExtensionKey]) {
-      [self drawHighlightRect:[self viewRectForCellRect:cells[i].rect]];
+    if ([[node extensionKey] isEqualToString:_highlightedExtensionKey]) {
+      [self drawHighlightRect:[self viewRectForCellRect:[_treemap rectOfCell:i]]];
     }
   }
 }
@@ -289,7 +289,7 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
   NSRect area = [self treemapArea];
   NSInteger index = [_treemap cellIndexAtX:(int)floor(point.x - area.origin.x)
                                          y:(int)floor(point.y - area.origin.y)];
-  return index >= 0 ? [_treemap cells][index].node : nil;
+  return index >= 0 ? [_treemap nodeOfCell:(NSUInteger)index] : nil;
 }
 
 - (void)selectNodeAndNotify:(LDFileNode *)node

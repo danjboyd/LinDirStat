@@ -260,4 +260,45 @@
   XCTAssertEqual((NSUInteger)21, [root fileCount]);
 }
 
+- (void)testNamesThatAreNotUTF8AreScannedAndDescended
+{
+  // "caf\xe9" is Latin-1, not valid UTF-8; Linux allows any bytes in names.
+  NSString *root = [self temporaryRoot];
+  NSMutableData *directoryPath = [NSMutableData dataWithBytes:[root fileSystemRepresentation] length:strlen([root fileSystemRepresentation])];
+  [directoryPath appendBytes:"/caf\xe9\0" length:6];
+  XCTAssertEqual(0, mkdir([directoryPath bytes], 0755));
+  NSMutableData *filePath = [NSMutableData dataWithData:directoryPath];
+  [filePath setLength:[filePath length] - 1];
+  [filePath appendBytes:"/menu\xe9.txt\0" length:11];
+  int fd = open([filePath bytes], O_CREAT | O_WRONLY, 0644);
+  XCTAssertTrue(fd >= 0);
+  XCTAssertEqual((ssize_t)5000, write(fd, [[NSMutableData dataWithLength:5000] bytes], 5000));
+  close(fd);
+
+  LDScanner *scanner = [[LDScanner alloc] init];
+  LDScanSession *session = [[LDScanSession alloc] init];
+  LDFileNode *scanned = [scanner scanPath:root session:session];
+  LDFileNode *directory = [[scanned children] objectAtIndex:0];
+
+  XCTAssertEqual(0, strcmp("caf\xe9", [directory nameBytes]));
+  XCTAssertEqualObjects(@"caf\u00e9", [directory displayName]);
+  XCTAssertEqual((NSUInteger)1, [[directory children] count]);
+  XCTAssertEqual((unsigned long long)5000, [scanned aggregateSize]);
+  XCTAssertEqualObjects(@"txt", [[[directory children] objectAtIndex:0] extensionKey]);
+  XCTAssertEqual((NSUInteger)0, [session errorCount]);
+}
+
+- (void)testScannedNamesLiveInTheRootsArenas
+{
+  [self writeFile:@"a.txt" bytes:10];
+  LDScanner *scanner = [[LDScanner alloc] init];
+  LDFileNode *root = nil;
+  @autoreleasepool {
+    root = [scanner scanPath:[self temporaryRoot] session:[[LDScanSession alloc] init]];
+    scanner = nil;
+  }
+  // The scanner is gone; names must still be readable through the root.
+  XCTAssertEqualObjects(@"a.txt", [[[root children] objectAtIndex:0] displayName]);
+}
+
 @end

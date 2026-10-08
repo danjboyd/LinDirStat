@@ -39,12 +39,12 @@
                                      options:LDTreemapDefaultOptions()];
 }
 
-- (void)assertCell:(LDTreemapCell)cell left:(int)left top:(int)top right:(int)right bottom:(int)bottom
+- (void)assertRect:(LDTreemapRect)rect left:(int)left top:(int)top right:(int)right bottom:(int)bottom
 {
-  XCTAssertEqual(left, cell.rect.left);
-  XCTAssertEqual(top, cell.rect.top);
-  XCTAssertEqual(right, cell.rect.right);
-  XCTAssertEqual(bottom, cell.rect.bottom);
+  XCTAssertEqual(left, rect.left);
+  XCTAssertEqual(top, rect.top);
+  XCTAssertEqual(right, rect.right);
+  XCTAssertEqual(bottom, rect.bottom);
 }
 
 - (void)testLayoutCoversFilesProportionally
@@ -79,12 +79,10 @@
                                           [NSNumber numberWithInt:25],
                                           [NSNumber numberWithInt:25], nil]];
   LDTreemap *treemap = [self treemapForRoot:root width:100 height:100];
-  const LDTreemapCell *cells = [treemap cells];
-
   XCTAssertEqual((NSUInteger)4, [treemap cellCount]);
-  [self assertCell:cells[1] left:0 top:0 right:66 bottom:75];
-  [self assertCell:cells[2] left:66 top:0 right:100 bottom:75];
-  [self assertCell:cells[3] left:0 top:75 right:100 bottom:100];
+  [self assertRect:[treemap rectOfCell:1] left:0 top:0 right:66 bottom:75];
+  [self assertRect:[treemap rectOfCell:2] left:66 top:0 right:100 bottom:75];
+  [self assertRect:[treemap rectOfCell:3] left:0 top:75 right:100 bottom:100];
 }
 
 - (void)testLeavesTileTheAreaWithoutGapsOrOverlaps
@@ -105,16 +103,16 @@
                                                      options:options];
     NSMutableData *coverage = [NSMutableData dataWithLength:640 * 360];
     uint8_t *hits = [coverage mutableBytes];
-    const LDTreemapCell *cells = [treemap cells];
     NSUInteger c = 0;
     for (c = 0; c < [treemap cellCount]; c++) {
-      if (!cells[c].rendered) {
+      if (![treemap isCellRendered:c]) {
         continue;
       }
+      LDTreemapRect rect = [treemap rectOfCell:c];
       int x = 0;
       int y = 0;
-      for (y = cells[c].rect.top; y < cells[c].rect.bottom; y++) {
-        for (x = cells[c].rect.left; x < cells[c].rect.right; x++) {
+      for (y = rect.top; y < rect.bottom; y++) {
+        for (x = rect.left; x < rect.right; x++) {
           hits[y * 640 + x]++;
         }
       }
@@ -143,10 +141,10 @@
   LDTreemap *treemap = [self treemapForRoot:root width:100 height:100];
   NSInteger index = [treemap cellIndexAtX:10 y:10];
   XCTAssertTrue(index >= 0);
-  XCTAssertEqual(inner, [treemap cells][index].node);
+  XCTAssertEqual(inner, [treemap nodeOfCell:(NSUInteger)index]);
   XCTAssertEqual(-1, [treemap cellIndexAtX:100 y:10]);
-  XCTAssertEqual(inner, [treemap cells][[treemap cellIndexForNode:inner]].node);
-  XCTAssertEqual(dir, [treemap cells][[treemap cellIndexForNode:dir]].node);
+  XCTAssertEqual(inner, [treemap nodeOfCell:(NSUInteger)[treemap cellIndexForNode:inner]]);
+  XCTAssertEqual(dir, [treemap nodeOfCell:(NSUInteger)[treemap cellIndexForNode:dir]]);
 }
 
 - (void)testZeroSizeRootRendersBlack

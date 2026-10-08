@@ -41,16 +41,20 @@ static inline BOOL LDTreemapRectContainsPoint(LDTreemapRect rect, int x, int y)
   return x >= rect.left && x < rect.right && y >= rect.top && y < rect.bottom;
 }
 
+// One laid-out node: 24 bytes, so a treemap of a million files stays small.
+// Cushion surfaces are recomputed while rendering instead of being stored.
 typedef struct {
   __unsafe_unretained LDFileNode *node; // LDTreemap keeps the root (and so the tree) alive.
-  LDTreemapRect rect;
-  double surface[4];       // Cushion surface coefficients after this cell's ridge.
-  double ridgeHeight;      // Ridge height applied to this cell's children.
-  NSInteger firstChild;    // Index of the first child cell, or -1.
-  NSUInteger childCount;
-  NSUInteger depth;
-  BOOL rendered;           // Leaf that is large enough to be painted.
+  int16_t left;
+  int16_t top;
+  int16_t right;
+  int16_t bottom;
+  int32_t firstChild;   // Index of the first child cell, or -1 if not subdivided.
+  uint32_t childCount;
 } LDTreemapCell;
+
+// Largest treemap side; cell coordinates are 16-bit.
+#define LDTreemapMaxSide 32767
 
 @interface LDTreemap : NSObject
 {
@@ -79,6 +83,12 @@ typedef struct {
 - (int)height;
 - (NSUInteger)cellCount;
 - (const LDTreemapCell *)cells;
+- (LDTreemapRect)rectOfCell:(NSUInteger)index;
+- (LDFileNode *)nodeOfCell:(NSUInteger)index;
+// YES for leaves large enough to be painted.
+- (BOOL)isCellRendered:(NSUInteger)index;
+// Visits painted leaves depth-first with their depth below the root.
+- (void)enumerateRenderedCellsUsingBlock:(void (^)(NSUInteger index, NSUInteger depth))block;
 
 // Port of CTreeMap::FindItemByPoint. Returns -1 outside the area.
 - (NSInteger)cellIndexAtX:(int)x y:(int)y;

@@ -14,36 +14,61 @@ typedef enum {
   LDSizeMetricLogical = 1
 } LDSizeMetric;
 
+typedef enum {
+  LDFileNodeErrorNone = 0,
+  LDFileNodeErrorStatFailed,
+  LDFileNodeErrorHardLinkDuplicate,
+  LDFileNodeErrorSpecialFile,
+  LDFileNodeErrorMountPoint,
+  LDFileNodeErrorDirectoryCycle,
+  LDFileNodeErrorDirectoryUnreadable
+} LDFileNodeError;
+
+@class LDNameArena;
+
+// One scanned filesystem entry. Scans can hold millions of these, so the
+// layout follows WinDirStat's CItem: files carry only their own data and
+// directory-only state lives in LDDirectoryNode. Names are stored as bytes,
+// usually in an LDNameArena kept alive by the tree's root.
+//
+// A node must not outlive the root of its tree: parent pointers are
+// non-owning and arena names belong to the root.
 @interface LDFileNode : NSObject
 {
-  NSString *_name;
-  NSString *_storedPath;
-  LDFileNodeKind _kind;
+  const char *_name;
+  __unsafe_unretained LDFileNode *_parent;
+  NSString *_extensionKey;
   unsigned long long _size;
   unsigned long long _allocatedSize;
-  unsigned long long _aggregateSize;
-  unsigned long long _aggregateAllocatedSize;
-  NSUInteger _fileCount;
-  NSUInteger _directoryCount;
-  NSTimeInterval _modificationTime;
-  NSTimeInterval _aggregateModificationTime;
-  unsigned int _mode;
-  NSString *_errorCode;
-  NSString *_extensionKey;
-  NSMutableArray *_children;
-  // Children are owned by their parent, so the back pointer is non-owning.
-  __unsafe_unretained LDFileNode *_parent;
+  int64_t _modificationTime;
+  uint32_t _mode;
+  uint8_t _kind;
+  uint8_t _error;
+  uint8_t _ownsName;
+  uint8_t _errorNumber;
 }
 
 // Creates a node that remembers its full path. Used for scan roots and tests.
+// Directory kinds return an LDDirectoryNode.
 + (id)nodeWithPath:(NSString *)path kind:(LDFileNodeKind)kind size:(unsigned long long)size;
-- (id)initWithPath:(NSString *)path kind:(LDFileNodeKind)kind size:(unsigned long long)size;
 
 // Creates a node that stores only its name; its path is derived from its parent.
 + (id)nodeWithName:(NSString *)name kind:(LDFileNodeKind)kind size:(unsigned long long)size allocatedSize:(unsigned long long)allocatedSize;
 
+// Creates a node whose name is copied into arena, which must outlive it.
++ (id)nodeWithNameBytes:(const char *)bytes
+                 length:(size_t)length
+                  arena:(LDNameArena *)arena
+                   kind:(LDFileNodeKind)kind
+                   size:(unsigned long long)size
+          allocatedSize:(unsigned long long)allocatedSize;
+
 - (NSString *)path;
+// Made on demand from the stored bytes (UTF-8, or Latin-1 if they are not
+// valid UTF-8).
 - (NSString *)displayName;
+// NUL-terminated name bytes as read from the filesystem.
+- (const char *)nameBytes;
 - (LDFileNodeKind)kind;
 - (BOOL)isLeaf;
 
@@ -77,8 +102,11 @@ typedef enum {
 - (NSString *)extensionKey;
 - (void)setExtensionKey:(NSString *)extensionKey;
 
+- (LDFileNodeError)error;
+// errorNumber is the errno for LDFileNodeErrorStatFailed.
+- (void)setError:(LDFileNodeError)error errorNumber:(int)errorNumber;
+// A stable string for the error ("stat_failed:<reason>", "mount_point", ...).
 - (NSString *)errorCode;
-- (void)setErrorCode:(NSString *)errorCode;
 - (BOOL)isHardLinkDuplicate;
 - (BOOL)isMountPoint;
 
@@ -89,12 +117,43 @@ typedef enum {
 - (NSUInteger)depth;
 
 - (void)recalculateAggregateSize;
-// Sorts children (recursively) by descending size for the metric, then name.
-// Views read -children directly, so this must run once after a scan and again
-// when the size metric changes.
+// Sorts children (recursively) by descending size for the metric, then name
+// bytes. Views read -children directly, so this must run once after a scan and
+// again when the size metric changes. It also trims children arrays to size.
 - (void)sortChildrenByMetric:(LDSizeMetric)metric;
 
 - (NSComparisonResult)compareByAggregateSizeThenName:(LDFileNode *)other;
 - (NSDictionary *)snapshotDictionary;
+
+@end
+
+@interface LDDirectoryNode : LDFileNode
+{
+  NSString *_storedPath;
+  id _children;
+  id _ownedStorage;
+  unsigned long long _aggregateSize;
+  unsigned long long _aggregateAllocatedSize;
+  int64_t _aggregateModificationTime;
+  uint32_t _fileCount;
+  uint32_t _directoryCount;
+}
+
+// Keeps storage the subtree depends on (the scan's name arenas) alive.
+- (void)setOwnedStorage:(id)storage;
+
+@end
+
+// Bump allocator for node names. Not thread-safe: each scan worker uses its
+// own arena, and the scan root keeps all of them alive.
+@interface LDNameArena : NSObject
+{
+  NSMutableArray *_chunks;
+  char *_cursor;
+  size_t _remaining;
+}
+
+// Copies length bytes plus a terminating NUL and returns the copy.
+- (const char *)copyBytes:(const char *)bytes length:(size_t)length;
 
 @end

@@ -17,6 +17,7 @@
   pthread_mutex_t _sharedStateLock;
   NSCondition *_workCondition;
   NSMutableArray *_pendingDirectories;
+  NSMutableArray *_arenas;
   NSUInteger _activeWorkers;
   dev_t _rootDevice;
   BOOL _crossesFilesystems;
