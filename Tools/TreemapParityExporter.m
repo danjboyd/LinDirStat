@@ -16,11 +16,11 @@ static void PrintUsage(void)
 static BOOL WritePPM(LDFileNode *root, int width, int height, const char *path)
 {
   NSArray *stats = [LDExtensionStats sortedStatsForRootNode:root metric:LDSizeMetricPhysical];
-  LDTreemap *treemap = [[[LDTreemap alloc] initWithRootNode:root
-                                                     metric:LDSizeMetricPhysical
-                                                      width:width
-                                                     height:height
-                                                    options:LDTreemapDefaultOptions()] autorelease];
+  LDTreemap *treemap = [[LDTreemap alloc] initWithRootNode:root
+                                                    metric:LDSizeMetricPhysical
+                                                     width:width
+                                                    height:height
+                                                   options:LDTreemapDefaultOptions()];
   NSData *rgba = [treemap renderRGBAWithColorIndexes:[LDExtensionStats colorIndexMapForSortedStats:stats]];
   FILE *file = fopen(path, "wb");
   if (!file) {
@@ -102,9 +102,8 @@ static NSDictionary *DictionaryForItem(LDTreemapItem *item)
           nil];
 }
 
-int main(int argc, const char *argv[])
+static int RunExporter(int argc, const char *argv[])
 {
-  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
   const char *ppmPath = NULL;
   if (argc >= 3 && strcmp(argv[argc - 2], "--ppm") == 0) {
     ppmPath = argv[argc - 1];
@@ -112,7 +111,6 @@ int main(int argc, const char *argv[])
   }
   if (argc != 5 && argc != 4) {
     PrintUsage();
-    [pool drain];
     return 2;
   }
 
@@ -129,12 +127,11 @@ int main(int argc, const char *argv[])
     if (heightEnv) {
       height = atof(heightEnv);
     }
-    LDScanner *scanner = [[[LDScanner alloc] init] autorelease];
-    LDScanSession *session = [[[LDScanSession alloc] init] autorelease];
+    LDScanner *scanner = [[LDScanner alloc] init];
+    LDScanSession *session = [[LDScanSession alloc] init];
     root = [scanner scanPath:scanPath session:session];
     if (!root) {
       fprintf(stderr, "could not scan path: %s\n", argv[2]);
-      [pool drain];
       return 1;
     }
   } else if (argc == 5) {
@@ -146,34 +143,29 @@ int main(int argc, const char *argv[])
     NSData *data = [NSData dataWithContentsOfFile:specPath];
     if (!data) {
       fprintf(stderr, "could not read fixture spec: %s\n", argv[1]);
-      [pool drain];
       return 1;
     }
 
     NSDictionary *spec = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
     if (!spec) {
       fprintf(stderr, "could not parse fixture spec: %s\n", [[error description] UTF8String]);
-      [pool drain];
       return 1;
     }
 
     NSDictionary *fixture = FixtureNamed(spec, fixtureName);
     if (!fixture) {
       fprintf(stderr, "fixture not found: %s\n", argv[2]);
-      [pool drain];
       return 1;
     }
     root = NodeFromSpec([fixture objectForKey:@"tree"], nil);
     [root sortChildrenByMetric:LDSizeMetricPhysical];
   } else {
     PrintUsage();
-    [pool drain];
     return 2;
   }
 
   if (ppmPath && !WritePPM(root, (int)width, (int)height, ppmPath)) {
     fprintf(stderr, "could not write %s\n", ppmPath);
-    [pool drain];
     return 1;
   }
 
@@ -191,12 +183,17 @@ int main(int argc, const char *argv[])
   NSData *output = [NSJSONSerialization dataWithJSONObject:outputItems options:0 error:&error];
   if (!output) {
     fprintf(stderr, "could not encode treemap JSON: %s\n", [[error description] UTF8String]);
-    [pool drain];
     return 1;
   }
   fwrite([output bytes], 1, [output length], stdout);
   fputc('\n', stdout);
 
-  [pool drain];
   return 0;
+}
+
+int main(int argc, const char *argv[])
+{
+  @autoreleasepool {
+    return RunExporter(argc, argv);
+  }
 }

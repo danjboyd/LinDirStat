@@ -62,9 +62,9 @@
 
 - (void)buildMainMenu
 {
-  NSMenu *mainMenu = [[[NSMenu alloc] initWithTitle:@"LinDirStat"] autorelease];
+  NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:@"LinDirStat"];
 
-  NSMenu *fileMenu = [[[NSMenu alloc] initWithTitle:@"File"] autorelease];
+  NSMenu *fileMenu = [[NSMenu alloc] initWithTitle:@"File"];
   [self addItemTo:fileMenu title:@"Select Target…" action:@selector(openPath:) key:@"o" target:self];
   [self addItemTo:fileMenu title:@"Refresh All" action:@selector(rescan:) key:@"r" target:self];
   [self addItemTo:fileMenu title:@"Stop Scan" action:@selector(stopScan:) key:@"." target:self];
@@ -72,7 +72,7 @@
   [self addItemTo:fileMenu title:@"Quit" action:@selector(terminate:) key:@"q" target:NSApp];
   [[mainMenu addItemWithTitle:@"File" action:NULL keyEquivalent:@""] setSubmenu:fileMenu];
 
-  NSMenu *treemapMenu = [[[NSMenu alloc] initWithTitle:@"Treemap"] autorelease];
+  NSMenu *treemapMenu = [[NSMenu alloc] initWithTitle:@"Treemap"];
   [self addItemTo:treemapMenu title:@"Zoom In" action:@selector(zoomIn:) key:@"+" target:self];
   [self addItemTo:treemapMenu title:@"Zoom Out" action:@selector(zoomOut:) key:@"-" target:self];
   [self addItemTo:treemapMenu title:@"Reset Zoom" action:@selector(resetZoom:) key:@"0" target:self];
@@ -177,7 +177,7 @@
   _extensionTable = [[NSTableView alloc] initWithFrame:NSMakeRect(0, 0, 260, 220)];
   [self addColumn:@"extension" title:@"Extension" width:84 toTable:_extensionTable];
   NSTableColumn *colorColumn = [self addColumn:@"color" title:@"Color" width:44 toTable:_extensionTable];
-  [colorColumn setDataCell:[[[NSImageCell alloc] initImageCell:nil] autorelease]];
+  [colorColumn setDataCell:[[NSImageCell alloc] initImageCell:nil]];
   [self addColumn:@"bytes" title:@"Bytes" width:72 toTable:_extensionTable];
   [self addColumn:@"percent" title:@"% Bytes" width:60 toTable:_extensionTable];
   [self addColumn:@"files" title:@"Files" width:56 toTable:_extensionTable];
@@ -255,7 +255,7 @@
 
 - (NSTableColumn *)addColumn:(NSString *)identifier title:(NSString *)title width:(CGFloat)width toTable:(NSTableView *)table
 {
-  NSTableColumn *column = [[[NSTableColumn alloc] initWithIdentifier:identifier] autorelease];
+  NSTableColumn *column = [[NSTableColumn alloc] initWithIdentifier:identifier];
   [[column headerCell] setStringValue:title];
   [column setWidth:width];
   [column setEditable:NO];
@@ -319,13 +319,10 @@
   }
 
   [_scanTimer invalidate];
-  [_scanTimer release];
   _scanTimer = nil;
 
-  [_currentScanPath release];
   _currentScanPath = [scanPath copy];
 
-  [_scanSession release];
   _scanSession = [[LDScanSession alloc] init];
   [_scanSession setSortMetric:_sizeMetric];
   [_scanSession startAsyncScanPath:scanPath];
@@ -336,11 +333,11 @@
   [self updateScanStatus];
   [self updateCommandState];
 
-  _scanTimer = [[NSTimer scheduledTimerWithTimeInterval:0.15
-                                                 target:self
-                                               selector:@selector(scanTimerFired:)
-                                               userInfo:nil
-                                                repeats:YES] retain];
+  _scanTimer = [NSTimer scheduledTimerWithTimeInterval:0.15
+                                                target:self
+                                              selector:@selector(scanTimerFired:)
+                                              userInfo:nil
+                                               repeats:YES];
 }
 
 - (void)updateScanStatus
@@ -361,7 +358,6 @@
     return;
   }
   [_scanTimer invalidate];
-  [_scanTimer release];
   _scanTimer = nil;
   [self finishAsyncScan];
 }
@@ -377,8 +373,7 @@
     return;
   }
 
-  [_rootNode release];
-  _rootNode = [root retain];
+  _rootNode = root;
   [self reloadResults];
   [_directoryTable expandItem:root];
   [_window setTitle:[NSString stringWithFormat:@"%@ — LinDirStat", [root displayName]]];
@@ -408,8 +403,12 @@
 // Rebuilds the extension list and treemap from _rootNode for the current metric.
 - (void)reloadResults
 {
-  [_extensionRows release];
-  _extensionRows = [[LDExtensionStats sortedStatsForRootNode:_rootNode metric:_sizeMetric] retain];
+  _extensionRows = [LDExtensionStats sortedStatsForRootNode:_rootNode metric:_sizeMetric];
+  _syncingSelection = YES;
+  [_directoryTable deselectAll:nil];
+  [_extensionTable deselectAll:nil];
+  _syncingSelection = NO;
+  [_treemapView setHighlightedExtensionKey:nil];
   [_treemapView setRootNode:_rootNode
                      metric:_sizeMetric
                colorIndexes:[LDExtensionStats colorIndexMapForSortedStats:_extensionRows]];
@@ -472,7 +471,7 @@
   if (!_rootNode) {
     return;
   }
-  LDFileNode *selected = [[[_treemapView selectedNode] retain] autorelease];
+  LDFileNode *selected = [_treemapView selectedNode];
   [_rootNode sortChildrenByMetric:_sizeMetric];
   [self reloadResults];
   [_directoryTable expandItem:_rootNode];
@@ -573,7 +572,7 @@
 
 - (void)tableViewSelectionDidChange:(NSNotification *)notification
 {
-  if ([notification object] != _extensionTable) {
+  if ([notification object] != _extensionTable || _syncingSelection) {
     return;
   }
   NSInteger row = [_extensionTable selectedRow];
@@ -606,18 +605,18 @@
                                                   width:width
                                                  height:height
                                                 options:[_treemapView options]];
-  NSBitmapImageRep *rep = [[[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
-                                                                   pixelsWide:width
-                                                                   pixelsHigh:height
-                                                                bitsPerSample:8
-                                                              samplesPerPixel:4
-                                                                     hasAlpha:YES
-                                                                     isPlanar:NO
-                                                               colorSpaceName:NSDeviceRGBColorSpace
-                                                                  bytesPerRow:width * 4
-                                                                 bitsPerPixel:32] autorelease];
+  NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
+                                                                  pixelsWide:width
+                                                                  pixelsHigh:height
+                                                               bitsPerSample:8
+                                                             samplesPerPixel:4
+                                                                    hasAlpha:YES
+                                                                    isPlanar:NO
+                                                              colorSpaceName:NSDeviceRGBColorSpace
+                                                                 bytesPerRow:width * 4
+                                                                bitsPerPixel:32];
   memcpy([rep bitmapData], [pixels bytes], [pixels length]);
-  image = [[[NSImage alloc] initWithSize:NSMakeSize(width, height)] autorelease];
+  image = [[NSImage alloc] initWithSize:NSMakeSize(width, height)];
   [image addRepresentation:rep];
   [_swatchCache setObject:image forKey:key];
   return image;
@@ -766,31 +765,8 @@
 
 - (void)dealloc
 {
-  [_window release];
-  [_titleField release];
-  [_openButton release];
-  [_rescanButton release];
-  [_stopButton release];
-  [_directoryLabel release];
-  [_extensionLabel release];
-  [_treemapLabel release];
-  [_directoryScroll release];
-  [_extensionScroll release];
-  [_directoryTable release];
-  [_extensionTable release];
-  [_statusField release];
-  [_pathField release];
-  [_treemapView release];
-  [_extensionRows release];
-  [_swatchCache release];
   [_scanTimer invalidate];
-  [_scanTimer release];
-  [_scanSession release];
-  [_rootNode release];
-  [_currentScanPath release];
-  [_dateFormatter release];
   [[NSNotificationCenter defaultCenter] removeObserver:self];
-  [super dealloc];
 }
 
 @end

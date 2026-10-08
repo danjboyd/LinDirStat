@@ -1,5 +1,7 @@
 include $(GNUSTEP_MAKEFILES)/common.make
 
+ADDITIONAL_OBJCFLAGS += -fobjc-arc
+
 APP_NAME = LinDirStat
 
 LinDirStat_OBJC_FILES = \

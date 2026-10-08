@@ -1,5 +1,7 @@
 include $(GNUSTEP_MAKEFILES)/common.make
 
+ADDITIONAL_OBJCFLAGS += -fobjc-arc
+
 BUNDLE_NAME = LinDirStatTests
 NEEDS_GUI = yes
 

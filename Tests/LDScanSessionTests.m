@@ -15,7 +15,7 @@
 
 - (void)testStateTransitionsAndSnapshot
 {
-  LDScanSession *session = [[[LDScanSession alloc] init] autorelease];
+  LDScanSession *session = [[LDScanSession alloc] init];
   [session markScanning];
   [session setCurrentPath:@"/tmp/example"];
   [session incrementSkippedCount];
@@ -30,7 +30,7 @@
 
 - (void)testAsyncScanCompletes
 {
-  LDScanSession *session = [[[LDScanSession alloc] init] autorelease];
+  LDScanSession *session = [[LDScanSession alloc] init];
   [session startAsyncScanPath:[self fixturePath]];
 
   BOOL finished = [session waitUntilFinishedBeforeDate:[NSDate dateWithTimeIntervalSinceNow:5.0]];

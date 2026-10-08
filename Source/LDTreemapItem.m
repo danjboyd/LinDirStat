@@ -5,14 +5,14 @@
 
 + (id)itemWithNode:(LDFileNode *)node rect:(NSRect)rect extensionKey:(NSString *)extensionKey depth:(NSUInteger)depth
 {
-  return [[[self alloc] initWithNode:node rect:rect extensionKey:extensionKey depth:depth] autorelease];
+  return [[self alloc] initWithNode:node rect:rect extensionKey:extensionKey depth:depth];
 }
 
 - (id)initWithNode:(LDFileNode *)node rect:(NSRect)rect extensionKey:(NSString *)extensionKey depth:(NSUInteger)depth
 {
   self = [super init];
   if (self) {
-    _node = [node retain];
+    _node = node;
     _rect = rect;
     _extensionKey = [extensionKey copy];
     _depth = depth;
@@ -38,11 +38,5 @@
           nil];
 }
 
-- (void)dealloc
-{
-  [_node release];
-  [_extensionKey release];
-  [super dealloc];
-}
 
 @end

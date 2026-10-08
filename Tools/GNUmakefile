@@ -1,5 +1,7 @@
 include $(GNUSTEP_MAKEFILES)/common.make
 
+ADDITIONAL_OBJCFLAGS += -fobjc-arc
+
 TOOL_NAME = windirstat-parity-exporter
 
 windirstat-parity-exporter_OBJC_FILES = \

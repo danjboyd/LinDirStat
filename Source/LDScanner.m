@@ -89,10 +89,9 @@
                                                freeWhenDone:NO];
     key = [_internedExtensionKeys objectForKey:probe];
     if (!key) {
-      key = [[probe copy] autorelease];
+      key = [probe copy];
       [_internedExtensionKeys setObject:key forKey:key];
     }
-    [probe release];
     return key;
   }
 
@@ -200,61 +199,57 @@
 
   int directoryFD = dirfd(directory);
   NSMutableArray *subdirectories = [NSMutableArray array];
-  NSAutoreleasePool *entryPool = [[NSAutoreleasePool alloc] init];
-  NSUInteger pending = 0;
-  struct dirent *entry = NULL;
-  while ((entry = readdir(directory)) != NULL) {
-    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-      continue;
-    }
-    if ([session isCanceled]) {
-      break;
-    }
+  // One pool per directory: under ARC few objects are autoreleased, and a
+  // pool per entry costs more than it saves.
+  @autoreleasepool {
+    struct dirent *entry = NULL;
+    while ((entry = readdir(directory)) != NULL) {
+      if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+        continue;
+      }
+      if ([session isCanceled]) {
+        break;
+      }
 
-    if (++pending == 256) {
-      [entryPool release];
-      entryPool = [[NSAutoreleasePool alloc] init];
-      pending = 0;
-    }
-    size_t nameLength = strlen(entry->d_name);
-    NSString *name = [[[NSString alloc] initWithBytes:entry->d_name
-                                               length:nameLength
-                                             encoding:NSUTF8StringEncoding] autorelease];
-    if (name == nil) {
-      // Not valid UTF-8; fall back to the locale's filesystem encoding.
-      name = [[NSFileManager defaultManager] stringWithFileSystemRepresentation:entry->d_name length:nameLength];
-    }
-    if (name == nil) {
-      [session incrementSkippedCount];
-      continue;
-    }
+      size_t nameLength = strlen(entry->d_name);
+      NSString *name = [[NSString alloc] initWithBytes:entry->d_name
+                                                length:nameLength
+                                              encoding:NSUTF8StringEncoding];
+      if (name == nil) {
+        // Not valid UTF-8; fall back to the locale's filesystem encoding.
+        name = [[NSFileManager defaultManager] stringWithFileSystemRepresentation:entry->d_name length:nameLength];
+      }
+      if (name == nil) {
+        [session incrementSkippedCount];
+        continue;
+      }
 
-    struct stat info;
-    LDFileNode *child = nil;
-    if (fstatat(directoryFD, entry->d_name, &info, AT_SYMLINK_NOFOLLOW) != 0) {
-      child = [LDFileNode nodeWithName:name kind:LDFileNodeKindSpecial size:0 allocatedSize:0];
-      [child setErrorCode:[NSString stringWithFormat:@"stat_failed:%s", strerror(errno)]];
-      [session incrementErrorCount];
-      [session incrementSkippedCount];
-    } else {
-      child = [self nodeNamed:name rawName:entry->d_name path:nil info:&info session:session];
-      if ([child kind] == LDFileNodeKindDirectory) {
-        NSString *key = [self identityKeyForStat:&info];
-        if (![self shouldDescendIntoDevice:info.st_dev]) {
-          [child setErrorCode:@"mount_point"];
-          [session incrementSkippedCount];
-        } else if ([_visitedDirectories containsObject:key]) {
-          [child setErrorCode:@"directory_cycle"];
-          [session incrementSkippedCount];
-        } else {
-          [_visitedDirectories addObject:key];
-          [subdirectories addObject:child];
+      struct stat info;
+      LDFileNode *child = nil;
+      if (fstatat(directoryFD, entry->d_name, &info, AT_SYMLINK_NOFOLLOW) != 0) {
+        child = [LDFileNode nodeWithName:name kind:LDFileNodeKindSpecial size:0 allocatedSize:0];
+        [child setErrorCode:[NSString stringWithFormat:@"stat_failed:%s", strerror(errno)]];
+        [session incrementErrorCount];
+        [session incrementSkippedCount];
+      } else {
+        child = [self nodeNamed:name rawName:entry->d_name path:nil info:&info session:session];
+        if ([child kind] == LDFileNodeKindDirectory) {
+          NSString *key = [self identityKeyForStat:&info];
+          if (![self shouldDescendIntoDevice:info.st_dev]) {
+            [child setErrorCode:@"mount_point"];
+            [session incrementSkippedCount];
+          } else if ([_visitedDirectories containsObject:key]) {
+            [child setErrorCode:@"directory_cycle"];
+            [session incrementSkippedCount];
+          } else {
+            [_visitedDirectories addObject:key];
+            [subdirectories addObject:child];
+          }
         }
       }
+      [node addChild:child];
     }
-    [node addChild:child];
   }
-  [entryPool release];
   closedir(directory);
 
   NSEnumerator *enumerator = [subdirectories objectEnumerator];
@@ -263,20 +258,13 @@
     if ([session isCanceled]) {
       break;
     }
-    NSAutoreleasePool *childPool = [[NSAutoreleasePool alloc] init];
-    NSString *childPath = [path stringByAppendingPathComponent:[subdirectory displayName]];
-    [session setCurrentPath:childPath];
-    [self scanDirectoryNode:subdirectory path:childPath session:session];
-    [childPool release];
+    @autoreleasepool {
+      NSString *childPath = [path stringByAppendingPathComponent:[subdirectory displayName]];
+      [session setCurrentPath:childPath];
+      [self scanDirectoryNode:subdirectory path:childPath session:session];
+    }
   }
 }
 
-- (void)dealloc
-{
-  [_visitedHardLinks release];
-  [_visitedDirectories release];
-  [_internedExtensionKeys release];
-  [super dealloc];
-}
 
 @end

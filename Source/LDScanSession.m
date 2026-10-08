@@ -42,7 +42,7 @@
 - (NSString *)currentPath
 {
   [_lock lock];
-  NSString *path = [[_currentPath retain] autorelease];
+  NSString *path = _currentPath;
   [_lock unlock];
   return path;
 }
@@ -51,35 +51,34 @@
 {
   NSString *copy = [currentPath copy];
   [_lock lock];
-  NSString *old = _currentPath;
   _currentPath = copy;
   [_lock unlock];
-  [old release];
 }
 
 - (LDFileNode *)rootNode
 {
   [_lock lock];
-  LDFileNode *root = [[_rootNode retain] autorelease];
+  LDFileNode *root = _rootNode;
   [_lock unlock];
   return root;
 }
 
 - (void)setRootNode:(LDFileNode *)rootNode
 {
-  [rootNode retain];
+  // Keep the previous tree alive until after unlocking; freeing a large
+  // tree is slow and must not happen while holding the lock.
+  __attribute__((objc_precise_lifetime)) LDFileNode *previous = nil;
   [_lock lock];
-  LDFileNode *old = _rootNode;
+  previous = _rootNode;
   _rootNode = rootNode;
   [_lock unlock];
-  [old release];
 }
 
 - (NSTimeInterval)elapsedTime
 {
   [_lock lock];
-  NSDate *start = [[_startedAt retain] autorelease];
-  NSDate *finish = [[_finishedAt retain] autorelease];
+  NSDate *start = _startedAt;
+  NSDate *finish = _finishedAt;
   [_lock unlock];
   if (!start) {
     return 0.0;
@@ -90,10 +89,8 @@
 - (void)setStartedAt:(NSDate *)startedAt finishedAt:(NSDate *)finishedAt
 {
   [_lock lock];
-  [_startedAt release];
-  _startedAt = [startedAt retain];
-  [_finishedAt release];
-  _finishedAt = [finishedAt retain];
+  _startedAt = startedAt;
+  _finishedAt = finishedAt;
   [_lock unlock];
 }
 
@@ -107,8 +104,7 @@
 {
   _state = [self isCanceled] ? LDScanSessionStateCanceled : LDScanSessionStateComplete;
   [_lock lock];
-  [_finishedAt release];
-  _finishedAt = [[NSDate date] retain];
+  _finishedAt = [NSDate date];
   [_lock unlock];
 }
 
@@ -116,8 +112,7 @@
 {
   _state = LDScanSessionStateFailed;
   [_lock lock];
-  [_finishedAt release];
-  _finishedAt = [[NSDate date] retain];
+  _finishedAt = [NSDate date];
   [_lock unlock];
 }
 
@@ -128,22 +123,20 @@
 
 - (void)startAsyncScanPath:(NSString *)path
 {
-  [_asyncPath release];
   _asyncPath = [path copy];
   __atomic_store_n(&_asyncFinished, NO, __ATOMIC_RELEASE);
-  [self retain];
+  // NSThread retains the session until runAsyncScan returns.
   [NSThread detachNewThreadSelector:@selector(runAsyncScan) toTarget:self withObject:nil];
 }
 
 - (void)runAsyncScan
 {
-  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-  LDScanner *scanner = [[[LDScanner alloc] init] autorelease];
-  [scanner setSortMetric:_sortMetric];
-  [scanner scanPath:_asyncPath session:self];
+  @autoreleasepool {
+    LDScanner *scanner = [[LDScanner alloc] init];
+    [scanner setSortMetric:_sortMetric];
+    [scanner scanPath:_asyncPath session:self];
+  }
   __atomic_store_n(&_asyncFinished, YES, __ATOMIC_RELEASE);
-  [pool release];
-  [self release];
 }
 
 - (BOOL)waitUntilFinishedBeforeDate:(NSDate *)deadline
@@ -169,17 +162,6 @@
     [snapshot setObject:[root snapshotDictionary] forKey:@"root"];
   }
   return snapshot;
-}
-
-- (void)dealloc
-{
-  [_lock release];
-  [_currentPath release];
-  [_startedAt release];
-  [_finishedAt release];
-  [_rootNode release];
-  [_asyncPath release];
-  [super dealloc];
 }
 
 @end

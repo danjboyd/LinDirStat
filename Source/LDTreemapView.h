@@ -15,7 +15,7 @@
 // framed zoom state. Theme colors are used only for the view's chrome.
 @interface LDTreemapView : NSView
 {
-  id _delegate;
+  __weak id _delegate;
   LDFileNode *_rootNode;
   LDFileNode *_zoomNode;
   LDFileNode *_selectedNode;

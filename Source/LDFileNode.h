@@ -31,7 +31,8 @@ typedef enum {
   NSString *_errorCode;
   NSString *_extensionKey;
   NSMutableArray *_children;
-  LDFileNode *_parent;
+  // Children are owned by their parent, so the back pointer is non-owning.
+  __unsafe_unretained LDFileNode *_parent;
 }
 
 // Creates a node that remembers its full path. Used for scan roots and tests.

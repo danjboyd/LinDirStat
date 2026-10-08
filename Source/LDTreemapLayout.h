@@ -42,7 +42,7 @@ static inline BOOL LDTreemapRectContainsPoint(LDTreemapRect rect, int x, int y)
 }
 
 typedef struct {
-  LDFileNode *node;        // Not retained; LDTreemap retains the root node.
+  __unsafe_unretained LDFileNode *node; // LDTreemap keeps the root (and so the tree) alive.
   LDTreemapRect rect;
   double surface[4];       // Cushion surface coefficients after this cell's ridge.
   double ridgeHeight;      // Ridge height applied to this cell's children.

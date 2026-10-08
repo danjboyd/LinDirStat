@@ -26,7 +26,7 @@
 {
   if (!_temporaryRoot) {
     NSString *name = [NSString stringWithFormat:@"lindirstat-tests-%d-%@", getpid(), [[NSProcessInfo processInfo] globallyUniqueString]];
-    _temporaryRoot = [[NSTemporaryDirectory() stringByAppendingPathComponent:name] retain];
+    _temporaryRoot = [NSTemporaryDirectory() stringByAppendingPathComponent:name];
     [[NSFileManager defaultManager] createDirectoryAtPath:_temporaryRoot withIntermediateDirectories:YES attributes:nil error:NULL];
   }
   return _temporaryRoot;
@@ -36,7 +36,6 @@
 {
   if (_temporaryRoot) {
     [[NSFileManager defaultManager] removeItemAtPath:_temporaryRoot error:NULL];
-    [_temporaryRoot release];
     _temporaryRoot = nil;
   }
   [super tearDown];
@@ -63,8 +62,8 @@
 
 - (void)testScansFixtureTreeDeterministically
 {
-  LDScanner *scanner = [[[LDScanner alloc] init] autorelease];
-  LDScanSession *session = [[[LDScanSession alloc] init] autorelease];
+  LDScanner *scanner = [[LDScanner alloc] init];
+  LDScanSession *session = [[LDScanSession alloc] init];
 
   LDFileNode *root = [scanner scanPath:[self fixturePath] session:session];
 
@@ -80,8 +79,8 @@
 
 - (void)testScannedTreeProducesExtensionStats
 {
-  LDScanner *scanner = [[[LDScanner alloc] init] autorelease];
-  LDScanSession *session = [[[LDScanSession alloc] init] autorelease];
+  LDScanner *scanner = [[LDScanner alloc] init];
+  LDScanSession *session = [[LDScanSession alloc] init];
   LDFileNode *root = [scanner scanPath:[self fixturePath] session:session];
 
   NSArray *stats = [LDExtensionStats sortedStatsForRootNode:root];
@@ -94,8 +93,8 @@
 
 - (void)testMissingPathProducesFailedSession
 {
-  LDScanner *scanner = [[[LDScanner alloc] init] autorelease];
-  LDScanSession *session = [[[LDScanSession alloc] init] autorelease];
+  LDScanner *scanner = [[LDScanner alloc] init];
+  LDScanSession *session = [[LDScanSession alloc] init];
   NSString *missing = [[self fixturePath] stringByAppendingPathComponent:@"does-not-exist"];
 
   LDFileNode *root = [scanner scanPath:missing session:session];
@@ -112,8 +111,8 @@
   NSString *linked = [[self temporaryRoot] stringByAppendingPathComponent:@"linked.bin"];
   XCTAssertEqual(0, link([original fileSystemRepresentation], [linked fileSystemRepresentation]));
 
-  LDScanner *scanner = [[[LDScanner alloc] init] autorelease];
-  LDScanSession *session = [[[LDScanSession alloc] init] autorelease];
+  LDScanner *scanner = [[LDScanner alloc] init];
+  LDScanSession *session = [[LDScanSession alloc] init];
   LDFileNode *root = [scanner scanPath:[self temporaryRoot] session:session];
 
   XCTAssertEqual((unsigned long long)50000, [root aggregateSize]);
@@ -139,8 +138,8 @@
   close(fd);
   [self writeFile:@"dense.bin" bytes:200000];
 
-  LDScanner *scanner = [[[LDScanner alloc] init] autorelease];
-  LDScanSession *session = [[[LDScanSession alloc] init] autorelease];
+  LDScanner *scanner = [[LDScanner alloc] init];
+  LDScanSession *session = [[LDScanSession alloc] init];
   LDFileNode *root = [scanner scanPath:[self temporaryRoot] session:session];
   LDFileNode *sparse = [self childNamed:@"sparse.img" of:root];
 
@@ -155,8 +154,8 @@
   NSString *path = [self writeFile:@"stamped.txt" bytes:10];
   chmod([path fileSystemRepresentation], 0640);
 
-  LDScanner *scanner = [[[LDScanner alloc] init] autorelease];
-  LDScanSession *session = [[[LDScanSession alloc] init] autorelease];
+  LDScanner *scanner = [[LDScanner alloc] init];
+  LDScanSession *session = [[LDScanSession alloc] init];
   LDFileNode *root = [scanner scanPath:[self temporaryRoot] session:session];
   LDFileNode *file = [self childNamed:@"stamped.txt" of:root];
 
@@ -167,8 +166,8 @@
 
 - (void)testStaysOnRootFilesystemByDefault
 {
-  LDScanner *scanner = [[[LDScanner alloc] init] autorelease];
-  LDScanSession *session = [[[LDScanSession alloc] init] autorelease];
+  LDScanner *scanner = [[LDScanner alloc] init];
+  LDScanSession *session = [[LDScanSession alloc] init];
   [scanner scanPath:[self fixturePath] session:session];
 
   struct stat info;
@@ -193,8 +192,8 @@
     return;
   }
 
-  LDScanner *scanner = [[[LDScanner alloc] init] autorelease];
-  LDScanSession *session = [[[LDScanSession alloc] init] autorelease];
+  LDScanner *scanner = [[LDScanner alloc] init];
+  LDScanSession *session = [[LDScanSession alloc] init];
   LDFileNode *root = [scanner scanPath:parent session:session];
   LDFileNode *child = [self childNamed:[mounted lastPathComponent] of:root];
 

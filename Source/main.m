@@ -6,12 +6,11 @@ int main(int argc, char **argv)
   (void)argc;
   (void)argv;
 
-  NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-  NSApplication *application = [NSApplication sharedApplication];
-  AppController *controller = [[AppController alloc] init];
-  [application setDelegate:controller];
-  [application run];
-  [controller release];
-  [pool release];
+  @autoreleasepool {
+    NSApplication *application = [NSApplication sharedApplication];
+    AppController *controller = [[AppController alloc] init];
+    [application setDelegate:controller];
+    [application run];
+  }
   return 0;
 }

@@ -45,20 +45,12 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 
 - (void)setRootNode:(LDFileNode *)rootNode metric:(LDSizeMetric)metric colorIndexes:(NSDictionary *)colorIndexes
 {
-  [rootNode retain];
-  [_rootNode release];
   _rootNode = rootNode;
-  [_zoomNode release];
   _zoomNode = nil;
-  [_selectedNode release];
   _selectedNode = nil;
-  [_hoverNode release];
   _hoverNode = nil;
-  [colorIndexes retain];
-  [_colorIndexes release];
   _colorIndexes = colorIndexes;
   _metric = metric;
-  [_bitmap release];
   _bitmap = nil;
   [self invalidateRender];
 }
@@ -72,8 +64,6 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 - (void)setSelectedNode:(LDFileNode *)node
 {
   if (_selectedNode != node) {
-    [node retain];
-    [_selectedNode release];
     _selectedNode = node;
     [self setNeedsDisplay:YES];
   }
@@ -82,7 +72,6 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 - (void)setHighlightedExtensionKey:(NSString *)extensionKey
 {
   if (_highlightedExtensionKey != extensionKey && ![_highlightedExtensionKey isEqualToString:extensionKey]) {
-    [_highlightedExtensionKey release];
     _highlightedExtensionKey = [extensionKey copy];
     [self setNeedsDisplay:YES];
   }
@@ -129,16 +118,15 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
   }
   _needsRender = YES;
   [_renderTimer invalidate];
-  [_renderTimer release];
   _renderTimer = nil;
   if (_bitmap) {
     // Keep resizing smooth on large trees: stretch the old bitmap until the
     // size settles, as WinDirStat does.
-    _renderTimer = [[NSTimer scheduledTimerWithTimeInterval:LDResizeRenderDelay
-                                                     target:self
-                                                   selector:@selector(renderTimerFired:)
-                                                   userInfo:nil
-                                                    repeats:NO] retain];
+    _renderTimer = [NSTimer scheduledTimerWithTimeInterval:LDResizeRenderDelay
+                                                    target:self
+                                                  selector:@selector(renderTimerFired:)
+                                                  userInfo:nil
+                                                   repeats:NO];
   }
   [self setNeedsDisplay:YES];
 }
@@ -146,7 +134,6 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 - (void)renderTimerFired:(NSTimer *)timer
 {
   (void)timer;
-  [_renderTimer release];
   _renderTimer = nil;
   [self render];
   [self setNeedsDisplay:YES];
@@ -155,9 +142,7 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 - (void)render
 {
   _needsRender = NO;
-  [_treemap release];
   _treemap = nil;
-  [_bitmap release];
   _bitmap = nil;
 
   LDFileNode *root = [self zoomNode];
@@ -322,9 +307,7 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
   if (node == [self zoomNode]) {
     return;
   }
-  LDFileNode *zoomNode = (node == _rootNode) ? nil : [node retain];
-  [_zoomNode release];
-  _zoomNode = zoomNode;
+  _zoomNode = (node == _rootNode) ? nil : node;
   [self invalidateRender];
   [_delegate treemapViewDidChangeZoom:self];
 }
@@ -426,8 +409,6 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
   NSPoint point = [self convertPoint:[event locationInWindow] fromView:nil];
   LDFileNode *node = NSPointInRect(point, [self bounds]) ? [self nodeAtPoint:point] : nil;
   if (node != _hoverNode) {
-    [node retain];
-    [_hoverNode release];
     _hoverNode = node;
     [_delegate treemapView:self didHoverNode:node];
   }
@@ -442,7 +423,6 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 {
   (void)event;
   if (_hoverNode) {
-    [_hoverNode release];
     _hoverNode = nil;
     [_delegate treemapView:self didHoverNode:nil];
   }
@@ -470,16 +450,6 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 - (void)dealloc
 {
   [_renderTimer invalidate];
-  [_renderTimer release];
-  [_rootNode release];
-  [_zoomNode release];
-  [_selectedNode release];
-  [_hoverNode release];
-  [_highlightedExtensionKey release];
-  [_colorIndexes release];
-  [_treemap release];
-  [_bitmap release];
-  [super dealloc];
 }
 
 @end

@@ -4,7 +4,7 @@
 
 + (id)planWithActionType:(LDFileActionType)actionType targetPath:(NSString *)targetPath
 {
-  return [[[self alloc] initWithActionType:actionType targetPath:targetPath] autorelease];
+  return [[self alloc] initWithActionType:actionType targetPath:targetPath];
 }
 
 - (id)initWithActionType:(LDFileActionType)actionType targetPath:(NSString *)targetPath
@@ -51,11 +51,5 @@
           nil];
 }
 
-- (void)dealloc
-{
-  [_targetPath release];
-  [_message release];
-  [super dealloc];
-}
 
 @end

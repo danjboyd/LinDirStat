@@ -32,11 +32,11 @@
 
 - (LDTreemap *)treemapForRoot:(LDFileNode *)root width:(int)width height:(int)height
 {
-  return [[[LDTreemap alloc] initWithRootNode:root
-                                       metric:LDSizeMetricPhysical
-                                        width:width
-                                       height:height
-                                      options:LDTreemapDefaultOptions()] autorelease];
+  return [[LDTreemap alloc] initWithRootNode:root
+                                      metric:LDSizeMetricPhysical
+                                       width:width
+                                      height:height
+                                     options:LDTreemapDefaultOptions()];
 }
 
 - (void)assertCell:(LDTreemapCell)cell left:(int)left top:(int)top right:(int)right bottom:(int)bottom
@@ -98,11 +98,11 @@
   int style = 0;
   for (style = 0; style < 2; style++) {
     options.style = (LDTreemapStyle)style;
-    LDTreemap *treemap = [[[LDTreemap alloc] initWithRootNode:[self treeWithSizes:sizes]
-                                                       metric:LDSizeMetricPhysical
-                                                        width:640
-                                                       height:360
-                                                      options:options] autorelease];
+    LDTreemap *treemap = [[LDTreemap alloc] initWithRootNode:[self treeWithSizes:sizes]
+                                                      metric:LDSizeMetricPhysical
+                                                       width:640
+                                                      height:360
+                                                     options:options];
     NSMutableData *coverage = [NSMutableData dataWithLength:640 * 360];
     uint8_t *hits = [coverage mutableBytes];
     const LDTreemapCell *cells = [treemap cells];
@@ -153,7 +153,8 @@
 {
   LDFileNode *root = [LDFileNode nodeWithPath:@"/empty" kind:LDFileNodeKindDirectory size:0];
   LDTreemap *treemap = [self treemapForRoot:root width:4 height:4];
-  const uint8_t *pixels = [[treemap renderRGBAWithColorIndexes:nil] bytes];
+  NSData *rendered = [treemap renderRGBAWithColorIndexes:nil];
+  const uint8_t *pixels = [rendered bytes];
   XCTAssertEqual(0, pixels[0]);
   XCTAssertEqual(0, pixels[1]);
   XCTAssertEqual(0, pixels[2]);
@@ -165,9 +166,10 @@
   LDTreemapOptions options = LDTreemapDefaultOptions();
   options.ambientLight = 1.0; // Disables cushions.
   LDFileNode *root = [self treeWithSizes:[NSArray arrayWithObject:[NSNumber numberWithInt:10]]];
-  LDTreemap *treemap = [[[LDTreemap alloc] initWithRootNode:root metric:LDSizeMetricPhysical width:8 height:8 options:options] autorelease];
+  LDTreemap *treemap = [[LDTreemap alloc] initWithRootNode:root metric:LDSizeMetricPhysical width:8 height:8 options:options];
   NSDictionary *colors = [NSDictionary dictionaryWithObject:[NSNumber numberWithInt:0] forKey:@"bin"];
-  const uint8_t *pixels = [[treemap renderRGBAWithColorIndexes:colors] bytes];
+  NSData *rendered = [treemap renderRGBAWithColorIndexes:colors];
+  const uint8_t *pixels = [rendered bytes];
 
   // #6565FF * (0.88 / 0.6) overflows blue; NormalizeColor spills it into red and green.
   XCTAssertEqual(207, pixels[0]);
@@ -180,7 +182,8 @@
   LDFileNode *root = [self treeWithSizes:[NSArray arrayWithObject:[NSNumber numberWithInt:10]]];
   LDTreemap *treemap = [self treemapForRoot:root width:64 height:64];
   NSDictionary *colors = [NSDictionary dictionaryWithObject:[NSNumber numberWithInt:1] forKey:@"bin"];
-  const uint8_t *pixels = [[treemap renderRGBAWithColorIndexes:colors] bytes];
+  NSData *rendered = [treemap renderRGBAWithColorIndexes:colors];
+  const uint8_t *pixels = [rendered bytes];
 
   int topLeft = pixels[(4 * 64 + 4) * 4] + pixels[(4 * 64 + 4) * 4 + 1] + pixels[(4 * 64 + 4) * 4 + 2];
   int bottomRight = pixels[(59 * 64 + 59) * 4] + pixels[(59 * 64 + 59) * 4 + 1] + pixels[(59 * 64 + 59) * 4 + 2];

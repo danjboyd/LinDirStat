@@ -5,12 +5,12 @@
 
 + (id)nodeWithPath:(NSString *)path kind:(LDFileNodeKind)kind size:(unsigned long long)size
 {
-  return [[[self alloc] initWithPath:path kind:kind size:size] autorelease];
+  return [[self alloc] initWithPath:path kind:kind size:size];
 }
 
 + (id)nodeWithName:(NSString *)name kind:(LDFileNodeKind)kind size:(unsigned long long)size allocatedSize:(unsigned long long)allocatedSize
 {
-  LDFileNode *node = [[[self alloc] initWithName:name storedPath:nil kind:kind] autorelease];
+  LDFileNode *node = [[self alloc] initWithName:name storedPath:nil kind:kind];
   [node setSize:size allocatedSize:allocatedSize];
   return node;
 }
@@ -105,7 +105,7 @@
 - (NSString *)extensionKey
 {
   if (!_extensionKey) {
-    _extensionKey = [[LDExtensionStats extensionKeyForFilename:_name] retain];
+    _extensionKey = [LDExtensionStats extensionKeyForFilename:_name];
   }
   return _extensionKey;
 }
@@ -113,15 +113,13 @@
 - (void)setExtensionKey:(NSString *)extensionKey
 {
   if (_extensionKey != extensionKey) {
-    [_extensionKey release];
-    _extensionKey = [extensionKey retain];
+    _extensionKey = extensionKey;
   }
 }
 
 - (void)setErrorCode:(NSString *)errorCode
 {
   if (_errorCode != errorCode) {
-    [_errorCode release];
     _errorCode = [errorCode copy];
   }
 }
@@ -259,14 +257,5 @@ static NSComparisonResult LDCompareNodesBySize(id left, id right, void *context)
   return snapshot;
 }
 
-- (void)dealloc
-{
-  [_name release];
-  [_storedPath release];
-  [_errorCode release];
-  [_extensionKey release];
-  [_children release];
-  [super dealloc];
-}
 
 @end

@@ -137,7 +137,7 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
 {
   self = [super init];
   if (self) {
-    _rootNode = [rootNode retain];
+    _rootNode = rootNode;
     _metric = metric;
     _options = options;
     _width = MAX(width, 0);
@@ -605,8 +605,6 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
 - (void)dealloc
 {
   free(_cells);
-  [_rootNode release];
-  [super dealloc];
 }
 
 @end
@@ -631,11 +629,11 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
     return items;
   }
   [rootNode sortChildrenByMetric:metric];
-  LDTreemap *treemap = [[[LDTreemap alloc] initWithRootNode:rootNode
-                                                     metric:metric
-                                                      width:(int)floor(rect.size.width)
-                                                     height:(int)floor(rect.size.height)
-                                                    options:options] autorelease];
+  LDTreemap *treemap = [[LDTreemap alloc] initWithRootNode:rootNode
+                                                    metric:metric
+                                                     width:(int)floor(rect.size.width)
+                                                    height:(int)floor(rect.size.height)
+                                                   options:options];
   const LDTreemapCell *cells = [treemap cells];
   NSUInteger i = 0;
   for (i = 0; i < [treemap cellCount]; i++) {

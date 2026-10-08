@@ -27,7 +27,7 @@
     NSString *key = [node extensionKey];
     LDExtensionStats *entry = [stats objectForKey:key];
     if (!entry) {
-      entry = [[[LDExtensionStats alloc] initWithExtensionKey:key] autorelease];
+      entry = [[LDExtensionStats alloc] initWithExtensionKey:key];
       [stats setObject:entry forKey:key];
     }
     [entry addBytes:[node size] allocatedBytes:[node allocatedSize]];
@@ -140,11 +140,5 @@ static NSComparisonResult LDCompareStatsByBytes(id left, id right, void *context
   _fileCount += 1;
 }
 
-- (void)dealloc
-{
-  [_extensionKey release];
-  [_displayName release];
-  [super dealloc];
-}
 
 @end
