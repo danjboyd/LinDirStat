@@ -12,6 +12,8 @@ LinDirStatTests_OBJC_FILES = \
   LDScannerTests.m \
   LDTreemapLayoutTests.m \
   LDExtensionColorTests.m \
+  LDFileTypeDescriptionsTests.m \
+  LDTreeSortingTests.m \
   LDFileActionTests.m \
   LDScanSessionTests.m \
   ../Source/LDFileNode.m \
@@ -23,7 +25,9 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDTreemapLayout.m \
   ../Source/LDExtensionColor.m \
   ../Source/LDFileActionPlan.m \
-  ../Source/LDFileActions.m
+  ../Source/LDFileActions.m \
+  ../Source/LDFileTypeDescriptions.m \
+  ../Source/LDTreeSorting.m
 
 LinDirStatTests_INCLUDE_DIRS = -I../Source -I.
 ifneq ($(TOOLS_XCTEST_ROOT),)

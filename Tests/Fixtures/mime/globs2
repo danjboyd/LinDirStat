@@ -1,0 +1,10 @@
+# Fixture in shared-mime-info's globs2 format: weight:type:glob[:flags]
+50:text/x-c++src:*.C:cs
+50:text/x-c++src:*.C
+50:text/x-csrc:*.c:cs
+50:text/x-csrc:*.c
+50:text/plain:*.txt
+40:application/x-low:*.dat
+60:application/x-high:*.dat
+50:application/x-compressed-tar:*.tar.gz
+50:text/x-readme:README

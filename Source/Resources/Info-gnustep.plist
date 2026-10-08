@@ -1,4 +1,9 @@
 {
   ApplicationName = LinDirStat;
   ApplicationDescription = "GNUstep disk usage viewer inspired by WinDirStat";
+  /* Adwaita GNUstep theme: GNOME metrics, the primary (hamburger) menu, and
+     the toolbar packed into the header bar as GNOME apps do. */
+  GnomeThemeMetrics = gnome;
+  GnomeThemeMenuStyle = primary;
+  GnomeThemeHeaderBarToolbar = YES;
 }

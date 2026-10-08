@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mime-type xmlns="http://www.freedesktop.org/standards/shared-mime-info" type="text/plain">
+  <comment>Plain text document</comment>
+  <comment xml:lang="sv">Vanligt textdokument</comment>
+</mime-type>

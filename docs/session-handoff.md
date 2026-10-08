@@ -21,6 +21,12 @@ Since then:
 - Memory follows WinDirStat's `CItem` layout: lean file nodes, directory-only state in `LDDirectoryNode`, names in per-worker `LDNameArena`s owned by the root, and 24-byte treemap cells. About 146 bytes per entry including the treemap (was ~335); `/usr` uses 166 MB in the app.
 - The Adwaita shadow and rounded corners need the theme's patched libs-back; see `docs/development.md`.
 
+Step C (window chrome):
+
+- `Info-gnustep.plist` declares GNOME metrics, the primary menu and the toolbar in the header bar; the theme draws all chrome.
+- Symbolic icons come from the Adwaita icon theme via `scripts/generate-symbolic-icons.py` (see `Source/Resources/Icons/README.md`).
+- `LDTreeCells` draws the percentage bars and icon+name cells; `LDTreeSorting`, `LDFileTypeDescriptions` and `LDSystemInfo` hold the model-side logic.
+
 Step B:
 
 - `LDTreemap` (in `LDTreemapLayout.m`) is a port of WinDirStat's `CTreeMap`: KDirStat and SequoiaView layouts, cushion shading with the real defaults, the equalized palette and rank-based colors.
@@ -37,11 +43,11 @@ make -C Source && LINDIRSTAT_SCAN_PATH=/usr/share/doc openapp Source/LinDirStat.
 
 ## Where To Resume
 
-- Step C, window chrome: `NSSplitView` panes, WinDirStat menus and toolbar, custom-drawn subtree-percentage cells with depth colors and pacman, file icons, sortable headers, compact rows, three-field status bar. Use standard controls and system colors only; see the look-and-feel principle in `AGENTS.md`.
+- Step C leftovers: live tree updates and WinDirStat's pacman while scanning (needs the scanner to publish partial trees safely), column visibility options.
 - Step D onwards: clean-up actions (trash, open, reveal), refresh selected, drive picker, largest files, duplicates, search, CSV, filters, settings, dark mode.
 
 ## Known Gaps
 
-- The subtree percent column is still ASCII text.
-- Menus are minimal (File and Treemap only).
+- Clean Up and Options menus wait for Step D/E.
+- Theme notes for the Adwaita agent: GNUstep column autoresizing is worked around by fitting the Name and Description columns by hand; NSScrollView's header corner view is removed so overlay scrollbars do not hide the last column title.
 - File actions (step D) must open paths from `-[LDFileNode nameBytes]` chains rather than `-path`, which is lossy for names that are not valid UTF-8.

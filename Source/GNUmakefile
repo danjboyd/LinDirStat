@@ -17,9 +17,13 @@ LinDirStat_OBJC_FILES = \
   LDExtensionColor.m \
   LDTreemapView.m \
   LDFileActionPlan.m \
-  LDFileActions.m
+  LDFileActions.m \
+  LDFileTypeDescriptions.m \
+  LDTreeSorting.m \
+  LDSystemInfo.m \
+  LDTreeCells.m
 
-LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist
+LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist $(wildcard Resources/Icons/*.png)
 
 OPENSAVE_ROOT = /home/danboyd/git/gnustep/libs-OpenSave
 
