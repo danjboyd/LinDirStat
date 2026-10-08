@@ -1,49 +1,99 @@
 #import "LDExtensionColor.h"
 
+static const LDRGBColor LDDefaultCushionColors[] = {
+  LDRGB(0, 0, 255),     // Blue
+  LDRGB(255, 0, 0),     // Red
+  LDRGB(0, 255, 0),     // Green
+  LDRGB(255, 255, 0),   // Yellow
+  LDRGB(0, 255, 255),   // Cyan
+  LDRGB(255, 0, 255),   // Magenta
+  LDRGB(255, 170, 0),   // Orange
+  LDRGB(0, 85, 255),    // Dodger Blue
+  LDRGB(255, 0, 85),    // Hot Pink
+  LDRGB(85, 255, 0),    // Lime Green
+  LDRGB(170, 0, 255),   // Violet
+  LDRGB(0, 255, 85),    // Spring Green
+  LDRGB(255, 0, 170),   // Deep Pink
+  LDRGB(0, 170, 255),   // Sky Blue
+  LDRGB(255, 85, 0),    // Orange Red
+  LDRGB(0, 255, 170),   // Aquamarine
+  LDRGB(85, 0, 255),    // Indigo
+  LDRGB(255, 255, 255), // White
+};
+
+#define LDPaletteCount (sizeof(LDDefaultCushionColors) / sizeof(LDDefaultCushionColors[0]))
+
+static void LDDistributeFirst(int *first, int *second, int *third)
+{
+  int h = (*first - 255) / 2;
+  *first = 255;
+  *second += h;
+  *third += h;
+
+  if (*second > 255) {
+    int j = *second - 255;
+    *second = 255;
+    *third += j;
+  } else if (*third > 255) {
+    int j = *third - 255;
+    *third = 255;
+    *second += j;
+  }
+}
+
 @implementation LDExtensionColor
 
-+ (NSArray *)palette
++ (NSUInteger)paletteCount
 {
-  static NSArray *palette = nil;
-  if (!palette) {
-    palette = [[NSArray alloc] initWithObjects:
-               [NSColor colorWithCalibratedRed:0.18 green:0.18 blue:1.00 alpha:1.0],
-               [NSColor colorWithCalibratedRed:1.00 green:0.18 blue:0.18 alpha:1.0],
-               [NSColor colorWithCalibratedRed:0.16 green:0.86 blue:0.16 alpha:1.0],
-               [NSColor colorWithCalibratedRed:1.00 green:0.88 blue:0.12 alpha:1.0],
-               [NSColor colorWithCalibratedRed:0.08 green:0.88 blue:0.88 alpha:1.0],
-               [NSColor colorWithCalibratedRed:0.95 green:0.08 blue:0.95 alpha:1.0],
-               [NSColor colorWithCalibratedRed:1.00 green:0.55 blue:0.00 alpha:1.0],
-               [NSColor colorWithCalibratedRed:0.00 green:0.34 blue:1.00 alpha:1.0],
-               [NSColor colorWithCalibratedRed:1.00 green:0.00 blue:0.34 alpha:1.0],
-               [NSColor colorWithCalibratedRed:0.42 green:1.00 blue:0.00 alpha:1.0],
-               [NSColor colorWithCalibratedRed:0.66 green:0.00 blue:1.00 alpha:1.0],
-               [NSColor colorWithCalibratedRed:0.00 green:1.00 blue:0.34 alpha:1.0],
-               [NSColor colorWithCalibratedRed:1.00 green:0.00 blue:0.66 alpha:1.0],
-               [NSColor colorWithCalibratedRed:0.00 green:0.66 blue:1.00 alpha:1.0],
-               [NSColor colorWithCalibratedRed:1.00 green:0.34 blue:0.00 alpha:1.0],
-               [NSColor colorWithCalibratedRed:0.00 green:1.00 blue:0.66 alpha:1.0],
-               [NSColor colorWithCalibratedRed:0.34 green:0.00 blue:1.00 alpha:1.0],
-               [NSColor colorWithCalibratedRed:0.42 green:0.42 blue:0.42 alpha:1.0],
-               nil];
-  }
-  return palette;
+  return LDPaletteCount;
 }
 
-+ (NSUInteger)paletteIndexForExtensionKey:(NSString *)extensionKey
++ (void)normalizeRed:(int *)red green:(int *)green blue:(int *)blue
 {
-  NSString *key = extensionKey ? extensionKey : @"<none>";
-  NSUInteger hash = 5381;
-  NSUInteger i = 0;
-  for (i = 0; i < [key length]; i++) {
-    hash = ((hash << 5) + hash) + [key characterAtIndex:i];
+  if (*red > 255) {
+    LDDistributeFirst(red, green, blue);
+  } else if (*green > 255) {
+    LDDistributeFirst(green, red, blue);
+  } else if (*blue > 255) {
+    LDDistributeFirst(blue, red, green);
   }
-  return hash % [[self palette] count];
 }
 
-+ (NSColor *)colorForExtensionKey:(NSString *)extensionKey
++ (LDRGBColor)makeBrightColor:(LDRGBColor)color brightness:(double)brightness
 {
-  return [[self palette] objectAtIndex:[self paletteIndexForExtensionKey:extensionKey]];
+  double red = LDRGBRed(color) / 255.0;
+  double green = LDRGBGreen(color) / 255.0;
+  double blue = LDRGBBlue(color) / 255.0;
+  double sum = red + green + blue;
+  if (sum <= 0.0) {
+    return color;
+  }
+
+  double f = 3.0 * brightness / sum;
+  int r = (int)(red * f * 255);
+  int g = (int)(green * f * 255);
+  int b = (int)(blue * f * 255);
+  [self normalizeRed:&r green:&g blue:&b];
+  return LDRGB(r, g, b);
+}
+
++ (LDRGBColor)paletteColorAtIndex:(NSUInteger)index
+{
+  static LDRGBColor palette[LDPaletteCount];
+  static BOOL initialized = NO;
+  if (!initialized) {
+    NSUInteger i = 0;
+    for (i = 0; i < LDPaletteCount; i++) {
+      palette[i] = [self makeBrightColor:LDDefaultCushionColors[i] brightness:0.6];
+    }
+    initialized = YES;
+  }
+  return palette[MIN(index, LDPaletteCount - 1)];
+}
+
++ (NSUInteger)paletteIndexForRank:(NSUInteger)rank
+{
+  return MIN(rank, LDPaletteCount - 1);
 }
 
 @end

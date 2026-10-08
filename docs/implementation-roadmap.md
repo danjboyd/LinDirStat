@@ -250,7 +250,7 @@ Initial execution status: added `docs/windirstat-parity.md` to track matched, pa
 
 ## Phase 11: Automated WinDirStat Visual Parity Gate
 
-Initial execution status: added deterministic fixture specs, a standalone `scripts/windirstat-parity-gate.sh` runner, a Python renderer/comparator, non-strict metric reporting, strict-mode thresholds, and documentation in `docs/regression-gate.md` and `docs/windirstat-parity.md`. Subphases 11A-F are implemented with expanded fixtures, oracle metadata, a GNUstep headless exporter that calls the production `LDTreemapLayout` code, expanded geometry/image metrics, non-strict regression-gate integration, and GUI screenshot correlation output. Strict mode currently fails as expected because the app still uses a simple slice treemap rather than WinDirStat-style squarified, cushion-shaded rendering.
+Execution status: complete. The oracle is now an independent Python port of WinDirStat's `CTreeMap`, the exporter emits the production renderer's pixels, and the gate is strict by default. All fixtures match the oracle pixel for pixel.
 
 ### 11A. Deterministic Visual Fixtures
 
@@ -302,11 +302,13 @@ Execution status: implemented with opportunistic screenshot capture.
 
 ## Phase 12: WinDirStat UI Fidelity Pass
 
-Initial execution status: audit completed against local LinDirStat screenshots, supplied WinDirStat screenshots, WinDirStat documentation, and public screenshot references. Subphases 12A-C have an initial implementation: treemap layout is now squarified with WinDirStat-like saturated colors and cushion-style shading, pane proportions now favor the directory tree with a narrower extension legend, and the directory list is now an expandable outline with WinDirStat-style columns. Remaining fidelity work includes exact WinDirStat cushion rendering, extension legend details, scan-time tree animation, toolbar/menu chrome, status bar, and coupled selection behavior.
+Initial execution status: audit completed against local LinDirStat screenshots, supplied WinDirStat screenshots, WinDirStat documentation, and public screenshot references. 12A is complete (exact WinDirStat treemap). 12B-C have initial implementations, the extension list has rank colors with cushion swatches, and tree/treemap/extension selection is coupled. Remaining fidelity work is the window chrome: split views, menus and toolbar, custom-drawn list cells, status bar and scan-time animation.
+
+Look-and-feel principle: LinDirStat is a plain GNUstep/AppKit app with no theming code of its own. Under the Adwaita GNUstep theme (`~/git/gnustep/plugins-themes-adwaita`) it should look like a first-class GTK4 app. Chrome uses standard controls and system `NSColor`s so the theme decides its appearance; custom drawing is limited to WinDirStat content (treemap cushions, swatches, percentage bars), and anything that looks wrong under Adwaita is fixed in the theme rather than worked around in the app.
 
 ### 12A. Treemap Visual Rendering
 
-Execution status: initial implementation complete; strict Phase 11 parity still fails on color/rendering fidelity.
+Execution status: complete. `LDTreemap` ports WinDirStat's KDirStat/SequoiaView layouts, cushion shading, palette and rank colors; `LDTreemapView` adds WinDirStat's selection frame, extension highlighting, zoom, hover and dimming. Strict Phase 11 parity passes.
 
 - Replace flat slice-style rectangles with WinDirStat/KDirStat-style squarified nested treemap geometry.
 - Implement cushion shading, ridge-like lighting, saturated extension colors, and dark separators that reveal directory structure.

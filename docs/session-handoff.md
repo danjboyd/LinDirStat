@@ -1,57 +1,41 @@
 # Session Handoff
 
-Last updated: 2026-04-27
+Last updated: 2026-10-08
 
 ## Current State
 
-LinDirStat has a working GNUstep app shell, filesystem scanner, extension statistics, treemap model/view, basic packaging scripts, regression tests, and a WinDirStat visual-parity harness. The roadmap is current through Phase 12.
+Audit Steps A (scan correctness/performance) and B (WinDirStat treemap) are done.
 
-Phase 11 is implemented as a non-strict visual parity gate:
+Step A:
 
-- `scripts/windirstat-parity-gate.sh` renders canonical fixture treemaps and records geometry/image metrics.
-- `Tools/TreemapParityExporter.m` exports production treemap rectangles for fixtures or a real path.
-- `scripts/capture-path-treemap.sh` can scan a real directory, export the treemap, and render a PNG for review.
-- Strict parity is intentionally not enabled yet because visual rendering is still short of WinDirStat.
+- `LDScanner` uses `fstatat`, stays on the root filesystem (mount points are recorded, not entered), counts hard links once, and records physical and logical sizes, mtime and mode. Nodes store names only; paths are derived from parents.
+- Children are sorted once on the scan thread (`-[LDFileNode sortChildrenByMetric:]`); the outline reads them directly.
+- `LDScanSession` is thread-safe (locked path/root, atomic counters) and exposes live progress.
+- Physical size is the default; Treemap > Use Logical Size switches all panes.
+- `/usr/share/doc` (45k files) now scans and displays in about 2 s; previously 15-20 s with a frozen window.
 
-Phase 12 was added for WinDirStat UI fidelity. Subphases 12A-C have initial implementation:
+Step B:
 
-- `12A`: treemap geometry is now squarified, labels are hidden, extension colors are more saturated, and rendering has basic cushion-style shading on a black background.
-- `12B`: the main window proportions now favor the directory tree with a narrower extension list, closer to WinDirStat.
-- `12C`: the directory pane is now an expandable outline view with WinDirStat-style columns.
+- `LDTreemap` (in `LDTreemapLayout.m`) is a port of WinDirStat's `CTreeMap`: KDirStat and SequoiaView layouts, cushion shading with the real defaults, the equalized palette and rank-based colors.
+- `LDTreemapView` caches the rendered bitmap and adds WinDirStat's selection frame, extension highlighting, zoom (frame in the theme's selection color), hover, double-click zoom, middle-click reset, wheel select-parent, and dimming while scanning or resizing.
+- The parity gate compares production pixels with an independent Python port of `CTreeMap` and is strict by default; every fixture matches exactly.
 
-## Verified Before Stopping
-
-The latest verification passed:
+## Verify
 
 ```sh
-make -C Source
-make -C Tests
-LD_LIBRARY_PATH="$HOME/git/Arlen/vendor/tools-xctest/XCTest/obj:${LD_LIBRARY_PATH:-}" "$HOME/git/Arlen/vendor/tools-xctest/obj/xctest" Tests/LinDirStatTests.bundle
+./scripts/run-tests.sh
 ./scripts/windirstat-parity-gate.sh
+make -C Source && LINDIRSTAT_SCAN_PATH=/usr/share/doc openapp Source/LinDirStat.app
 ```
-
-The XCTest suite passed all 7 tests. The visual parity gate passes in non-strict mode. Recent treemap metrics showed full area coverage, no gap pixels, low overlap, and a much improved aspect-ratio delta, but low color histogram similarity remains a clear indicator that the WinDirStat cushion/palette look is not finished.
 
 ## Where To Resume
 
-Start with Phase 12D-F:
-
-- `12D`: make the extension list look and behave like the WinDirStat legend, including a color swatch column, descriptions, bytes, percent bytes, file count, top-extension coloring, and grey fallback.
-- `12E`: replace the current simple async status spinner with WinDirStat-like scan-time directory animation, including a pacman/read-job indicator in the subtree percent column and incremental tree updates while scanning.
-- `12F`: add WinDirStat-style menus and compact toolbar command chrome.
-
-Useful WinDirStat reference source now exists as a submodule under `references/WinDirStat`. Likely files to inspect next:
-
-- `references/WinDirStat/windirstat/Controls/TreeMap.cpp`
-- `references/WinDirStat/windirstat/Controls/ExtensionListControl.cpp`
-- `references/WinDirStat/windirstat/Controls/FileTreeControl.cpp`
-- `references/WinDirStat/windirstat/Controls/PacMan.cpp`
-- `references/WinDirStat/windirstat/Views/TreeMapView.cpp`
+- Convert the project to ARC (clang + libobjc2 `gnustep-2.2` runtime supports `-fobjc-arc`).
+- Step C, window chrome: `NSSplitView` panes, WinDirStat menus and toolbar, custom-drawn subtree-percentage cells with depth colors and pacman, file icons, sortable headers, compact rows, three-field status bar. Use standard controls and system colors only; see the look-and-feel principle in `AGENTS.md`.
+- Step D onwards: clean-up actions (trash, open, reveal), refresh selected, drive picker, largest files, duplicates, search, CSV, filters, settings, dark mode.
 
 ## Known Gaps
 
-- Treemap rendering is still an approximation. It needs closer cushion shading and palette behavior before strict visual parity should pass.
-- Extension list is still table-driven but not yet a faithful WinDirStat legend.
-- Scan animation currently reports status and spinner text, but does not yet animate rows like WinDirStat.
-- Toolbar, menus, status bar fields, and coupled tree/treemap/extension selection are still pending Phase 12 work.
-- The app was tested live against `/home/danboyd`; the scan can be launched through `scripts/run-home-live.sh`, but GUI capture/review is still manual.
+- The subtree percent column is still ASCII text.
+- Menus are minimal (File and Treemap only).
+- Scanning is single-threaded.

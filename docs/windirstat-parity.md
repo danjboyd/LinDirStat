@@ -13,13 +13,13 @@ Status values:
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Directory scan | partial | Recursive scanner, aggregation, error tracking, hard-link duplicate handling, and async session path exist. Large-tree performance and platform edge cases remain. |
-| Directory tree pane | partial | Table is present with name, size, percent, and item count. Expand/collapse tree behavior, sorting UI, and selection sync remain. |
-| Extension/type pane | partial | Extension grouping, counts, bytes, percent, and stable colors exist. Descriptions and color swatches remain. |
-| Treemap pane | partial | Deterministic treemap rendering, labels, colors, and point lookup exist. WinDirStat's exact squarified layout and selection sync remain. |
-| Status/progress | partial | Summary status exists. Live progress, cancel state, and elapsed time UI remain. |
-| Folder/drive selection | deferred | Open action button is visible but not wired to a folder chooser yet. |
-
+| Directory scan | partial | Background scanner using `fstatat`, staying on the root filesystem (mount points are shown but not entered), counting hard links once, recording physical (`st_blocks`) and logical sizes, mtime and mode. Children are sorted once on the scan thread. Single-threaded; exclusion filters, symlink following and refresh-selected remain. |
+| Size semantics | matched | Physical size by default like WinDirStat; Treemap > Use Logical Size switches every pane. Directories contribute no bytes of their own. |
+| Directory tree pane | partial | Expandable outline with name, subtree percent, percent, size, files, subdirs, last change (newest in subtree) and mode. Synchronized with treemap selection. Custom-drawn percentage bars, pacman, icons, sortable headers remain (Step C). |
+| Extension/type pane | partial | Rank-based WinDirStat colors with cushioned swatches, bytes, % bytes, files; selecting an extension highlights its files in the treemap. Descriptions remain. |
+| Treemap pane | matched | Port of `CTreeMap`: KDirStat (default) and SequoiaView layouts, cushion shading with WinDirStat's real defaults, equalized palette, top-17 rank colors with grey for the rest, optional grid, white selection frame, extension highlighting, zoom in/out/reset with a frame, hover path in the status bar, double-click zoom, middle-click reset, wheel select-parent, dimming while scanning and while a resize settles. Pixel-identical to the oracle in the parity gate. Treemap settings UI, Show Free Space/Unknown remain. |
+| Status/progress | partial | Live file/folder/byte counters and current path while scanning, summary with elapsed time and unreadable count. WinDirStat's three-pane status bar remains (Step C). |
+| Folder/drive selection | partial | Select Target opens a folder chooser. WinDirStat's drive list with usage bars remains. |
 ## File Actions
 
 | Area | Status | Notes |
@@ -57,29 +57,12 @@ Run:
 ./scripts/windirstat-parity-gate.sh
 ```
 
-The parity gate uses deterministic fixture trees in `Tests/Fixtures/windirstat-parity/trees.json`. For each fixture and viewport size it renders:
+The gate renders each fixture in `Tests/Fixtures/windirstat-parity/trees.json` at three viewport sizes with the production renderer (`Tools/windirstat-parity-exporter --ppm`, which calls `LDTreemap` and the rank-based palette) and with an independent Python port of WinDirStat's `CTreeMap` (`references/WinDirStat/windirstat/Controls/TreeMap.cpp`). It is strict by default: any leaf rectangle difference, any channel drift above 2, or under 99.9% exact pixels fails. Current status: all fixtures match exactly.
 
-- a LinDirStat treemap by building and invoking `Tools/windirstat-parity-exporter`, which constructs `LDFileNode` objects and calls production `LDTreemapLayout`
-- a WinDirStat oracle treemap using KDirStat-style row squarification, the WinDirStat default palette family, and cushion-like shading
-- rectangle JSON for both renderers
-- a summary of geometry and image similarity metrics
-
-Output is written to `dist/validation/windirstat-parity`, including `windirstat-oracle-metadata.json` to record oracle assumptions and limitations.
-
-The metrics include rectangle coverage, pixel gaps/overlaps, file area proportionality, aspect-ratio drift, center-point drift, color histogram similarity, edge-density similarity, and pixel distance.
-
-The gate is non-strict by default so existing work can measure visual drift without failing the full local regression flow. Strict mode is the target for claiming treemap visual parity:
-
-```sh
-WINDIRSTAT_PARITY_STRICT=1 ./scripts/windirstat-parity-gate.sh
-```
-
-Strict mode is expected to fail until the treemap implementation moves from simple alternating slices toward WinDirStat's KDirStat-style squarification and cushion-shaded rendering.
+Output is written to `dist/validation/windirstat-parity`, including both images, a diff image, rectangle JSON and `summary.json`.
 
 For full-window review, run:
 
 ```sh
 ./scripts/gui-parity-correlation.sh
 ```
-
-When a GUI display and capture tools are available, the script captures a LinDirStat window screenshot and writes `dist/validation/gui-parity/correlation.json` linking that screenshot to the latest headless parity summary.

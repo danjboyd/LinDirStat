@@ -3,12 +3,37 @@
 #import "LDScanner.h"
 #import "LDScanSession.h"
 #import "LDTreemapItem.h"
+#import "LDExtensionStats.h"
 #import "LDTreemapLayout.h"
 
 static void PrintUsage(void)
 {
-  fprintf(stderr, "usage: windirstat-parity-exporter fixtures.json fixture-name width height\n");
-  fprintf(stderr, "       windirstat-parity-exporter --path path width height\n");
+  fprintf(stderr, "usage: windirstat-parity-exporter fixtures.json fixture-name width height [--ppm out.ppm]\n");
+  fprintf(stderr, "       windirstat-parity-exporter --path path width [--ppm out.ppm]\n");
+}
+
+// Renders the production treemap (layout, rank colors and cushions) to a PPM.
+static BOOL WritePPM(LDFileNode *root, int width, int height, const char *path)
+{
+  NSArray *stats = [LDExtensionStats sortedStatsForRootNode:root metric:LDSizeMetricPhysical];
+  LDTreemap *treemap = [[[LDTreemap alloc] initWithRootNode:root
+                                                     metric:LDSizeMetricPhysical
+                                                      width:width
+                                                     height:height
+                                                    options:LDTreemapDefaultOptions()] autorelease];
+  NSData *rgba = [treemap renderRGBAWithColorIndexes:[LDExtensionStats colorIndexMapForSortedStats:stats]];
+  FILE *file = fopen(path, "wb");
+  if (!file) {
+    return NO;
+  }
+  fprintf(file, "P6\n%d %d\n255\n", width, height);
+  const uint8_t *pixels = [rgba bytes];
+  NSUInteger i = 0;
+  for (i = 0; i < (NSUInteger)width * (NSUInteger)height; i++) {
+    fwrite(pixels + i * 4, 1, 3, file);
+  }
+  fclose(file);
+  return YES;
 }
 
 static NSDictionary *FixtureNamed(NSDictionary *spec, NSString *name)
@@ -80,6 +105,11 @@ static NSDictionary *DictionaryForItem(LDTreemapItem *item)
 int main(int argc, const char *argv[])
 {
   NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+  const char *ppmPath = NULL;
+  if (argc >= 3 && strcmp(argv[argc - 2], "--ppm") == 0) {
+    ppmPath = argv[argc - 1];
+    argc -= 2;
+  }
   if (argc != 5 && argc != 4) {
     PrintUsage();
     [pool drain];
@@ -134,13 +164,23 @@ int main(int argc, const char *argv[])
       return 1;
     }
     root = NodeFromSpec([fixture objectForKey:@"tree"], nil);
+    [root sortChildrenByMetric:LDSizeMetricPhysical];
   } else {
     PrintUsage();
     [pool drain];
     return 2;
   }
 
-  NSArray *items = [LDTreemapLayout layoutItemsForRootNode:root inRect:NSMakeRect(0.0, 0.0, width, height)];
+  if (ppmPath && !WritePPM(root, (int)width, (int)height, ppmPath)) {
+    fprintf(stderr, "could not write %s\n", ppmPath);
+    [pool drain];
+    return 1;
+  }
+
+  NSArray *items = [LDTreemapLayout layoutItemsForRootNode:root
+                                                    metric:LDSizeMetricPhysical
+                                                    inRect:NSMakeRect(0.0, 0.0, width, height)
+                                                   options:LDTreemapDefaultOptions()];
   NSMutableArray *outputItems = [NSMutableArray array];
   NSEnumerator *enumerator = [items objectEnumerator];
   LDTreemapItem *item = nil;

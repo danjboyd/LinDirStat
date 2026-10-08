@@ -61,6 +61,7 @@ Expected packaging operations:
 3. Build the treemap as a real interactive visualization, not a static report.
 4. Keep destructive cleanup actions deliberate, inspectable, and undo-resistant by design. Do not add one-click deletion flows without confirmation and platform trash support.
 5. Preserve native platform expectations where they do not conflict with WinDirStat's core workflow.
+6. Keep the app free of theming code. Under the Adwaita GNUstep theme it should look like a first-class GTK4 app purely through standard AppKit controls and system `NSColor`s; custom drawing is limited to WinDirStat content such as treemap cushions and percentage bars. Fix Adwaita rendering problems in the theme, not with app-side workarounds.
 
 ## Repository Practices
 

@@ -1,4 +1,8 @@
 #import <AppKit/AppKit.h>
+#import "LDFileNode.h"
+
+@class LDScanSession;
+@class LDTreemapView;
 
 @interface AppController : NSObject <NSApplicationDelegate>
 {
@@ -12,18 +16,19 @@
   NSTextField *_treemapLabel;
   NSScrollView *_directoryScroll;
   NSScrollView *_extensionScroll;
-  NSTableView *_directoryTable;
+  NSOutlineView *_directoryTable;
   NSTableView *_extensionTable;
   NSTextField *_statusField;
   NSTextField *_pathField;
-  id _treemapView;
-  NSArray *_directoryRows;
+  LDTreemapView *_treemapView;
   NSArray *_extensionRows;
-  id _scanSession;
+  NSMutableDictionary *_swatchCache;
+  LDScanSession *_scanSession;
   NSTimer *_scanTimer;
-  id _rootNode;
+  LDFileNode *_rootNode;
   NSString *_currentScanPath;
-  unsigned long long _totalBytes;
-  NSUInteger _scanAnimationFrame;
+  NSDateFormatter *_dateFormatter;
+  LDSizeMetric _sizeMetric;
+  BOOL _syncingSelection;
 }
 @end

@@ -9,7 +9,8 @@ windirstat-parity-exporter_OBJC_FILES = \
   ../Source/LDScanSession.m \
   ../Source/LDScanner.m \
   ../Source/LDTreemapItem.m \
-  ../Source/LDTreemapLayout.m
+  ../Source/LDTreemapLayout.m \
+  ../Source/LDExtensionColor.m
 
 windirstat-parity-exporter_INCLUDE_DIRS = -I../Source
 

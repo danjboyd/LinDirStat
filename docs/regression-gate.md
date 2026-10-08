@@ -11,7 +11,7 @@ The gate covers:
 - `gnustep-cli-new` build execution
 - `tools-xctest` bundle build
 - `tools-xctest` unit/regression execution
-- non-strict WinDirStat visual parity metric generation
+- strict WinDirStat treemap parity (production renderer vs. WinDirStat oracle)
 - `gnustep-packager` manifest validation
 - `gnustep-packager` build
 - `gnustep-packager` stage
@@ -23,10 +23,12 @@ WinDirStat visual parity can be measured with:
 ./scripts/windirstat-parity-gate.sh
 ```
 
-That gate writes deterministic treemap oracle images, LinDirStat images, rectangle JSON, and a summary to `dist/validation/windirstat-parity`. It runs in non-strict mode by default because the current treemap is still intentionally tracked as partial parity. Use strict mode when changing treemap layout or rendering:
+That gate renders every fixture in `Tests/Fixtures/windirstat-parity/trees.json` at each canonical size twice: once with the production `LDTreemap` renderer (through `Tools/windirstat-parity-exporter --ppm`) and once with an independent Python port of WinDirStat's `CTreeMap` (KDirStat layout, cushion shading, equalized palette, rank-based extension colors). Both use the same double-precision math, so the gate is strict by default and fails on any leaf rectangle difference, any pixel channel drift above 2, or less than 99.9% exact pixel matches.
+
+Outputs in `dist/validation/windirstat-parity` include both PPM images, a red diff image per case, rectangle JSON, and `summary.json`. To record metrics without failing (for example while deliberately changing the renderer and the oracle together):
 
 ```sh
-WINDIRSTAT_PARITY_STRICT=1 ./scripts/windirstat-parity-gate.sh
+WINDIRSTAT_PARITY_STRICT=0 ./scripts/windirstat-parity-gate.sh
 ```
 
 Headless parity output can be correlated with a full-window GUI screenshot with:

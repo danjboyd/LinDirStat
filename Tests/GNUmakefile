@@ -9,6 +9,7 @@ LinDirStatTests_OBJC_FILES = \
   LDSizeFormatterTests.m \
   LDScannerTests.m \
   LDTreemapLayoutTests.m \
+  LDExtensionColorTests.m \
   LDFileActionTests.m \
   LDScanSessionTests.m \
   ../Source/LDFileNode.m \
