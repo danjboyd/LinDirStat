@@ -107,7 +107,7 @@ test:
 # GUI gate's reference renderer.
 TOOLS        := $(ROOT)/Tools
 EXPORTER     := $(BUILD)/windirstat-parity-exporter
-EXPORTER_SRC := $(shell sed -n '/_OBJC_FILES *=/,/^ *$$/p' $(TOOLS)/GNUmakefile | grep -o '[A-Za-z0-9_+./]*\.m')
+EXPORTER_SRC := $(shell sed -n '/^windirstat-parity-exporter_OBJC_FILES *=/,/^ *$$/p' $(TOOLS)/GNUmakefile | grep -o '[A-Za-z0-9_+./]*\.m')
 
 exporter: $(EXPORTER)
 
