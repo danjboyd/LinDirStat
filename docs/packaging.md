@@ -49,7 +49,17 @@ pwsh $PACKAGER -Manifest package.manifest.json -Command validate -Backend appima
 or the whole sequence with
 `pwsh ~/git/gnustep/gnustep-packager/scripts/run-packaging-pipeline.ps1 -Manifest package.manifest.json -Backend appimage -RunSmoke`.
 
-The AppImage lands at `dist/packages/LinDirStat-0.1.0-x86_64.AppImage`, with
+`GlobalDefaults.plist` also carries what the Adwaita theme needs from settings
+a GNOME user's GNUstep does not have yet, with the same `ifUnset` semantics:
+`GSX11HandlesWindowDecorations = NO`, so the theme draws the header bar with
+the title, window buttons and toolbar (the theme asks for this itself only
+with a patched libs-gui; the bundled one is stock), and the key mapping that
+makes Ctrl GNUstep's Command key (`GSFirstCommandKey = Control_L`, Control on
+Alt, Alternate on Super), so shortcuts are Ctrl+… as in GNOME apps. Without
+them the first AppImage build had no title, window buttons or Zoom In.
+
+The AppImage lands at `dist/packages/LinDirStat-0.1.0-x86_64.AppImage` (about
+29 MB), with
 `.metadata.json` and `.diagnostics.txt` sidecars; logs go to `dist/logs` and
 `dist/validation`. `dist/` is gitignored.
 
@@ -106,7 +116,7 @@ The packager renders `launch.env` into the AppImage's `AppRun`:
 
 GNUstep reads `GSTheme` only from defaults, never from the environment, so
 the theme default that takes effect is `runtime/etc/GNUstep/GlobalDefaults.plist`
-(`{ GSTheme = Adwaita; }`). gnustep-base ranks it below the user's own
+(`GSTheme = Adwaita`). gnustep-base ranks it below the user's own
 `NSGlobalDomain` and app defaults, which keeps the `ifUnset` semantics: a theme
 the user chose still wins. The manifest does not use
 `packagedDefaults.defaultTheme`; that seeds `GSTheme` into the
