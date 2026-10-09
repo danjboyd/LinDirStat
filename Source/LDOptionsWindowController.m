@@ -461,7 +461,6 @@ static const CGFloat LDOptionsControlSpacing = 6.0;
   [_minimumSize setFrameSize:NSMakeSize(100, NSHeight([_minimumSize frame]))];
   _minimumSizeUnit = [self popUpWithTitles:@[@"bytes", @"KiB", @"MiB", @"GiB", @"TiB"]
                                     action:@selector(minimumSizeUnitChanged:)];
-  [_minimumSizeUnit setFrameSize:NSMakeSize(MAX(NSWidth([_minimumSizeUnit frame]), 100.0), NSHeight([_minimumSizeUnit frame]))];
   [self addRow:@"Exclude files smaller than" controls:@[_minimumSize, _minimumSizeUnit]];
   _y += LDOptionsSectionSpacing - LDOptionsRowSpacing;
   [self addNote:@"Changes apply to the next scan or refresh." color:[NSColor secondaryLabelColor] lines:1];

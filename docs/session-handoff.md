@@ -46,4 +46,4 @@ Run GUI checks on a private display (`docs/development.md`, "GUI review on a pri
 - Refreshing a subtree counts hard links inside it again if their other links are outside it (the hard-link set covers one scan).
 - CSV Index is always 0 (inode numbers are not kept).
 - Show in Files is allowed on scan roots and mount points (WinDirStat allows folders and files only); on Linux the file manager handles them fine.
-- Adwaita theme #66/#67 (pop-up width, combo list padding) merged on the theme's main after the installed build; retest once Dan installs a new theme build.
+- Adwaita theme #66/#67 (pop-up width, combo list padding) verified with theme main 8f75da8; the unit pop-up no longer needs a minimum width.
