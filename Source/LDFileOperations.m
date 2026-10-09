@@ -10,7 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#if !defined(__APPLE__)
 #include <sys/syscall.h>
+#endif
 #include <time.h>
 #include <unistd.h>
 
@@ -425,7 +427,7 @@ static int LDRemoveTree(int directoryFD, const char *name, dev_t device)
     return LDFail(error, EEXIST, @"Moving");
   }
 #if defined(__APPLE__)
-  if (rename([source bytes], [target bytes]) == 0) {
+  if (renamex_np([source bytes], [target bytes], RENAME_EXCL) == 0) {
     return YES;
   }
 #else

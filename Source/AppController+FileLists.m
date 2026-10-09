@@ -10,7 +10,9 @@
 #import "LDSearch.h"
 #import "LDSizeFormatter.h"
 #import "LDTreemapView.h"
+#if defined(GNUSTEP)
 #import "GSOpenSave.h"
+#endif
 
 static NSString *const LDTabAllFiles = @"all";
 static NSString *const LDTabLargest = @"largest";

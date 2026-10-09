@@ -6,7 +6,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/statvfs.h>
+#if defined(__APPLE__)
+#include <sys/mount.h>
+#include <sys/stat.h>
+#else
 #include <sys/sysmacros.h>
+#endif
 
 static NSString *LDStringFromBytes(NSData *bytes)
 {
@@ -219,11 +224,59 @@ static NSString *LDStringFromBytes(NSData *bytes)
   return [self volumesFromMountInfoData:[text dataUsingEncoding:NSUTF8StringEncoding] labels:nil];
 }
 
+#if defined(__APPLE__)
+
+// The browsable local mounts from getmntinfo, as Finder lists them: APFS
+// system volumes (Preboot, VM, Data...) are marked MNT_DONTBROWSE.
++ (NSArray *)localVolumes
+{
+  struct statfs *mounts = NULL;
+  int count = getmntinfo(&mounts, MNT_NOWAIT);
+  NSMutableDictionary *byDevice = [NSMutableDictionary dictionary];
+  for (int i = 0; i < count; i++) {
+    struct statfs *mount = &mounts[i];
+    if (!(mount->f_flags & MNT_LOCAL) || (mount->f_flags & MNT_DONTBROWSE)) {
+      continue;
+    }
+    struct stat info;
+    if (stat(mount->f_mntonname, &info) != 0) {
+      continue;
+    }
+    NSData *mountPoint = [NSData dataWithBytes:mount->f_mntonname length:strlen(mount->f_mntonname)];
+    NSURL *url = [NSURL fileURLWithFileSystemRepresentation:mount->f_mntonname isDirectory:YES relativeToURL:nil];
+    NSString *label = nil;
+    [url getResourceValue:&label forKey:NSURLVolumeLocalizedNameKey error:NULL];
+    LDVolume *volume = [[LDVolume alloc] initWithMountPointData:mountPoint
+                                                         device:info.st_dev
+                                                 fileSystemType:[NSString stringWithUTF8String:mount->f_fstypename]
+                                                         source:[NSString stringWithUTF8String:mount->f_mntfromname]
+                                                          label:[label length] > 0 ? label : nil];
+    NSNumber *key = [NSNumber numberWithUnsignedLongLong:(unsigned long long)info.st_dev];
+    LDVolume *existing = [byDevice objectForKey:key];
+    if (!existing || [mountPoint length] < [[existing mountPointData] length]) {
+      [byDevice setObject:volume forKey:key];
+    }
+  }
+  return [[byDevice allValues] sortedArrayUsingComparator:^NSComparisonResult(LDVolume *left, LDVolume *right) {
+    NSData *a = [left mountPointData];
+    NSData *b = [right mountPointData];
+    int order = memcmp([a bytes], [b bytes], MIN([a length], [b length]));
+    if (order == 0) {
+      return [a length] < [b length] ? NSOrderedAscending : ([a length] > [b length] ? NSOrderedDescending : NSOrderedSame);
+    }
+    return order < 0 ? NSOrderedAscending : NSOrderedDescending;
+  }];
+}
+
+#else
+
 + (NSArray *)localVolumes
 {
   NSData *data = [NSData dataWithContentsOfFile:@"/proc/self/mountinfo"];
   return data ? [self volumesFromMountInfoData:data labels:[self deviceLabels]] : [NSArray array];
 }
+
+#endif
 
 + (NSString *)resolvedDevicePath:(NSString *)path
 {

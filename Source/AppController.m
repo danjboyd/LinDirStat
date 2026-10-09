@@ -18,7 +18,9 @@
 #import "LDTreeCells.h"
 #import "LDTreemapLayout.h"
 #import "LDTreemapView.h"
+#if defined(GNUSTEP)
 #import "GSOpenSave.h"
+#endif
 
 #include <sys/stat.h>
 
@@ -63,7 +65,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   _pacmanEpoch = [NSDate timeIntervalSinceReferenceDate];
   _dateFormatter = [[NSDateFormatter alloc] init];
   [_dateFormatter setDateFormat:@"yyyy-MM-dd HH:mm"];
+#if defined(GNUSTEP)
   GSOpenSaveSetMode(GSOpenSaveModeAuto);
+#endif
 
   NSUInteger style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
   _window = [[NSWindow alloc] initWithContentRect:NSMakeRect(100, 100, 1280, 820)
