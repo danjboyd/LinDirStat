@@ -134,6 +134,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
                                                 userInfo:nil
                                                  repeats:YES];
   [self updateMemoryField:nil];
+  [self startLayoutDumpIfRequested];
   LDCommandLine *commandLine = [LDCommandLine processCommandLine];
   if ([commandLine loadFromCSVPath]) {
     [self loadResultsFromCSVFile:[commandLine loadFromCSVPath]];

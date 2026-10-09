@@ -1,0 +1,476 @@
+{
+ "description": "Generated at run time by scripts/gui-parity-gate.py under dist/validation/gui-parity/work: fixed sizes, a fixed mtime and deterministic contents; files with the same duplicate key share their bytes.",
+ "mtime": 1704110400,
+ "tree": {
+  "name": "LinDirStat Fixture",
+  "children": [
+   {
+    "name": "Videos",
+    "children": [
+     {
+      "name": "holiday.mkv",
+      "size": 9744384
+     },
+     {
+      "name": "lecture.mp4",
+      "size": 5365760
+     },
+     {
+      "name": "clip.mp4",
+      "size": 1765376
+     },
+     {
+      "name": "Raw",
+      "children": [
+       {
+        "name": "take1.mov",
+        "size": 3350528
+       },
+       {
+        "name": "take2.mov",
+        "size": 3018752
+       },
+       {
+        "name": "take3.mov",
+        "size": 614400
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Photos",
+    "children": [
+     {
+      "name": "2023",
+      "children": [
+       {
+        "name": "IMG_0001.jpg",
+        "size": 658432
+       },
+       {
+        "name": "IMG_0002.jpg",
+        "size": 1091584
+       },
+       {
+        "name": "IMG_0003.jpg",
+        "size": 771072
+       },
+       {
+        "name": "IMG_0004.jpg",
+        "size": 1082368
+       },
+       {
+        "name": "IMG_0005.jpg",
+        "size": 1002496
+       },
+       {
+        "name": "IMG_0006.jpg",
+        "size": 671744
+       },
+       {
+        "name": "IMG_0007.jpg",
+        "size": 657408
+       },
+       {
+        "name": "IMG_0008.jpg",
+        "size": 716800
+       },
+       {
+        "name": "IMG_0009.jpg",
+        "size": 1080320
+       },
+       {
+        "name": "IMG_0010.jpg",
+        "size": 799744
+       },
+       {
+        "name": "IMG_0011.jpg",
+        "size": 382976
+       },
+       {
+        "name": "IMG_0012.jpg",
+        "size": 377856
+       },
+       {
+        "name": "IMG_0013.jpg",
+        "size": 1027072
+       },
+       {
+        "name": "IMG_0014.jpg",
+        "size": 720896
+       },
+       {
+        "name": "IMG_0015.jpg",
+        "size": 683008
+       },
+       {
+        "name": "IMG_0016.jpg",
+        "size": 843776
+       },
+       {
+        "name": "IMG_0017.jpg",
+        "size": 827392
+       },
+       {
+        "name": "IMG_0018.jpg",
+        "size": 1015808
+       }
+      ]
+     },
+     {
+      "name": "2024",
+      "children": [
+       {
+        "name": "IMG_0101.jpg",
+        "size": 348160
+       },
+       {
+        "name": "IMG_0102.jpg",
+        "size": 251904
+       },
+       {
+        "name": "IMG_0103.jpg",
+        "size": 621568
+       },
+       {
+        "name": "IMG_0104.jpg",
+        "size": 471040
+       },
+       {
+        "name": "IMG_0105.jpg",
+        "size": 302080
+       },
+       {
+        "name": "IMG_0106.jpg",
+        "size": 247808
+       },
+       {
+        "name": "IMG_0107.jpg",
+        "size": 717824
+       },
+       {
+        "name": "IMG_0108.jpg",
+        "size": 818176
+       },
+       {
+        "name": "IMG_0109.jpg",
+        "size": 196608
+       },
+       {
+        "name": "IMG_0110.jpg",
+        "size": 777216
+       },
+       {
+        "name": "IMG_0111.jpg",
+        "size": 568320
+       },
+       {
+        "name": "IMG_0112.jpg",
+        "size": 627712
+       },
+       {
+        "name": "panorama.png",
+        "size": 2506752
+       },
+       {
+        "name": "scan.tiff",
+        "size": 1150976
+       }
+      ]
+     },
+     {
+      "name": "cover.jpg",
+      "size": 655360,
+      "duplicate": "cover"
+     },
+     {
+      "name": "cover copy.jpg",
+      "size": 655360,
+      "duplicate": "cover"
+     }
+    ]
+   },
+   {
+    "name": "Music",
+    "children": [
+     {
+      "name": "track01.mp3",
+      "size": 3623936
+     },
+     {
+      "name": "track02.mp3",
+      "size": 3802112
+     },
+     {
+      "name": "track03.mp3",
+      "size": 3543040
+     },
+     {
+      "name": "track04.mp3",
+      "size": 3615744
+     },
+     {
+      "name": "track05.mp3",
+      "size": 2582528
+     },
+     {
+      "name": "track06.mp3",
+      "size": 3559424
+     },
+     {
+      "name": "track07.mp3",
+      "size": 2283520
+     },
+     {
+      "name": "track08.mp3",
+      "size": 3996672
+     },
+     {
+      "name": "master.wav",
+      "size": 4718592
+     },
+     {
+      "name": "playlist.m3u",
+      "size": 3072
+     }
+    ]
+   },
+   {
+    "name": "Projects",
+    "children": [
+     {
+      "name": "engine",
+      "children": [
+       {
+        "name": "main.c",
+        "size": 37888
+       },
+       {
+        "name": "render.c",
+        "size": 8192
+       },
+       {
+        "name": "scan.c",
+        "size": 7168
+       },
+       {
+        "name": "tree.c",
+        "size": 6144
+       },
+       {
+        "name": "layout.c",
+        "size": 16384
+       },
+       {
+        "name": "color.c",
+        "size": 61440
+       },
+       {
+        "name": "main.h",
+        "size": 19456
+       },
+       {
+        "name": "render.h",
+        "size": 43008
+       },
+       {
+        "name": "scan.h",
+        "size": 5120
+       },
+       {
+        "name": "tree.h",
+        "size": 54272
+       },
+       {
+        "name": "libengine.so",
+        "size": 1310720
+       },
+       {
+        "name": "libengine.a",
+        "size": 921600
+       },
+       {
+        "name": "Makefile",
+        "size": 6144
+       },
+       {
+        "name": "obj",
+        "children": [
+         {
+          "name": "main.o",
+          "size": 80896
+         },
+         {
+          "name": "render.o",
+          "size": 62464
+         },
+         {
+          "name": "scan.o",
+          "size": 77824
+         },
+         {
+          "name": "tree.o",
+          "size": 97280
+         },
+         {
+          "name": "layout.o",
+          "size": 46080
+         },
+         {
+          "name": "color.o",
+          "size": 88064
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "name": "site",
+      "children": [
+       {
+        "name": "index.html",
+        "size": 28672
+       },
+       {
+        "name": "style.css",
+        "size": 14336
+       },
+       {
+        "name": "app.js",
+        "size": 225280
+       },
+       {
+        "name": "data.json",
+        "size": 389120
+       },
+       {
+        "name": "logo.svg",
+        "size": 9216
+       },
+       {
+        "name": "hero.webp",
+        "size": 716800
+       }
+      ]
+     },
+     {
+      "name": "scripts",
+      "children": [
+       {
+        "name": "build.py",
+        "size": 9216
+       },
+       {
+        "name": "deploy.py",
+        "size": 11264
+       },
+       {
+        "name": "clean.sh",
+        "size": 17408
+       },
+       {
+        "name": "report.py",
+        "size": 2048
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "Documents",
+    "children": [
+     {
+      "name": "report.pdf",
+      "size": 1867776,
+      "duplicate": "report"
+     },
+     {
+      "name": "report (1).pdf",
+      "size": 1867776,
+      "duplicate": "report"
+     },
+     {
+      "name": "budget.xlsx",
+      "size": 163840
+     },
+     {
+      "name": "letter.docx",
+      "size": 71680
+     },
+     {
+      "name": "notes.txt",
+      "size": 12288
+     },
+     {
+      "name": "table.csv",
+      "size": 460800
+     },
+     {
+      "name": "Archive",
+      "children": [
+       {
+        "name": "old-site.zip",
+        "size": 3248128
+       },
+       {
+        "name": "backup.tar.gz",
+        "size": 2711552
+       },
+       {
+        "name": "report.pdf",
+        "size": 1867776,
+        "duplicate": "report"
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "name": "System",
+    "children": [
+     {
+      "name": "cache.db",
+      "size": 2404352
+     },
+     {
+      "name": "journal.log",
+      "size": 819200
+     },
+     {
+      "name": "debug.log",
+      "size": 409600
+     },
+     {
+      "name": "installer.iso",
+      "size": 6291456
+     },
+     {
+      "name": "firmware.bin",
+      "size": 1099776
+     },
+     {
+      "name": "README",
+      "size": 5120
+     }
+    ]
+   },
+   {
+    "name": "disk.img",
+    "size": 7544832
+   },
+   {
+    "name": "todo.txt",
+    "size": 2048
+   },
+   {
+    "name": ".hidden-config",
+    "size": 1024
+   }
+  ]
+ },
+ "expect": {
+  "leafCountMin": 90,
+  "leafCountMax": 97
+ }
+}

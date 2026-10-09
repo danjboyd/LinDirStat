@@ -85,6 +85,11 @@
 + (LDSearchOptions *)runSearchPanel;
 @end
 
+// LINDIRSTAT_DUMP_LAYOUT: geometry for the full-window GUI parity gate.
+@interface AppController (LayoutDump)
+- (void)startLayoutDumpIfRequested;
+@end
+
 @class LDHardLinkTable;
 
 @interface AppController (HardLinks)

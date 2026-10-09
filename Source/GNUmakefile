@@ -30,6 +30,8 @@ LinDirStat_OBJC_FILES = \
   AppController+Cleanup.m \
   AppController+FileLists.m \
   AppController+HardLinks.m \
+  AppController+LayoutDump.m \
+  LDLayoutDump.m \
   LDFileAttributes.m \
   LDCSV.m \
   LDCommandLine.m \

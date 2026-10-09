@@ -33,6 +33,7 @@ macOS: LinDirStat also builds natively against Apple's AppKit (`make -C macos`);
 ```sh
 ./scripts/run-tests.sh
 ./scripts/windirstat-parity-gate.sh
+./scripts/gui-parity-gate.sh   # whole window, headless on its own Xvfb
 make -C Source && LINDIRSTAT_SCAN_PATH=/usr/share/doc openapp Source/LinDirStat.app
 ```
 
@@ -44,7 +45,7 @@ The remaining parity work is split between the Linux and macOS sessions in `docs
 
 
 - A `.desktop` file action ("Open with LinDirStat") in place of WinDirStat's Explorer menu entry.
-- Full-window parity gate (roadmap 12J).
+- Full-window parity gate on macOS (M11; the Linux gate is `scripts/gui-parity-gate.sh`).
 
 ## Known Gaps and Theme Notes
 

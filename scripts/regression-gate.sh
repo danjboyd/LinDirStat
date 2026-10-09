@@ -20,6 +20,7 @@ TOOLS_XCTEST_ROOT="$xctest_root" make -C Tests
 LD_LIBRARY_PATH="$xctest_root/XCTest/obj:${LD_LIBRARY_PATH:-}" "$xctest_root/obj/xctest" Tests/LinDirStatTests.bundle
 
 ./scripts/windirstat-parity-gate.sh
+./scripts/gui-parity-gate.sh
 
 pwsh "$packager" -Manifest package.manifest.json -Command manifest-check
 pwsh "$packager" -Manifest package.manifest.json -Command build
