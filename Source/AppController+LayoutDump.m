@@ -110,8 +110,10 @@ static NSUInteger LDLayoutDumpSequence = 0;
 - (NSArray *)layoutRectOfCell:(NSInteger)index inTreemap:(LDTreemap *)treemap area:(NSRect)area
 {
   LDTreemapRect rect = [treemap rectOfCell:(NSUInteger)index];
-  NSRect viewRect = NSMakeRect(NSMinX(area) + rect.left, NSMinY(area) + rect.top,
-                               LDTreemapRectWidth(rect), LDTreemapRectHeight(rect));
+  // Cells are in device pixels; the dump is in points like the screen.
+  CGFloat scale = [_treemapView renderScale];
+  NSRect viewRect = NSMakeRect(NSMinX(area) + rect.left / scale, NSMinY(area) + rect.top / scale,
+                               LDTreemapRectWidth(rect) / scale, LDTreemapRectHeight(rect) / scale);
   return [LDLayoutDump rect:viewRect ofView:_treemapView] ?: @[];
 }
 
@@ -129,6 +131,8 @@ static NSUInteger LDLayoutDumpSequence = 0;
     @"rect": [LDLayoutDump rectOfView:_treemapView] ?: @[],
     @"area": [LDLayoutDump rect:area ofView:_treemapView] ?: @[],
     @"renderSize": treemap ? @[@([treemap width]), @([treemap height])] : @[],
+    // Device pixels per point: renderSize is in these pixels, rects in points.
+    @"scale": @([_treemapView renderScale]),
     @"leafCount": @([leaves count]),
     @"leaves": leaves,
     @"zoomed": @([_treemapView isZoomed]),

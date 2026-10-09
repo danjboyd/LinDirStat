@@ -230,6 +230,20 @@ static NSString *const LDFullDiskAccessSettingsURL =
   return YES;
 }
 
++ (CGFloat)backingScaleForView:(NSView *)view
+{
+  static CGFloat forced = -1.0;
+  if (forced < 0.0) {
+    NSString *value = [[[NSProcessInfo processInfo] environment] objectForKey:@"LINDIRSTAT_TREEMAP_SCALE"];
+    forced = MAX(0.0, [value doubleValue]);
+  }
+  if (forced >= 1.0) {
+    return floor(forced);
+  }
+  CGFloat scale = [[view window] backingScaleFactor];
+  return scale >= 1.0 ? floor(scale) : 1.0;
+}
+
 + (void)configureTable:(NSTableView *)table
 {
   [table setStyle:NSTableViewStyleFullWidth];
@@ -396,6 +410,12 @@ static NSString *const LDFullDiskAccessSettingsURL =
 + (BOOL)usesCommandDigitsForFileTabs
 {
   return NO;
+}
+
++ (CGFloat)backingScaleForView:(NSView *)view
+{
+  (void)view;
+  return 1.0;
 }
 
 + (void)configureTable:(NSTableView *)table

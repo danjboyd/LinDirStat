@@ -51,8 +51,11 @@ FOUNDATION_EXPORT NSRect LDWholePixelRectInside(NSRect rect);
             treemap:(LDTreemap *)treemap
              pixels:(NSData *)pixels;
 // Width and height in pixels the treemap of the whole tree would be rendered
-// at now.
+// at now: device pixels, so twice the points on a Retina display.
 - (NSSize)renderSize;
+// Device pixels per point the treemap is rendered at; cell rects are in
+// these pixels.
+- (CGFloat)renderScale;
 - (LDFileNode *)rootNode;
 - (LDTreemapOptions)options;
 - (void)setOptions:(LDTreemapOptions)options;
