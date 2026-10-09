@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Extra Tool
+Exec=true %F
+MimeType=text/plain;

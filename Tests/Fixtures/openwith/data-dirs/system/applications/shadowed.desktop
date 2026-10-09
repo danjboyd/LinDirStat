@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=System Shadowed
+Exec=true %f
+MimeType=text/plain;

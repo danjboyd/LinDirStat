@@ -30,6 +30,9 @@ LinDirStatTests_OBJC_FILES = \
   LDSpaceItemsTests.m \
   LDSelectTargetRulesTests.m \
   LDPrivacyAccessTests.m \
+  LDFileWatcherTests.m \
+  LDDesktopEntryTests.m \
+  LDOpenWithTests.m \
   ../Source/LDFileNode.m \
   ../Source/LDExtensionStats.m \
   ../Source/LDSizeFormatter.m \
@@ -57,7 +60,14 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDVolumes.m \
   ../Source/LDSelectTargetRules.m \
   ../Source/LDPrivacyAccess.m \
-  ../Source/LDSpaceItems.m
+  ../Source/LDSpaceItems.m \
+  ../Source/LDFileWatcher.m \
+  ../Source/LDFileWatcherLinux.m \
+  ../Source/LDFileWatcherApple.m \
+  ../Source/LDDesktopEntry.m \
+  ../Source/LDMimeApps.m \
+  ../Source/LDOpenWith.m \
+  ../Source/LDOpenWithLinux.m
 
 LinDirStatTests_INCLUDE_DIRS = -I../Source -I.
 ifneq ($(TOOLS_XCTEST_ROOT),)

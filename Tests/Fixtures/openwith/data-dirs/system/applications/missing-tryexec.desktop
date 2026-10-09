@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Missing TryExec
+Exec=true %f
+MimeType=text/plain;
+TryExec=ldtest-not-installed

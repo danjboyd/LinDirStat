@@ -12,6 +12,7 @@
 #import "LDExtensionStats.h"
 #import "LDFileNode.h"
 #import "LDFileTypeDescriptions.h"
+#import "LDFileWatcher.h"
 #import "LDPlatformUI.h"
 #import "LDScanSession.h"
 #import "LDSizeFormatter.h"
@@ -173,6 +174,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [self addItemTo:treemapMenu title:@"Show Grid" action:@selector(toggleGrid:) key:nil target:self];
   [self addItemTo:treemapMenu title:@"SequoiaView Layout" action:@selector(toggleLayoutStyle:) key:nil target:self];
 
+  NSMenu *toolsMenu = [self addSubmenuTitled:@"Tools" to:mainMenu];
+  [self addItemTo:toolsMenu title:@"Start File Watcher" action:@selector(toggleFileWatcher:) key:nil target:self];
+
   NSMenu *optionsMenu = [self addSubmenuTitled:@"Options" to:mainMenu];
   [[self addItemTo:optionsMenu title:@"Show Free Space" action:@selector(toggleFreeSpace:) key:[self functionKey:NSF6FunctionKey] target:self]
     setKeyEquivalentModifierMask:0];
@@ -315,6 +319,18 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [menu addItem:[NSMenuItem separatorItem]];
   NSMenuItem *custom = (NSMenuItem *)[menu addItemWithTitle:@"Custom Cleanup" action:NULL keyEquivalent:@""];
   [custom setSubmenu:[self customCleanupMenu]];
+  // WinDirStat's "Windows Explorer Menu" (windirstat.rc): the applications
+  // that open the selection. The main menu fills it each time it opens;
+  // context menus are built for the selection they appear on.
+  [menu addItem:[NSMenuItem separatorItem]];
+  NSMenuItem *openWith = (NSMenuItem *)[menu addItemWithTitle:@"Open With" action:NULL keyEquivalent:@""];
+  NSMenu *openWithMenu = [[NSMenu alloc] initWithTitle:@"Open With"];
+  [openWith setSubmenu:openWithMenu];
+  if (isMainMenu) {
+    [menu setDelegate:(id<NSMenuDelegate>)self];
+  } else {
+    [self fillOpenWithMenu:openWithMenu forNodes:[self selectedNodes]];
+  }
   if (isMainMenu) {
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(preferencesDidChange:)
@@ -334,6 +350,24 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   (void)notification;
   [self rebuildCustomCleanupMenus];
   [self applyDisplayPreferences];
+}
+
+// The Clean Up menu is about to show: fill Open With for the selection.
+- (void)menuNeedsUpdate:(NSMenu *)menu
+{
+  if (menu != _cleanupMenu) {
+    return;
+  }
+  NSArray *nodes = [self selectedNodes];
+  BOOL unchanged = [nodes count] == [_openWithNodes count];
+  for (NSUInteger i = 0; unchanged && i < [nodes count]; i++) {
+    unchanged = [nodes objectAtIndex:i] == [_openWithNodes objectAtIndex:i];
+  }
+  if (unchanged) {
+    return;
+  }
+  _openWithNodes = nodes;
+  [self fillOpenWithMenu:[[_cleanupMenu itemWithTitle:@"Open With"] submenu] forNodes:nodes];
 }
 
 - (NSMenu *)contextMenuForListView:(NSTableView *)view
@@ -385,6 +419,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     NSStringFromSelector(@selector(deletePermanently:)): @(LDCommandDeletePermanently),
     NSStringFromSelector(@selector(emptyFolder:)): @(LDCommandEmptyFolder),
     NSStringFromSelector(@selector(moveItemsTo:)): @(LDCommandMoveTo),
+    NSStringFromSelector(@selector(openWithApplication:)): @(LDCommandOpen),
   };
   NSNumber *command = [commands objectForKey:NSStringFromSelector(action)];
   if (command) {
@@ -426,6 +461,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   if (action == @selector(loadResultsFromCSV:)) {
     return ![self isBusy];
   }
+  if (action == @selector(toggleFileWatcher:)) {
+    return [self isFileWatcherOn] || (_rootNode != nil && [LDFileWatcher isSupported]);
+  }
   if (action == @selector(toggleLogicalSize:) || action == @selector(openPath:) || action == @selector(rescan:)
       || action == @selector(emptyTrash:)) {
     return ![self isBusy];
@@ -456,6 +494,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   }
   if (action == @selector(toggleTreemap:)) {
     [item setState:[[LDPreferences sharedPreferences] showTreemap] ? NSOnState : NSOffState];
+  }
+  if (action == @selector(toggleFileWatcher:)) {
+    [item setTitle:[self isFileWatcherOn] ? @"Stop File Watcher" : @"Start File Watcher"];
   }
   if (action == @selector(toggleLogicalSize:)) {
     [item setState:_sizeMetric == LDSizeMetricLogical ? NSOnState : NSOffState];
@@ -902,7 +943,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 {
   [self fitColumn:@"name" ofTable:_directoryTable];
   if (_fileTabs) {
-    for (NSTableView *list in @[_largestTable, _searchTable, _duplicatesTable]) {
+    for (NSTableView *list in @[_largestTable, _searchTable, _duplicatesTable, _watcherTable]) {
       [self fitColumn:@"path" ofTable:list];
     }
   }

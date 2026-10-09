@@ -3,6 +3,7 @@
 #import "LDCSV.h"
 #import "LDDialogs.h"
 #import "LDDuplicateFinder.h"
+#import "LDFileWatcher.h"
 #import "LDHasher.h"
 #import "LDLargestFiles.h"
 #import "LDPreferences.h"
@@ -18,10 +19,12 @@ static NSString *const LDTabAllFiles = @"all";
 static NSString *const LDTabLargest = @"largest";
 static NSString *const LDTabDuplicates = @"duplicates";
 static NSString *const LDTabSearch = @"search";
+static NSString *const LDTabWatcher = @"watcher";
 
 // WinDirStat's tabbed file view (FileTabbedView.cpp): All Files, Largest
-// Files, Duplicate Files (when duplicate detection is on) and Search Results
-// (after a search). Each list's selection drives the treemap and commands.
+// Files, Duplicate Files (when duplicate detection is on), Search Results
+// (after a search) and File Watcher (while Tools › Start File Watcher is
+// on). Each list's selection drives the treemap and commands.
 @implementation AppController (FileLists)
 
 #pragma mark - Building
@@ -84,6 +87,10 @@ static NSString *const LDTabSearch = @"search";
   _largestTab = [self tabItemWithIdentifier:LDTabLargest label:@"Largest Files" view:[self scrollViewWithDocumentView:_largestTable]];
   _duplicatesTab = [self tabItemWithIdentifier:LDTabDuplicates label:@"Duplicate Files" view:[self scrollViewWithDocumentView:_duplicatesTable]];
   _searchTab = [self tabItemWithIdentifier:LDTabSearch label:@"Search Results" view:[self scrollViewWithDocumentView:_searchTable]];
+  _watcherTable = [self buildWatcherTable];
+  _watcherEvents = [[NSMutableArray alloc] init];
+  _watcherRows = @[];
+  _watcherTab = [self tabItemWithIdentifier:LDTabWatcher label:@"File Watcher" view:[self scrollViewWithDocumentView:_watcherTable]];
   [_fileTabs addTabViewItem:_allFilesTab];
   [_fileTabs addTabViewItem:_largestTab];
   return _fileTabs;
@@ -114,6 +121,9 @@ static NSString *const LDTabSearch = @"search";
   }
   if ([identifier isEqual:LDTabSearch]) {
     return _searchTable;
+  }
+  if ([identifier isEqual:LDTabWatcher]) {
+    return _watcherTable;
   }
   return _directoryTable;
 }
@@ -147,6 +157,9 @@ static NSString *const LDTabSearch = @"search";
       item = row < [_largestFiles count] ? [_largestFiles objectAtIndex:row] : nil;
     } else if (table == _searchTable) {
       item = row < [_searchRows count] ? [_searchRows objectAtIndex:row] : nil;
+    } else if (table == _watcherTable) {
+      // A watcher row stands for the item still in the tree at its path.
+      item = row < [_watcherRows count] ? [self nodeForPathData:[[_watcherRows objectAtIndex:row] pathData]] : nil;
     }
     if ([item isKindOfClass:[LDDuplicateGroup class]]) {
       for (LDFileNode *node in [(LDDuplicateGroup *)item nodes]) {
@@ -310,6 +323,164 @@ static NSString *const LDTabSearch = @"search";
   [self showStatus:[NSString stringWithFormat:@"Found %@ files matching “%@”", count, [options term]]];
 }
 
+#pragma mark - File watcher
+
+- (LDTableView *)buildWatcherTable
+{
+  LDTableView *table = [[LDTableView alloc] initWithFrame:NSMakeRect(0, 0, 700, 300)];
+  [table setCommandTarget:self];
+  // FileTreeView.cpp: Name, Time, Operation, Logical Size, newest first.
+  NSTableColumn *name = [self addColumn:@"path" title:@"Name" width:420 right:NO toTable:table];
+  [[name dataCell] setLineBreakMode:NSLineBreakByTruncatingMiddle];
+  [name setMinWidth:160.0];
+  [self setSortPrototypeForColumn:name ascending:YES];
+  [self setSortPrototypeForColumn:[self addColumn:@"time" title:@"Time" width:150 right:NO toTable:table] ascending:NO];
+  [self setSortPrototypeForColumn:[self addColumn:@"operation" title:@"Operation" width:120 right:NO toTable:table] ascending:YES];
+  [self setSortPrototypeForColumn:[self addColumn:@"logicalSize" title:@"Logical Size" width:90 right:YES toTable:table] ascending:NO];
+  [table setColumnAutoresizingStyle:NSTableViewNoColumnAutoresizing];
+  [table setAllowsMultipleSelection:YES];
+  [table setAllowsColumnSelection:NO];
+  [table setAutosaveName:@"LinDirStatFileWatcher"];
+  [table setAutosaveTableColumns:YES];
+  [table setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"time" ascending:NO]]];
+  [table setDataSource:self];
+  [table setDelegate:self];
+  _watcherTimeFormatter = [[NSDateFormatter alloc] init];
+  [_watcherTimeFormatter setDateFormat:@"yyyy-MM-dd HH:mm:ss"];
+  return table;
+}
+
+- (BOOL)isFileWatcherOn
+{
+  return _watcherWanted;
+}
+
+// WinDirStat watches the root, or each drive under "This Computer".
+- (NSArray *)watcherRootPaths
+{
+  NSArray *roots = [_rootNode isComputer] ? [_rootNode children] : (_rootNode ? @[_rootNode] : @[]);
+  NSMutableArray *paths = [NSMutableArray array];
+  for (LDFileNode *root in roots) {
+    [paths addObject:[root pathData]];
+  }
+  return paths;
+}
+
+- (void)startFileWatcher
+{
+  [_fileWatcher stop];
+  LDFileWatcher *watcher = [[LDFileWatcher alloc] initWithRootPaths:[self watcherRootPaths]];
+  [watcher setEventHandler:^(NSArray *events) {
+    [self addWatcherEvents:events];
+  }];
+  [watcher setMessageHandler:^(NSString *message) {
+    [self showStatus:message];
+  }];
+  NSError *error = nil;
+  if (![watcher startWithError:&error]) {
+    _fileWatcher = nil;
+    _watcherWanted = NO;
+    [self setTab:_watcherTab shown:NO];
+    [LDDialogs showFailures:@[[error localizedDescription] ?: @"Unknown error"] title:@"The file watcher could not start"];
+    return;
+  }
+  _fileWatcher = watcher;
+}
+
+// MainFrame.cpp OnToolsWatcher: the tab shows and watching starts, or the
+// tab hides and watching stops. Rows are kept until the next scan.
+- (void)toggleFileWatcher:(id)sender
+{
+  (void)sender;
+  if (_watcherWanted) {
+    _watcherWanted = NO;
+    [_fileWatcher stop];
+    _fileWatcher = nil;
+    [self setTab:_watcherTab shown:NO];
+    return;
+  }
+  if (!_rootNode || ![LDFileWatcher isSupported]) {
+    return;
+  }
+  _watcherWanted = YES;
+  [self setTab:_watcherTab shown:YES];
+  [_fileTabs selectTabViewItem:_watcherTab];
+  [self startFileWatcher];
+}
+
+- (void)addWatcherEvents:(NSArray *)events
+{
+  [_watcherEvents addObjectsFromArray:events];
+  NSUInteger maximum = [LDFileWatcher maximumListedEvents];
+  if ([_watcherEvents count] > maximum) {
+    [_watcherEvents removeObjectsInRange:NSMakeRange(0, [_watcherEvents count] - maximum)];
+  }
+  [self reloadWatcherRows];
+}
+
+- (NSComparisonResult)compareWatcherEvent:(LDFileWatcherEvent *)left with:(LDFileWatcherEvent *)right key:(NSString *)key
+{
+  if ([key isEqualToString:@"path"]) {
+    return [[left path] compare:[right path]];
+  }
+  if ([key isEqualToString:@"operation"]) {
+    return [[LDFileWatcherEvent titleForAction:[left action]] caseInsensitiveCompare:[LDFileWatcherEvent titleForAction:[right action]]];
+  }
+  if ([key isEqualToString:@"logicalSize"]) {
+    return [left logicalSize] < [right logicalSize] ? NSOrderedAscending
+      : ([left logicalSize] > [right logicalSize] ? NSOrderedDescending : NSOrderedSame);
+  }
+  return [left time] < [right time] ? NSOrderedAscending : ([left time] > [right time] ? NSOrderedDescending : NSOrderedSame);
+}
+
+// Rows in the list's order; ties keep the order the changes happened in
+// (reversed when descending, so the newest change is on top).
+- (void)reloadWatcherRows
+{
+  NSArray *selected = [_watcherRows objectsAtIndexes:[_watcherTable selectedRowIndexes]];
+  NSSortDescriptor *descriptor = [[_watcherTable sortDescriptors] firstObject];
+  NSString *key = descriptor ? [descriptor key] : @"time";
+  BOOL ascending = descriptor ? [descriptor ascending] : NO;
+  NSMutableArray *rows = [NSMutableArray arrayWithCapacity:[_watcherEvents count]];
+  NSEnumerator *events = ascending ? [_watcherEvents objectEnumerator] : [_watcherEvents reverseObjectEnumerator];
+  for (LDFileWatcherEvent *event in events) {
+    [rows addObject:event];
+  }
+  [rows sortWithOptions:NSSortStable usingComparator:^NSComparisonResult(id left, id right) {
+    NSComparisonResult result = [self compareWatcherEvent:left with:right key:key];
+    return ascending ? result : (NSComparisonResult)-result;
+  }];
+  _watcherRows = rows;
+  [_watcherTable reloadData];
+  NSMutableIndexSet *indexes = [NSMutableIndexSet indexSet];
+  for (LDFileWatcherEvent *event in selected) {
+    NSUInteger index = [_watcherRows indexOfObjectIdenticalTo:event];
+    if (index != NSNotFound) {
+      [indexes addIndex:index];
+    }
+  }
+  _syncingSelection = YES;
+  [_watcherTable selectRowIndexes:indexes byExtendingSelection:NO];
+  _syncingSelection = NO;
+}
+
+- (id)watcherValueForColumn:(NSString *)identifier event:(LDFileWatcherEvent *)event
+{
+  if ([identifier isEqualToString:@"path"]) {
+    return [self displayPath:[event path]];
+  }
+  if ([identifier isEqualToString:@"time"]) {
+    return [_watcherTimeFormatter stringFromDate:[NSDate dateWithTimeIntervalSince1970:[event time]]];
+  }
+  if ([identifier isEqualToString:@"operation"]) {
+    return [LDFileWatcherEvent titleForAction:[event action]];
+  }
+  if ([identifier isEqualToString:@"logicalSize"]) {
+    return [LDSizeFormatter stringForBytes:[event logicalSize]];
+  }
+  return @"";
+}
+
 #pragma mark - Keeping the lists in step with the tree
 
 - (NSArray *)nodesStillInTree:(NSArray *)nodes
@@ -355,9 +526,16 @@ static NSString *const LDTabSearch = @"search";
   [self setDuplicateGroups:groups];
 }
 
-// A new scan starts with All Files and no search results.
+// A new scan starts with All Files and no search results. The File Watcher
+// tab stays while it is on and empties; it watches the new tree once the
+// scan is done (WinDirStat just stops it, DirStatDoc.cpp DeleteContents).
 - (void)resetFileListsForScan
 {
+  [_fileWatcher stop];
+  _fileWatcher = nil;
+  [_watcherEvents removeAllObjects];
+  _watcherRows = @[];
+  [_watcherTable reloadData];
   [_duplicateFinder cancel];
   _duplicateFinder = nil;
   _largestFiles = @[];
@@ -375,22 +553,31 @@ static NSString *const LDTabSearch = @"search";
 {
   [self updateLargestFiles];
   [self startDuplicateDetection];
+  if (_watcherWanted) {
+    [self startFileWatcher];
+  }
 }
 
 #pragma mark - Data
 
 - (BOOL)isFileList:(NSTableView *)table
 {
-  return table == _largestTable || table == _searchTable || table == _duplicatesTable;
+  return table == _largestTable || table == _searchTable || table == _duplicatesTable || table == _watcherTable;
 }
 
 - (NSArray *)rowsOfFileList:(NSTableView *)table
 {
+  if (table == _watcherTable) {
+    return _watcherRows;
+  }
   return table == _largestTable ? _largestFiles : (table == _searchTable ? _searchRows : _duplicateGroups);
 }
 
 - (id)fileListValueForColumn:(NSString *)identifier item:(id)item
 {
+  if ([item isKindOfClass:[LDFileWatcherEvent class]]) {
+    return [self watcherValueForColumn:identifier event:item];
+  }
   if ([item isKindOfClass:[LDDuplicateGroup class]]) {
     LDDuplicateGroup *group = item;
     if ([identifier isEqualToString:@"path"]) {
@@ -435,6 +622,8 @@ static NSString *const LDTabSearch = @"search";
     _searchRows = [self sortedFileListRows:_searchRows forTable:table];
     [table reloadData];
     [self reselectNodes:selected inTable:table rows:_searchRows];
+  } else if (table == _watcherTable) {
+    [self reloadWatcherRows];
   } else {
     [self setDuplicateGroups:_duplicateGroups];
   }

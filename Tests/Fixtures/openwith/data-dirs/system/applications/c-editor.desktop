@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=C Editor
+Exec=true %f
+MimeType=text/x-csrc;

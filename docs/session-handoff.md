@@ -23,6 +23,8 @@ Step D:
 - Dark mode follows GNOME's style through the theme; checked on a private display.
 - Options › Show Free Space / Show Unknown (F6/F7): `<Free Space>` and `<Unknown>` are leaf nodes of kind `LDFileNodeKindFreeSpace`/`LDFileNodeKindUnknown` (`-isSpaceItem`) under each volume root, maintained by `LDSpaceItems` after every scan, refresh and toggle (`-[AppController updateSpaceItems]`). Disk usage comes from `+[LDVolumes getTotalBytes:freeBytes:forPathData:]` and `+isVolumeRootPathData:` (portable `statvfs`/`stat`). `LDTreemap` honours WinDirStat's `COLORFLAG_DARKER/LIGHTER` (`LDRGBColorFlag…`).
 
+Parity plan L8/L9: File Watcher tab (Tools › Start File Watcher, `LDFileWatcher`, inotify in `LDFileWatcherLinux.m`) and the Open With submenu (`LDOpenWith`, `LDDesktopEntry`, `LDMimeApps`). Their Apple backends are stubs.
+
 macOS: LinDirStat also builds natively against Apple's AppKit (`make -C macos`); platform differences live in small modules. See `docs/macos.md`.
 
 ## Verify
