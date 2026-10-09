@@ -36,6 +36,9 @@ Run GUI checks on a private display (`docs/development.md`, "GUI review on a pri
 
 ## Where To Resume
 
+The remaining parity work is split between the Linux and macOS sessions in `docs/parity-plan.md`.
+
+
 - Show Free Space / Show Unknown (WinDirStat's F6/F7) for volume roots: needs pseudo-nodes and WinDirStat's lighter/darker colour flags in `LDTreemap`.
 - Treemap colour pickers (grid and highlight colours) and the treemap preview in Preferences.
 - A `.desktop` file action ("Open with LinDirStat") in place of WinDirStat's Explorer menu entry.
