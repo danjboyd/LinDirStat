@@ -1,4 +1,5 @@
 #import "LDFileWatcherLinux.h"
+#import "LDLocalization.h"
 #import "LDFileWatcher+Backend.h"
 
 #if !defined(__APPLE__)
@@ -164,7 +165,7 @@ static unsigned long long LDLogicalSizeOfPath(NSData *path)
     }
     if (header.mask & IN_DELETE_SELF) {
       if ([self isRoot:directory]) {
-        [_messages addObject:[NSString stringWithFormat:@"%@ was removed; its changes are no longer recorded", LDDisplayPath(directory)]];
+        [_messages addObject:[NSString stringWithFormat:LDLocalized(@"%@ was removed; its changes are no longer recorded"), LDDisplayPath(directory)]];
       }
       continue;
     }
@@ -276,7 +277,7 @@ static unsigned long long LDLogicalSizeOfPath(NSData *path)
     fclose(file);
   }
   NSString *setting = limit > 0 ? [NSString stringWithFormat:@" (fs.inotify.max_user_watches = %d)", limit] : @"";
-  return [NSString stringWithFormat:@"Watch limit reached%@: changes in some folders are not recorded", setting];
+  return [NSString stringWithFormat:LDLocalized(@"Watch limit reached%@: changes in some folders are not recorded"), setting];
 }
 
 // Returns NO when the system's watch limit stops it.
@@ -437,7 +438,7 @@ static const NSTimeInterval LDMovePairingWait = 0.1;
   if (fd < 0) {
     if (error) {
       *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:errno userInfo:@{
-        NSLocalizedDescriptionKey: [NSString stringWithFormat:@"The file watcher could not start: %s", strerror(errno)]}];
+        NSLocalizedDescriptionKey: [NSString stringWithFormat:LDLocalized(@"The file watcher could not start: %s"), strerror(errno)]}];
     }
     return nil;
   }
@@ -466,7 +467,7 @@ static const NSTimeInterval LDMovePairingWait = 0.1;
     if (error) {
       NSString *reason = lastError == ENOSPC ? [backend watchLimitMessage] : [NSString stringWithUTF8String:strerror(lastError)];
       *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:lastError userInfo:@{
-        NSLocalizedDescriptionKey: [NSString stringWithFormat:@"The file watcher could not start: %@", reason]}];
+        NSLocalizedDescriptionKey: [NSString stringWithFormat:LDLocalized(@"The file watcher could not start: %@"), reason]}];
     }
     return nil;
   }

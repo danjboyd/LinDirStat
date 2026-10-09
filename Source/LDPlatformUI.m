@@ -1,4 +1,5 @@
 #import "LDPlatformUI.h"
+#import "LDLocalization.h"
 #import "LDFileNode.h"
 #import "LDPrivacyAccess.h"
 
@@ -97,7 +98,7 @@ static NSImage *LDSmallIcon(NSImage *icon)
   }
 
   NSString *extension = [node extensionKey];
-  BOOL hasExtension = [extension length] > 0 && ![extension isEqualToString:@"<none>"];
+  BOOL hasExtension = [extension length] > 0 && ![extension isEqualToString:LDLocalized(@"<none>")];
   LDFileNodeKind kind = [node kind];
   // Volumes and packages (apps, bundles) have icons of their own; ask
   // Finder for those by path. Everything else is shared by type.
@@ -180,20 +181,21 @@ static NSString *const LDFullDiskAccessSettingsURL =
     return;
   }
   askedThisLaunch = YES;
-  NSString *count = [denied count] == 1 ? @"1 folder" :
-    [NSString stringWithFormat:@"%@%lu folders", [denied count] == 100 ? @"over " : @"", (unsigned long)[denied count]];
+  NSString *count = [denied count] == 1 ? LDLocalized(@"1 folder")
+    : [denied count] == 100 ? LDLocalized(@"over 100 folders")
+    : [NSString stringWithFormat:LDLocalized(@"%lu folders"), (unsigned long)[denied count]];
   NSAlert *alert = [[NSAlert alloc] init];
-  [alert setMessageText:@"Some folders are protected by macOS"];
+  [alert setMessageText:LDLocalized(@"Some folders are protected by macOS")];
   [alert setInformativeText:[NSString stringWithFormat:
-    @"LinDirStat couldn't read %@, such as %@, because it doesn't have Full Disk Access. "
-    @"Their sizes aren't included in the results.\n\n"
-    @"To scan everything, turn on LinDirStat in System Settings › Privacy & Security › Full Disk Access, "
-    @"then refresh.",
+    LDLocalized(@"LinDirStat couldn't read %@, such as %@, because it doesn't have Full Disk Access. "
+                @"Their sizes aren't included in the results.\n\n"
+                @"To scan everything, turn on LinDirStat in System Settings › Privacy & Security › Full Disk Access, "
+                @"then refresh."),
     count, [self abbreviatedPath:[[denied objectAtIndex:0] path]]]];
-  [alert addButtonWithTitle:@"Open Privacy Settings"];
-  [alert addButtonWithTitle:@"Not Now"];
+  [alert addButtonWithTitle:LDLocalized(@"Open Privacy Settings")];
+  [alert addButtonWithTitle:LDLocalized(@"Not Now")];
   [alert setShowsSuppressionButton:YES];
-  [[alert suppressionButton] setTitle:@"Don't ask again"];
+  [[alert suppressionButton] setTitle:LDLocalized(@"Don't ask again")];
   void (^handler)(NSModalResponse) = ^(NSModalResponse response) {
     if ([[alert suppressionButton] state] == NSControlStateValueOn) {
       [[NSUserDefaults standardUserDefaults] setBool:YES forKey:LDSuppressFullDiskAccessKey];
@@ -217,12 +219,12 @@ static NSString *const LDFullDiskAccessSettingsURL =
 
 + (NSString *)showInFileManagerTitle
 {
-  return @"Show in Finder";
+  return LDLocalized(@"Show in Finder");
 }
 
 + (NSString *)settingsTitle
 {
-  return @"Settings";
+  return LDLocalized(@"Settings");
 }
 
 + (BOOL)usesCommandDigitsForFileTabs
@@ -257,13 +259,13 @@ static NSString *const LDFullDiskAccessSettingsURL =
 {
   NSUInteger index = 0;
   NSArray *standard = @[
-    @[@"Undo", @"undo:", @"z", @(NSEventModifierFlagCommand)],
-    @[@"Redo", @"redo:", @"z", @(NSEventModifierFlagCommand | NSEventModifierFlagShift)],
+    @[LDLocalized(@"Undo"), @"undo:", @"z", @(NSEventModifierFlagCommand)],
+    @[LDLocalized(@"Redo"), @"redo:", @"z", @(NSEventModifierFlagCommand | NSEventModifierFlagShift)],
     @[],
-    @[@"Cut", @"cut:", @"x", @(NSEventModifierFlagCommand)],
-    @[@"Copy", @"copy:", @"c", @(NSEventModifierFlagCommand)],
-    @[@"Paste", @"paste:", @"v", @(NSEventModifierFlagCommand)],
-    @[@"Select All", @"selectAll:", @"a", @(NSEventModifierFlagCommand)],
+    @[LDLocalized(@"Cut"), @"cut:", @"x", @(NSEventModifierFlagCommand)],
+    @[LDLocalized(@"Copy"), @"copy:", @"c", @(NSEventModifierFlagCommand)],
+    @[LDLocalized(@"Paste"), @"paste:", @"v", @(NSEventModifierFlagCommand)],
+    @[LDLocalized(@"Select All"), @"selectAll:", @"a", @(NSEventModifierFlagCommand)],
     @[],
   ];
   for (NSArray *spec in standard) {
@@ -284,22 +286,22 @@ static NSString *const LDFullDiskAccessSettingsURL =
 {
   NSString *name = [[NSProcessInfo processInfo] processName];
   [applicationMenu removeAllItems];
-  [applicationMenu addItemWithTitle:[@"About " stringByAppendingString:name]
+  [applicationMenu addItemWithTitle:[NSString stringWithFormat:LDLocalized(@"About %@"), name]
                              action:@selector(orderFrontStandardAboutPanel:) keyEquivalent:@""];
   [applicationMenu addItem:[NSMenuItem separatorItem]];
-  NSMenuItem *settings = [applicationMenu addItemWithTitle:@"Settings…" action:@selector(showPreferences:) keyEquivalent:@","];
+  NSMenuItem *settings = [applicationMenu addItemWithTitle:LDLocalized(@"Settings…") action:@selector(showPreferences:) keyEquivalent:@","];
   [settings setTarget:preferencesTarget];
   [applicationMenu addItem:[NSMenuItem separatorItem]];
-  NSMenu *services = [[NSMenu alloc] initWithTitle:@"Services"];
-  [[applicationMenu addItemWithTitle:@"Services" action:NULL keyEquivalent:@""] setSubmenu:services];
+  NSMenu *services = [[NSMenu alloc] initWithTitle:LDLocalized(@"Services")];
+  [[applicationMenu addItemWithTitle:LDLocalized(@"Services") action:NULL keyEquivalent:@""] setSubmenu:services];
   [NSApp setServicesMenu:services];
   [applicationMenu addItem:[NSMenuItem separatorItem]];
-  [applicationMenu addItemWithTitle:[@"Hide " stringByAppendingString:name] action:@selector(hide:) keyEquivalent:@"h"];
-  NSMenuItem *hideOthers = [applicationMenu addItemWithTitle:@"Hide Others" action:@selector(hideOtherApplications:) keyEquivalent:@"h"];
+  [applicationMenu addItemWithTitle:[NSString stringWithFormat:LDLocalized(@"Hide %@"), name] action:@selector(hide:) keyEquivalent:@"h"];
+  NSMenuItem *hideOthers = [applicationMenu addItemWithTitle:LDLocalized(@"Hide Others") action:@selector(hideOtherApplications:) keyEquivalent:@"h"];
   [hideOthers setKeyEquivalentModifierMask:NSEventModifierFlagCommand | NSEventModifierFlagOption];
-  [applicationMenu addItemWithTitle:@"Show All" action:@selector(unhideAllApplications:) keyEquivalent:@""];
+  [applicationMenu addItemWithTitle:LDLocalized(@"Show All") action:@selector(unhideAllApplications:) keyEquivalent:@""];
   [applicationMenu addItem:[NSMenuItem separatorItem]];
-  [applicationMenu addItemWithTitle:[@"Quit " stringByAppendingString:name] action:@selector(terminate:) keyEquivalent:@"q"];
+  [applicationMenu addItemWithTitle:[NSString stringWithFormat:LDLocalized(@"Quit %@"), name] action:@selector(terminate:) keyEquivalent:@"q"];
 
   // Settings live in the application menu on macOS, and F5 needs fn on most
   // Mac keyboards, so refreshing also gets the usual Command-R.
@@ -308,7 +310,7 @@ static NSString *const LDFullDiskAccessSettingsURL =
     if (submenu == applicationMenu) {
       continue;
     }
-    if ([[submenu title] isEqualToString:@"Edit"]) {
+    if ([[submenu title] isEqualToString:LDLocalized(@"Edit")]) {
       [self completeEditMenu:submenu];
     }
     for (NSMenuItem *item in [[submenu itemArray] copy]) {
@@ -338,25 +340,25 @@ static NSString *const LDFullDiskAccessSettingsURL =
     }
   }
 
-  NSMenu *window = [[NSMenu alloc] initWithTitle:@"Window"];
-  [[mainMenu addItemWithTitle:@"Window" action:NULL keyEquivalent:@""] setSubmenu:window];
-  [window addItemWithTitle:@"Minimize" action:@selector(performMiniaturize:) keyEquivalent:@"m"];
-  [window addItemWithTitle:@"Zoom" action:@selector(performZoom:) keyEquivalent:@""];
+  NSMenu *window = [[NSMenu alloc] initWithTitle:LDLocalized(@"Window")];
+  [[mainMenu addItemWithTitle:LDLocalized(@"Window") action:NULL keyEquivalent:@""] setSubmenu:window];
+  [window addItemWithTitle:LDLocalized(@"Minimize") action:@selector(performMiniaturize:) keyEquivalent:@"m"];
+  [window addItemWithTitle:LDLocalized(@"Zoom") action:@selector(performZoom:) keyEquivalent:@""];
   [window addItem:[NSMenuItem separatorItem]];
-  [window addItemWithTitle:@"Bring All to Front" action:@selector(arrangeInFront:) keyEquivalent:@""];
+  [window addItemWithTitle:LDLocalized(@"Bring All to Front") action:@selector(arrangeInFront:) keyEquivalent:@""];
   [NSApp setWindowsMenu:window];
 
   // The app's Help menu moves after Window; it also gets the system's menu
   // search.
-  NSMenuItem *helpItem = [mainMenu itemWithTitle:@"Help"];
+  NSMenuItem *helpItem = [mainMenu itemWithTitle:LDLocalized(@"Help")];
   NSMenu *help = [helpItem submenu];
   if (helpItem) {
     [mainMenu removeItem:helpItem];
   } else {
-    help = [[NSMenu alloc] initWithTitle:@"Help"];
+    help = [[NSMenu alloc] initWithTitle:LDLocalized(@"Help")];
   }
-  [[mainMenu addItemWithTitle:@"Help" action:NULL keyEquivalent:@""] setSubmenu:help];
-  NSMenuItem *access = [help addItemWithTitle:@"Full Disk Access Settings…"
+  [[mainMenu addItemWithTitle:LDLocalized(@"Help") action:NULL keyEquivalent:@""] setSubmenu:help];
+  NSMenuItem *access = [help addItemWithTitle:LDLocalized(@"Full Disk Access Settings…")
                                        action:@selector(showFullDiskAccessHelp:) keyEquivalent:@""];
   [access setTarget:self];
   [NSApp setHelpMenu:help];
@@ -399,12 +401,12 @@ static NSString *const LDFullDiskAccessSettingsURL =
 
 + (NSString *)showInFileManagerTitle
 {
-  return @"Show in Files";
+  return LDLocalized(@"Show in Files");
 }
 
 + (NSString *)settingsTitle
 {
-  return @"Preferences";
+  return LDLocalized(@"Preferences");
 }
 
 + (BOOL)usesCommandDigitsForFileTabs

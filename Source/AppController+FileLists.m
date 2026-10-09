@@ -1,4 +1,5 @@
 #import "AppController.h"
+#import "LDLocalization.h"
 #import "AppController+Private.h"
 #import "LDCSV.h"
 #import "LDDialogs.h"
@@ -41,15 +42,15 @@ static NSString *const LDTabWatcher = @"watcher";
   [self setSortPrototypeForColumn:name ascending:YES];
   if (outline) {
     [(NSOutlineView *)table setOutlineTableColumn:name];
-    NSTableColumn *items = [self addColumn:@"items" title:@"Items" width:60 right:YES toTable:table];
+    NSTableColumn *items = [self addColumn:@"items" title:LDLocalized(@"Items") width:60 right:YES toTable:table];
     [self setSortPrototypeForColumn:items ascending:NO];
   }
-  NSArray *columns = @[@[@"physicalSize", @"Physical Size"], @[@"logicalSize", @"Logical Size"]];
+  NSArray *columns = @[@[@"physicalSize", LDLocalized(@"Physical Size")], @[@"logicalSize", LDLocalized(@"Logical Size")]];
   for (NSArray *spec in columns) {
     NSTableColumn *column = [self addColumn:[spec objectAtIndex:0] title:[spec objectAtIndex:1] width:90 right:YES toTable:table];
     [self setSortPrototypeForColumn:column ascending:NO];
   }
-  NSTableColumn *lastChange = [self addColumn:@"lastChange" title:@"Last Change" width:140 right:NO toTable:table];
+  NSTableColumn *lastChange = [self addColumn:@"lastChange" title:LDLocalized(@"Last Change") width:140 right:NO toTable:table];
   [self setSortPrototypeForColumn:lastChange ascending:YES];
   [table setColumnAutoresizingStyle:NSTableViewNoColumnAutoresizing];
   [table setAllowsMultipleSelection:YES];
@@ -71,11 +72,11 @@ static NSString *const LDTabWatcher = @"watcher";
 
 - (NSView *)buildFileTabs
 {
-  _largestTable = (LDTableView *)[self fileListTable:NO nameTitle:@"Name" autosaveName:@"LinDirStatLargestFiles"];
+  _largestTable = (LDTableView *)[self fileListTable:NO nameTitle:LDLocalized(@"Name") autosaveName:@"LinDirStatLargestFiles"];
   [_largestTable setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"physicalSize" ascending:NO]]];
-  _searchTable = (LDTableView *)[self fileListTable:NO nameTitle:@"Name" autosaveName:@"LinDirStatSearchResults"];
+  _searchTable = (LDTableView *)[self fileListTable:NO nameTitle:LDLocalized(@"Name") autosaveName:@"LinDirStatSearchResults"];
   [_searchTable setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"logicalSize" ascending:NO]]];
-  _duplicatesTable = (LDOutlineView *)[self fileListTable:YES nameTitle:@"Hash Prefix / Name" autosaveName:@"LinDirStatDuplicates"];
+  _duplicatesTable = (LDOutlineView *)[self fileListTable:YES nameTitle:LDLocalized(@"Hash Prefix / Name") autosaveName:@"LinDirStatDuplicates"];
   [_duplicatesTable setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"physicalSize" ascending:NO]]];
   _largestFiles = @[];
   _duplicateGroups = @[];
@@ -83,14 +84,14 @@ static NSString *const LDTabWatcher = @"watcher";
   _fileTabs = [[NSTabView alloc] initWithFrame:NSMakeRect(0, 0, 700, 300)];
   [_fileTabs setDelegate:self];
   [_fileTabs setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-  _allFilesTab = [self tabItemWithIdentifier:LDTabAllFiles label:@"All Files" view:[self scrollViewWithDocumentView:_directoryTable]];
-  _largestTab = [self tabItemWithIdentifier:LDTabLargest label:@"Largest Files" view:[self scrollViewWithDocumentView:_largestTable]];
-  _duplicatesTab = [self tabItemWithIdentifier:LDTabDuplicates label:@"Duplicate Files" view:[self scrollViewWithDocumentView:_duplicatesTable]];
-  _searchTab = [self tabItemWithIdentifier:LDTabSearch label:@"Search Results" view:[self scrollViewWithDocumentView:_searchTable]];
+  _allFilesTab = [self tabItemWithIdentifier:LDTabAllFiles label:LDLocalized(@"All Files") view:[self scrollViewWithDocumentView:_directoryTable]];
+  _largestTab = [self tabItemWithIdentifier:LDTabLargest label:LDLocalized(@"Largest Files") view:[self scrollViewWithDocumentView:_largestTable]];
+  _duplicatesTab = [self tabItemWithIdentifier:LDTabDuplicates label:LDLocalized(@"Duplicate Files") view:[self scrollViewWithDocumentView:_duplicatesTable]];
+  _searchTab = [self tabItemWithIdentifier:LDTabSearch label:LDLocalized(@"Search Results") view:[self scrollViewWithDocumentView:_searchTable]];
   _watcherTable = [self buildWatcherTable];
   _watcherEvents = [[NSMutableArray alloc] init];
   _watcherRows = @[];
-  _watcherTab = [self tabItemWithIdentifier:LDTabWatcher label:@"File Watcher" view:[self scrollViewWithDocumentView:_watcherTable]];
+  _watcherTab = [self tabItemWithIdentifier:LDTabWatcher label:LDLocalized(@"File Watcher") view:[self scrollViewWithDocumentView:_watcherTable]];
   [_fileTabs addTabViewItem:_allFilesTab];
   [_fileTabs addTabViewItem:_largestTab];
   return _fileTabs;
@@ -265,7 +266,7 @@ static NSString *const LDTabWatcher = @"watcher";
 
 - (void)setDuplicatesSearching:(BOOL)searching
 {
-  [_duplicatesTab setLabel:searching ? @"Duplicate Files (searching…)" : @"Duplicate Files"];
+  [_duplicatesTab setLabel:searching ? LDLocalized(@"Duplicate Files (searching…)") : LDLocalized(@"Duplicate Files")];
   [_fileTabs setNeedsDisplay:YES];
 }
 
@@ -319,7 +320,7 @@ static NSString *const LDTabWatcher = @"watcher";
   [self setDuplicatesSearching:YES];
   [finder startWithProgress:^(NSUInteger hashedFiles, NSUInteger candidateFiles) {
     if (finder == _duplicateFinder) {
-      [_duplicatesTab setLabel:[NSString stringWithFormat:@"Duplicate Files (%lu%%)",
+      [_duplicatesTab setLabel:[NSString stringWithFormat:LDLocalized(@"Duplicate Files (%lu%%)"),
                                 candidateFiles ? (unsigned long)(hashedFiles * 100 / candidateFiles) : 0UL]];
       [_fileTabs setNeedsDisplay:YES];
     }
@@ -405,11 +406,11 @@ static NSString *const LDTabWatcher = @"watcher";
                                      maxResults:[[LDPreferences sharedPreferences] searchMaxResults]];
   _searchRows = [self sortedFileListRows:[result nodes] forTable:_searchTable];
   NSString *count = [NSString stringWithFormat:@"%lu%@", (unsigned long)[_searchRows count], [result isCapped] ? @"+" : @""];
-  [_searchTab setLabel:[NSString stringWithFormat:@"Search Results (%@)", count]];
+  [_searchTab setLabel:[NSString stringWithFormat:LDLocalized(@"Search Results (%@)"), count]];
   [self setTab:_searchTab shown:YES];
   [_searchTable reloadData];
   [_fileTabs selectTabViewItem:_searchTab];
-  [self showStatus:[NSString stringWithFormat:@"Found %@ files matching “%@”", count, [options term]]];
+  [self showStatus:[NSString stringWithFormat:LDLocalized(@"Found %@ files matching “%@”"), count, [options term]]];
 }
 
 #pragma mark - File watcher
@@ -419,13 +420,13 @@ static NSString *const LDTabWatcher = @"watcher";
   LDTableView *table = [[LDTableView alloc] initWithFrame:NSMakeRect(0, 0, 700, 300)];
   [table setCommandTarget:self];
   // FileTreeView.cpp: Name, Time, Operation, Logical Size, newest first.
-  NSTableColumn *name = [self addColumn:@"path" title:@"Name" width:420 right:NO toTable:table];
+  NSTableColumn *name = [self addColumn:@"path" title:LDLocalized(@"Name") width:420 right:NO toTable:table];
   [[name dataCell] setLineBreakMode:NSLineBreakByTruncatingMiddle];
   [name setMinWidth:160.0];
   [self setSortPrototypeForColumn:name ascending:YES];
-  [self setSortPrototypeForColumn:[self addColumn:@"time" title:@"Time" width:150 right:NO toTable:table] ascending:NO];
-  [self setSortPrototypeForColumn:[self addColumn:@"operation" title:@"Operation" width:120 right:NO toTable:table] ascending:YES];
-  [self setSortPrototypeForColumn:[self addColumn:@"logicalSize" title:@"Logical Size" width:90 right:YES toTable:table] ascending:NO];
+  [self setSortPrototypeForColumn:[self addColumn:@"time" title:LDLocalized(@"Time") width:150 right:NO toTable:table] ascending:NO];
+  [self setSortPrototypeForColumn:[self addColumn:@"operation" title:LDLocalized(@"Operation") width:120 right:NO toTable:table] ascending:YES];
+  [self setSortPrototypeForColumn:[self addColumn:@"logicalSize" title:LDLocalized(@"Logical Size") width:90 right:YES toTable:table] ascending:NO];
   [table setColumnAutoresizingStyle:NSTableViewNoColumnAutoresizing];
   [table setAllowsMultipleSelection:YES];
   [table setAllowsColumnSelection:NO];
@@ -470,7 +471,7 @@ static NSString *const LDTabWatcher = @"watcher";
     _fileWatcher = nil;
     _watcherWanted = NO;
     [self setTab:_watcherTab shown:NO];
-    [LDDialogs showFailures:@[[error localizedDescription] ?: @"Unknown error"] title:@"The file watcher could not start"];
+    [LDDialogs showFailures:@[[error localizedDescription] ?: LDLocalized(@"Unknown error")] title:LDLocalized(@"The file watcher could not start")];
     return;
   }
   _fileWatcher = watcher;
@@ -591,7 +592,7 @@ static NSString *const LDTabWatcher = @"watcher";
   NSUInteger searchCount = [_searchRows count];
   _searchRows = [self nodesStillInTree:_searchRows];
   if ([_searchRows count] != searchCount) {
-    [_searchTab setLabel:[NSString stringWithFormat:@"Search Results (%lu)", (unsigned long)[_searchRows count]]];
+    [_searchTab setLabel:[NSString stringWithFormat:LDLocalized(@"Search Results (%lu)"), (unsigned long)[_searchRows count]]];
     [_fileTabs setNeedsDisplay:YES];
   }
   [_searchTable reloadData];
@@ -753,17 +754,17 @@ static NSString *const LDTabWatcher = @"watcher";
   if (!_rootNode || [self isBusy]) {
     return;
   }
-  NSString *path = [self runSavePanelWithTitle:@"Save Results To CSV" name:@"LinDirStat.csv"];
+  NSString *path = [self runSavePanelWithTitle:LDLocalized(@"Save Results To CSV") name:LDLocalized(@"LinDirStat.csv")];
   if (!path) {
     return;
   }
   NSError *error = nil;
   BOOL includeOwner = [[LDPreferences sharedPreferences] isColumnShown:LDColumnOwner];
   if (![LDCSV writeTree:_rootNode toPath:path includeOwner:includeOwner error:&error]) {
-    [LDDialogs showFailures:@[[error localizedDescription] ?: @"Unknown error"] title:@"Saving the results failed"];
+    [LDDialogs showFailures:@[[error localizedDescription] ?: LDLocalized(@"Unknown error")] title:LDLocalized(@"Saving the results failed")];
     return;
   }
-  [self showStatus:[NSString stringWithFormat:@"Saved %@", [self displayPath:path]]];
+  [self showStatus:[NSString stringWithFormat:LDLocalized(@"Saved %@"), [self displayPath:path]]];
 }
 
 - (void)saveDuplicatesToCSV:(id)sender
@@ -772,16 +773,16 @@ static NSString *const LDTabWatcher = @"watcher";
   if ([_duplicateGroups count] == 0) {
     return;
   }
-  NSString *path = [self runSavePanelWithTitle:@"Save Duplicates To CSV" name:@"LinDirStat Duplicates.csv"];
+  NSString *path = [self runSavePanelWithTitle:LDLocalized(@"Save Duplicates To CSV") name:LDLocalized(@"LinDirStat Duplicates.csv")];
   if (!path) {
     return;
   }
   NSError *error = nil;
   if (![LDCSV writeDuplicateGroups:_duplicateGroups toPath:path error:&error]) {
-    [LDDialogs showFailures:@[[error localizedDescription] ?: @"Unknown error"] title:@"Saving the duplicates failed"];
+    [LDDialogs showFailures:@[[error localizedDescription] ?: LDLocalized(@"Unknown error")] title:LDLocalized(@"Saving the duplicates failed")];
     return;
   }
-  [self showStatus:[NSString stringWithFormat:@"Saved %@", [self displayPath:path]]];
+  [self showStatus:[NSString stringWithFormat:LDLocalized(@"Saved %@"), [self displayPath:path]]];
 }
 
 - (void)loadResultsFromCSV:(id)sender
@@ -791,7 +792,7 @@ static NSString *const LDTabWatcher = @"watcher";
     return;
   }
   NSOpenPanel *panel = [NSOpenPanel openPanel];
-  [panel setTitle:@"Load Results From CSV"];
+  [panel setTitle:LDLocalized(@"Load Results From CSV")];
   [panel setCanChooseFiles:YES];
   [panel setCanChooseDirectories:NO];
   [panel setAllowsMultipleSelection:NO];
@@ -809,7 +810,7 @@ static NSString *const LDTabWatcher = @"watcher";
                             processHardLinks:[[LDPreferences sharedPreferences] processHardLinks]
                                        error:&error];
   if (!root) {
-    [LDDialogs showFailures:@[[error localizedDescription] ?: @"Unknown error"] title:@"Loading the results failed"];
+    [LDDialogs showFailures:@[[error localizedDescription] ?: LDLocalized(@"Unknown error")] title:LDLocalized(@"Loading the results failed")];
     return;
   }
   [self showLoadedTree:root fromFile:path];
@@ -825,7 +826,7 @@ static NSString *const LDTabWatcher = @"watcher";
   LDFileNode *node = [nodes objectAtIndex:0];
   NSData *path = [node pathData];
   NSString *displayPath = [node path];
-  [self showStatus:[NSString stringWithFormat:@"Computing hashes of %@…", [self displayPath:displayPath]]];
+  [self showStatus:[NSString stringWithFormat:LDLocalized(@"Computing hashes of %@…"), [self displayPath:displayPath]]];
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
     NSError *error = nil;
     NSDictionary *hashes = [LDHasher hashesForFileAtPath:path error:&error];
@@ -833,14 +834,14 @@ static NSString *const LDTabWatcher = @"watcher";
       [self showSummaryStatus];
       if (!hashes) {
         [LDDialogs showFailures:@[[NSString stringWithFormat:@"%@: %@", displayPath, [error localizedDescription]]]
-                          title:@"Computing hashes failed"];
+                          title:LDLocalized(@"Computing hashes failed")];
         return;
       }
       NSMutableArray *lines = [NSMutableArray arrayWithObject:displayPath];
       for (NSString *name in [LDHasher hashAlgorithmNames]) {
         [lines addObject:[NSString stringWithFormat:@"%-7@ %@", name, [hashes objectForKey:name]]];
       }
-      [LDDialogs showText:[lines componentsJoinedByString:@"\n"] title:@"Hashes"];
+      [LDDialogs showText:[lines componentsJoinedByString:@"\n"] title:LDLocalized(@"Hashes")];
     });
   });
 }
@@ -926,12 +927,12 @@ static NSString *const LDTabWatcher = @"watcher";
                                               styleMask:NSTitledWindowMask
                                                 backing:NSBackingStoreBuffered
                                                   defer:NO];
-  [panel setTitle:@"Search"];
+  [panel setTitle:LDLocalized(@"Search")];
   [panel setReleasedWhenClosed:NO];
   NSView *content = [panel contentView];
 
   NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(18, 194, 424, 20)];
-  [label setStringValue:@"Find files whose name contains:"];
+  [label setStringValue:LDLocalized(@"Find files whose name contains:")];
   [label setBezeled:NO];
   [label setDrawsBackground:NO];
   [label setEditable:NO];
@@ -940,9 +941,9 @@ static NSString *const LDTabWatcher = @"watcher";
   [_termField setStringValue:[preferences lastSearchTerm]];
   [_termField setDelegate:(id)self];
   [content addSubview:_termField];
-  _regexBox = [self checkbox:@"Use regular expressions (POSIX extended)" y:128 state:[preferences searchUsesRegex] in:content];
-  _caseBox = [self checkbox:@"Case sensitive" y:104 state:[preferences searchCaseSensitive] in:content];
-  _wholeBox = [self checkbox:@"Match the whole name" y:80 state:[preferences searchWholePhrase] in:content];
+  _regexBox = [self checkbox:LDLocalized(@"Use regular expressions (POSIX extended)") y:128 state:[preferences searchUsesRegex] in:content];
+  _caseBox = [self checkbox:LDLocalized(@"Case sensitive") y:104 state:[preferences searchCaseSensitive] in:content];
+  _wholeBox = [self checkbox:LDLocalized(@"Match the whole name") y:80 state:[preferences searchWholePhrase] in:content];
   _errorLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(18, 56, 424, 20)];
   [_errorLabel setBezeled:NO];
   [_errorLabel setDrawsBackground:NO];
@@ -950,9 +951,9 @@ static NSString *const LDTabWatcher = @"watcher";
   [_errorLabel setTextColor:[NSColor disabledControlTextColor]];
   [_errorLabel setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
   [content addSubview:_errorLabel];
-  NSButton *cancel = [self button:@"Cancel" frame:NSMakeRect(232, 14, 100, 34) tag:0 in:content];
+  NSButton *cancel = [self button:LDLocalized(@"Cancel") frame:NSMakeRect(232, 14, 100, 34) tag:0 in:content];
   [cancel setKeyEquivalent:@"\e"];
-  _okButton = [self button:@"Search" frame:NSMakeRect(342, 14, 100, 34) tag:1 in:content];
+  _okButton = [self button:LDLocalized(@"Search") frame:NSMakeRect(342, 14, 100, 34) tag:1 in:content];
   [_okButton setKeyEquivalent:@"\r"];
   [self validate];
 

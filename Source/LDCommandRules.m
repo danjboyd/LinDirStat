@@ -1,4 +1,5 @@
 #import "LDCommandRules.h"
+#import "LDLocalization.h"
 #import "LDSizeFormatter.h"
 #import "LDPreferences.h"
 #import "LDHardLinks.h"
@@ -157,14 +158,14 @@
                              complete:(BOOL)complete
 {
   if (items == NSNotFound) {
-    return @"Empty Trash…";
+    return LDLocalized(@"Empty Trash…");
   }
   NSString *size = [LDSizeFormatter stringForBytes:bytes];
   if (!complete) {
     size = [size stringByAppendingString:@"+"];
   }
-  NSString *count = items == 1 ? @"1 Item" : [NSString stringWithFormat:@"%lu Items", (unsigned long)items];
-  return [NSString stringWithFormat:@"Empty Trash (%@, %@)…", count, size];
+  NSString *count = items == 1 ? LDLocalized(@"1 Item") : [NSString stringWithFormat:LDLocalized(@"%lu Items"), (unsigned long)items];
+  return [NSString stringWithFormat:LDLocalized(@"Empty Trash (%@, %@)…"), count, size];
 }
 
 @end

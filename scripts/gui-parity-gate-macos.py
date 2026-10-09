@@ -147,7 +147,8 @@ class App:
         env.update({"LINDIRSTAT_DUMP_LAYOUT": str(self.dump_path), "LINDIRSTAT_SCAN_PATH": str(scan_path),
                     "LINDIRSTAT_APPEARANCE": appearance})
         self.log = open(work / "app.log", "w")
-        self.process = subprocess.Popen([str(APP)], env=env, cwd=str(work), stdout=self.log,
+        # The checks read WinDirStat's English titles, whatever the Mac's language.
+        self.process = subprocess.Popen([str(APP), "-AppleLanguages", "(en)"], env=env, cwd=str(work), stdout=self.log,
                                         stderr=subprocess.STDOUT)
         self.pid = self.process.pid
         self.work = work
