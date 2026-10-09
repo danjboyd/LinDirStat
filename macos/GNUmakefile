@@ -36,7 +36,7 @@ else
 CFLAGS  += -O2 -DNDEBUG -g
 endif
 LDFLAGS := -mmacosx-version-min=$(MIN_MACOS) $(ARCHFLAGS) \
-           -framework AppKit -framework UniformTypeIdentifiers
+           -framework AppKit -framework UniformTypeIdentifiers -framework CoreServices
 
 OBJECTS := $(patsubst %.m,$(OBJDIR)/%.o,$(SOURCES))
 
@@ -97,7 +97,7 @@ TEST_FLAGS := -fobjc-arc -fmodules -mmacosx-version-min=$(MIN_MACOS) -g -O0 \
 test:
 	mkdir -p $(XCT)/Contents/MacOS
 	cd $(TESTS) && $(CC) $(TEST_FLAGS) -bundle $(TEST_SRC) -o $(XCT)/Contents/MacOS/LinDirStatTests \
-	  -framework XCTest -framework AppKit -framework UniformTypeIdentifiers \
+	  -framework XCTest -framework AppKit -framework UniformTypeIdentifiers -framework CoreServices \
 	  -Wl,-rpath,$(PLATFORM_DEV)/Library/Frameworks -Wl,-rpath,$(PLATFORM_DEV)/usr/lib
 	printf '%s' '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>LinDirStatTests</string><key>CFBundleIdentifier</key><string>io.github.danjboyd.LinDirStatTests</string><key>CFBundlePackageType</key><string>BNDL</string></dict></plist>' > $(XCT)/Contents/Info.plist
 	cd $(ROOT) && xcrun xctest $(XCT)
