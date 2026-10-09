@@ -205,6 +205,33 @@ static const NSInteger LDLayoutDumpMaxRows = 40;
   };
 }
 
+static NSMutableArray *LDTrackedMenus = nil;
+
++ (void)startTrackingMenus
+{
+  if (LDTrackedMenus) {
+    return;
+  }
+  LDTrackedMenus = [NSMutableArray array];
+  NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
+  [center addObserverForName:NSMenuDidBeginTrackingNotification object:nil queue:nil usingBlock:^(NSNotification *note) {
+    [LDTrackedMenus removeObjectIdenticalTo:[note object]];
+    [LDTrackedMenus addObject:[note object]];
+  }];
+  [center addObserverForName:NSMenuDidEndTrackingNotification object:nil queue:nil usingBlock:^(NSNotification *note) {
+    [LDTrackedMenus removeObjectIdenticalTo:[note object]];
+  }];
+}
+
++ (NSArray *)openMenus
+{
+  NSMutableArray *menus = [NSMutableArray array];
+  for (NSMenu *menu in LDTrackedMenus) {
+    [menus addObject:@{@"items": [self titlesOfMenu:menu], @"mainMenu": @(menu == [NSApp mainMenu])}];
+  }
+  return menus;
+}
+
 + (NSArray *)titlesOfMenu:(NSMenu *)menu
 {
   NSMutableArray *titles = [NSMutableArray array];

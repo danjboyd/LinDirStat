@@ -30,6 +30,11 @@
 // Tab labels with the rects of their tabs, found by hit-testing the strip.
 + (NSDictionary *)describeTabView:(NSTabView *)tabView;
 + (NSArray *)titlesOfMenu:(NSMenu *)menu;
+// Starts following menu tracking (NSMenuDidBegin/EndTrackingNotification).
++ (void)startTrackingMenus;
+// The menus being tracked now, outermost first, as their item titles: on
+// macOS menus are not windows, so context menus are only seen this way.
++ (NSArray *)openMenus;
 // Every visible window, with its view tree.
 + (NSArray *)describeWindowsWithRoles:(NSMapTable *)roles;
 

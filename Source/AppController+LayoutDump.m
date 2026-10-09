@@ -23,6 +23,7 @@ static NSUInteger LDLayoutDumpSequence = 0;
   if (!LDLayoutDumpPath) {
     return;
   }
+  [LDLayoutDump startTrackingMenus];
   NSTimer *timer = [NSTimer scheduledTimerWithTimeInterval:LDLayoutDumpInterval
                                                     target:self
                                                   selector:@selector(layoutDumpTimerFired:)
@@ -165,6 +166,7 @@ static NSUInteger LDLayoutDumpSequence = 0;
     @"tables": [self layoutTables],
     @"treemap": [self layoutTreemap],
     @"windows": [LDLayoutDump describeWindowsWithRoles:[self layoutRoles]],
+    @"openMenus": [LDLayoutDump openMenus],
   }];
 }
 

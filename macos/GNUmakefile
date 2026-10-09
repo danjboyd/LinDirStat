@@ -3,6 +3,7 @@
 #   make -C macos            # build/LinDirStat.app (universal, ad-hoc signed)
 #   make -C macos run        # build and launch
 #   make -C macos test       # the Tests/ suite with Apple's XCTest
+#   make -C macos gui-gate   # full-window GUI parity gate (drives the app; see docs/macos.md)
 #   make -C macos zip        # build/LinDirStat-<version>-macos.zip
 #
 # Needs only Xcode or the Command Line Tools. Without an Apple Developer ID
@@ -40,7 +41,7 @@ LDFLAGS := -mmacosx-version-min=$(MIN_MACOS) $(ARCHFLAGS) \
 
 OBJECTS := $(patsubst %.m,$(OBJDIR)/%.o,$(SOURCES))
 
-.PHONY: all app run zip clean test
+.PHONY: all app run zip clean test exporter gui-gate
 all: app
 
 app: $(APP)/Contents/MacOS/LinDirStat $(APP)/Contents/Info.plist resources
@@ -101,6 +102,28 @@ test:
 	  -Wl,-rpath,$(PLATFORM_DEV)/Library/Frameworks -Wl,-rpath,$(PLATFORM_DEV)/usr/lib
 	printf '%s' '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>LinDirStatTests</string><key>CFBundleIdentifier</key><string>io.github.danjboyd.LinDirStatTests</string><key>CFBundlePackageType</key><string>BNDL</string></dict></plist>' > $(XCT)/Contents/Info.plist
 	cd $(ROOT) && xcrun xctest $(XCT)
+
+# The Phase 11 treemap exporter (same file list as Tools/GNUmakefile), the
+# GUI gate's reference renderer.
+TOOLS        := $(ROOT)/Tools
+EXPORTER     := $(BUILD)/windirstat-parity-exporter
+EXPORTER_SRC := $(shell sed -n '/^windirstat-parity-exporter_OBJC_FILES *=/,/^ *$$/p' $(TOOLS)/GNUmakefile | grep -o '[A-Za-z0-9_+./]*\.m')
+
+exporter: $(EXPORTER)
+
+$(EXPORTER): $(addprefix $(TOOLS)/,$(EXPORTER_SRC)) $(wildcard $(SRC)/*.h)
+	mkdir -p $(BUILD)
+	cd $(TOOLS) && $(CC) -fobjc-arc -fmodules -mmacosx-version-min=$(MIN_MACOS) -O2 \
+	  -Wno-deprecated-declarations -I$(SRC) $(EXPORTER_SRC) -o $@ -framework Foundation -framework CoreServices
+
+MACGATE := $(BUILD)/macgate
+
+$(MACGATE): $(ROOT)/macos/gui-gate/macgate.swift
+	mkdir -p $(BUILD)
+	xcrun swiftc -O $< -o $@
+
+gui-gate: app $(EXPORTER) $(MACGATE)
+	cd $(ROOT) && python3 scripts/gui-parity-gate-macos.py
 
 clean:
 	rm -rf $(BUILD)
