@@ -69,6 +69,8 @@ ICNS := $(BUILD)/LinDirStat.icns
 resources: $(ICNS)
 	mkdir -p $(APP)/Contents/Resources
 	cp $(ICONS) $(ICNS) $(APP)/Contents/Resources/
+	cp -R $(SRC)/Resources/*.lproj $(APP)/Contents/Resources/
+	cp $(ROOT)/COPYING $(APP)/Contents/Resources/COPYING
 
 # The app icon is drawn by macos/icon/make-icon.swift.
 $(ICNS): $(ROOT)/macos/icon/make-icon.swift

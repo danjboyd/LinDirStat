@@ -11,7 +11,7 @@
     "version": "0.1.0",
     "manufacturer": "Daniel Boyd",
     "summary": "GNUstep disk usage viewer inspired by WinDirStat.",
-    "license": "TBD",
+    "license": "GPL-2.0-or-later",
     "homepage": "https://github.com/danjboyd/LinDirStat"
   },
   "pipeline": {
@@ -126,7 +126,7 @@
       {
         "name": "LinDirStat",
         "version": "0.1.0",
-        "license": "TBD",
+        "license": "GPL-2.0-or-later",
         "source": "LinDirStat application source",
         "homepage": "https://github.com/danjboyd/LinDirStat",
         "stageRelativePath": "metadata/licenses/LinDirStat.txt"
@@ -134,7 +134,7 @@
       {
         "name": "WinDirStat Reference Source",
         "license": "GPL-2.0-or-later",
-        "source": "Local reference source only; not linked into LinDirStat",
+        "source": "Translations generated from WinDirStat's language files; source kept as reference only",
         "homepage": "https://github.com/windirstat/windirstat",
         "stageRelativePath": "metadata/licenses/WinDirStat-reference.txt"
       },

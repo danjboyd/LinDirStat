@@ -1,4 +1,5 @@
 #import "LDSizeFormatter.h"
+#import "LDLocalization.h"
 
 static BOOL LDHumanReadable = YES;
 
@@ -18,7 +19,7 @@ static BOOL LDHumanReadable = YES;
       [grouped setNumberStyle:NSNumberFormatterDecimalStyle];
       [grouped setUsesGroupingSeparator:YES];
     }
-    return [NSString stringWithFormat:@"%@ bytes", [grouped stringFromNumber:[NSNumber numberWithUnsignedLongLong:bytes]]];
+    return [NSString stringWithFormat:LDLocalized(@"%@ bytes"), [grouped stringFromNumber:[NSNumber numberWithUnsignedLongLong:bytes]]];
   }
   double value = (double)bytes;
   NSArray *units = [NSArray arrayWithObjects:@"B", @"KB", @"MB", @"GB", @"TB", nil];

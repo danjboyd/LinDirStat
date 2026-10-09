@@ -38,6 +38,7 @@ LinDirStatTests_OBJC_FILES = \
   LDTreemapPreviewTests.m \
   LDLayoutDumpTests.m \
   LDPrivacyAccessTests.m \
+  LDLanguagesTests.m \
   LDFileWatcherTests.m \
   LDDesktopEntryTests.m \
   LDOpenWithTests.m \
@@ -79,6 +80,7 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDPlatformUI.m \
   ../Source/LDLayoutDump.m \
   ../Source/LDPrivacyAccess.m \
+  ../Source/LDLanguages.m \
   ../Source/LDSpaceItems.m \
   ../Source/LDFileWatcher.m \
   ../Source/LDFileWatcherLinux.m \

@@ -1,4 +1,5 @@
 #import "AppController.h"
+#import "LDLocalization.h"
 #import "AppController+Private.h"
 #import "LDCommandLine.h"
 #import "LDCommandRules.h"
@@ -197,78 +198,78 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:@"LinDirStat"];
 
   NSMenu *appMenu = [self addSubmenuTitled:@"LinDirStat" to:mainMenu];
-  [self addItemTo:appMenu title:@"Preferences" action:@selector(showPreferences:) key:@"," target:self];
-  [self addItemTo:appMenu title:@"About LinDirStat" action:@selector(orderFrontStandardAboutPanel:) key:nil target:NSApp];
+  [self addItemTo:appMenu title:LDLocalized(@"Preferences") action:@selector(showPreferences:) key:@"," target:self];
+  [self addItemTo:appMenu title:LDLocalized(@"About LinDirStat") action:@selector(orderFrontStandardAboutPanel:) key:nil target:NSApp];
   [appMenu addItem:[NSMenuItem separatorItem]];
-  [self addItemTo:appMenu title:@"Quit" action:@selector(terminate:) key:@"q" target:NSApp];
+  [self addItemTo:appMenu title:LDLocalized(@"Quit") action:@selector(terminate:) key:@"q" target:NSApp];
 
-  NSMenu *fileMenu = [self addSubmenuTitled:@"File" to:mainMenu];
-  [self addItemTo:fileMenu title:@"Select Target…" action:@selector(openPath:) key:@"o" target:self];
+  NSMenu *fileMenu = [self addSubmenuTitled:LDLocalized(@"File") to:mainMenu];
+  [self addItemTo:fileMenu title:LDLocalized(@"Select Target…") action:@selector(openPath:) key:@"o" target:self];
   [fileMenu addItem:[NSMenuItem separatorItem]];
-  NSMenuItem *loadCSV = (NSMenuItem *)[self addItemTo:fileMenu title:@"Load Results From CSV…" action:@selector(loadResultsFromCSV:) key:@"l" target:self];
+  NSMenuItem *loadCSV = (NSMenuItem *)[self addItemTo:fileMenu title:LDLocalized(@"Load Results From CSV…") action:@selector(loadResultsFromCSV:) key:@"l" target:self];
   [loadCSV setKeyEquivalentModifierMask:NSControlKeyMask | NSAlternateKeyMask];
-  NSMenuItem *saveCSV = (NSMenuItem *)[self addItemTo:fileMenu title:@"Save Results To CSV…" action:@selector(saveResultsToCSV:) key:@"s" target:self];
+  NSMenuItem *saveCSV = (NSMenuItem *)[self addItemTo:fileMenu title:LDLocalized(@"Save Results To CSV…") action:@selector(saveResultsToCSV:) key:@"s" target:self];
   [saveCSV setKeyEquivalentModifierMask:NSControlKeyMask | NSAlternateKeyMask];
-  [self addItemTo:fileMenu title:@"Save Duplicates To CSV…" action:@selector(saveDuplicatesToCSV:) key:nil target:self];
+  [self addItemTo:fileMenu title:LDLocalized(@"Save Duplicates To CSV…") action:@selector(saveDuplicatesToCSV:) key:nil target:self];
   [fileMenu addItem:[NSMenuItem separatorItem]];
-  NSMenuItem *refreshAll = (NSMenuItem *)[self addItemTo:fileMenu title:@"Refresh All" action:@selector(rescan:) key:[self functionKey:NSF5FunctionKey] target:self];
+  NSMenuItem *refreshAll = (NSMenuItem *)[self addItemTo:fileMenu title:LDLocalized(@"Refresh All") action:@selector(rescan:) key:[self functionKey:NSF5FunctionKey] target:self];
   [refreshAll setKeyEquivalentModifierMask:NSShiftKeyMask];
-  NSMenuItem *refreshSelected = (NSMenuItem *)[self addItemTo:fileMenu title:@"Refresh Selected" action:@selector(refreshSelected:) key:[self functionKey:NSF5FunctionKey] target:self];
+  NSMenuItem *refreshSelected = (NSMenuItem *)[self addItemTo:fileMenu title:LDLocalized(@"Refresh Selected") action:@selector(refreshSelected:) key:[self functionKey:NSF5FunctionKey] target:self];
   [refreshSelected setKeyEquivalentModifierMask:0];
   [fileMenu addItem:[NSMenuItem separatorItem]];
-  [self addItemTo:fileMenu title:@"Suspend Scan" action:@selector(suspendScan:) key:nil target:self];
-  [self addItemTo:fileMenu title:@"Resume Scan" action:@selector(resumeScan:) key:nil target:self];
-  [self addItemTo:fileMenu title:@"Stop Scan" action:@selector(stopScan:) key:@"." target:self];
+  [self addItemTo:fileMenu title:LDLocalized(@"Suspend Scan") action:@selector(suspendScan:) key:nil target:self];
+  [self addItemTo:fileMenu title:LDLocalized(@"Resume Scan") action:@selector(resumeScan:) key:nil target:self];
+  [self addItemTo:fileMenu title:LDLocalized(@"Stop Scan") action:@selector(stopScan:) key:@"." target:self];
 
-  NSMenu *editMenu = [self addSubmenuTitled:@"Edit" to:mainMenu];
-  [self addItemTo:editMenu title:@"Copy Path" action:@selector(copyPath:) key:@"c" target:self];
+  NSMenu *editMenu = [self addSubmenuTitled:LDLocalized(@"Edit") to:mainMenu];
+  [self addItemTo:editMenu title:LDLocalized(@"Copy Path") action:@selector(copyPath:) key:@"c" target:self];
   [editMenu addItem:[NSMenuItem separatorItem]];
-  [self addItemTo:editMenu title:@"Search…" action:@selector(search:) key:@"f" target:self];
+  [self addItemTo:editMenu title:LDLocalized(@"Search…") action:@selector(search:) key:@"f" target:self];
   [editMenu addItem:[NSMenuItem separatorItem]];
-  [self addItemTo:editMenu title:@"Compute Hash" action:@selector(computeHash:) key:@"h" target:self];
+  [self addItemTo:editMenu title:LDLocalized(@"Compute Hash") action:@selector(computeHash:) key:@"h" target:self];
 
-  NSMenu *cleanupMenu = [self addSubmenuTitled:@"Clean Up" to:mainMenu];
+  NSMenu *cleanupMenu = [self addSubmenuTitled:LDLocalized(@"Clean Up") to:mainMenu];
   [self populateCleanupMenu:cleanupMenu forTreemap:NO];
   _cleanupMenu = cleanupMenu;
   // GNUstep's NSMenuDelegate lists optional methods as required.
   [_cleanupMenu setDelegate:(id)self];
 
-  NSMenu *treemapMenu = [self addSubmenuTitled:@"Treemap" to:mainMenu];
-  [self addItemTo:treemapMenu title:@"Zoom In" action:@selector(zoomIn:) key:@"+" target:self];
-  [self addItemTo:treemapMenu title:@"Zoom Out" action:@selector(zoomOut:) key:@"-" target:self];
-  [self addItemTo:treemapMenu title:@"Reset Zoom" action:@selector(resetZoom:) key:@"0" target:self];
-  [self addItemTo:treemapMenu title:@"Reselect Child" action:@selector(reselectChild:) key:@"=" target:self];
-  [self addItemTo:treemapMenu title:@"Select Parent" action:@selector(selectParent:) key:@"u" target:self];
+  NSMenu *treemapMenu = [self addSubmenuTitled:LDLocalized(@"Treemap") to:mainMenu];
+  [self addItemTo:treemapMenu title:LDLocalized(@"Zoom In") action:@selector(zoomIn:) key:@"+" target:self];
+  [self addItemTo:treemapMenu title:LDLocalized(@"Zoom Out") action:@selector(zoomOut:) key:@"-" target:self];
+  [self addItemTo:treemapMenu title:LDLocalized(@"Reset Zoom") action:@selector(resetZoom:) key:@"0" target:self];
+  [self addItemTo:treemapMenu title:LDLocalized(@"Reselect Child") action:@selector(reselectChild:) key:@"=" target:self];
+  [self addItemTo:treemapMenu title:LDLocalized(@"Select Parent") action:@selector(selectParent:) key:@"u" target:self];
   [treemapMenu addItem:[NSMenuItem separatorItem]];
-  [self addItemTo:treemapMenu title:@"Use Logical Size" action:@selector(toggleLogicalSize:) key:@"l" target:self];
-  [self addItemTo:treemapMenu title:@"Show Grid" action:@selector(toggleGrid:) key:nil target:self];
-  [self addItemTo:treemapMenu title:@"SequoiaView Layout" action:@selector(toggleLayoutStyle:) key:nil target:self];
+  [self addItemTo:treemapMenu title:LDLocalized(@"Use Logical Size") action:@selector(toggleLogicalSize:) key:@"l" target:self];
+  [self addItemTo:treemapMenu title:LDLocalized(@"Show Grid") action:@selector(toggleGrid:) key:nil target:self];
+  [self addItemTo:treemapMenu title:LDLocalized(@"SequoiaView Layout") action:@selector(toggleLayoutStyle:) key:nil target:self];
 
-  NSMenu *toolsMenu = [self addSubmenuTitled:@"Tools" to:mainMenu];
-  [self addItemTo:toolsMenu title:@"Start File Watcher" action:@selector(toggleFileWatcher:) key:nil target:self];
+  NSMenu *toolsMenu = [self addSubmenuTitled:LDLocalized(@"Tools") to:mainMenu];
+  [self addItemTo:toolsMenu title:LDLocalized(@"Start File Watcher") action:@selector(toggleFileWatcher:) key:nil target:self];
 
-  NSMenu *optionsMenu = [self addSubmenuTitled:@"Options" to:mainMenu];
-  [[self addItemTo:optionsMenu title:@"Show Free Space" action:@selector(toggleFreeSpace:) key:[self functionKey:NSF6FunctionKey] target:self]
+  NSMenu *optionsMenu = [self addSubmenuTitled:LDLocalized(@"Options") to:mainMenu];
+  [[self addItemTo:optionsMenu title:LDLocalized(@"Show Free Space") action:@selector(toggleFreeSpace:) key:[self functionKey:NSF6FunctionKey] target:self]
     setKeyEquivalentModifierMask:0];
-  [[self addItemTo:optionsMenu title:@"Show Unknown" action:@selector(toggleUnknown:) key:[self functionKey:NSF7FunctionKey] target:self]
+  [[self addItemTo:optionsMenu title:LDLocalized(@"Show Unknown") action:@selector(toggleUnknown:) key:[self functionKey:NSF7FunctionKey] target:self]
     setKeyEquivalentModifierMask:0];
   [optionsMenu addItem:[NSMenuItem separatorItem]];
-  [[self addItemTo:optionsMenu title:@"Show File Types" action:@selector(toggleFileTypes:) key:[self functionKey:NSF8FunctionKey] target:self]
+  [[self addItemTo:optionsMenu title:LDLocalized(@"Show File Types") action:@selector(toggleFileTypes:) key:[self functionKey:NSF8FunctionKey] target:self]
     setKeyEquivalentModifierMask:0];
-  [[self addItemTo:optionsMenu title:@"Show Treemap" action:@selector(toggleTreemap:) key:[self functionKey:NSF9FunctionKey] target:self]
+  [[self addItemTo:optionsMenu title:LDLocalized(@"Show Treemap") action:@selector(toggleTreemap:) key:[self functionKey:NSF9FunctionKey] target:self]
     setKeyEquivalentModifierMask:0];
-  [[self addItemTo:optionsMenu title:@"Show Toolbar" action:@selector(toggleToolBar:) key:[self functionKey:NSF10FunctionKey] target:self]
+  [[self addItemTo:optionsMenu title:LDLocalized(@"Show Toolbar") action:@selector(toggleToolBar:) key:[self functionKey:NSF10FunctionKey] target:self]
     setKeyEquivalentModifierMask:0];
-  [self addItemTo:optionsMenu title:@"Large Toolbar Icons" action:@selector(toggleLargeToolBar:) key:nil target:self];
-  [[self addItemTo:optionsMenu title:@"Show Status Bar" action:@selector(toggleStatusBar:) key:[self functionKey:NSF11FunctionKey] target:self]
+  [self addItemTo:optionsMenu title:LDLocalized(@"Large Toolbar Icons") action:@selector(toggleLargeToolBar:) key:nil target:self];
+  [[self addItemTo:optionsMenu title:LDLocalized(@"Show Status Bar") action:@selector(toggleStatusBar:) key:[self functionKey:NSF11FunctionKey] target:self]
     setKeyEquivalentModifierMask:0];
   [optionsMenu addItem:[NSMenuItem separatorItem]];
-  [self addItemTo:optionsMenu title:@"Preferences" action:@selector(showPreferences:) key:nil target:self];
+  [self addItemTo:optionsMenu title:LDLocalized(@"Preferences") action:@selector(showPreferences:) key:nil target:self];
 
-  NSMenu *helpMenu = [self addSubmenuTitled:@"Help" to:mainMenu];
-  [[self addItemTo:helpMenu title:@"LinDirStat Help" action:@selector(showHelp:) key:[self functionKey:NSF1FunctionKey] target:self]
+  NSMenu *helpMenu = [self addSubmenuTitled:LDLocalized(@"Help") to:mainMenu];
+  [[self addItemTo:helpMenu title:LDLocalized(@"LinDirStat Help") action:@selector(showHelp:) key:[self functionKey:NSF1FunctionKey] target:self]
     setKeyEquivalentModifierMask:0];
-  [self addItemTo:helpMenu title:@"Report a Bug…" action:@selector(reportBug:) key:nil target:self];
+  [self addItemTo:helpMenu title:LDLocalized(@"Report a Bug…") action:@selector(reportBug:) key:nil target:self];
 
   [LDPlatformUI completeMainMenu:mainMenu applicationMenu:appMenu preferencesTarget:self];
   [NSApp setMainMenu:mainMenu];
@@ -355,7 +356,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 {
   [LDDesktop runFirstSuccessfulCommand:[LDDesktop openCommandsForURL:address] inDirectory:nil completion:^(BOOL succeeded) {
     if (!succeeded) {
-      [self showStatus:[NSString stringWithFormat:@"Could not open %@", address]];
+      [self showStatus:[NSString stringWithFormat:LDLocalized(@"Could not open %@"), address]];
     }
   }];
 }
@@ -439,43 +440,43 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 - (void)populateCleanupMenu:(NSMenu *)menu forTreemap:(BOOL)forTreemap
 {
   if (forTreemap) {
-    [self addItemTo:menu title:@"Zoom In" action:@selector(zoomIn:) key:nil target:self];
-    [self addItemTo:menu title:@"Zoom Out" action:@selector(zoomOut:) key:nil target:self];
-    [self addItemTo:menu title:@"Reset Zoom" action:@selector(resetZoom:) key:nil target:self];
-    [self addItemTo:menu title:@"Reselect Child" action:@selector(reselectChild:) key:nil target:self];
-    [self addItemTo:menu title:@"Select Parent" action:@selector(selectParent:) key:nil target:self];
+    [self addItemTo:menu title:LDLocalized(@"Zoom In") action:@selector(zoomIn:) key:nil target:self];
+    [self addItemTo:menu title:LDLocalized(@"Zoom Out") action:@selector(zoomOut:) key:nil target:self];
+    [self addItemTo:menu title:LDLocalized(@"Reset Zoom") action:@selector(resetZoom:) key:nil target:self];
+    [self addItemTo:menu title:LDLocalized(@"Reselect Child") action:@selector(reselectChild:) key:nil target:self];
+    [self addItemTo:menu title:LDLocalized(@"Select Parent") action:@selector(selectParent:) key:nil target:self];
     [menu addItem:[NSMenuItem separatorItem]];
-    [self addItemTo:menu title:@"Copy Path" action:@selector(copyPath:) key:nil target:self];
+    [self addItemTo:menu title:LDLocalized(@"Copy Path") action:@selector(copyPath:) key:nil target:self];
     [self addItemTo:menu title:[LDPlatformUI showInFileManagerTitle] action:@selector(revealItem:) key:nil target:self];
-    [self addItemTo:menu title:@"Open Terminal Here" action:@selector(openTerminal:) key:nil target:self];
+    [self addItemTo:menu title:LDLocalized(@"Open Terminal Here") action:@selector(openTerminal:) key:nil target:self];
     return;
   }
   BOOL isMainMenu = ([menu supermenu] != nil);
-  [self addItemTo:menu title:@"Open" action:@selector(openItem:) key:nil target:self];
+  [self addItemTo:menu title:LDLocalized(@"Open") action:@selector(openItem:) key:nil target:self];
   [self addItemTo:menu title:[LDPlatformUI showInFileManagerTitle] action:@selector(revealItem:) key:isMainMenu ? @"e" : nil target:self];
-  [self addItemTo:menu title:@"Open Terminal Here" action:@selector(openTerminal:) key:isMainMenu ? @"t" : nil target:self];
+  [self addItemTo:menu title:LDLocalized(@"Open Terminal Here") action:@selector(openTerminal:) key:isMainMenu ? @"t" : nil target:self];
   if (!isMainMenu) {
-    [self addItemTo:menu title:@"Copy Path" action:@selector(copyPath:) key:nil target:self];
-    [self addItemTo:menu title:@"Refresh Selected" action:@selector(refreshSelected:) key:nil target:self];
+    [self addItemTo:menu title:LDLocalized(@"Copy Path") action:@selector(copyPath:) key:nil target:self];
+    [self addItemTo:menu title:LDLocalized(@"Refresh Selected") action:@selector(refreshSelected:) key:nil target:self];
   }
-  [self addItemTo:menu title:@"Properties" action:@selector(showProperties:) key:isMainMenu ? @"i" : nil target:self];
+  [self addItemTo:menu title:LDLocalized(@"Properties") action:@selector(showProperties:) key:isMainMenu ? @"i" : nil target:self];
   [menu addItem:[NSMenuItem separatorItem]];
-  [self addItemTo:menu title:@"Move to Trash" action:@selector(moveToTrash:) key:nil target:self];
-  [self addItemTo:menu title:@"Delete Permanently…" action:@selector(deletePermanently:) key:nil target:self];
+  [self addItemTo:menu title:LDLocalized(@"Move to Trash") action:@selector(moveToTrash:) key:nil target:self];
+  [self addItemTo:menu title:LDLocalized(@"Delete Permanently…") action:@selector(deletePermanently:) key:nil target:self];
   if (isMainMenu) {
-    _emptyTrashItem = [self addItemTo:menu title:@"Empty Trash…" action:@selector(emptyTrash:) key:nil target:self];
+    _emptyTrashItem = [self addItemTo:menu title:LDLocalized(@"Empty Trash…") action:@selector(emptyTrash:) key:nil target:self];
   }
-  [self addItemTo:menu title:@"Empty Folder…" action:@selector(emptyFolder:) key:nil target:self];
-  [self addItemTo:menu title:@"Move To…" action:@selector(moveItemsTo:) key:isMainMenu ? @"m" : nil target:self];
+  [self addItemTo:menu title:LDLocalized(@"Empty Folder…") action:@selector(emptyFolder:) key:nil target:self];
+  [self addItemTo:menu title:LDLocalized(@"Move To…") action:@selector(moveItemsTo:) key:isMainMenu ? @"m" : nil target:self];
   [menu addItem:[NSMenuItem separatorItem]];
-  NSMenuItem *custom = (NSMenuItem *)[menu addItemWithTitle:@"Custom Cleanup" action:NULL keyEquivalent:@""];
+  NSMenuItem *custom = (NSMenuItem *)[menu addItemWithTitle:LDLocalized(@"Custom Cleanup") action:NULL keyEquivalent:@""];
   [custom setSubmenu:[self customCleanupMenu]];
   // WinDirStat's "Windows Explorer Menu" (windirstat.rc): the applications
   // that open the selection. The main menu fills it each time it opens;
   // context menus are built for the selection they appear on.
   [menu addItem:[NSMenuItem separatorItem]];
-  NSMenuItem *openWith = (NSMenuItem *)[menu addItemWithTitle:@"Open With" action:NULL keyEquivalent:@""];
-  NSMenu *openWithMenu = [[NSMenu alloc] initWithTitle:@"Open With"];
+  NSMenuItem *openWith = (NSMenuItem *)[menu addItemWithTitle:LDLocalized(@"Open With") action:NULL keyEquivalent:@""];
+  NSMenu *openWithMenu = [[NSMenu alloc] initWithTitle:LDLocalized(@"Open With")];
   [openWith setSubmenu:openWithMenu];
   if (isMainMenu) {
     [menu setDelegate:(id<NSMenuDelegate>)self];
@@ -492,7 +493,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 - (void)rebuildCustomCleanupMenus
 {
-  NSMenuItem *custom = (NSMenuItem *)[_cleanupMenu itemWithTitle:@"Custom Cleanup"];
+  NSMenuItem *custom = (NSMenuItem *)[_cleanupMenu itemWithTitle:LDLocalized(@"Custom Cleanup")];
   [custom setSubmenu:[self customCleanupMenu]];
 }
 
@@ -527,7 +528,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     return;
   }
   _openWithNodes = nodes;
-  [self fillOpenWithMenu:[[_cleanupMenu itemWithTitle:@"Open With"] submenu] forNodes:nodes];
+  [self fillOpenWithMenu:[[_cleanupMenu itemWithTitle:LDLocalized(@"Open With")] submenu] forNodes:nodes];
 }
 
 - (void)measureTrashIfStale
@@ -565,7 +566,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     id item = row >= 0 ? [_directoryTable itemAtRow:row] : nil;
     if (item && [[self displayChildrenOfNode:item] count] > 0) {
       BOOL expanded = [_directoryTable isItemExpanded:item];
-      NSMenuItem *toggle = [self addItemTo:menu title:expanded ? @"Collapse" : @"Expand"
+      NSMenuItem *toggle = [self addItemTo:menu title:expanded ? LDLocalized(@"Collapse") : LDLocalized(@"Expand")
                                     action:@selector(toggleExpansion:) key:nil target:self];
       [toggle setRepresentedObject:item];
       [menu addItem:[NSMenuItem separatorItem]];
@@ -777,7 +778,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     [item setState:[[LDPreferences sharedPreferences] showStatusBar] ? NSOnState : NSOffState];
   }
   if (action == @selector(toggleFileWatcher:)) {
-    [item setTitle:[self isFileWatcherOn] ? @"Stop File Watcher" : @"Start File Watcher"];
+    [item setTitle:[self isFileWatcherOn] ? LDLocalized(@"Stop File Watcher") : LDLocalized(@"Start File Watcher")];
   }
   if (action == @selector(toggleLogicalSize:)) {
     [item setState:_sizeMetric == LDSizeMetricLogical ? NSOnState : NSOffState];
@@ -819,15 +820,15 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   (void)toolbar;
   (void)flag;
   NSDictionary *specs = @{
-    LDToolbarSelectTarget: @[@"Select Target", @"Scan a folder", @"document-open-symbolic", NSStringFromSelector(@selector(openPath:))],
-    LDToolbarRefresh: @[@"Refresh", @"Scan the folder again", @"view-refresh-symbolic", NSStringFromSelector(@selector(rescan:))],
-    LDToolbarStop: @[@"Stop", @"Stop scanning", @"process-stop-symbolic", NSStringFromSelector(@selector(stopScan:))],
-    LDToolbarSuspend: @[@"Suspend", @"Suspend or resume the scan", @"media-playback-pause-symbolic", NSStringFromSelector(@selector(toggleSuspend:))],
-    LDToolbarSearch: @[@"Search", @"Search for files by name", @"system-search-symbolic", NSStringFromSelector(@selector(search:))],
-    LDToolbarTrash: @[@"Move to Trash", @"Move the selection to the trash", @"user-trash-symbolic", NSStringFromSelector(@selector(moveToTrash:))],
-    LDToolbarSelectParent: @[@"Select Parent", @"Select the parent folder", @"go-up-symbolic", NSStringFromSelector(@selector(selectParent:))],
-    LDToolbarZoomOut: @[@"Zoom Out", @"Zoom the treemap out", @"zoom-out-symbolic", NSStringFromSelector(@selector(zoomOut:))],
-    LDToolbarZoomIn: @[@"Zoom In", @"Zoom the treemap into the selection", @"zoom-in-symbolic", NSStringFromSelector(@selector(zoomIn:))],
+    LDToolbarSelectTarget: @[LDLocalized(@"Select Target"), LDLocalized(@"Scan a folder"), @"document-open-symbolic", NSStringFromSelector(@selector(openPath:))],
+    LDToolbarRefresh: @[LDLocalized(@"Refresh"), LDLocalized(@"Scan the folder again"), @"view-refresh-symbolic", NSStringFromSelector(@selector(rescan:))],
+    LDToolbarStop: @[LDLocalized(@"Stop"), LDLocalized(@"Stop scanning"), @"process-stop-symbolic", NSStringFromSelector(@selector(stopScan:))],
+    LDToolbarSuspend: @[LDLocalized(@"Suspend"), LDLocalized(@"Suspend or resume the scan"), @"media-playback-pause-symbolic", NSStringFromSelector(@selector(toggleSuspend:))],
+    LDToolbarSearch: @[LDLocalized(@"Search"), LDLocalized(@"Search for files by name"), @"system-search-symbolic", NSStringFromSelector(@selector(search:))],
+    LDToolbarTrash: @[LDLocalized(@"Move to Trash"), LDLocalized(@"Move the selection to the trash"), @"user-trash-symbolic", NSStringFromSelector(@selector(moveToTrash:))],
+    LDToolbarSelectParent: @[LDLocalized(@"Select Parent"), LDLocalized(@"Select the parent folder"), @"go-up-symbolic", NSStringFromSelector(@selector(selectParent:))],
+    LDToolbarZoomOut: @[LDLocalized(@"Zoom Out"), LDLocalized(@"Zoom the treemap out"), @"zoom-out-symbolic", NSStringFromSelector(@selector(zoomOut:))],
+    LDToolbarZoomIn: @[LDLocalized(@"Zoom In"), LDLocalized(@"Zoom the treemap into the selection"), @"zoom-in-symbolic", NSStringFromSelector(@selector(zoomIn:))],
   };
   NSArray *spec = [specs objectForKey:identifier];
   if (!spec) {
@@ -848,8 +849,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   if ([item action] == @selector(toggleSuspend:)) {
     BOOL suspended = [self isScanning] && [_scanSession isSuspended];
     [item setImage:[LDPlatformUI toolbarImageNamed:suspended ? @"media-playback-start-symbolic" : @"media-playback-pause-symbolic"
-                                             label:suspended ? @"Resume" : @"Suspend"]];
-    [item setToolTip:suspended ? @"Resume the scan" : @"Suspend the scan"];
+                                             label:suspended ? LDLocalized(@"Resume") : LDLocalized(@"Suspend")]];
+    [item setToolTip:suspended ? LDLocalized(@"Resume the scan") : LDLocalized(@"Suspend the scan")];
     return [self isScanning];
   }
   return [self validateAction:[item action]];
@@ -917,7 +918,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 {
   _directoryTable = [[LDOutlineView alloc] initWithFrame:NSMakeRect(0, 0, 700, 300)];
   [_directoryTable setCommandTarget:self];
-  NSTableColumn *name = [self addColumn:@"name" title:@"Name" width:220 right:NO toTable:_directoryTable];
+  NSTableColumn *name = [self addColumn:@"name" title:LDLocalized(@"Name") width:220 right:NO toTable:_directoryTable];
   LDIconTextCell *nameCell = [[LDIconTextCell alloc] initTextCell:@""];
   [nameCell setLineBreakMode:NSLineBreakByTruncatingTail];
   [name setDataCell:nameCell];
@@ -925,22 +926,22 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [_directoryTable setOutlineTableColumn:name];
   [self setSortPrototypeForColumn:name ascending:YES];
 
-  NSTableColumn *subtree = [self addColumn:@"subtree" title:@"Subtree Percentage" width:130 right:NO toTable:_directoryTable];
+  NSTableColumn *subtree = [self addColumn:@"subtree" title:LDLocalized(@"Subtree Percentage") width:130 right:NO toTable:_directoryTable];
   [subtree setDataCell:[[LDPercentageBarCell alloc] init]];
   [self setSortPrototypeForColumn:subtree ascending:NO];
-  NSTableColumn *percent = [self addColumn:@"percent" title:@"Percentage" width:90 right:YES toTable:_directoryTable];
+  NSTableColumn *percent = [self addColumn:@"percent" title:LDLocalized(@"Percentage") width:90 right:YES toTable:_directoryTable];
   [self setSortPrototypeForColumn:percent ascending:NO];
 
   // WinDirStat's optional columns, shown per Preferences > Folder List.
   NSDictionary *specs = @{
-    LDColumnPhysicalSize: @[@"Physical Size", @90, @YES],
-    LDColumnLogicalSize: @[@"Logical Size", @90, @YES],
-    LDColumnItems: @[@"Items", @70, @YES],
-    LDColumnFiles: @[@"Files", @70, @YES],
-    LDColumnFolders: @[@"Folders", @70, @YES],
-    LDColumnLastChange: @[@"Last Change", @140, @NO],
-    LDColumnAttributes: @[@"Attributes", @80, @NO],
-    LDColumnOwner: @[@"Owner", @110, @NO],
+    LDColumnPhysicalSize: @[LDLocalized(@"Physical Size"), @90, @YES],
+    LDColumnLogicalSize: @[LDLocalized(@"Logical Size"), @90, @YES],
+    LDColumnItems: @[LDLocalized(@"Items"), @70, @YES],
+    LDColumnFiles: @[LDLocalized(@"Files"), @70, @YES],
+    LDColumnFolders: @[LDLocalized(@"Folders"), @70, @YES],
+    LDColumnLastChange: @[LDLocalized(@"Last Change"), @140, @NO],
+    LDColumnAttributes: @[LDLocalized(@"Attributes"), @80, @NO],
+    LDColumnOwner: @[LDLocalized(@"Owner"), @110, @NO],
   };
   _optionalColumns = [[NSMutableDictionary alloc] init];
   for (NSString *identifier in [LDPreferences optionalColumns]) {
@@ -1058,19 +1059,19 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 {
   _extensionTable = [[NSTableView alloc] initWithFrame:NSMakeRect(0, 0, 360, 300)];
   // WinDirStat's columns; only the description gives or takes width.
-  NSTableColumn *extension = [self addColumn:@"extension" title:@"Extension" width:84 right:NO toTable:_extensionTable];
+  NSTableColumn *extension = [self addColumn:@"extension" title:LDLocalized(@"Extension") width:84 right:NO toTable:_extensionTable];
   [[extension dataCell] setLineBreakMode:NSLineBreakByTruncatingTail];
   [self setSortPrototypeForColumn:extension ascending:YES];
-  NSTableColumn *color = [self addColumn:@"color" title:@"Color" width:50 right:NO toTable:_extensionTable];
+  NSTableColumn *color = [self addColumn:@"color" title:LDLocalized(@"Color") width:50 right:NO toTable:_extensionTable];
   [color setDataCell:[[NSImageCell alloc] initImageCell:nil]];
-  NSTableColumn *description = [self addColumn:@"description" title:@"Description" width:120 right:NO toTable:_extensionTable];
+  NSTableColumn *description = [self addColumn:@"description" title:LDLocalized(@"Description") width:120 right:NO toTable:_extensionTable];
   [[description dataCell] setLineBreakMode:NSLineBreakByTruncatingTail];
   [self setSortPrototypeForColumn:description ascending:YES];
-  NSTableColumn *bytes = [self addColumn:@"bytes" title:@"Bytes" width:80 right:YES toTable:_extensionTable];
+  NSTableColumn *bytes = [self addColumn:@"bytes" title:LDLocalized(@"Bytes") width:80 right:YES toTable:_extensionTable];
   [self setSortPrototypeForColumn:bytes ascending:NO];
-  NSTableColumn *percent = [self addColumn:@"percent" title:@"% Bytes" width:80 right:YES toTable:_extensionTable];
+  NSTableColumn *percent = [self addColumn:@"percent" title:LDLocalized(@"% Bytes") width:80 right:YES toTable:_extensionTable];
   [self setSortPrototypeForColumn:percent ascending:NO];
-  NSTableColumn *files = [self addColumn:@"files" title:@"Files" width:72 right:YES toTable:_extensionTable];
+  NSTableColumn *files = [self addColumn:@"files" title:LDLocalized(@"Files") width:72 right:YES toTable:_extensionTable];
   [self setSortPrototypeForColumn:files ascending:NO];
   // GNUstep's autoresizing styles shrink every column; the description is
   // fitted by hand instead (-fitExtensionDescriptionColumn).
@@ -1111,9 +1112,11 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [_progressBar setHidden:YES];
   [content addSubview:_progressBar];
 
-  CGFloat memoryWidth = 130.0;
   CGFloat selectionWidth = 190.0;
   _memoryField = [self statusLabel];
+  // Wide enough for the label in any language with a four-digit size.
+  NSString *widest = [NSString stringWithFormat:LDLocalized(@"Memory: %@"), @"9999.9 MB"];
+  CGFloat memoryWidth = MAX(130.0, ceil([widest sizeWithAttributes:@{NSFontAttributeName: [_memoryField font]}].width) + 8.0);
   [_memoryField setAlignment:NSRightTextAlignment];
   [_memoryField setFrame:NSMakeRect(bounds.size.width - memoryWidth - 12, 6, memoryWidth, 18)];
   [_memoryField setAutoresizingMask:NSViewMinXMargin | NSViewMaxYMargin];
@@ -1126,7 +1129,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [content addSubview:_selectionField];
 
   _statusField = [self statusLabel];
-  [_statusField setStringValue:@"Ready"];
+  [_statusField setStringValue:LDLocalized(@"Ready")];
   [_statusField setFrame:NSMakeRect(36, 6, NSMinX([_selectionField frame]) - 48, 18)];
   [_statusField setAutoresizingMask:NSViewWidthSizable | NSViewMaxYMargin];
   [content addSubview:_statusField];
@@ -1312,7 +1315,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 {
   (void)timer;
   unsigned long long bytes = LDResidentMemoryBytes();
-  [_memoryField setStringValue:bytes ? [NSString stringWithFormat:@"Memory: %@", [LDSizeFormatter stringForBytes:bytes]] : @""];
+  [_memoryField setStringValue:bytes ? [NSString stringWithFormat:LDLocalized(@"Memory: %@"), [LDSizeFormatter stringForBytes:bytes]] : @""];
 }
 
 #pragma mark - Scanning
@@ -1393,7 +1396,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   }];
   [self fileListsDidStartScan];
 
-  _titleBase = [scanPaths count] > 1 ? @"This Computer" : [self displayPath:scanPath];
+  _titleBase = [scanPaths count] > 1 ? LDLocalized(@"This Computer") : [self displayPath:scanPath];
   _progressRange = [LDScanProgress rangeForScanPaths:scanPaths options:[session scanOptions]];
   _pacmanResumedAt = 0.0;
   _lastLiveReload = 0.0;
@@ -1482,8 +1485,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   if ([[LDScanOptions optionsFromPreferences:[LDPreferences sharedPreferences]] validateWithError:&error]) {
     return YES;
   }
-  [LDDialogs showFailures:@[[error localizedDescription] ?: @"Invalid filter"]
-                    title:@"Fix the filter in Preferences › Filtering before scanning"];
+  [LDDialogs showFailures:@[[error localizedDescription] ?: LDLocalized(@"Invalid filter")]
+                    title:LDLocalized(@"Fix the filter in Preferences › Filtering before scanning")];
   return NO;
 }
 
@@ -1588,11 +1591,11 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 - (void)updateScanStatus
 {
   if ([_scanSession isCanceled]) {
-    [_statusField setStringValue:@"Stopping…"];
+    [_statusField setStringValue:LDLocalized(@"Stopping…")];
     return;
   }
   NSString *currentPath = [_scanSession currentPath];
-  [_statusField setStringValue:[NSString stringWithFormat:@"Scanning %@  ·  %lu files, %lu folders, %@",
+  [_statusField setStringValue:[NSString stringWithFormat:LDLocalized(@"Scanning %@  ·  %lu files, %lu folders, %@"),
                                 [self displayPath:currentPath ? currentPath : _currentScanPath],
                                 (unsigned long)[_scanSession filesScanned],
                                 (unsigned long)[_scanSession directoriesScanned],
@@ -1667,7 +1670,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   LDFileNode *root = [_scanSession rootNode];
   [self finishBusyWork];
   if (!root) {
-    [_statusField setStringValue:@"Scan failed"];
+    [_statusField setStringValue:LDLocalized(@"Scan failed")];
     return;
   }
 
@@ -1701,23 +1704,23 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 - (void)showSummaryStatus
 {
   if (!_rootNode) {
-    [_statusField setStringValue:@"Ready"];
+    [_statusField setStringValue:LDLocalized(@"Ready")];
     return;
   }
-  NSString *canceled = [_scanSession state] == LDScanSessionStateCanceled ? @"Scan stopped, partial results  ·  " : @"";
+  NSString *canceled = [_scanSession state] == LDScanSessionStateCanceled ? LDLocalized(@"Scan stopped, partial results  ·  ") : @"";
   NSString *problems = @"";
   if ([_scanSession errorCount] > 0) {
-    problems = [NSString stringWithFormat:@", %lu unreadable", (unsigned long)[_scanSession errorCount]];
+    problems = [NSString stringWithFormat:LDLocalized(@", %lu unreadable"), (unsigned long)[_scanSession errorCount]];
   }
   if (_loadedFile) {
-    [_statusField setStringValue:[NSString stringWithFormat:@"%lu files, %lu folders, %@  ·  loaded from %@",
+    [_statusField setStringValue:[NSString stringWithFormat:LDLocalized(@"%lu files, %lu folders, %@  ·  loaded from %@"),
                                   (unsigned long)[_rootNode fileCount],
                                   (unsigned long)MAX((NSUInteger)1, [_rootNode directoryCount]) - 1,
                                   [LDSizeFormatter stringForBytes:[_rootNode aggregateSizeForMetric:_sizeMetric]],
                                   [self displayPath:_loadedFile]]];
     return;
   }
-  [_statusField setStringValue:[NSString stringWithFormat:@"%@%lu files, %lu folders, %@%@ in %.1f s",
+  [_statusField setStringValue:[NSString stringWithFormat:LDLocalized(@"%@%lu files, %lu folders, %@%@ in %.1f s"),
                                 canceled,
                                 (unsigned long)[_rootNode fileCount],
                                 (unsigned long)MAX((NSUInteger)1, [_rootNode directoryCount]) - 1,
@@ -1895,7 +1898,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 {
   (void)sender;
   [_scanSession suspend];
-  [self showStatus:@"Scan suspended"];
+  [self showStatus:LDLocalized(@"Scan suspended")];
   [self updateScanProgress];
   [self refreshCommandState];
 }
@@ -1939,7 +1942,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [_refreshQueue removeAllObjects];
   [self stopDuplicateDetection];
   if ([self isBusy]) {
-    [_statusField setStringValue:@"Stopping…"];
+    [_statusField setStringValue:LDLocalized(@"Stopping…")];
   }
 }
 
@@ -2096,7 +2099,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   for (LDFileNode *node in nodes) {
     total += [node aggregateSizeForMetric:_sizeMetric];
   }
-  NSString *label = _sizeMetric == LDSizeMetricLogical ? @"Logical Size" : @"Physical Size";
+  NSString *label = _sizeMetric == LDSizeMetricLogical ? LDLocalized(@"Logical Size") : LDLocalized(@"Physical Size");
   [_selectionField setStringValue:[nodes count] ? [NSString stringWithFormat:@"%@: %@", label, [LDSizeFormatter stringForBytes:total]] : @""];
 }
 
@@ -2182,8 +2185,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   }
   LDExtensionStats *stats = [_extensionRows objectAtIndex:row];
   [_treemapView setHighlightedExtensionKey:[stats extensionKey]];
-  NSString *pattern = [[stats extensionKey] isEqualToString:@"<none>"] ? @"Files without an extension" : [@"*" stringByAppendingString:[stats displayName]];
-  [_statusField setStringValue:[NSString stringWithFormat:@"%@  ·  %lu files, %@",
+  NSString *pattern = [[stats extensionKey] isEqualToString:LDLocalized(@"<none>")] ? LDLocalized(@"Files without an extension") : [@"*" stringByAppendingString:[stats displayName]];
+  [_statusField setStringValue:[NSString stringWithFormat:LDLocalized(@"%@  ·  %lu files, %@"),
                                 pattern,
                                 (unsigned long)[stats fileCount],
                                 [LDSizeFormatter stringForBytes:[stats bytesForMetric:_sizeMetric]]]];

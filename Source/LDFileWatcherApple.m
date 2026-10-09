@@ -1,4 +1,5 @@
 #import "LDFileWatcher+Backend.h"
+#import "LDLocalization.h"
 
 #if defined(__APPLE__)
 
@@ -159,13 +160,13 @@ static void LDStreamCallback(ConstFSEventStreamRef stream, void *info, size_t co
     if (flag & (kFSEventStreamEventFlagMustScanSubDirs | kFSEventStreamEventFlagUserDropped
                 | kFSEventStreamEventFlagKernelDropped)) {
       if (!reportedOverflow) {
-        [backend->_sink reportMessage:@"Some changes were missed because too many happened at once"];
+        [backend->_sink reportMessage:LDLocalized(@"Some changes were missed because too many happened at once")];
         reportedOverflow = YES;
       }
       continue;
     }
     if (flag & kFSEventStreamEventFlagRootChanged) {
-      [backend->_sink reportMessage:[NSString stringWithFormat:@"%@ was moved or deleted", pathString]];
+      [backend->_sink reportMessage:[NSString stringWithFormat:LDLocalized(@"%@ was moved or deleted"), pathString]];
       continue;
     }
     if (!rawPath || (flag & kFSEventStreamEventFlagHistoryDone)) {

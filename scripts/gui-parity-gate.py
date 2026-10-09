@@ -162,6 +162,8 @@ def other_lindirstat_processes():
 
 
 GLOBAL_DEFAULTS = {
+    # The checks read English titles, whatever the machine's language.
+    "NSLanguages": ["English"],
     "GSTheme": "Adwaita",
     "GSX11HandlesWindowDecorations": "NO",
     "GSWindowDecoration": "Default",

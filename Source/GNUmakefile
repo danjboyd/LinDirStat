@@ -57,6 +57,7 @@ LinDirStat_OBJC_FILES = \
   LDTreemapPreview.m \
   LDMainWindow.m \
   LDPrivacyAccess.m \
+  LDLanguages.m \
   LDFileWatcher.m \
   LDFileWatcherLinux.m \
   LDFileWatcherApple.m \
@@ -65,7 +66,7 @@ LinDirStat_OBJC_FILES = \
   LDOpenWith.m \
   LDOpenWithLinux.m
 
-LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist $(wildcard Resources/Icons/*.png)
+LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist $(wildcard Resources/Icons/*.png) $(wildcard Resources/*.lproj)
 
 OPENSAVE_ROOT = /home/danboyd/git/gnustep/libs-OpenSave
 

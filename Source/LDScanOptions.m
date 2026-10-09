@@ -1,4 +1,5 @@
 #import "LDScanOptions.h"
+#import "LDLocalization.h"
 #import "LDPreferences.h"
 
 #include <locale.h>
@@ -110,7 +111,7 @@ static NSString *LDTrimmingTrailing(NSString *text, unichar character)
     return YES;
   }
   if (error) {
-    NSString *description = [NSString stringWithFormat:@"Invalid filter: %@", invalid];
+    NSString *description = [NSString stringWithFormat:LDLocalized(@"Invalid filter: %@"), invalid];
     *error = [NSError errorWithDomain:LDScanOptionsErrorDomain
                                  code:LDScanOptionsErrorInvalidFilter
                              userInfo:[NSDictionary dictionaryWithObject:description forKey:NSLocalizedDescriptionKey]];
