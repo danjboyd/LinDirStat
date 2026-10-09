@@ -32,6 +32,8 @@
 	<string>NSApplication</string>
 	<key>NSSupportsAutomaticGraphicsSwitching</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>LinDirStat asks Finder to empty the Trash.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>LinDirStat contributors. Inspired by WinDirStat.</string>
 </dict>
