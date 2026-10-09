@@ -599,9 +599,12 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   NSUInteger modifiers = [event modifierFlags] & (NSControlKeyMask | NSAlternateKeyMask | NSCommandKeyMask | NSShiftKeyMask);
   // GNUstep can map the Ctrl key to the Command modifier (as its menus show).
   BOOL control = modifiers == NSControlKeyMask || modifiers == NSCommandKeyMask;
-  if (control && key >= NSF1FunctionKey && key <= NSF4FunctionKey) {
+  BOOL functionKey = control && key >= NSF1FunctionKey && key <= NSF4FunctionKey;
+  BOOL commandDigit = [LDPlatformUI usesCommandDigitsForFileTabs] && modifiers == NSCommandKeyMask
+    && key >= '1' && key <= '4';
+  if (functionKey || commandDigit) {
     NSArray *tabs = @[_allFilesTab, _largestTab, _duplicatesTab, _searchTab];
-    NSTabViewItem *tab = [tabs objectAtIndex:key - NSF1FunctionKey];
+    NSTabViewItem *tab = [tabs objectAtIndex:functionKey ? key - NSF1FunctionKey : key - '1'];
     if ([[_fileTabs tabViewItems] indexOfObjectIdenticalTo:tab] != NSNotFound) {
       [_fileTabs selectTabViewItem:tab];
       [_window makeFirstResponder:[self activeFileList]];

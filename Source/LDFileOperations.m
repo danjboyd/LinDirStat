@@ -603,9 +603,13 @@ static void LDMeasureTree(int directoryFD, unsigned long long *bytes, NSUInteger
   NSUInteger count = 0;
   unsigned long long total = 0;
   NSUInteger budget = entryLimit;
+  BOOL unreadable = NO;
   for (NSData *folder in directories) {
     DIR *directory = opendir([LDTerminated(folder) bytes]);
     if (!directory) {
+      // No trash yet is an empty trash; one we may not read (macOS without
+      // Full Disk Access) is unknown.
+      unreadable = unreadable || errno == EPERM || errno == EACCES;
       continue;
     }
     struct dirent *entry = NULL;
@@ -631,13 +635,13 @@ static void LDMeasureTree(int directoryFD, unsigned long long *bytes, NSUInteger
     closedir(directory);
   }
   if (items) {
-    *items = count;
+    *items = unreadable ? NSNotFound : count;
   }
   if (bytes) {
     *bytes = total;
   }
   if (complete) {
-    *complete = budget > 0;
+    *complete = budget > 0 && !unreadable;
   }
 }
 

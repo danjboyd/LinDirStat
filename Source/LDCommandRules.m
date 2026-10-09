@@ -156,6 +156,9 @@
                                 bytes:(unsigned long long)bytes
                              complete:(BOOL)complete
 {
+  if (items == NSNotFound) {
+    return @"Empty Trash…";
+  }
   NSString *size = [LDSizeFormatter stringForBytes:bytes];
   if (!complete) {
     size = [size stringByAppendingString:@"+"];

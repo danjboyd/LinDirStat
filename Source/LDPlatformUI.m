@@ -206,6 +206,11 @@ static NSString *const LDFullDiskAccessSettingsURL =
   return @"Settings";
 }
 
++ (BOOL)usesCommandDigitsForFileTabs
+{
+  return YES;
+}
+
 // Puts the standard editing commands (which text fields need for their
 // shortcuts) at the top of the Edit menu, before the app's own.
 + (void)completeEditMenu:(NSMenu *)edit
@@ -355,6 +360,11 @@ static NSString *const LDFullDiskAccessSettingsURL =
 + (NSString *)settingsTitle
 {
   return @"Preferences";
+}
+
++ (BOOL)usesCommandDigitsForFileTabs
+{
+  return NO;
 }
 
 + (void)completeMainMenu:(NSMenu *)mainMenu

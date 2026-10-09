@@ -48,7 +48,9 @@
 // What the Empty Trash menu item shows (WinDirStat's "(N Items, X)"): the
 // items directly in the given folders and the physical size of everything
 // below them. Never follows links; stops after entryLimit entries, setting
-// complete to NO. Blocking; call it off the main thread.
+// complete to NO. items is NSNotFound when a folder exists but may not be
+// read (macOS without Full Disk Access). Blocking; call it off the main
+// thread.
 + (void)measureTrashContents:(NSArray *)directories
                   entryLimit:(NSUInteger)entryLimit
                        items:(NSUInteger *)items
