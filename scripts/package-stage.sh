@@ -148,15 +148,11 @@ chmod 0644 "$conf" "$runtime/etc/GNUstep/GlobalDefaults.plist"
 cp "$repo_root/packaging/linux/lindirstat.png" "$stage_root/metadata/icons/lindirstat.png"
 
 licenses="$stage_root/metadata/licenses"
-cat > "$licenses/LinDirStat.txt" <<'EOF'
-LinDirStat is a GNUstep disk usage viewer inspired by WinDirStat.
-
-This staged notice is a placeholder for the project's own license text until a
-repository license is selected.
-EOF
 cat > "$licenses/WinDirStat-reference.txt" <<'EOF'
-WinDirStat source is included as local reference material only under
-references/WinDirStat. It is not compiled into this staged LinDirStat payload.
+WinDirStat (GPL-2.0-or-later, https://github.com/windirstat/windirstat):
+LinDirStat's translations (Resources/*.lproj) are generated from WinDirStat's
+language files. Its source code is kept under references/WinDirStat as
+reference material and is not compiled into LinDirStat.
 EOF
 
 notice() {
@@ -169,6 +165,8 @@ notice() {
     fi
   } > "$licenses/$file"
 }
+notice LinDirStat.txt "LinDirStat, a disk usage viewer inspired by WinDirStat" "GPL-2.0-or-later" \
+  "https://github.com/danjboyd/LinDirStat" "$repo_root/COPYING"
 notice GNUstep-base.txt "GNUstep Base (libgnustep-base)" "LGPL-2.1-or-later" \
   "https://github.com/gnustep/libs-base" "$HOME/git/gnustep/libs-base/COPYING.LIB"
 notice GNUstep-gui.txt "GNUstep GUI (libgnustep-gui)" "LGPL-2.1-or-later" \

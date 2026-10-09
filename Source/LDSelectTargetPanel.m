@@ -1,4 +1,5 @@
 #import "LDSelectTargetPanel.h"
+#import "LDLocalization.h"
 #import "LDPreferences.h"
 #import "LDSelectTargetRules.h"
 #import "LDSizeFormatter.h"
@@ -48,7 +49,7 @@ typedef enum {
 {
   (void)controlView;
   if (_usageState != LDVolumeUsageReady) {
-    NSString *text = _usageState == LDVolumeUsageQuerying ? @"(querying…)" : @"(unavailable)";
+    NSString *text = _usageState == LDVolumeUsageQuerying ? LDLocalized(@"(querying…)") : LDLocalized(@"(unavailable)");
     NSDictionary *attributes = @{NSFontAttributeName: [NSFont systemFontOfSize:[NSFont systemFontSize]],
                                  NSForegroundColorAttributeName: [NSColor disabledControlTextColor]};
     NSSize size = [text sizeWithAttributes:attributes];
@@ -172,7 +173,7 @@ typedef enum {
                                       styleMask:NSTitledWindowMask | NSClosableWindowMask
                                         backing:NSBackingStoreBuffered
                                           defer:NO];
-  [_panel setTitle:@"Select Target"];
+  [_panel setTitle:LDLocalized(@"Select Target")];
   [_panel setReleasedWhenClosed:NO];
   [_panel setDelegate:self];
   NSView *content = [[LDSelectTargetContentView alloc] initWithFrame:NSMakeRect(0, 0, LDPanelWidth, LDPanelHeight)];
@@ -183,7 +184,7 @@ typedef enum {
   CGFloat indented = left + LDRadioIndent;
 
   // From the bottom: the buttons, the duplicates checkbox, the folder row.
-  _cancelButton = [self pushButtonWithTitle:@"Cancel" action:@selector(cancel:)];
+  _cancelButton = [self pushButtonWithTitle:LDLocalized(@"Cancel") action:@selector(cancel:)];
   [_cancelButton setKeyEquivalent:@"\e"];
   _okButton = [self pushButtonWithTitle:@"OK" action:@selector(confirm:)];
   [_okButton setKeyEquivalent:@"\r"];
@@ -199,14 +200,14 @@ typedef enum {
 
   _duplicatesCheckbox = [[NSButton alloc] initWithFrame:NSZeroRect];
   [_duplicatesCheckbox setButtonType:NSSwitchButton];
-  [_duplicatesCheckbox setTitle:@"Scan for duplicate files (slower)"];
+  [_duplicatesCheckbox setTitle:LDLocalized(@"Scan for duplicate files (slower)")];
   [_duplicatesCheckbox sizeToFit];
   CGFloat checkboxHeight = NSHeight([_duplicatesCheckbox frame]);
   CGFloat checkboxY = buttonY - LDSectionSpacing * 1.5 - checkboxHeight;
   [_duplicatesCheckbox setFrame:NSMakeRect(left, checkboxY, right - left, checkboxHeight)];
   [content addSubview:_duplicatesCheckbox];
 
-  _browseButton = [self pushButtonWithTitle:@"Browse…" action:@selector(browse:)];
+  _browseButton = [self pushButtonWithTitle:LDLocalized(@"Browse…") action:@selector(browse:)];
   CGFloat rowHeight = NSHeight([_browseButton frame]);
   CGFloat folderRowY = checkboxY - LDSectionSpacing - rowHeight;
   NSRect browseFrame = [_browseButton frame];
@@ -228,7 +229,7 @@ typedef enum {
                                     comboHeight)];
   [content addSubview:_folderCombo];
 
-  _folderRadio = [self radioWithTitle:@"Folder" mode:LDSelectTargetFolder];
+  _folderRadio = [self radioWithTitle:LDLocalized(@"Folder") mode:LDSelectTargetFolder];
   CGFloat radioHeight = NSHeight([_folderRadio frame]);
   [_folderRadio setFrame:NSMakeRect(left, folderRowY - LDSpacing - radioHeight, right - left, radioHeight)];
   [content addSubview:_folderRadio];
@@ -240,7 +241,7 @@ typedef enum {
   [_allRadio setFrame:NSMakeRect(left, LDMargin, right - left, radioHeight)];
   [content addSubview:_allRadio];
 
-  _individualRadio = [self radioWithTitle:@"Individual drives" mode:LDSelectTargetIndividualDrives];
+  _individualRadio = [self radioWithTitle:LDLocalized(@"Individual drives") mode:LDSelectTargetIndividualDrives];
   CGFloat individualY = LDMargin + radioHeight + LDSpacing;
   [_individualRadio setFrame:NSMakeRect(left, individualY, right - left, radioHeight)];
   [content addSubview:_individualRadio];
@@ -260,14 +261,14 @@ typedef enum {
   [_table setAllowsColumnSelection:NO];
   [_table setColumnAutoresizingStyle:NSTableViewFirstColumnOnlyAutoresizingStyle];
   CGFloat fixedWidths = 80.0 + 80.0 + 110.0 + 70.0;
-  [self addColumn:LDSelectTargetColumnName title:@"Name"
+  [self addColumn:LDSelectTargetColumnName title:LDLocalized(@"Name")
             width:MAX(120.0, contentSize.width - fixedWidths - 5 * [_table intercellSpacing].width)
             right:NO ascending:YES];
-  [self addColumn:LDSelectTargetColumnTotal title:@"Total" width:80.0 right:YES ascending:NO];
-  [self addColumn:LDSelectTargetColumnFree title:@"Free" width:80.0 right:YES ascending:NO];
-  NSTableColumn *used = [self addColumn:LDSelectTargetColumnUsed title:@"Used" width:110.0 right:NO ascending:NO];
+  [self addColumn:LDSelectTargetColumnTotal title:LDLocalized(@"Total") width:80.0 right:YES ascending:NO];
+  [self addColumn:LDSelectTargetColumnFree title:LDLocalized(@"Free") width:80.0 right:YES ascending:NO];
+  NSTableColumn *used = [self addColumn:LDSelectTargetColumnUsed title:LDLocalized(@"Used") width:110.0 right:NO ascending:NO];
   [used setDataCell:[[LDVolumeUsageCell alloc] init]];
-  [self addColumn:LDSelectTargetColumnPercent title:@"% Used" width:70.0 right:YES ascending:NO];
+  [self addColumn:LDSelectTargetColumnPercent title:LDLocalized(@"% Used") width:70.0 right:YES ascending:NO];
   [_table setDataSource:self];
   [_table setDelegate:self];
   [_table setTarget:self];

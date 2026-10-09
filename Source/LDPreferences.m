@@ -1,4 +1,5 @@
 #import "LDPreferences.h"
+#import "LDLocalization.h"
 
 #include <string.h>
 
@@ -26,7 +27,7 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
 
 + (NSString *)defaultTitleForSlot:(NSUInteger)slot
 {
-  return [NSString stringWithFormat:@"Custom Cleanup #%lu", (unsigned long)slot];
+  return [NSString stringWithFormat:LDLocalized(@"Custom Cleanup #%lu"), (unsigned long)slot];
 }
 
 - (id)init

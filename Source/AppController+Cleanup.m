@@ -1,4 +1,5 @@
 #import "AppController.h"
+#import "LDLocalization.h"
 #import "AppController+Private.h"
 #import "LDCommandRules.h"
 #import "LDCustomCleanupRunner.h"
@@ -52,7 +53,7 @@
                              inDirectory:nil
                               completion:^(BOOL succeeded) {
       if (!succeeded) {
-        [self showStatus:[NSString stringWithFormat:@"No application could open %@", [self displayPath:path]]];
+        [self showStatus:[NSString stringWithFormat:LDLocalized(@"No application could open %@"), [self displayPath:path]]];
       }
     }];
   }
@@ -97,7 +98,7 @@
     return;
   }
   if (![[LDOpenWith sharedOpenWith] openPaths:[self pathDataOfNodes:nodes] withApplication:application]) {
-    [self showStatus:[NSString stringWithFormat:@"%@ could not be started", [application name]]];
+    [self showStatus:[NSString stringWithFormat:LDLocalized(@"%@ could not be started"), [application name]]];
   }
 }
 
@@ -121,7 +122,7 @@
   for (LDFileNode *folder in [LDCommandRules folderNodesForNodes:[self selectedNodes]]) {
     NSData *directory = [folder pathData];
     if (![LDDesktop launchFirstAvailableCommand:[LDDesktop terminalCommandsForDirectory:directory] inDirectory:directory]) {
-      [self showStatus:@"No terminal application was found"];
+      [self showStatus:LDLocalized(@"No terminal application was found")];
       return;
     }
   }
@@ -157,8 +158,8 @@
   [pasteboard declareTypes:@[NSStringPboardType] owner:nil];
   [pasteboard setString:text forType:NSStringPboardType];
   [self showStatus:[nodes count] == 1
-    ? [NSString stringWithFormat:@"Copied %@", [self displayPath:[[nodes objectAtIndex:0] path]]]
-    : [NSString stringWithFormat:@"Copied %lu paths", (unsigned long)[nodes count]]];
+    ? [NSString stringWithFormat:LDLocalized(@"Copied %@"), [self displayPath:[[nodes objectAtIndex:0] path]]]
+    : [NSString stringWithFormat:LDLocalized(@"Copied %lu paths"), (unsigned long)[nodes count]]];
 }
 
 #pragma mark - Delete, trash, empty folder, move
@@ -199,7 +200,7 @@
     dispatch_async(dispatch_get_main_queue(), ^{
       _fileOperationRunning = NO;
       if ([failures count] > 0) {
-        [LDDialogs showFailures:failures title:[NSString stringWithFormat:@"%@ failed for %lu items", verb, (unsigned long)[failures count]]];
+        [LDDialogs showFailures:failures title:[NSString stringWithFormat:LDLocalized(@"%@ failed for %lu items"), verb, (unsigned long)[failures count]]];
       }
       [self refreshNodes:refreshNodes];
     });
@@ -213,10 +214,10 @@
     return;
   }
   NSArray *nodes = [LDCommandRules topmostNodes:selection];
-  NSString *action = permanently ? @"Delete Permanently" : @"Move to Trash";
+  NSString *action = permanently ? LDLocalized(@"Delete Permanently") : LDLocalized(@"Move to Trash");
   NSString *message = permanently
-    ? @"These items will be deleted permanently. They cannot be recovered."
-    : @"These items will be moved to the trash.";
+    ? LDLocalized(@"These items will be deleted permanently. They cannot be recovered.")
+    : LDLocalized(@"These items will be moved to the trash.");
   if (![self confirmAction:action message:message paths:[self displayPathsForNodes:nodes]]) {
     return;
   }
@@ -234,7 +235,7 @@
       }
     }
   }
-  [self performFileOperation:permanently ? @"Deleting" : @"Moving to the trash"
+  [self performFileOperation:permanently ? LDLocalized(@"Deleting") : LDLocalized(@"Moving to the trash")
                        paths:paths
                    operation:^BOOL(NSData *path, NSError **error) {
     return permanently ? [LDFileOperations deletePermanently:path error:error]
@@ -262,8 +263,8 @@
     return;
   }
   NSArray *folders = [LDCommandRules topmostNodes:[self selectedNodes]];
-  if (![self confirmAction:@"Empty Folder"
-                   message:@"Everything inside these folders will be deleted permanently. The folders themselves are kept."
+  if (![self confirmAction:LDLocalized(@"Empty Folder")
+                   message:LDLocalized(@"Everything inside these folders will be deleted permanently. The folders themselves are kept.")
                      paths:[self displayPathsForNodes:folders]]) {
     return;
   }
@@ -273,7 +274,7 @@
       [paths addObject:[child pathData]];
     }
   }
-  [self performFileOperation:@"Emptying folders"
+  [self performFileOperation:LDLocalized(@"Emptying folders")
                        paths:paths
                    operation:^BOOL(NSData *path, NSError **error) {
     return [LDFileOperations deletePermanently:path error:error];
@@ -289,8 +290,8 @@
   }
   NSArray *nodes = [LDCommandRules topmostNodes:[self selectedNodes]];
   NSOpenPanel *panel = [NSOpenPanel openPanel];
-  [panel setTitle:@"Move To"];
-  [panel setPrompt:@"Move"];
+  [panel setTitle:LDLocalized(@"Move To")];
+  [panel setPrompt:LDLocalized(@"Move")];
   [panel setCanChooseFiles:NO];
   [panel setCanChooseDirectories:YES];
   [panel setAllowsMultipleSelection:NO];
@@ -316,7 +317,7 @@
   if (destinationNode) {
     [refresh addObject:destinationNode];
   }
-  [self performFileOperation:@"Moving"
+  [self performFileOperation:LDLocalized(@"Moving")
                        paths:paths
                    operation:^BOOL(NSData *path, NSError **error) {
     return [LDFileOperations moveItem:path toDirectory:destinationData error:error];
@@ -337,13 +338,13 @@
   (void)sender;
   NSData *systemTrash = [LDFileOperations systemTrashPath];
   if (systemTrash) {
-    if (![self confirmAction:@"Empty Trash"
-                     message:@"Finder will permanently delete everything in the Trash."
+    if (![self confirmAction:LDLocalized(@"Empty Trash")
+                     message:LDLocalized(@"Finder will permanently delete everything in the Trash.")
                        paths:@[[self stringForPathData:systemTrash]]]) {
       return;
     }
     LDFileNode *trashNode = [self nodeForPathData:systemTrash];
-    [self performFileOperation:@"Emptying the trash"
+    [self performFileOperation:LDLocalized(@"Emptying the trash")
                          paths:@[systemTrash]
                      operation:^BOOL(NSData *trash, NSError **error) {
       (void)trash;
@@ -354,14 +355,14 @@
   }
   NSArray *trashes = [LDFileOperations existingTrashDirectories];
   if ([trashes count] == 0) {
-    [self showStatus:@"The trash is already empty"];
+    [self showStatus:LDLocalized(@"The trash is already empty")];
     return;
   }
   NSMutableArray *paths = [NSMutableArray array];
   for (NSData *trash in trashes) {
     [paths addObject:[self stringForPathData:trash]];
   }
-  if (![self confirmAction:@"Empty Trash" message:@"Everything in these trash folders will be deleted permanently." paths:paths]) {
+  if (![self confirmAction:LDLocalized(@"Empty Trash") message:LDLocalized(@"Everything in these trash folders will be deleted permanently.") paths:paths]) {
     return;
   }
   NSMutableArray *refresh = [NSMutableArray array];
@@ -371,7 +372,7 @@
       [refresh addObject:trashNode];
     }
   }
-  [self performFileOperation:@"Emptying the trash"
+  [self performFileOperation:LDLocalized(@"Emptying the trash")
                        paths:trashes
                    operation:^BOOL(NSData *trash, NSError **error) {
     return [LDFileOperations emptyTrashDirectories:@[trash] error:error];
@@ -397,10 +398,12 @@
   NSMutableArray *chosen = [NSMutableArray array];
   for (LDFileNode *node in nodes) {
     if ([cleanup askForConfirmation]) {
-      NSString *message = [NSString stringWithFormat:@"You are about to run the %@custom cleanup “%@” on “%@”. Continue?",
-                           [cleanup recurseIntoSubdirectories] ? @"recursive " : @"", title, [node path]];
+      NSString *format = [cleanup recurseIntoSubdirectories]
+        ? LDLocalized(@"You are about to run the recursive custom cleanup “%@” on “%@”. Continue?")
+        : LDLocalized(@"You are about to run the custom cleanup “%@” on “%@”. Continue?");
+      NSString *message = [NSString stringWithFormat:format, title, [node path]];
       NSInteger choice = [LDDialogs runListPanelWithTitle:title message:message items:nil
-                                                  buttons:@[@"Skip", @"Run"] defaultIndex:1
+                                                  buttons:@[LDLocalized(@"Skip"), LDLocalized(@"Run")] defaultIndex:1
                                             checkboxTitle:nil checked:NULL];
       if (choice != 1) {
         continue;
@@ -434,7 +437,7 @@
     [self startBusyIndicator];
     [self refreshCommandState];
   }
-  [self showStatus:[NSString stringWithFormat:@"Running %@…", title]];
+  [self showStatus:[NSString stringWithFormat:LDLocalized(@"Running %@…"), title]];
   [LDCustomCleanupRunner runCleanup:cleanup onPaths:paths directories:directories completion:^(NSArray *ranPaths, NSArray *failures) {
     (void)ranPaths;
     if (waits) {
@@ -445,7 +448,7 @@
       for (NSData *path in failures) {
         [lines addObject:[self stringForPathData:path]];
       }
-      [LDDialogs showFailures:lines title:[NSString stringWithFormat:@"%@ failed", title]];
+      [LDDialogs showFailures:lines title:[NSString stringWithFormat:LDLocalized(@"%@ failed"), title]];
     }
     if (waits) {
       [self refreshNodes:refresh];
@@ -455,7 +458,7 @@
 
 - (NSMenu *)customCleanupMenu
 {
-  NSMenu *menu = [[NSMenu alloc] initWithTitle:@"Custom Cleanup"];
+  NSMenu *menu = [[NSMenu alloc] initWithTitle:LDLocalized(@"Custom Cleanup")];
   NSArray *cleanups = [[LDPreferences sharedPreferences] customCleanups];
   for (NSUInteger slot = 0; slot < [cleanups count]; slot++) {
     LDCustomCleanup *cleanup = [cleanups objectAtIndex:slot];
@@ -469,7 +472,7 @@
     [item setTag:(NSInteger)slot];
   }
   if ([menu numberOfItems] == 0) {
-    NSMenuItem *none = (NSMenuItem *)[menu addItemWithTitle:@"No Custom Cleanups — Set Them Up in Preferences" action:NULL keyEquivalent:@""];
+    NSMenuItem *none = (NSMenuItem *)[menu addItemWithTitle:LDLocalized(@"No Custom Cleanups — Set Them Up in Preferences") action:NULL keyEquivalent:@""];
     [none setEnabled:NO];
   }
   return menu;
@@ -584,7 +587,7 @@
   if ([node kind] == LDFileNodeKindDirectory) {
     [(LDDirectoryNode *)node beginPendingScans:1];
   }
-  [self showStatus:[NSString stringWithFormat:@"Refreshing %@…", [self displayPath:[node path]]]];
+  [self showStatus:[NSString stringWithFormat:LDLocalized(@"Refreshing %@…"), [self displayPath:[node path]]]];
   LDScanSession *session = [[LDScanSession alloc] init];
   [self configureScanSession:session];
   [self prepareRefreshSession:session ofNode:node];

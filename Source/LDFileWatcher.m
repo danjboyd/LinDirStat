@@ -1,4 +1,5 @@
 #import "LDFileWatcher.h"
+#import "LDLocalization.h"
 #import "LDFileWatcher+Backend.h"
 
 static const NSTimeInterval LDFileWatcherBatchInterval = 0.25;
@@ -49,11 +50,11 @@ static const NSTimeInterval LDFileWatcherBatchInterval = 0.25;
 + (NSString *)titleForAction:(LDFileWatcherAction)action
 {
   switch (action) {
-    case LDFileWatcherActionCreated: return @"Created";
-    case LDFileWatcherActionDeleted: return @"Deleted";
-    case LDFileWatcherActionModified: return @"Modified";
-    case LDFileWatcherActionRenamedOld: return @"Renamed (Old)";
-    case LDFileWatcherActionRenamedNew: return @"Renamed (New)";
+    case LDFileWatcherActionCreated: return LDLocalized(@"Created");
+    case LDFileWatcherActionDeleted: return LDLocalized(@"Deleted");
+    case LDFileWatcherActionModified: return LDLocalized(@"Modified");
+    case LDFileWatcherActionRenamedOld: return LDLocalized(@"Renamed (Old)");
+    case LDFileWatcherActionRenamedNew: return LDLocalized(@"Renamed (New)");
   }
   return @"";
 }

@@ -1,4 +1,5 @@
 #import "LDDialogs.h"
+#import "LDLocalization.h"
 #import "LDFileNode.h"
 #import "LDSizeFormatter.h"
 
@@ -182,9 +183,9 @@ static CGFloat LDLabelHeight(NSTextField *label, CGFloat width)
   NSInteger choice = [self runListPanelWithTitle:actionTitle
                                          message:message
                                            items:paths
-                                         buttons:@[@"Cancel", actionTitle]
+                                         buttons:@[LDLocalized(@"Cancel"), actionTitle]
                                     defaultIndex:0
-                                   checkboxTitle:@"Do not show this message again"
+                                   checkboxTitle:LDLocalized(@"Do not show this message again")
                                          checked:dontAskAgain];
   return choice == 1;
 }
@@ -194,7 +195,7 @@ static CGFloat LDLabelHeight(NSTextField *label, CGFloat width)
   [self runListPanelWithTitle:title
                       message:nil
                         items:lines
-                      buttons:@[@"Close"]
+                      buttons:@[LDLocalized(@"Close")]
                  defaultIndex:0
                 checkboxTitle:nil
                       checked:NULL];
@@ -215,13 +216,13 @@ static NSString *LDPermissionString(mode_t mode)
 + (NSString *)kindOfNode:(LDFileNode *)node
 {
   if ([node isMountPoint]) {
-    return @"Mount point (not scanned)";
+    return LDLocalized(@"Mount point (not scanned)");
   }
   switch ([node kind]) {
-    case LDFileNodeKindDirectory: return @"Folder";
-    case LDFileNodeKindSymlink: return @"Symbolic link";
-    case LDFileNodeKindSpecial: return [node error] == LDFileNodeErrorStatFailed ? @"Unreadable entry" : @"Special file";
-    default: return @"File";
+    case LDFileNodeKindDirectory: return LDLocalized(@"Folder");
+    case LDFileNodeKindSymlink: return LDLocalized(@"Symbolic link");
+    case LDFileNodeKindSpecial: return [node error] == LDFileNodeErrorStatFailed ? LDLocalized(@"Unreadable entry") : LDLocalized(@"Special file");
+    default: return LDLocalized(@"File");
   }
 }
 
@@ -239,40 +240,40 @@ static NSString *LDPermissionString(mode_t mode)
     }
   };
   NSString *path = [node path];
-  add(@"Name", [node parent] ? [node displayName] : path);
-  add(@"Location", [node parent] ? [[node parent] path] : [path stringByDeletingLastPathComponent]);
-  add(@"Type", [self kindOfNode:node]);
-  add(@"Size on disk", [NSString stringWithFormat:@"%@ (%llu bytes)",
+  add(LDLocalized(@"Name"), [node parent] ? [node displayName] : path);
+  add(LDLocalized(@"Location"), [node parent] ? [[node parent] path] : [path stringByDeletingLastPathComponent]);
+  add(LDLocalized(@"Type"), [self kindOfNode:node]);
+  add(LDLocalized(@"Size on disk"), [NSString stringWithFormat:LDLocalized(@"%@ (%llu bytes)"),
                         [LDSizeFormatter stringForBytes:[node aggregateAllocatedSize]], [node aggregateAllocatedSize]]);
-  add(@"Size", [NSString stringWithFormat:@"%@ (%llu bytes)",
+  add(LDLocalized(@"Size"), [NSString stringWithFormat:LDLocalized(@"%@ (%llu bytes)"),
                 [LDSizeFormatter stringForBytes:[node aggregateSize]], [node aggregateSize]]);
   if ([node kind] == LDFileNodeKindDirectory) {
-    add(@"Contents", [NSString stringWithFormat:@"%lu files, %lu folders",
+    add(LDLocalized(@"Contents"), [NSString stringWithFormat:LDLocalized(@"%lu files, %lu folders"),
                       (unsigned long)[node fileCount], (unsigned long)MAX((NSUInteger)1, [node directoryCount]) - 1]);
   }
   if ([node modificationTime] > 0) {
-    add(@"Modified", [dates stringFromDate:[NSDate dateWithTimeIntervalSince1970:[node modificationTime]]]);
+    add(LDLocalized(@"Modified"), [dates stringFromDate:[NSDate dateWithTimeIntervalSince1970:[node modificationTime]]]);
   }
 
   NSMutableData *terminated = [[node pathData] mutableCopy];
   [terminated appendBytes:"\0" length:1];
   struct stat info;
   if (lstat([terminated bytes], &info) == 0) {
-    add(@"Permissions", LDPermissionString(info.st_mode));
+    add(LDLocalized(@"Permissions"), LDPermissionString(info.st_mode));
     struct passwd *user = getpwuid(info.st_uid);
     struct group *group = getgrgid(info.st_gid);
-    add(@"Owner", user ? [NSString stringWithUTF8String:user->pw_name] : [NSString stringWithFormat:@"%u", (unsigned)info.st_uid]);
-    add(@"Group", group ? [NSString stringWithUTF8String:group->gr_name] : [NSString stringWithFormat:@"%u", (unsigned)info.st_gid]);
-    add(@"Links", [NSString stringWithFormat:@"%lu", (unsigned long)info.st_nlink]);
-    add(@"Inode", [NSString stringWithFormat:@"%llu on device %llu",
+    add(LDLocalized(@"Owner"), user ? [NSString stringWithUTF8String:user->pw_name] : [NSString stringWithFormat:@"%u", (unsigned)info.st_uid]);
+    add(LDLocalized(@"Group"), group ? [NSString stringWithUTF8String:group->gr_name] : [NSString stringWithFormat:@"%u", (unsigned)info.st_gid]);
+    add(LDLocalized(@"Links"), [NSString stringWithFormat:@"%lu", (unsigned long)info.st_nlink]);
+    add(LDLocalized(@"Inode"), [NSString stringWithFormat:LDLocalized(@"%llu on device %llu"),
                    (unsigned long long)info.st_ino, (unsigned long long)info.st_dev]);
-    add(@"Accessed", [dates stringFromDate:[NSDate dateWithTimeIntervalSince1970:info.st_atime]]);
-    add(@"Changed", [dates stringFromDate:[NSDate dateWithTimeIntervalSince1970:info.st_ctime]]);
+    add(LDLocalized(@"Accessed"), [dates stringFromDate:[NSDate dateWithTimeIntervalSince1970:info.st_atime]]);
+    add(LDLocalized(@"Changed"), [dates stringFromDate:[NSDate dateWithTimeIntervalSince1970:info.st_ctime]]);
   } else {
-    add(@"Status", @"No longer exists or cannot be read");
+    add(LDLocalized(@"Status"), LDLocalized(@"No longer exists or cannot be read"));
   }
   if ([node errorCode]) {
-    add(@"Scan note", [node errorCode]);
+    add(LDLocalized(@"Scan note"), [node errorCode]);
   }
 
   CGFloat width = 520.0;
@@ -290,7 +291,7 @@ static NSString *LDPermissionString(mode_t mode)
                                               styleMask:NSTitledWindowMask | NSClosableWindowMask
                                                 backing:NSBackingStoreBuffered
                                                   defer:NO];
-  [panel setTitle:[NSString stringWithFormat:@"%@ Properties", [node parent] ? [node displayName] : path]];
+  [panel setTitle:[NSString stringWithFormat:LDLocalized(@"%@ Properties"), [node parent] ? [node displayName] : path]];
   [panel setReleasedWhenClosed:NO];
   NSView *content = [panel contentView];
   CGFloat y = height - LDDialogMargin;
@@ -320,7 +321,7 @@ static NSString *LDPermissionString(mode_t mode)
 + (void)showText:(NSString *)text title:(NSString *)title
 {
   NSArray *lines = [text componentsSeparatedByString:@"\n"];
-  [self runListPanelWithTitle:title message:nil items:lines buttons:@[@"Close"] defaultIndex:0 checkboxTitle:nil checked:NULL];
+  [self runListPanelWithTitle:title message:nil items:lines buttons:@[LDLocalized(@"Close")] defaultIndex:0 checkboxTitle:nil checked:NULL];
 }
 
 @end

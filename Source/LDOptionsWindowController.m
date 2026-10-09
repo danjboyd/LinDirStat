@@ -1,4 +1,6 @@
 #import "LDOptionsWindowController.h"
+#import "LDLocalization.h"
+#import "LDLanguages.h"
 #import "LDPlatformUI.h"
 #import "LDFilterPatterns.h"
 #import "LDPreferences.h"
@@ -50,6 +52,7 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   NSTextField *_filterError;
   NSTextField *_minimumSize;
   NSPopUpButton *_minimumSizeUnit;
+  NSPopUpButton *_language;
 
   // Folder List
   NSButton *_pacman;
@@ -458,23 +461,43 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
 
 - (void)buildGeneralPage
 {
-  [self beginPage:@"General"];
-  [self addSectionTitle:@"Sizes"];
-  _humanFormat = [self addCheckbox:@"Show sizes in human-readable format" action:@selector(generalChanged:)];
-  [self addSectionTitle:@"List Style"];
-  _autoResizeColumns = [self addCheckbox:@"Automatically resize columns" action:@selector(generalChanged:)];
-  _fullRowSelection = [self addCheckbox:@"Full row selection" action:@selector(generalChanged:)];
-  _listGrid = [self addCheckbox:@"Show grid" action:@selector(generalChanged:)];
-  _listStripes = [self addCheckbox:@"Show stripes" action:@selector(generalChanged:)];
+  [self beginPage:LDLocalized(@"General")];
+  [self addSectionTitle:LDLocalized(@"Sizes")];
+  _humanFormat = [self addCheckbox:LDLocalized(@"Show sizes in human-readable format") action:@selector(generalChanged:)];
+  [self addSectionTitle:LDLocalized(@"List Style")];
+  _autoResizeColumns = [self addCheckbox:LDLocalized(@"Automatically resize columns") action:@selector(generalChanged:)];
+  _fullRowSelection = [self addCheckbox:LDLocalized(@"Full row selection") action:@selector(generalChanged:)];
+  _listGrid = [self addCheckbox:LDLocalized(@"Show grid") action:@selector(generalChanged:)];
+  _listStripes = [self addCheckbox:LDLocalized(@"Show stripes") action:@selector(generalChanged:)];
+
+  // WinDirStat's Language setting; it applies from the next launch.
+  [self addSectionTitle:LDLocalized(@"Language")];
+  NSMutableArray *names = [NSMutableArray arrayWithObject:LDLocalized(@"System Default")];
+  for (NSString *code in [LDLanguages availableLanguages]) {
+    [names addObject:[LDLanguages nativeNameOfLanguage:code]];
+  }
+  _language = [self popUpWithTitles:names action:@selector(languageChanged:)];
+  NSString *chosen = [LDLanguages chosenLanguage];
+  NSUInteger index = chosen ? [[LDLanguages availableLanguages] indexOfObject:chosen] : NSNotFound;
+  [_language selectItemAtIndex:index == NSNotFound ? 0 : (NSInteger)index + 1];
+  [self addRow:LDLocalized(@"Language") controls:@[_language]];
+  [self addNote:LDLocalized(@"Takes effect when LinDirStat is opened again.") color:[NSColor secondaryLabelColor] lines:1];
+}
+
+- (void)languageChanged:(id)sender
+{
+  NSInteger index = [(NSPopUpButton *)sender indexOfSelectedItem];
+  NSArray *codes = [LDLanguages availableLanguages];
+  [LDLanguages setChosenLanguage:index > 0 && index <= (NSInteger)[codes count] ? [codes objectAtIndex:index - 1] : nil];
 }
 
 - (void)buildFilteringPage
 {
-  [self beginPage:@"Filtering"];
-  _folderPatterns = [self addPatternEditor:@"Folder paths to exclude:" height:84.0];
+  [self beginPage:LDLocalized(@"Filtering")];
+  _folderPatterns = [self addPatternEditor:LDLocalized(@"Folder paths to exclude:") height:84.0];
   _y += LDOptionsSectionSpacing - LDOptionsRowSpacing;
-  _filePatterns = [self addPatternEditor:@"File name patterns to exclude:" height:84.0];
-  _filterRegex = [self addCheckbox:@"Use regular expressions instead of glob patterns" action:@selector(filterRegexChanged:)];
+  _filePatterns = [self addPatternEditor:LDLocalized(@"File name patterns to exclude:") height:84.0];
+  _filterRegex = [self addCheckbox:LDLocalized(@"Use regular expressions instead of glob patterns") action:@selector(filterRegexChanged:)];
   _filterError = [self labelWithString:@" "];
   [_filterError setTextColor:[NSColor systemRedColor]];
   [[_filterError cell] setLineBreakMode:NSLineBreakByTruncatingTail];
@@ -484,32 +507,32 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   [_minimumSize setFrameSize:NSMakeSize(100, NSHeight([_minimumSize frame]))];
   _minimumSizeUnit = [self popUpWithTitles:@[@"bytes", @"KiB", @"MiB", @"GiB", @"TiB"]
                                     action:@selector(minimumSizeUnitChanged:)];
-  [self addRow:@"Exclude files smaller than" controls:@[_minimumSize, _minimumSizeUnit]];
+  [self addRow:LDLocalized(@"Exclude files smaller than") controls:@[_minimumSize, _minimumSizeUnit]];
   _y += LDOptionsSectionSpacing - LDOptionsRowSpacing;
-  [self addNote:@"Changes apply to the next scan or refresh." color:[NSColor secondaryLabelColor] lines:1];
+  [self addNote:LDLocalized(@"Changes apply to the next scan or refresh.") color:[NSColor secondaryLabelColor] lines:1];
 }
 
 + (NSDictionary *)columnTitles
 {
   return @{
-    LDColumnPhysicalSize: @"Physical Size",
-    LDColumnLogicalSize: @"Logical Size",
-    LDColumnItems: @"Items",
-    LDColumnFiles: @"Files",
-    LDColumnFolders: @"Folders",
-    LDColumnLastChange: @"Last Change",
-    LDColumnAttributes: @"Attributes",
-    LDColumnOwner: @"Owner",
+    LDColumnPhysicalSize: LDLocalized(@"Physical Size"),
+    LDColumnLogicalSize: LDLocalized(@"Logical Size"),
+    LDColumnItems: LDLocalized(@"Items"),
+    LDColumnFiles: LDLocalized(@"Files"),
+    LDColumnFolders: LDLocalized(@"Folders"),
+    LDColumnLastChange: LDLocalized(@"Last Change"),
+    LDColumnAttributes: LDLocalized(@"Attributes"),
+    LDColumnOwner: LDLocalized(@"Owner"),
   };
 }
 
 - (void)buildFolderListPage
 {
-  [self beginPage:@"Folder List"];
-  [self addSectionTitle:@"Scanning"];
-  _pacman = [self addCheckbox:@"Pacman animation" action:@selector(folderListChanged:)];
-  _timeSpent = [self addCheckbox:@"Show time spent during scan" action:@selector(folderListChanged:)];
-  [self addSectionTitle:@"Optional Columns"];
+  [self beginPage:LDLocalized(@"Folder List")];
+  [self addSectionTitle:LDLocalized(@"Scanning")];
+  _pacman = [self addCheckbox:LDLocalized(@"Pacman animation") action:@selector(folderListChanged:)];
+  _timeSpent = [self addCheckbox:LDLocalized(@"Show time spent during scan") action:@selector(folderListChanged:)];
+  [self addSectionTitle:LDLocalized(@"Optional Columns")];
   NSDictionary *titles = [LDOptionsWindowController columnTitles];
   // Two columns of checkboxes, in WinDirStat's order down each column.
   NSArray *columns = [LDPreferences optionalColumns];
@@ -531,15 +554,15 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   _y = bottom;
 
   // WinDirStat's Subtree Percentage colours: one per level, used in turn.
-  [self addSectionTitle:@"Subtree Percentage Colors"];
+  [self addSectionTitle:LDLocalized(@"Subtree Percentage Colors")];
   NSMutableArray *wells = [NSMutableArray array];
   for (NSUInteger i = 0; i < [LDPreferences fileTreeColorSlots]; i++) {
     NSColorWell *well = [self colorWellWithAction:@selector(levelColorChanged:)];
     [wells addObject:well];
     [_levelColorWells addObject:well];
   }
-  [self addRow:@"Level colors" controls:wells];
-  _levelCount = [self addSliderRow:@"Levels used" from:1 to:[LDPreferences fileTreeColorSlots]];
+  [self addRow:LDLocalized(@"Level colors") controls:wells];
+  _levelCount = [self addSliderRow:LDLocalized(@"Levels used") from:1 to:[LDPreferences fileTreeColorSlots]];
   [_levelCount setNumberOfTickMarks:[LDPreferences fileTreeColorSlots]];
   [_levelCount setAllowsTickMarkValuesOnly:YES];
   [_levelCount setAction:@selector(levelCountChanged:)];
@@ -558,7 +581,7 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
 
 - (void)buildTreemapPage
 {
-  [self beginPage:@"Treemap"];
+  [self beginPage:LDLocalized(@"Treemap")];
   // The settings take the left; WinDirStat's live preview sits on the right.
   CGFloat pageRight = _right;
   _right = pageRight - LDTreemapPreviewWidth - LDOptionsMargin;
@@ -571,34 +594,34 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   [self place:_treemapPreview x:pageRight - LDTreemapPreviewWidth width:LDTreemapPreviewWidth
        height:LDTreemapPreviewHeight mask:NSViewMinXMargin];
   _y = top;
-  NSTextField *previewTitle = [self labelWithString:@"Preview"];
+  NSTextField *previewTitle = [self labelWithString:LDLocalized(@"Preview")];
   [previewTitle setFont:[NSFont boldSystemFontOfSize:[NSFont systemFontSize]]];
   [previewTitle sizeToFit];
   [self place:previewTitle x:pageRight - LDTreemapPreviewWidth width:LDTreemapPreviewWidth
        height:NSHeight([previewTitle frame]) mask:NSViewMinXMargin];
 
-  [self addSectionTitle:@"Layout"];
-  _treemapStyle = [self popUpWithTitles:@[@"KDirStat", @"SequoiaView"] action:@selector(treemapChanged:)];
+  [self addSectionTitle:LDLocalized(@"Layout")];
+  _treemapStyle = [self popUpWithTitles:@[LDLocalized(@"KDirStat"), @"SequoiaView"] action:@selector(treemapChanged:)];
   [_treemapStyle setFrameSize:NSMakeSize(MAX(NSWidth([_treemapStyle frame]), 160.0), NSHeight([_treemapStyle frame]))];
-  [self addRow:@"Style" controls:@[_treemapStyle]];
-  _treemapGrid = [self addCheckbox:@"Show grid" action:@selector(treemapChanged:)];
+  [self addRow:LDLocalized(@"Style") controls:@[_treemapStyle]];
+  _treemapGrid = [self addCheckbox:LDLocalized(@"Show grid") action:@selector(treemapChanged:)];
   _gridColor = [self colorWellWithAction:@selector(treemapColorChanged:)];
-  [self addRow:@"Grid color" controls:@[_gridColor]];
+  [self addRow:LDLocalized(@"Grid color") controls:@[_gridColor]];
   _highlightColor = [self colorWellWithAction:@selector(treemapColorChanged:)];
-  [self addRow:@"Highlight color" controls:@[_highlightColor]];
+  [self addRow:LDLocalized(@"Highlight color") controls:@[_highlightColor]];
 
-  [self addSectionTitle:@"Cushions"];
-  _brightness = [self addSliderRow:@"Brightness" from:0 to:100];
-  _cushionShading = [self addSliderRow:@"Cushion shading" from:0 to:100];
-  _height = [self addSliderRow:@"Height" from:0 to:100];
-  _scaleFactor = [self addSliderRow:@"Scale factor" from:0 to:100];
+  [self addSectionTitle:LDLocalized(@"Cushions")];
+  _brightness = [self addSliderRow:LDLocalized(@"Brightness") from:0 to:100];
+  _cushionShading = [self addSliderRow:LDLocalized(@"Cushion shading") from:0 to:100];
+  _height = [self addSliderRow:LDLocalized(@"Height") from:0 to:100];
+  _scaleFactor = [self addSliderRow:LDLocalized(@"Scale factor") from:0 to:100];
 
-  [self addSectionTitle:@"Light Source"];
-  _lightX = [self addSliderRow:@"Horizontal position" from:-100 to:100];
-  _lightY = [self addSliderRow:@"Vertical position" from:-100 to:100];
+  [self addSectionTitle:LDLocalized(@"Light Source")];
+  _lightX = [self addSliderRow:LDLocalized(@"Horizontal position") from:-100 to:100];
+  _lightY = [self addSliderRow:LDLocalized(@"Vertical position") from:-100 to:100];
 
   _y += LDOptionsSectionSpacing - LDOptionsRowSpacing;
-  NSButton *reset = [self pushButtonWithTitle:@"Reset to Defaults" action:@selector(resetTreemap:)];
+  NSButton *reset = [self pushButtonWithTitle:LDLocalized(@"Reset to Defaults") action:@selector(resetTreemap:)];
   NSRect frame = [reset frame];
   [self place:reset x:_right - NSWidth(frame) width:NSWidth(frame) height:NSHeight(frame) mask:NSViewMinXMargin];
   _y += NSHeight(frame);
@@ -607,11 +630,11 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
 
 - (void)buildCleanupsPage
 {
-  NSView *page = [self beginPage:@"Cleanups"];
+  NSView *page = [self beginPage:LDLocalized(@"Cleanups")];
   CGFloat listWidth = 220.0;
 
-  _moveUp = [self pushButtonWithTitle:@"Move Up" action:@selector(moveCleanupUp:)];
-  _moveDown = [self pushButtonWithTitle:@"Move Down" action:@selector(moveCleanupDown:)];
+  _moveUp = [self pushButtonWithTitle:LDLocalized(@"Move Up") action:@selector(moveCleanupUp:)];
+  _moveDown = [self pushButtonWithTitle:LDLocalized(@"Move Down") action:@selector(moveCleanupDown:)];
   CGFloat buttonHeight = NSHeight([_moveUp frame]);
   CGFloat buttonWidth = floor((listWidth - LDOptionsControlSpacing) / 2.0);
   CGFloat buttonY = NSHeight([page frame]) - LDOptionsMargin - buttonHeight;
@@ -645,76 +668,76 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
 
   _left += listWidth + LDOptionsMargin;
 
-  _cleanupEnabled = [self addCheckbox:@"Enabled" action:@selector(cleanupChanged:)];
+  _cleanupEnabled = [self addCheckbox:LDLocalized(@"Enabled") action:@selector(cleanupChanged:)];
   CGFloat fieldWidth = _right - _left - 110.0;
   _cleanupTitle = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, fieldWidth, 24)];
   [_cleanupTitle sizeToFit];
   [_cleanupTitle setFrameSize:NSMakeSize(fieldWidth, NSHeight([_cleanupTitle frame]))];
   [_cleanupTitle setDelegate:self];
-  _cleanupTitleLabel = [self addRow:@"Title" controls:@[_cleanupTitle]];
+  _cleanupTitleLabel = [self addRow:LDLocalized(@"Title") controls:@[_cleanupTitle]];
   _cleanupCommand = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, fieldWidth, 24)];
   [_cleanupCommand sizeToFit];
   [_cleanupCommand setFrameSize:NSMakeSize(fieldWidth, NSHeight([_cleanupCommand frame]))];
   [_cleanupCommand setDelegate:self];
-  _cleanupCommandLabel = [self addRow:@"Command line" controls:@[_cleanupCommand]];
-  _cleanupHint = [self addNote:@"%p path, %n name; %sp, %sn subfolder path and name when recursing"
+  _cleanupCommandLabel = [self addRow:LDLocalized(@"Command line") controls:@[_cleanupCommand]];
+  _cleanupHint = [self addNote:LDLocalized(@"%p path, %n name; %sp, %sn subfolder path and name when recursing")
                          color:[NSColor secondaryLabelColor]
                          lines:2];
 
-  [self addSectionTitle:@"Works For"];
-  _worksForMountPoints = [self checkboxWithTitle:@"Mount points & scan roots" action:@selector(cleanupChanged:)];
-  _worksForFolders = [self checkboxWithTitle:@"Folders" action:@selector(cleanupChanged:)];
-  _worksForFiles = [self checkboxWithTitle:@"Files" action:@selector(cleanupChanged:)];
+  [self addSectionTitle:LDLocalized(@"Works For")];
+  _worksForMountPoints = [self checkboxWithTitle:LDLocalized(@"Mount points & scan roots") action:@selector(cleanupChanged:)];
+  _worksForFolders = [self checkboxWithTitle:LDLocalized(@"Folders") action:@selector(cleanupChanged:)];
+  _worksForFiles = [self checkboxWithTitle:LDLocalized(@"Files") action:@selector(cleanupChanged:)];
   [self addCheckboxRow:@[_worksForMountPoints, _worksForFolders, _worksForFiles]];
 
-  [self addSectionTitle:@"Behavior"];
-  _recurse = [self addCheckbox:@"Recurse into subfolders" action:@selector(cleanupChanged:)];
-  _askForConfirmation = [self addCheckbox:@"Ask for confirmation" action:@selector(cleanupChanged:)];
-  _runInTerminal = [self addCheckbox:@"Run in a terminal" action:@selector(cleanupChanged:)];
-  _waitForCompletion = [self addCheckbox:@"Wait for completion" action:@selector(cleanupChanged:)];
-  _refreshPolicy = [self popUpWithTitles:@[@"No refresh", @"Refresh this entry", @"Refresh this entry's parent"]
+  [self addSectionTitle:LDLocalized(@"Behavior")];
+  _recurse = [self addCheckbox:LDLocalized(@"Recurse into subfolders") action:@selector(cleanupChanged:)];
+  _askForConfirmation = [self addCheckbox:LDLocalized(@"Ask for confirmation") action:@selector(cleanupChanged:)];
+  _runInTerminal = [self addCheckbox:LDLocalized(@"Run in a terminal") action:@selector(cleanupChanged:)];
+  _waitForCompletion = [self addCheckbox:LDLocalized(@"Wait for completion") action:@selector(cleanupChanged:)];
+  _refreshPolicy = [self popUpWithTitles:@[LDLocalized(@"No refresh"), LDLocalized(@"Refresh this entry"), LDLocalized(@"Refresh this entry's parent")]
                                   action:@selector(cleanupChanged:)];
-  _refreshPolicyLabel = [self addRow:@"After running" controls:@[_refreshPolicy]];
+  _refreshPolicyLabel = [self addRow:LDLocalized(@"After running") controls:@[_refreshPolicy]];
 }
 
 - (void)buildPromptsPage
 {
-  [self beginPage:@"Prompts"];
-  [self addSectionTitle:@"Confirmations"];
-  _deleteWarning = [self addCheckbox:@"Warn before deleting" action:@selector(promptsChanged:)];
+  [self beginPage:LDLocalized(@"Prompts")];
+  [self addSectionTitle:LDLocalized(@"Confirmations")];
+  _deleteWarning = [self addCheckbox:LDLocalized(@"Warn before deleting") action:@selector(promptsChanged:)];
 }
 
 - (void)buildAdvancedPage
 {
-  [self beginPage:@"Advanced"];
-  [self addSectionTitle:@"Scanning"];
-  _excludeMountPoints = [self addCheckbox:@"Exclude mount points (do not enter other filesystems)"
+  [self beginPage:LDLocalized(@"Advanced")];
+  [self addSectionTitle:LDLocalized(@"Scanning")];
+  _excludeMountPoints = [self addCheckbox:LDLocalized(@"Exclude mount points (do not enter other filesystems)")
                                    action:@selector(advancedChanged:)];
-  _excludeSymlinks = [self addCheckbox:@"Exclude symbolic links" action:@selector(advancedChanged:)];
-  _excludeHidden = [self addCheckbox:@"Exclude hidden files and folders" action:@selector(advancedChanged:)];
-  _processHardLinks = [self addCheckbox:@"Scan and display hard link information" action:@selector(advancedChanged:)];
-  _scanDuplicates = [self addCheckbox:@"Scan for duplicate files" action:@selector(advancedChanged:)];
+  _excludeSymlinks = [self addCheckbox:LDLocalized(@"Exclude symbolic links") action:@selector(advancedChanged:)];
+  _excludeHidden = [self addCheckbox:LDLocalized(@"Exclude hidden files and folders") action:@selector(advancedChanged:)];
+  _processHardLinks = [self addCheckbox:LDLocalized(@"Scan and display hard link information") action:@selector(advancedChanged:)];
+  _scanDuplicates = [self addCheckbox:LDLocalized(@"Scan for duplicate files") action:@selector(advancedChanged:)];
   NSMutableArray *counts = [NSMutableArray array];
   for (NSUInteger i = 1; i <= 16; i++) {
     [counts addObject:[NSString stringWithFormat:@"%lu", (unsigned long)i]];
   }
   _threads = [self popUpWithTitles:counts action:@selector(advancedChanged:)];
   [_threads setFrameSize:NSMakeSize(MAX(NSWidth([_threads frame]), 80.0), NSHeight([_threads frame]))];
-  [self addRow:@"Scanning threads" controls:@[_threads]];
+  [self addRow:LDLocalized(@"Scanning threads") controls:@[_threads]];
 
-  [self addSectionTitle:@"Lists"];
+  [self addSectionTitle:LDLocalized(@"Lists")];
   _largeFileCount = [self numberFieldWithAction:@selector(countEntered:)];
   [_largeFileCount setFrameSize:NSMakeSize(80, NSHeight([_largeFileCount frame]))];
   _largeFileStepper = [self stepperFrom:0 to:10000 action:@selector(countStepped:)];
-  [self addRow:@"Largest files shown" controls:@[_largeFileCount, _largeFileStepper]];
+  [self addRow:LDLocalized(@"Largest files shown") controls:@[_largeFileCount, _largeFileStepper]];
   _historyCount = [self numberFieldWithAction:@selector(countEntered:)];
   [_historyCount setFrameSize:NSMakeSize(80, NSHeight([_historyCount frame]))];
   _historyStepper = [self stepperFrom:0 to:100 action:@selector(countStepped:)];
-  [self addRow:@"Folder history entries" controls:@[_historyCount, _historyStepper]];
+  [self addRow:LDLocalized(@"Folder history entries") controls:@[_historyCount, _historyStepper]];
 
-  [self addSectionTitle:@"Reset"];
-  NSButton *reset = [self pushButtonWithTitle:@"Reset All Preferences…" action:@selector(resetAll:)];
-  [self addRow:@"Restore every setting to its default" controls:@[reset]];
+  [self addSectionTitle:LDLocalized(@"Reset")];
+  NSButton *reset = [self pushButtonWithTitle:LDLocalized(@"Reset All Preferences…") action:@selector(resetAll:)];
+  [self addRow:LDLocalized(@"Restore every setting to its default") controls:@[reset]];
 }
 
 #pragma mark - Refreshing
@@ -946,7 +969,7 @@ static NSInteger LDState(BOOL flag)
   if (!invalid) {
     invalid = [LDFilterPatterns firstInvalidPatternInString:[_filePatterns string] usesRegex:regex];
   }
-  [_filterError setStringValue:invalid ? [NSString stringWithFormat:@"Invalid filter: %@", invalid] : @""];
+  [_filterError setStringValue:invalid ? [NSString stringWithFormat:LDLocalized(@"Invalid filter: %@"), invalid] : @""];
 }
 
 - (void)textDidChange:(NSNotification *)notification
@@ -1002,7 +1025,7 @@ static NSInteger LDState(BOOL flag)
 - (void)updateLabelForSlider:(NSSlider *)slider
 {
   NSTextField *label = [_sliderLabels objectForKey:slider];
-  NSString *format = slider == _levelCount ? @"%ld" : @"%ld %%";
+  NSString *format = slider == _levelCount ? @"%ld" : LDLocalized(@"%ld %%");
   [label setStringValue:[NSString stringWithFormat:format, (long)[slider integerValue]]];
 }
 
@@ -1287,10 +1310,10 @@ static NSInteger LDState(BOOL flag)
 {
   (void)sender;
   NSAlert *alert = [[NSAlert alloc] init];
-  [alert setMessageText:@"Reset All Preferences?"];
-  [alert setInformativeText:@"Every setting, including filters and custom cleanups, returns to its default."];
-  [alert addButtonWithTitle:@"Cancel"];
-  [alert addButtonWithTitle:@"Reset"];
+  [alert setMessageText:LDLocalized(@"Reset All Preferences?")];
+  [alert setInformativeText:LDLocalized(@"Every setting, including filters and custom cleanups, returns to its default.")];
+  [alert addButtonWithTitle:LDLocalized(@"Cancel")];
+  [alert addButtonWithTitle:LDLocalized(@"Reset")];
   if ([alert runModal] != NSAlertSecondButtonReturn) {
     return;
   }
