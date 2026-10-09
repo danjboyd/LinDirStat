@@ -1,5 +1,7 @@
 #import "LDPreferences.h"
 
+#include <string.h>
+
 NSString *const LDPreferencesDidChangeNotification = @"LDPreferencesDidChangeNotification";
 
 NSString *const LDColumnPhysicalSize = @"physicalSize";
@@ -12,6 +14,13 @@ NSString *const LDColumnAttributes = @"attributes";
 NSString *const LDColumnOwner = @"owner";
 
 static const NSUInteger LDCustomCleanupSlots = 10;
+enum { LDFileTreeColorSlots = 8 };
+
+// GNOME's palette (blue, red, green, yellow; dark then light) in the order
+// of WinDirStat's FileTreeColor0-7.
+static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
+  0x1a5fb4, 0xa51d2d, 0x26a269, 0xe5a50a, 0x3584e4, 0xe01b24, 0x33d17a, 0xf6d32d,
+};
 
 @implementation LDCustomCleanup
 
@@ -128,11 +137,27 @@ static const NSUInteger LDCustomCleanupSlots = 10;
 
 + (NSDictionary *)defaultValues
 {
+  NSMutableDictionary *values = [NSMutableDictionary dictionaryWithDictionary:[self scalarDefaultValues]];
+  for (NSUInteger i = 0; i < LDFileTreeColorSlots; i++) {
+    [values setObject:@(LDDefaultFileTreeColors[i]) forKey:[self keyForFileTreeColor:i]];
+  }
+  return values;
+}
+
++ (NSString *)keyForFileTreeColor:(NSUInteger)index
+{
+  return [NSString stringWithFormat:@"FileTreeColor%lu", (unsigned long)index];
+}
+
++ (NSDictionary *)scalarDefaultValues
+{
   return @{
     @"HumanFormat": @YES,
     @"ListGrid": @NO,
     @"ListStripes": @NO,
     @"ListFullRowSelection": @YES,
+    @"AutomaticallyResizeColumns": @YES,
+    @"FileTreeColorCount": @8,
     @"PacmanAnimation": @YES,
     @"ShowTimeSpent": @YES,
     // WinDirStat shows Physical and Logical Size; at GNOME's metrics only
@@ -153,6 +178,8 @@ static const NSUInteger LDCustomCleanupSlots = 10;
     @"TreeMapScaleFactor": @91,
     @"TreeMapLightSourceX": @(-100),
     @"TreeMapLightSourceY": @(-100),
+    @"TreeMapGridColor": @0x000000,
+    @"TreeMapHighlightColor": @0xffffff,
     @"UseLogicalSize": @NO,
     @"FilteringExcludeDirs": @"",
     @"FilteringExcludeFiles": @"",
@@ -179,6 +206,9 @@ static const NSUInteger LDCustomCleanupSlots = 10;
     @"ConfigPage": @0,
     @"ShowFileTypes": @YES,
     @"ShowTreemap": @YES,
+    @"ShowToolBar": @YES,
+    @"ShowStatusBar": @YES,
+    @"LargeToolBar": @NO,
   };
 }
 
@@ -237,6 +267,8 @@ static NSInteger LDClamp(NSInteger value, NSInteger low, NSInteger high)
 - (void)setListStripes:(BOOL)flag { [self setBool:flag forKey:@"ListStripes"]; }
 - (BOOL)listFullRowSelection { return [self boolForKey:@"ListFullRowSelection"]; }
 - (void)setListFullRowSelection:(BOOL)flag { [self setBool:flag forKey:@"ListFullRowSelection"]; }
+- (BOOL)automaticallyResizeColumns { return [self boolForKey:@"AutomaticallyResizeColumns"]; }
+- (void)setAutomaticallyResizeColumns:(BOOL)flag { [self setBool:flag forKey:@"AutomaticallyResizeColumns"]; }
 
 - (BOOL)pacmanAnimation { return [self boolForKey:@"PacmanAnimation"]; }
 - (void)setPacmanAnimation:(BOOL)flag { [self setBool:flag forKey:@"PacmanAnimation"]; }
@@ -247,6 +279,43 @@ static NSInteger LDClamp(NSInteger value, NSInteger low, NSInteger high)
 {
   return @[LDColumnPhysicalSize, LDColumnLogicalSize, LDColumnItems, LDColumnFiles,
            LDColumnFolders, LDColumnLastChange, LDColumnAttributes, LDColumnOwner];
+}
+
+static uint32_t LDColorValue(NSInteger value)
+{
+  return (uint32_t)value & 0xffffff;
+}
+
++ (NSUInteger)fileTreeColorSlots { return LDFileTreeColorSlots; }
+
+- (uint32_t)fileTreeColorAtIndex:(NSUInteger)index
+{
+  if (index >= LDFileTreeColorSlots) {
+    return 0;
+  }
+  return LDColorValue([self integerForKey:[LDPreferences keyForFileTreeColor:index]]);
+}
+
+- (void)setFileTreeColor:(uint32_t)color atIndex:(NSUInteger)index
+{
+  if (index < LDFileTreeColorSlots) {
+    [self setInteger:LDColorValue(color) forKey:[LDPreferences keyForFileTreeColor:index]];
+  }
+}
+
+- (NSUInteger)fileTreeColorCount
+{
+  return (NSUInteger)LDClamp([self integerForKey:@"FileTreeColorCount"], 1, (NSInteger)LDFileTreeColorSlots);
+}
+
+- (void)setFileTreeColorCount:(NSUInteger)count
+{
+  [self setInteger:LDClamp((NSInteger)count, 1, (NSInteger)LDFileTreeColorSlots) forKey:@"FileTreeColorCount"];
+}
+
+- (uint32_t)fileTreeColorForDepth:(NSUInteger)depth
+{
+  return [self fileTreeColorAtIndex:depth % [self fileTreeColorCount]];
 }
 
 + (NSString *)keyForColumn:(NSString *)column
@@ -294,6 +363,28 @@ static NSInteger LDClamp(NSInteger value, NSInteger low, NSInteger high)
 - (void)setTreemapLightSourceX:(NSInteger)value { [self setInteger:LDClamp(value, -100, 100) forKey:@"TreeMapLightSourceX"]; }
 - (NSInteger)treemapLightSourceY { return LDClamp([self integerForKey:@"TreeMapLightSourceY"], -100, 100); }
 - (void)setTreemapLightSourceY:(NSInteger)value { [self setInteger:LDClamp(value, -100, 100) forKey:@"TreeMapLightSourceY"]; }
+
+- (uint32_t)treemapGridColor { return LDColorValue([self integerForKey:@"TreeMapGridColor"]); }
+- (void)setTreemapGridColor:(uint32_t)color { [self setInteger:LDColorValue(color) forKey:@"TreeMapGridColor"]; }
+- (uint32_t)treemapHighlightColor { return LDColorValue([self integerForKey:@"TreeMapHighlightColor"]); }
+- (void)setTreemapHighlightColor:(uint32_t)color { [self setInteger:LDColorValue(color) forKey:@"TreeMapHighlightColor"]; }
+
+- (LDTreemapOptions)treemapOptions
+{
+  // Zeroed first, so options compare equal with memcmp.
+  LDTreemapOptions options;
+  memset(&options, 0, sizeof(options));
+  options.style = [self treemapStyle] == 1 ? LDTreemapStyleSequoiaView : LDTreemapStyleKDirStat;
+  options.grid = [self treemapGrid];
+  options.gridColor = [self treemapGridColor];
+  options.brightness = [self treemapBrightness] / 100.0;
+  options.ambientLight = [self treemapCushionShading] / 100.0;
+  options.height = [self treemapHeight] / 100.0;
+  options.scaleFactor = [self treemapScaleFactor] / 100.0;
+  options.lightSourceX = [self treemapLightSourceX] / 100.0;
+  options.lightSourceY = [self treemapLightSourceY] / 100.0;
+  return options;
+}
 
 - (void)resetTreemapOptions
 {
@@ -449,6 +540,12 @@ static NSInteger LDClamp(NSInteger value, NSInteger low, NSInteger high)
 - (void)setShowFileTypes:(BOOL)flag { [self setBool:flag forKey:@"ShowFileTypes"]; }
 - (BOOL)showTreemap { return [self boolForKey:@"ShowTreemap"]; }
 - (void)setShowTreemap:(BOOL)flag { [self setBool:flag forKey:@"ShowTreemap"]; }
+- (BOOL)showToolBar { return [self boolForKey:@"ShowToolBar"]; }
+- (void)setShowToolBar:(BOOL)flag { [self setBool:flag forKey:@"ShowToolBar"]; }
+- (BOOL)showStatusBar { return [self boolForKey:@"ShowStatusBar"]; }
+- (void)setShowStatusBar:(BOOL)flag { [self setBool:flag forKey:@"ShowStatusBar"]; }
+- (BOOL)largeToolBar { return [self boolForKey:@"LargeToolBar"]; }
+- (void)setLargeToolBar:(BOOL)flag { [self setBool:flag forKey:@"LargeToolBar"]; }
 
 - (NSInteger)lastOptionsPage { return [self integerForKey:@"ConfigPage"]; }
 - (void)setLastOptionsPage:(NSInteger)page { [self setInteger:page forKey:@"ConfigPage"]; }

@@ -40,11 +40,13 @@ The remaining parity work is split between the Linux and macOS sessions in `docs
 
 
 - Show Free Space / Show Unknown (WinDirStat's F6/F7) for volume roots: needs pseudo-nodes and WinDirStat's lighter/darker colour flags in `LDTreemap`.
-- Treemap colour pickers (grid and highlight colours) and the treemap preview in Preferences.
 - A `.desktop` file action ("Open with LinDirStat") in place of WinDirStat's Explorer menu entry.
 - Full-window parity gate (roadmap 12J).
 
 ## Known Gaps and Theme Notes
+
+- Scan progress, time spent, sleeping pacmen, the treemap/folder-list colour preferences and the WinDirStat chrome items (parity plan L4–L6) are in; see `docs/windirstat-parity.md`. GUI runs must export `GNUSTEP_HOME` for private defaults, and `openapp` drops it (its `GNUstep.sh` unsets it): start the app through `openapp --gdb=<wrapper> --debug` with a wrapper script that exports it again and execs its arguments (after dropping `--args`).
+- The Adwaita header bar draws toolbar icons at 16 px whatever the toolbar's size mode, so Large Toolbar Icons has no visible effect under the theme.
 
 - Theme/libs-gui issues reported to the Adwaita theme session rather than worked around: NSSplitView gives half-pixel frames with thin dividers; `-[NSTableView setColumnAutoresizingStyle:]` is not implemented, so GNUstep resizes a table's last column (the app keeps it at its natural width while fitting its flexible column); NSAlert has no accessory view or suppression button (the delete warning is a custom panel of standard controls); disabled pop-up buttons do not look disabled; pop-up buttons size too narrow for the theme's arrow; NSTabView does not scroll tabs that do not fit.
 - Refreshing a subtree counts hard links inside it again if their other links are outside it (the hard-link set covers one scan).

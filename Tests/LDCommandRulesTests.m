@@ -95,4 +95,12 @@
   XCTAssertEqualObjects((@[_folder, _root]), folders);
 }
 
+- (void)testEmptyTrashTitleCountsItemsAndSize
+{
+  XCTAssertTrue([[LDCommandRules emptyTrashTitleForItems:1 bytes:0 complete:YES] hasPrefix:@"Empty Trash (1 Item, "]);
+  NSString *title = [LDCommandRules emptyTrashTitleForItems:3 bytes:2048 complete:NO];
+  XCTAssertTrue([title hasPrefix:@"Empty Trash (3 Items, "]);
+  XCTAssertTrue([title hasSuffix:@"+)…"]);
+}
+
 @end

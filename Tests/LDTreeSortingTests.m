@@ -34,6 +34,29 @@
   XCTAssertEqualObjects((@[@"alpha", @"Beta", @"gamma"]), [self namesOf:sorted]);
 }
 
+- (void)testNameSortPutsFoldersBeforeFiles
+{
+  LDFileNode *zeta = [LDFileNode nodeWithName:@"zeta" kind:LDFileNodeKindDirectory size:0 allocatedSize:0];
+  LDFileNode *Alpha = [LDFileNode nodeWithName:@"Alpha" kind:LDFileNodeKindDirectory size:0 allocatedSize:0];
+  LDFileNode *link = [LDFileNode nodeWithName:@"aaa-link" kind:LDFileNodeKindSymlink size:0 allocatedSize:0];
+  NSArray *nodes = [[self nodes] arrayByAddingObjectsFromArray:@[zeta, link, Alpha]];
+  XCTAssertEqualObjects((@[@"Alpha", @"zeta", @"aaa-link", @"alpha", @"Beta", @"gamma"]),
+                        [self namesOf:[LDTreeSorting sortedNodes:nodes byKey:LDTreeSortKeyName ascending:YES]]);
+  // Descending reverses the whole order, as WinDirStat does: files first.
+  XCTAssertEqualObjects((@[@"gamma", @"Beta", @"alpha", @"aaa-link", @"zeta", @"Alpha"]),
+                        [self namesOf:[LDTreeSorting sortedNodes:nodes byKey:LDTreeSortKeyName ascending:NO]]);
+}
+
+- (void)testNameSortPutsVolumesAfterTheComputer
+{
+  LDComputerNode *computer = [LDComputerNode computerNode];
+  LDFileNode *volume = [LDFileNode nodeWithPath:@"/a" kind:LDFileNodeKindDirectory size:0];
+  [computer addChild:volume];
+  LDFileNode *folder = [LDFileNode nodeWithName:@"0" kind:LDFileNodeKindDirectory size:0 allocatedSize:0];
+  NSArray *sorted = [LDTreeSorting sortedNodes:@[folder, volume, computer] byKey:LDTreeSortKeyName ascending:YES];
+  XCTAssertEqualObjects((@[computer, volume, folder]), sorted);
+}
+
 - (void)testSizeSortsBreakTiesByPhysicalSizeThenName
 {
   NSArray *sorted = [LDTreeSorting sortedNodes:[self nodes] byKey:LDTreeSortKeyPhysicalSize ascending:NO];

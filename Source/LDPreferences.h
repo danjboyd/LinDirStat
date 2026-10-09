@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+#import "LDTreemapLayout.h"
 
 // User settings, stored in NSUserDefaults under WinDirStat's setting names
 // (Options.cpp). Defaults follow WinDirStat unless noted. Changes post
@@ -114,6 +115,9 @@ typedef enum {
 - (void)setListStripes:(BOOL)flag;
 - (BOOL)listFullRowSelection;
 - (void)setListFullRowSelection:(BOOL)flag;
+// Size the list columns to their contents after a scan (default YES).
+- (BOOL)automaticallyResizeColumns;
+- (void)setAutomaticallyResizeColumns:(BOOL)flag;
 
 // Folder List
 - (BOOL)pacmanAnimation;
@@ -123,6 +127,16 @@ typedef enum {
 - (BOOL)isColumnShown:(NSString *)column;
 - (void)setColumn:(NSString *)column shown:(BOOL)shown;
 + (NSArray *)optionalColumns;
+// The Subtree Percentage bar colours by depth (WinDirStat's FileTreeColor0-7)
+// and how many of them are used in turn (FileTreeColorCount, 1-8). Colours
+// are 0xRRGGBB; the defaults are GNOME's palette in WinDirStat's order.
++ (NSUInteger)fileTreeColorSlots;
+- (uint32_t)fileTreeColorAtIndex:(NSUInteger)index;
+- (void)setFileTreeColor:(uint32_t)color atIndex:(NSUInteger)index;
+- (NSUInteger)fileTreeColorCount;
+- (void)setFileTreeColorCount:(NSUInteger)count;
+// The colour of a bar at depth: colour depth % count.
+- (uint32_t)fileTreeColorForDepth:(NSUInteger)depth;
 
 // Treemap. Stored as the WinDirStat percentages.
 - (NSInteger)treemapStyle;               // 0 KDirStat, 1 SequoiaView
@@ -141,6 +155,15 @@ typedef enum {
 - (void)setTreemapLightSourceX:(NSInteger)value;
 - (NSInteger)treemapLightSourceY;        // -100..100, default -100
 - (void)setTreemapLightSourceY:(NSInteger)value;
+// Grid and selection frame colours, 0xRRGGBB (black and white).
+- (uint32_t)treemapGridColor;
+- (void)setTreemapGridColor:(uint32_t)color;
+- (uint32_t)treemapHighlightColor;
+- (void)setTreemapHighlightColor:(uint32_t)color;
+// Every treemap setting above, as LDTreemap takes them.
+- (LDTreemapOptions)treemapOptions;
+// Style, grid and cushion settings; the colours are kept, as WinDirStat's
+// Reset keeps them.
 - (void)resetTreemapOptions;
 - (BOOL)useLogicalSize;
 - (void)setUseLogicalSize:(BOOL)flag;
@@ -207,6 +230,13 @@ typedef enum {
 - (void)setShowFileTypes:(BOOL)flag;
 - (BOOL)showTreemap;
 - (void)setShowTreemap:(BOOL)flag;
+// Options menu: toolbar, status bar and large toolbar icons.
+- (BOOL)showToolBar;
+- (void)setShowToolBar:(BOOL)flag;
+- (BOOL)showStatusBar;
+- (void)setShowStatusBar:(BOOL)flag;
+- (BOOL)largeToolBar;
+- (void)setLargeToolBar:(BOOL)flag;
 
 // Options dialog page last shown.
 - (NSInteger)lastOptionsPage;

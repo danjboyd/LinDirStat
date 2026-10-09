@@ -42,6 +42,15 @@ static NSData *LDParentOf(NSData *path)
 #endif
 }
 
++ (NSArray *)openCommandsForURL:(NSString *)url
+{
+#if defined(__APPLE__)
+  return @[@[@"open", url]];
+#else
+  return @[@[@"xdg-open", url], @[@"gio", @"open", url]];
+#endif
+}
+
 + (NSArray *)revealCommandsForPath:(NSData *)path
 {
 #if defined(__APPLE__)

@@ -2,11 +2,16 @@
 #import "LDPlatformUI.h"
 #import "LDFilterPatterns.h"
 #import "LDPreferences.h"
+#import "LDTreeCells.h"
+#import "LDTreemapPreview.h"
 
 static const CGFloat LDOptionsMargin = 18.0;
 static const CGFloat LDOptionsRowSpacing = 6.0;
 static const CGFloat LDOptionsSectionSpacing = 12.0;
 static const CGFloat LDOptionsControlSpacing = 6.0;
+// The Treemap page's live preview (WinDirStat's CTreeMapPreview).
+static const CGFloat LDTreemapPreviewWidth = 220.0;
+static const CGFloat LDTreemapPreviewHeight = 160.0;
 
 // Pages are laid out top-down.
 @interface LDOptionsPageView : NSView
@@ -36,6 +41,7 @@ static const CGFloat LDOptionsControlSpacing = 6.0;
   NSButton *_fullRowSelection;
   NSButton *_listGrid;
   NSButton *_listStripes;
+  NSButton *_autoResizeColumns;
 
   // Filtering
   NSTextView *_folderPatterns;
@@ -49,6 +55,8 @@ static const CGFloat LDOptionsControlSpacing = 6.0;
   NSButton *_pacman;
   NSButton *_timeSpent;
   NSMutableArray *_columnButtons;
+  NSMutableArray *_levelColorWells;
+  NSSlider *_levelCount;
 
   // Treemap
   NSPopUpButton *_treemapStyle;
@@ -60,6 +68,9 @@ static const CGFloat LDOptionsControlSpacing = 6.0;
   NSSlider *_lightX;
   NSSlider *_lightY;
   NSMapTable *_sliderLabels;
+  NSColorWell *_gridColor;
+  NSColorWell *_highlightColor;
+  NSImageView *_treemapPreview;
 
   // Cleanups
   NSMutableArray *_cleanups;
@@ -120,6 +131,7 @@ static const CGFloat LDOptionsControlSpacing = 6.0;
   self = [super initWithWindow:window];
   if (self) {
     _columnButtons = [NSMutableArray array];
+    _levelColorWells = [NSMutableArray array];
     _sliderLabels = [NSMapTable strongToStrongObjectsMapTable];
     _cleanups = [[[LDPreferences sharedPreferences] customCleanups] mutableCopy];
     [self buildContents];
@@ -266,6 +278,14 @@ static const CGFloat LDOptionsControlSpacing = 6.0;
   [stepper setAction:action];
   [stepper setFrameSize:NSMakeSize(19.0, 26.0)];
   return stepper;
+}
+
+- (NSColorWell *)colorWellWithAction:(SEL)action
+{
+  NSColorWell *well = [[NSColorWell alloc] initWithFrame:NSMakeRect(0, 0, 44, 24)];
+  [well setTarget:self];
+  [well setAction:action];
+  return well;
 }
 
 - (NSSlider *)sliderFrom:(double)low to:(double)high
@@ -441,6 +461,7 @@ static const CGFloat LDOptionsControlSpacing = 6.0;
   [self addSectionTitle:@"Sizes"];
   _humanFormat = [self addCheckbox:@"Show sizes in human-readable format" action:@selector(generalChanged:)];
   [self addSectionTitle:@"List Style"];
+  _autoResizeColumns = [self addCheckbox:@"Automatically resize columns" action:@selector(generalChanged:)];
   _fullRowSelection = [self addCheckbox:@"Full row selection" action:@selector(generalChanged:)];
   _listGrid = [self addCheckbox:@"Show grid" action:@selector(generalChanged:)];
   _listStripes = [self addCheckbox:@"Show stripes" action:@selector(generalChanged:)];
@@ -489,10 +510,38 @@ static const CGFloat LDOptionsControlSpacing = 6.0;
   _timeSpent = [self addCheckbox:@"Show time spent during scan" action:@selector(folderListChanged:)];
   [self addSectionTitle:@"Optional Columns"];
   NSDictionary *titles = [LDOptionsWindowController columnTitles];
-  for (NSString *column in [LDPreferences optionalColumns]) {
-    NSButton *button = [self addCheckbox:[titles objectForKey:column] ?: column action:@selector(columnChanged:)];
+  // Two columns of checkboxes, in WinDirStat's order down each column.
+  NSArray *columns = [LDPreferences optionalColumns];
+  NSUInteger half = ([columns count] + 1) / 2;
+  CGFloat top = _y;
+  CGFloat bottom = _y;
+  for (NSUInteger i = 0; i < [columns count]; i++) {
+    NSString *column = [columns objectAtIndex:i];
+    NSButton *button = [self checkboxWithTitle:[titles objectForKey:column] ?: column action:@selector(columnChanged:)];
+    if (i == half) {
+      _y = top;
+    }
+    CGFloat x = i < half ? _left : _left + floor((_right - _left) / 2.0);
+    [self place:button x:x width:NSWidth([button frame]) height:NSHeight([button frame]) mask:NSViewMaxXMargin];
+    _y += NSHeight([button frame]) + LDOptionsRowSpacing;
+    bottom = MAX(bottom, _y);
     [_columnButtons addObject:button];
   }
+  _y = bottom;
+
+  // WinDirStat's Subtree Percentage colours: one per level, used in turn.
+  [self addSectionTitle:@"Subtree Percentage Colors"];
+  NSMutableArray *wells = [NSMutableArray array];
+  for (NSUInteger i = 0; i < [LDPreferences fileTreeColorSlots]; i++) {
+    NSColorWell *well = [self colorWellWithAction:@selector(levelColorChanged:)];
+    [wells addObject:well];
+    [_levelColorWells addObject:well];
+  }
+  [self addRow:@"Level colors" controls:wells];
+  _levelCount = [self addSliderRow:@"Levels used" from:1 to:[LDPreferences fileTreeColorSlots]];
+  [_levelCount setNumberOfTickMarks:[LDPreferences fileTreeColorSlots]];
+  [_levelCount setAllowsTickMarkValuesOnly:YES];
+  [_levelCount setAction:@selector(levelCountChanged:)];
 }
 
 - (NSSlider *)addSliderRow:(NSString *)title from:(double)low to:(double)high
@@ -509,13 +558,33 @@ static const CGFloat LDOptionsControlSpacing = 6.0;
 - (void)buildTreemapPage
 {
   [self beginPage:@"Treemap"];
-  // WinDirStat's grid and highlight colour buttons and its live preview are
-  // left out; the treemap in the main window updates as the sliders move.
+  // The settings take the left; WinDirStat's live preview sits on the right.
+  CGFloat pageRight = _right;
+  _right = pageRight - LDTreemapPreviewWidth - LDOptionsMargin;
+  _treemapPreview = [[NSImageView alloc] initWithFrame:NSZeroRect];
+  [_treemapPreview setImageFrameStyle:NSImageFrameNone];
+  [_treemapPreview setImageScaling:NSImageScaleNone];
+  [_treemapPreview setEditable:NO];
+  CGFloat top = _y;
+  _y = top + 26.0;
+  [self place:_treemapPreview x:pageRight - LDTreemapPreviewWidth width:LDTreemapPreviewWidth
+       height:LDTreemapPreviewHeight mask:NSViewMinXMargin];
+  _y = top;
+  NSTextField *previewTitle = [self labelWithString:@"Preview"];
+  [previewTitle setFont:[NSFont boldSystemFontOfSize:[NSFont systemFontSize]]];
+  [previewTitle sizeToFit];
+  [self place:previewTitle x:pageRight - LDTreemapPreviewWidth width:LDTreemapPreviewWidth
+       height:NSHeight([previewTitle frame]) mask:NSViewMinXMargin];
+
   [self addSectionTitle:@"Layout"];
   _treemapStyle = [self popUpWithTitles:@[@"KDirStat", @"SequoiaView"] action:@selector(treemapChanged:)];
   [_treemapStyle setFrameSize:NSMakeSize(MAX(NSWidth([_treemapStyle frame]), 160.0), NSHeight([_treemapStyle frame]))];
   [self addRow:@"Style" controls:@[_treemapStyle]];
   _treemapGrid = [self addCheckbox:@"Show grid" action:@selector(treemapChanged:)];
+  _gridColor = [self colorWellWithAction:@selector(treemapColorChanged:)];
+  [self addRow:@"Grid color" controls:@[_gridColor]];
+  _highlightColor = [self colorWellWithAction:@selector(treemapColorChanged:)];
+  [self addRow:@"Highlight color" controls:@[_highlightColor]];
 
   [self addSectionTitle:@"Cushions"];
   _brightness = [self addSliderRow:@"Brightness" from:0 to:100];
@@ -532,6 +601,7 @@ static const CGFloat LDOptionsControlSpacing = 6.0;
   NSRect frame = [reset frame];
   [self place:reset x:_right - NSWidth(frame) width:NSWidth(frame) height:NSHeight(frame) mask:NSViewMinXMargin];
   _y += NSHeight(frame);
+  _right = pageRight;
 }
 
 - (void)buildCleanupsPage
@@ -674,6 +744,7 @@ static NSInteger LDState(BOOL flag)
   [_fullRowSelection setState:LDState([preferences listFullRowSelection])];
   [_listGrid setState:LDState([preferences listGrid])];
   [_listStripes setState:LDState([preferences listStripes])];
+  [_autoResizeColumns setState:LDState([preferences automaticallyResizeColumns])];
 
   [self setText:[preferences excludedFolderPatterns] ofTextView:_folderPatterns];
   [self setText:[preferences excludedFilePatterns] ofTextView:_filePatterns];
@@ -689,7 +760,17 @@ static NSInteger LDState(BOOL flag)
     [[_columnButtons objectAtIndex:i] setState:LDState([preferences isColumnShown:[columns objectAtIndex:i]])];
   }
 
+  for (NSUInteger i = 0; i < [_levelColorWells count]; i++) {
+    NSColorWell *well = [_levelColorWells objectAtIndex:i];
+    [self setColor:[preferences fileTreeColorAtIndex:i] ofWell:well];
+    [well setEnabled:i < [preferences fileTreeColorCount]];
+  }
+  [_levelCount setIntegerValue:(NSInteger)[preferences fileTreeColorCount]];
+  [self updateLabelForSlider:_levelCount];
+
   [_treemapStyle selectItemAtIndex:[preferences treemapStyle]];
+  [self setColor:[preferences treemapGridColor] ofWell:_gridColor];
+  [self setColor:[preferences treemapHighlightColor] ofWell:_highlightColor];
   [_treemapGrid setState:LDState([preferences treemapGrid])];
   [_brightness setIntegerValue:[preferences treemapBrightness]];
   [_cushionShading setIntegerValue:[preferences treemapCushionShading]];
@@ -700,6 +781,7 @@ static NSInteger LDState(BOOL flag)
   for (NSSlider *slider in @[_brightness, _cushionShading, _height, _scaleFactor, _lightX, _lightY]) {
     [self updateLabelForSlider:slider];
   }
+  [self updateTreemapPreview];
 
   _cleanups = [[preferences customCleanups] mutableCopy];
   [_cleanupTable reloadData];
@@ -735,6 +817,8 @@ static NSInteger LDState(BOOL flag)
       [preferences setListGrid:on];
     } else if (sender == self->_listStripes) {
       [preferences setListStripes:on];
+    } else if (sender == self->_autoResizeColumns) {
+      [preferences setAutomaticallyResizeColumns:on];
     }
   }];
 }
@@ -749,6 +833,34 @@ static NSInteger LDState(BOOL flag)
       [preferences setShowTimeSpent:on];
     }
   }];
+}
+
+- (void)setColor:(uint32_t)rgb ofWell:(NSColorWell *)well
+{
+  if (LDRGBFromColor([well color]) != rgb) {
+    [well setColor:LDColorFromRGB(rgb)];
+  }
+}
+
+- (void)levelColorChanged:(id)sender
+{
+  NSUInteger index = [_levelColorWells indexOfObjectIdenticalTo:sender];
+  uint32_t color = LDRGBFromColor([(NSColorWell *)sender color]);
+  [self apply:^(LDPreferences *preferences) {
+    [preferences setFileTreeColor:color atIndex:index];
+  }];
+}
+
+- (void)levelCountChanged:(id)sender
+{
+  NSInteger count = [sender integerValue];
+  [self updateLabelForSlider:sender];
+  [self apply:^(LDPreferences *preferences) {
+    [preferences setFileTreeColorCount:(NSUInteger)count];
+  }];
+  for (NSUInteger i = 0; i < [_levelColorWells count]; i++) {
+    [[_levelColorWells objectAtIndex:i] setEnabled:(NSInteger)i < count];
+  }
 }
 
 - (void)columnChanged:(id)sender
@@ -885,7 +997,48 @@ static NSInteger LDState(BOOL flag)
 - (void)updateLabelForSlider:(NSSlider *)slider
 {
   NSTextField *label = [_sliderLabels objectForKey:slider];
-  [label setStringValue:[NSString stringWithFormat:@"%ld %%", (long)[slider integerValue]]];
+  NSString *format = slider == _levelCount ? @"%ld" : @"%ld %%";
+  [label setStringValue:[NSString stringWithFormat:format, (long)[slider integerValue]]];
+}
+
+// Renders WinDirStat's demo tree with the current settings.
+- (void)updateTreemapPreview
+{
+  NSRect bounds = [_treemapPreview bounds];
+  int width = (int)NSWidth(bounds);
+  int height = (int)NSHeight(bounds);
+  if (width <= 0 || height <= 0) {
+    return;
+  }
+  LDTreemapPreview *preview = [LDTreemapPreview sharedPreview];
+  NSData *pixels = [preview renderRGBAWithWidth:width height:height options:[[LDPreferences sharedPreferences] treemapOptions]];
+  NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
+                                                                  pixelsWide:width
+                                                                  pixelsHigh:height
+                                                               bitsPerSample:8
+                                                             samplesPerPixel:4
+                                                                    hasAlpha:YES
+                                                                    isPlanar:NO
+                                                              colorSpaceName:NSDeviceRGBColorSpace
+                                                                 bytesPerRow:width * 4
+                                                                bitsPerPixel:32];
+  memcpy([rep bitmapData], [pixels bytes], [pixels length]);
+  NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(width, height)];
+  [image addRepresentation:rep];
+  [_treemapPreview setImage:image];
+}
+
+- (void)treemapColorChanged:(id)sender
+{
+  uint32_t color = LDRGBFromColor([(NSColorWell *)sender color]);
+  [self apply:^(LDPreferences *preferences) {
+    if (sender == self->_gridColor) {
+      [preferences setTreemapGridColor:color];
+    } else {
+      [preferences setTreemapHighlightColor:color];
+    }
+  }];
+  [self updateTreemapPreview];
 }
 
 - (void)treemapChanged:(id)sender
@@ -897,6 +1050,7 @@ static NSInteger LDState(BOOL flag)
       [preferences setTreemapGrid:[(NSButton *)sender state] == NSOnState];
     }
   }];
+  [self updateTreemapPreview];
 }
 
 - (void)sliderChanged:(id)sender
@@ -918,6 +1072,7 @@ static NSInteger LDState(BOOL flag)
       [preferences setTreemapLightSourceY:value];
     }
   }];
+  [self updateTreemapPreview];
 }
 
 - (void)resetTreemap:(id)sender

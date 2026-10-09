@@ -16,6 +16,7 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
     _metric = LDSizeMetricPhysical;
     _needsRender = YES;
     _reselectStack = [[NSMutableArray alloc] init];
+    _highlightColor = LDRGB(255, 255, 255);
   }
   return self;
 }
@@ -35,6 +36,15 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 - (BOOL)isDimmed { return _dimmed; }
 - (BOOL)isZoomed { return _zoomNode != nil && _zoomNode != _rootNode; }
 - (LDTreemap *)treemap { return _treemap; }
+- (LDRGBColor)highlightColor { return _highlightColor; }
+
+- (void)setHighlightColor:(LDRGBColor)color
+{
+  if (color != _highlightColor) {
+    _highlightColor = color;
+    [self setNeedsDisplay:YES];
+  }
+}
 
 #pragma mark - Model
 
@@ -247,7 +257,10 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
   if (rect.size.width <= 0.0 || rect.size.height <= 0.0) {
     return;
   }
-  [[NSColor whiteColor] set];
+  [[NSColor colorWithCalibratedRed:LDRGBRed(_highlightColor) / 255.0
+                              green:LDRGBGreen(_highlightColor) / 255.0
+                               blue:LDRGBBlue(_highlightColor) / 255.0
+                              alpha:1.0] set];
   if (rect.size.width >= 7.0 && rect.size.height >= 7.0) {
     NSFrameRectWithWidth(rect, 3.0);
   } else {

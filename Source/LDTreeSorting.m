@@ -13,6 +13,19 @@ static NSComparisonResult LDCompareValues(unsigned long long left, unsigned long
   return left > right ? NSOrderedDescending : NSOrderedSame;
 }
 
+// WinDirStat's item types in their order (Item.h ITEMTYPE): This Computer,
+// volumes, folders, then files and everything else.
+static NSUInteger LDTypeRank(LDFileNode *node)
+{
+  if ([node isComputer]) {
+    return 0;
+  }
+  if ([[node parent] isComputer]) {
+    return 1;
+  }
+  return [node kind] == LDFileNodeKindDirectory ? 2 : 3;
+}
+
 static NSComparisonResult LDCompareNodes(id leftObject, id rightObject, void *context)
 {
   LDSortSpec *spec = context;
@@ -21,7 +34,11 @@ static NSComparisonResult LDCompareNodes(id leftObject, id rightObject, void *co
   NSComparisonResult result = NSOrderedSame;
   switch (spec->key) {
     case LDTreeSortKeyName:
-      result = [[left displayName] caseInsensitiveCompare:[right displayName]];
+      // By type first (IX CompareSibling), then name.
+      result = LDCompareValues(LDTypeRank(left), LDTypeRank(right));
+      if (result == NSOrderedSame) {
+        result = [[left displayName] caseInsensitiveCompare:[right displayName]];
+      }
       break;
     case LDTreeSortKeyPhysicalSize:
       result = LDCompareValues([left aggregateAllocatedSize], [right aggregateAllocatedSize]);

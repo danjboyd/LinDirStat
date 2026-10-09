@@ -16,7 +16,8 @@ typedef enum {
 
 @interface LDTreeSorting : NSObject
 
-// Ties fall back to descending physical size, then name.
+// Name sorts folders before files (WinDirStat's item type order), then by
+// name ignoring case. Ties fall back to descending physical size, then name.
 + (NSArray *)sortedNodes:(NSArray *)nodes byKey:(LDTreeSortKey)key ascending:(BOOL)ascending;
 
 // WinDirStat's default direction: ascending for Name and Last Change,

@@ -1,5 +1,6 @@
 #import "LDFileNode.h"
 #import "LDExtensionStats.h"
+#import "LDScanClock.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -284,6 +285,18 @@ static Class LDClassForKind(LDFileNodeKind kind)
   return 0;
 }
 
+- (NSUInteger)scanSecondsAt:(uint64_t)now
+{
+  (void)now;
+  return 0;
+}
+
+- (uint64_t)millisecondsSinceScanActivityAt:(uint64_t)now
+{
+  (void)now;
+  return 0;
+}
+
 - (void)updateTotalsUpwardSortedByMetric:(LDSizeMetric)metric
 {
   LDFileNode *cursor = self;
@@ -426,15 +439,57 @@ static void LDAtomicMax64(int64_t *target, int64_t value)
 
 - (void)beginPendingScans:(NSUInteger)count
 {
-  __atomic_add_fetch(&_pendingScans, (uint32_t)count, __ATOMIC_RELAXED);
+  // WinDirStat's m_tstart: set when the first read job is added.
+  if (__atomic_fetch_add(&_pendingScans, (uint32_t)count, __ATOMIC_RELAXED) == 0 && count > 0) {
+    uint64_t now = LDScanClockMilliseconds();
+    __atomic_store_n(&_scanStarted, LDScanClockSecondsStamp(now), __ATOMIC_RELAXED);
+    __atomic_store_n(&_scanActivity, LDScanClockActivityStamp(now), __ATOMIC_RELAXED);
+  }
 }
 
 - (void)finishPendingScan
 {
-  if (__atomic_sub_fetch(&_pendingScans, 1, __ATOMIC_ACQ_REL) == 0
-      && [_parent isKindOfClass:[LDDirectoryNode class]]) {
-    [(LDDirectoryNode *)_parent finishPendingScan];
+  if (__atomic_sub_fetch(&_pendingScans, 1, __ATOMIC_ACQ_REL) == 0) {
+    uint16_t started = __atomic_load_n(&_scanStarted, __ATOMIC_RELAXED);
+    __atomic_store_n(&_scanActivity, (uint16_t)LDScanClockSecondsSince(started, LDScanClockMilliseconds()), __ATOMIC_RELAXED);
+    if ([_parent isKindOfClass:[LDDirectoryNode class]]) {
+      [(LDDirectoryNode *)_parent finishPendingScan];
+    }
   }
+}
+
+- (void)noteScanActivityAt:(uint64_t)now
+{
+  uint16_t stamp = LDScanClockActivityStamp(now);
+  LDFileNode *cursor = self;
+  while ([cursor isKindOfClass:[LDDirectoryNode class]]) {
+    LDDirectoryNode *directory = (LDDirectoryNode *)cursor;
+    if (__atomic_load_n(&directory->_pendingScans, __ATOMIC_RELAXED) == 0) {
+      break;
+    }
+    // Skip the store when it would not change, so busy ancestors' cache
+    // lines are not written by every worker.
+    if (__atomic_load_n(&directory->_scanActivity, __ATOMIC_RELAXED) != stamp) {
+      __atomic_store_n(&directory->_scanActivity, stamp, __ATOMIC_RELAXED);
+    }
+    cursor = cursor->_parent;
+  }
+}
+
+- (NSUInteger)scanSecondsAt:(uint64_t)now
+{
+  if ([self isScanPending]) {
+    return LDScanClockSecondsSince(__atomic_load_n(&_scanStarted, __ATOMIC_RELAXED), now);
+  }
+  return __atomic_load_n(&_scanActivity, __ATOMIC_RELAXED);
+}
+
+- (uint64_t)millisecondsSinceScanActivityAt:(uint64_t)now
+{
+  if (![self isScanPending]) {
+    return 0;
+  }
+  return LDScanClockMillisecondsSince(__atomic_load_n(&_scanActivity, __ATOMIC_RELAXED), now);
 }
 
 - (void)clearPendingScans

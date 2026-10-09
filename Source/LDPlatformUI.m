@@ -231,8 +231,15 @@ static NSImage *LDSmallIcon(NSImage *icon)
   [window addItemWithTitle:@"Bring All to Front" action:@selector(arrangeInFront:) keyEquivalent:@""];
   [NSApp setWindowsMenu:window];
 
-  // An empty Help menu still gets the system's menu search.
-  NSMenu *help = [[NSMenu alloc] initWithTitle:@"Help"];
+  // The app's Help menu moves after Window; it also gets the system's menu
+  // search.
+  NSMenuItem *helpItem = [mainMenu itemWithTitle:@"Help"];
+  NSMenu *help = [helpItem submenu];
+  if (helpItem) {
+    [mainMenu removeItem:helpItem];
+  } else {
+    help = [[NSMenu alloc] initWithTitle:@"Help"];
+  }
   [[mainMenu addItemWithTitle:@"Help" action:NULL keyEquivalent:@""] setSubmenu:help];
   [NSApp setHelpMenu:help];
 }
