@@ -32,6 +32,37 @@ static NSMenu *LDContextMenu(NSTableView *view, id<LDListViewCommands> target, N
   return [target contextMenuForListView:view];
 }
 
+#if defined(__APPLE__)
+// VoiceOver's "show menu" (and other accessibility clients) for a list whose
+// menu comes from -menuForEvent:: the context menu of the selected row (the
+// first visible one when nothing is selected), at that row. The menu opens
+// after the action returns, as for a right click.
+static BOOL LDShowContextMenuForAccessibility(NSTableView *view, id<LDListViewCommands> target)
+{
+  NSInteger row = [view selectedRow];
+  if (row < 0) {
+    row = [view rowsInRect:[view visibleRect]].location;
+  }
+  if (row < 0 || row >= [view numberOfRows] || !target || ![view window]) {
+    return NO;
+  }
+  NSRect rect = [view rectOfRow:row];
+  NSPoint point = [view convertPoint:NSMakePoint(NSMinX([view visibleRect]) + 24.0, NSMidY(rect)) toView:nil];
+  NSEvent *event = [NSEvent mouseEventWithType:NSEventTypeRightMouseDown location:point modifierFlags:0
+                                     timestamp:[[NSProcessInfo processInfo] systemUptime]
+                                  windowNumber:[[view window] windowNumber] context:nil
+                                   eventNumber:0 clickCount:1 pressure:1.0];
+  NSMenu *menu = LDContextMenu(view, target, event);
+  if (!menu) {
+    return NO;
+  }
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [NSMenu popUpContextMenu:menu withEvent:event forView:view];
+  });
+  return YES;
+}
+#endif
+
 static void LDAddLinkCursorRects(NSTableView *view, id<LDListViewCommands> target)
 {
   if (![(id)target respondsToSelector:@selector(listView:hasLinkAtRow:column:)]) {
@@ -96,6 +127,13 @@ static void LDAddLinkCursorRects(NSTableView *view, id<LDListViewCommands> targe
   return LDContextMenu(self, _commandTarget, event);
 }
 
+#if defined(__APPLE__)
+- (BOOL)accessibilityPerformShowMenu
+{
+  return LDShowContextMenuForAccessibility(self, _commandTarget) || [super accessibilityPerformShowMenu];
+}
+#endif
+
 @end
 
 @implementation LDTableView
@@ -113,5 +151,12 @@ static void LDAddLinkCursorRects(NSTableView *view, id<LDListViewCommands> targe
 {
   return LDContextMenu(self, _commandTarget, event);
 }
+
+#if defined(__APPLE__)
+- (BOOL)accessibilityPerformShowMenu
+{
+  return LDShowContextMenuForAccessibility(self, _commandTarget) || [super accessibilityPerformShowMenu];
+}
+#endif
 
 @end

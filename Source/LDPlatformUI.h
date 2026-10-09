@@ -27,6 +27,10 @@
 // navigation: Command-1…4 select the file tabs instead.
 + (BOOL)usesCommandDigitsForFileTabs;
 
+// Platform table appearance: on macOS WinDirStat's dense lists use the full
+// width style (not the padded inset one) and no focus ring around the pane.
++ (void)configureTable:(NSTableView *)table;
+
 // "Settings" on macOS, "Preferences" elsewhere.
 + (NSString *)settingsTitle;
 

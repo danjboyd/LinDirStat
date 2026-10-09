@@ -1215,21 +1215,23 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
                                                    : NSTableColumnUserResizingMask];
       }
       // A narrow pane scrolls sideways rather than squeezing the name away.
-      [flexible setMinWidth:MAX([flexible minWidth], 140.0)];
+      [flexible setMinWidth:MAX([flexible minWidth], 80.0)];
       [table setColumnAutoresizingStyle:NSTableViewUniformColumnAutoresizingStyle];
-      [table setFocusRingType:NSFocusRingTypeNone];
-      [table sizeToFit];
+      [LDPlatformUI configureTable:table];
     }
-    return;
-  }
-  // GNUstep also resizes the last column whenever the pane or its scroller
-  // changes (-setColumnAutoresizingStyle: is not implemented), which would
-  // starve the flexible column or the last one; the last column keeps its
-  // natural width.
-  NSTableColumn *last = [[table tableColumns] lastObject];
-  NSNumber *natural = [_naturalColumnWidths objectForKey:last];
-  if (last != flexible && natural && [last width] != [natural doubleValue]) {
-    [last setWidth:[natural doubleValue]];
+    // The autoresizing style keeps the fit while the window is resized; the
+    // pane can also start or become narrower than the columns, so the
+    // flexible column is fitted to it below as well.
+  } else {
+    // GNUstep also resizes the last column whenever the pane or its scroller
+    // changes (-setColumnAutoresizingStyle: is not implemented), which would
+    // starve the flexible column or the last one; the last column keeps its
+    // natural width.
+    NSTableColumn *last = [[table tableColumns] lastObject];
+    NSNumber *natural = [_naturalColumnWidths objectForKey:last];
+    if (last != flexible && natural && [last width] != [natural doubleValue]) {
+      [last setWidth:[natural doubleValue]];
+    }
   }
   CGFloat spacing = [table intercellSpacing].width;
   CGFloat available = [[table enclosingScrollView] contentSize].width;
@@ -1240,6 +1242,15 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     }
   }
   [flexible setWidth:MAX([flexible minWidth], floor(available - others - spacing))];
+  if ([LDPlatformUI tablesAutoresizeColumns] && [table numberOfColumns] > 0) {
+    // AppKit's table styles pad the edges, and a legacy vertical scroller
+    // takes width the content size still counts: fit to what is visible.
+    CGFloat visible = NSWidth([[[table enclosingScrollView] contentView] bounds]);
+    CGFloat overflow = NSMaxX([table rectOfColumn:[table numberOfColumns] - 1]) - visible;
+    if (overflow > 0.0) {
+      [flexible setWidth:MAX([flexible minWidth], [flexible width] - ceil(overflow))];
+    }
+  }
 }
 
 // WinDirStat's "Automatically resize columns": the tree's columns other

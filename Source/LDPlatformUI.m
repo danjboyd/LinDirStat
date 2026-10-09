@@ -230,6 +230,13 @@ static NSString *const LDFullDiskAccessSettingsURL =
   return YES;
 }
 
++ (void)configureTable:(NSTableView *)table
+{
+  [table setStyle:NSTableViewStyleFullWidth];
+  [table setIntercellSpacing:NSMakeSize(6.0, 2.0)];
+  [table setFocusRingType:NSFocusRingTypeNone];
+}
+
 // Puts the standard editing commands (which text fields need for their
 // shortcuts) at the top of the Edit menu, before the app's own.
 + (void)completeEditMenu:(NSMenu *)edit
@@ -389,6 +396,11 @@ static NSString *const LDFullDiskAccessSettingsURL =
 + (BOOL)usesCommandDigitsForFileTabs
 {
   return NO;
+}
+
++ (void)configureTable:(NSTableView *)table
+{
+  (void)table;
 }
 
 + (void)completeMainMenu:(NSMenu *)mainMenu

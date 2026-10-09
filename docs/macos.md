@@ -89,6 +89,18 @@ The app is not sandboxed: a disk usage viewer needs to read the whole disk.
 
 ## GUI review
 
+`make -C macos gui-gate` runs the full-window GUI parity gate
+(`scripts/gui-parity-gate-macos.py`): the GNUstep gate's fixture, seven
+states and checks, in light and dark, on the real screen. It never moves the
+mouse or types into other apps: LinDirStat is driven through its own
+accessibility elements by `macos/gui-gate/macgate.swift`, and screenshots are
+of its window alone. It backs up the app's defaults domain, resets it for
+each style and restores it, and refuses to run while LinDirStat is open.
+The terminal needs Accessibility and Screen Recording permission. Output:
+`dist/validation/gui-parity-macos` (screenshots, layouts, `summary.json`).
+
+For a quick look by hand:
+
 ```sh
 LINDIRSTAT_SCAN_PATH=/Applications/Xcode.app/Contents \
 LINDIRSTAT_APPEARANCE=dark \
