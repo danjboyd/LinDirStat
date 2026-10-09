@@ -15,7 +15,9 @@ if [ ! -x "$app" ]; then
   exit 1
 fi
 
-work="$(mktemp -d "${TMPDIR:-/tmp}/lindirstat-cli.XXXXXX")"
+# macOS sets TMPDIR with a trailing slash; the app prints normalized paths.
+tmp="${TMPDIR:-/tmp}"
+work="$(mktemp -d "${tmp%/}/lindirstat-cli.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/defaults"
 cp -R "$repo_root/Tests/Fixtures/basic-tree" "$work/tree"

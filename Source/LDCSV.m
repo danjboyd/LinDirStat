@@ -512,8 +512,11 @@ static NSString *LDRowDescription(NSUInteger row)
   }
 
   @autoreleasepool {
-    LDHardLinkTable *hardLinks = [LDHardLinkTable tableForRoot:root];
-    NSMapTable *folderDeltas = hardLinks ? LDFolderDeltasForTree(root, hardLinks) : nil;
+    // The context does not retain these, and ARC may release a local after
+    // its last use (it does at -O2 with Apple's clang), so keep them alive
+    // until the end of the scope.
+    __attribute__((objc_precise_lifetime)) LDHardLinkTable *hardLinks = [LDHardLinkTable tableForRoot:root];
+    __attribute__((objc_precise_lifetime)) NSMapTable *folderDeltas = hardLinks ? LDFolderDeltasForTree(root, hardLinks) : nil;
     LDCSVWriteContext context = {hardLinks, folderDeltas, includeOwner};
     NSMutableData *rootPath = [[root pathData] mutableCopy];
     LDWriteSubtree(file, root, rootPath, YES, &context);
