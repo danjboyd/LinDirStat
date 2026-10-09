@@ -11,6 +11,24 @@
 #include <limits.h>
 #include <string.h>
 #include <sys/stat.h>
+#if defined(__APPLE__)
+#include <sys/mount.h>
+#endif
+
+// YES if path is where a volume is mounted. The APFS volumes of one group
+// (System and Data) report the same st_dev, so the device test misses the
+// Data volume at /System/Volumes/Data; entering it would race the firmlinks
+// (/Users, /Applications...) for the same directories.
+static BOOL LDIsVolumeMountPoint(const char *path)
+{
+#if defined(__APPLE__)
+  struct statfs info;
+  return statfs(path, &info) == 0 && strcmp(info.f_mntonname, path) == 0;
+#else
+  (void)path;
+  return NO;
+#endif
+}
 
 typedef enum {
   LDLinkSkip = 0,
@@ -380,7 +398,8 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   LDFileNode *node = [LDFileNode nodeWithNameBytes:name length:strlen(name) arena:nil
                                               kind:kind size:size allocatedSize:allocated];
   [self applyStat:&info toNode:node session:session cache:nil];
-  if (kind == LDFileNodeKindDirectory && ![self shouldDescendIntoDevice:info.st_dev rootDevice:parentInfo.st_dev]) {
+  if (kind == LDFileNodeKindDirectory && (![self shouldDescendIntoDevice:info.st_dev rootDevice:parentInfo.st_dev]
+                                          || ([_options excludeMountPoints] && LDIsVolumeMountPoint(path)))) {
     [node setError:LDFileNodeErrorMountPoint errorNumber:0];
     [session incrementSkippedCount];
     [session setRootNode:node];
@@ -607,7 +626,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
       continue;
     }
     directories++;
-    if (!crossesFilesystems && info.st_dev != job->_rootDevice) {
+    if (!crossesFilesystems && (info.st_dev != job->_rootDevice || LDIsVolumeMountPoint(path))) {
       [child setError:LDFileNodeErrorMountPoint errorNumber:0];
       [session incrementSkippedCount];
     } else if (![self insertKey:[self identityKeyForStat:&info] intoSet:_visitedDirectories]) {

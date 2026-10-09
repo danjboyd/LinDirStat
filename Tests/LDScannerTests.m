@@ -373,6 +373,22 @@
   XCTAssertNil([[[LDScanner alloc] init] scanEntryAtPathData:[gone pathData] session:[[LDScanSession alloc] init]]);
 }
 
+#if defined(__APPLE__)
+// The Data volume shares st_dev with the System volume it is mounted under;
+// it must still be a mount point so the firmlinks (/Users...) own its data.
+- (void)testAPFSDataVolumeIsAMountPoint
+{
+  NSData *data = [NSData dataWithBytes:"/System/Volumes/Data" length:20];
+  struct stat dataInfo, systemInfo;
+  if (stat("/System/Volumes/Data", &dataInfo) != 0 || stat("/", &systemInfo) != 0) {
+    return;
+  }
+  LDFileNode *node = [[[LDScanner alloc] init] scanEntryAtPathData:data session:[[LDScanSession alloc] init]];
+  XCTAssertEqual(LDFileNodeErrorMountPoint, [node error]);
+  XCTAssertEqual((NSUInteger)0, [node fileCount]);
+}
+
+#endif
 #pragma mark - Filters and exclusions
 
 - (NSString *)makeDirectory:(NSString *)relativePath
