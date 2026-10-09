@@ -52,7 +52,7 @@ checks every PR on its own platform before it is merged.
 | M11 | The same full-window review on macOS | macOS | done (#16) |
 | L12 | Automated UI coordination tests (selection sync, refresh, deletion, tab lists) | Linux | done (#13, #14) |
 | L13 | Performance: profile and fix stop/finalize time on million-file scans and duplicate detection memory | Linux | done (#15) |
-| M13 | macOS validation matrix (macOS 13–26, Intel and Apple Silicon where available) | macOS | deferred: needs Dan\'s Intel Mac (older macOS) |
+| M13 | macOS validation matrix (macOS 13–26, Intel and Apple Silicon where available) | macOS | deferred: needs Dan's Intel Mac (older macOS) |
 
 ## Intentional differences (not gaps)
 
