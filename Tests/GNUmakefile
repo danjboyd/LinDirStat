@@ -35,6 +35,7 @@ LinDirStatTests_OBJC_FILES = \
   LDScanProgressTests.m \
   LDTabCycleTests.m \
   LDTreemapPreviewTests.m \
+  LDLayoutDumpTests.m \
   LDPrivacyAccessTests.m \
   LDFileWatcherTests.m \
   LDDesktopEntryTests.m \
@@ -72,6 +73,8 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDScanProgress.m \
   ../Source/LDTabCycle.m \
   ../Source/LDTreemapPreview.m \
+  ../Source/LDTreemapView.m \
+  ../Source/LDLayoutDump.m \
   ../Source/LDPrivacyAccess.m \
   ../Source/LDSpaceItems.m \
   ../Source/LDFileWatcher.m \

@@ -386,7 +386,14 @@ static NSString *const LDTabWatcher = @"watcher";
     return;
   }
   LDSearchOptions *options = [LDSearchPanel runSearchPanel];
-  if (!options) {
+  if (options) {
+    [self showSearchResultsForOptions:options];
+  }
+}
+
+- (void)showSearchResultsForOptions:(LDSearchOptions *)options
+{
+  if (!_rootNode || [self isBusy]) {
     return;
   }
   LDSearchResult *result = [LDSearch searchNode:_rootNode

@@ -4,6 +4,9 @@
 
 @class LDTreemapView;
 
+// The largest rect with whole-number edges inside rect.
+FOUNDATION_EXPORT NSRect LDWholePixelRectInside(NSRect rect);
+
 @protocol LDTreemapViewDelegate
 - (void)treemapView:(LDTreemapView *)view didSelectNode:(LDFileNode *)node;
 - (void)treemapView:(LDTreemapView *)view didHoverNode:(LDFileNode *)node;
@@ -72,6 +75,8 @@
 - (IBAction)reselectChild:(id)sender;
 
 - (LDFileNode *)nodeAtPoint:(NSPoint)point;
+// Where the treemap's cells are drawn, in view coordinates (flipped).
+- (NSRect)treemapArea;
 - (LDTreemap *)treemap;
 
 @end

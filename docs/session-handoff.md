@@ -26,6 +26,8 @@ Step D:
 
 Parity plan L8/L9: File Watcher tab (Tools › Start File Watcher, `LDFileWatcher`, inotify in `LDFileWatcherLinux.m`) and the Open With submenu (`LDOpenWith`, `LDDesktopEntry`, `LDMimeApps`). Their Apple backends are stubs.
 
+Parity plan L12: UI coordination tests (`Tests/UI`, run by `scripts/run-ui-tests.sh` from `./scripts/run-tests.sh` on a private Xvfb) drive the real `AppController`. They found, and the fixes keep: a preference change no longer drops the tree selection, the treemap selection or the extension highlight (GNUstep's tables drop their selection on reload and posted the change); Refresh Selected keeps the refreshed folder selected and its open subfolders open.
+
 macOS: LinDirStat also builds natively against Apple's AppKit (`make -C macos`); platform differences live in small modules. See `docs/macos.md`.
 
 ## Verify
@@ -33,6 +35,7 @@ macOS: LinDirStat also builds natively against Apple's AppKit (`make -C macos`);
 ```sh
 ./scripts/run-tests.sh
 ./scripts/windirstat-parity-gate.sh
+./scripts/gui-parity-gate.sh   # whole window, headless on its own Xvfb
 make -C Source && LINDIRSTAT_SCAN_PATH=/usr/share/doc openapp Source/LinDirStat.app
 ```
 
@@ -44,7 +47,7 @@ The remaining parity work is split between the Linux and macOS sessions in `docs
 
 
 - A `.desktop` file action ("Open with LinDirStat") in place of WinDirStat's Explorer menu entry.
-- Full-window parity gate (roadmap 12J).
+- Full-window parity gate on macOS (M11; the Linux gate is `scripts/gui-parity-gate.sh`).
 
 ## Known Gaps and Theme Notes
 

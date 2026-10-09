@@ -23,3 +23,6 @@ GNUSTEP_HOME="$test_home" LD_LIBRARY_PATH="$TOOLS_XCTEST_ROOT/XCTest/obj:${LD_LI
 # The command line end to end, against the app build.
 make -C Source >/dev/null
 scripts/test-command-line.sh
+
+# The UI coordination tests, on a private Xvfb (skipped without one).
+scripts/run-ui-tests.sh

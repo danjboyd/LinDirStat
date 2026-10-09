@@ -63,8 +63,10 @@ Status values:
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Unit/regression tests | partial | `tools-xctest` covers model, scan, layout, formatting, and action planning. More UI coordination tests remain. |
+| Unit/regression tests | done | `tools-xctest` covers model, scan, layout, formatting, and action planning. `Tests/UI` (`scripts/run-ui-tests.sh`, private Xvfb) drives the real `AppController` and window: selection sync between the tree, treemap, extension list and every file tab; multi-selection sizes; Refresh Selected (totals, expansion, selection, "This Computer" volumes); Move to Trash and Delete Permanently (tree, extensions, treemap, lists); detached nodes; command enablement (idle/busy, roots, volumes, mount points, `<Free Space>`/`<Unknown>`/`<Hardlinks>`); Options toggles. Linux only. |
 | GUI screenshot review | partial | Window-only capture script exists; screenshots must be reviewed for GUI-affecting changes. |
+| Full-window GUI parity (Linux) | done | `scripts/gui-parity-gate.sh`: headless on a private Xvfb, light and dark, seven states; pane proportions, WinDirStat columns and menus, toolbar, status bar, overlaps, clipped titles, treemap density and pixels vs. the Phase 11 renderer. Strict; part of `scripts/regression-gate.sh`. |
+| Full-window GUI parity (macOS) | todo | M11: reuse the layout dump and checks with `screencapture`. |
 | Cross-platform validation | deferred | Linux local validation exists. macOS validation matrix remains. |
 | Performance profiling | deferred | Needed for large directory scans and large treemaps. |
 
@@ -80,8 +82,27 @@ The gate renders each fixture in `Tests/Fixtures/windirstat-parity/trees.json` a
 
 Output is written to `dist/validation/windirstat-parity`, including both images, a diff image, rectangle JSON and `summary.json`.
 
-For full-window review, run:
+## Full-Window GUI Parity
+
+Run:
 
 ```sh
-./scripts/gui-parity-correlation.sh
+./scripts/gui-parity-gate.sh
 ```
+
+The gate starts its own Xvfb display (the first free one from `:90`, or `GUI_PARITY_DISPLAY`), generates the fixture in `Tests/Fixtures/gui-parity/tree.json` (97 files with fixed sizes, contents and mtimes, two duplicate groups) under `dist/validation/gui-parity/work`, and runs the built app on it with a private `GNUSTEP_HOME` (Adwaita theme, fixed 1280x820 window, duplicate detection on) in the light and dark styles (a private GSettings keyfile). It drives the app with `xdotool` through: completed scan, extension selected, tree selection framed in the treemap, Largest Files, Duplicate Files, the file tree's context menu and Preferences. The scanning state is skipped because its frames depend on timing.
+
+Each state is checked from the geometry the app reports (`LINDIRSTAT_DUMP_LAYOUT=path` makes the app rewrite a JSON description of its windows, views, table columns and header title widths, tabs, treemap cells and state whenever it changes; without the variable nothing runs) and from a screenshot:
+
+- WinDirStat's composition: file view left at 60% of the width (WinDirStat: 72%, see `AppController -applyDefaultSplitPositions`), extension list right, treemap full width below at 50% of the height;
+- file tree, extension list, Largest Files and Duplicate Files columns present and in WinDirStat's order; file tabs and the context menu's commands in order; WinDirStat's menus in the main menu and the menu reachable; toolbar commands; status bar at the bottom;
+- no overlapping sibling views (scroll views' overlay scrollers excepted), no clipped column titles, every title visible without scrolling sideways, panes inside the window;
+- treemap density (leaf count within the fixture's range and equal to the renderer's);
+- the screenshot is not blank, the Adwaita header bar and list background match the style;
+- the treemap on screen equals `Tools/windirstat-parity-exporter --path` (the Phase 11 renderer) for the same tree and size, rectangles exactly and pixels with the Phase 11 thresholds, and that renderer equals the WinDirStat oracle for the fixture; selection and extension highlight frames are drawn on the right cells.
+
+It is strict by default; `GUI_PARITY_STRICT=0` records without failing, and `GUI_PARITY_STYLES=light` runs one style. Screenshots, per-state layout JSON, treemap crops and diffs and `summary.json` (checks plus non-failing `findings`) are written to `dist/validation/gui-parity`. The gate fails if `~/GNUstep/Defaults` changes during the run (unless another LinDirStat instance was running, which is reported instead).
+
+Current finding (reported, not failed): GNUstep's `NSSplitView -setPosition:ofDividerAtIndex:` takes the position as the divider's centre, so with the 1px thin divider every pane sits on half pixels (`topSplit`, `fileTabs`, `extensionPane`, `treemap`). The treemap keeps its cells on whole window pixels and blits them without interpolation (`LDTreemapView -treemapArea`); before that the screen differed from the renderer (blended rows, the shadow line over the last row).
+
+`./scripts/gui-parity-correlation.sh` still pairs a single screenshot with the headless metrics.

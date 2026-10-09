@@ -109,6 +109,14 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 
 #pragma mark - Geometry
 
+NSRect LDWholePixelRectInside(NSRect rect)
+{
+  NSRect pixels = NSMakeRect(ceil(NSMinX(rect)), ceil(NSMinY(rect)), 0.0, 0.0);
+  pixels.size.width = MAX(0.0, floor(NSMaxX(rect)) - NSMinX(pixels));
+  pixels.size.height = MAX(0.0, floor(NSMaxY(rect)) - NSMinY(pixels));
+  return pixels;
+}
+
 // The treemap area: inside the zoom frame, minus WinDirStat's 1px right and
 // bottom edge.
 - (NSRect)treemapArea
@@ -117,9 +125,14 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
   if ([self isZoomed]) {
     bounds = NSInsetRect(bounds, LDZoomFrameWidth, LDZoomFrameWidth);
   }
-  bounds.size.width = MAX(0.0, floor(bounds.size.width) - 1.0);
-  bounds.size.height = MAX(0.0, floor(bounds.size.height) - 1.0);
-  return bounds;
+  // The cells are blitted 1:1, so the area sits on whole window pixels even
+  // when the view does not (GNUstep's split views put the panes beside a
+  // 1px divider on half pixels).
+  NSRect pixels = LDWholePixelRectInside([self convertRect:bounds toView:nil]);
+  NSRect area = [self convertRect:pixels fromView:nil];
+  area.size.width = MAX(0.0, floor(area.size.width + 0.5) - 1.0);
+  area.size.height = MAX(0.0, floor(area.size.height + 0.5) - 1.0);
+  return area;
 }
 
 - (NSRect)viewRectForCellRect:(LDTreemapRect)rect
@@ -203,7 +216,11 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
     return;
   }
 
-  if (_needsRender && !_renderTimer) {
+  NSRect area = [self treemapArea];
+  // Moving the view can change the whole-pixel area without resizing it.
+  BOOL areaChanged = _bitmap && ([_bitmap pixelsWide] != (NSInteger)NSWidth(area)
+                                 || [_bitmap pixelsHigh] != (NSInteger)NSHeight(area));
+  if ((_needsRender || areaChanged) && !_renderTimer) {
     [self render];
   }
 
@@ -215,7 +232,6 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
     NSFrameRectWithWidth(bounds, LDZoomFrameWidth);
   }
 
-  NSRect area = [self treemapArea];
   if (_bitmap) {
     [self drawBitmapInRect:area];
   }
@@ -244,6 +260,7 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
   // NSImageRep draws bottom-up in a flipped view; flip the CTM around the rect.
   NSGraphicsContext *context = [NSGraphicsContext currentContext];
   [context saveGraphicsState];
+  [context setImageInterpolation:NSImageInterpolationNone];
   NSAffineTransform *transform = [NSAffineTransform transform];
   [transform translateXBy:0.0 yBy:NSMaxY(rect)];
   [transform scaleXBy:1.0 yBy:-1.0];
