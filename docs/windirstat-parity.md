@@ -51,7 +51,7 @@ Status values:
 | Linux GNUstep build | partial | Builds through `gnustep-cli-new`. |
 | Linux Adwaita default | partial | Manifest declares Adwaita as packaged default with `ifUnset`; full packaged theme payload validation remains. |
 | Linux AppImage | partial | `gnustep-packager` manifest/build/stage/validate path exists. Full AppImage packaging is currently blocked by packager handling of apps with no MIME/file associations. |
-| macOS app | deferred | Apple-framework implementation and native validation remain. |
+| macOS app | partial | Builds and runs natively against Apple's AppKit, with the test suite passing on macOS; see `docs/macos.md`. |
 | macOS DMG packaging | deferred | Requires a new `gnustep-packager` macOS DMG-style backend. |
 
 ## Quality Gates
