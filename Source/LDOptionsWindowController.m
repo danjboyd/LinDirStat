@@ -1,0 +1,1145 @@
+#import "LDOptionsWindowController.h"
+#import "LDFilterPatterns.h"
+#import "LDPreferences.h"
+
+static const CGFloat LDOptionsMargin = 18.0;
+static const CGFloat LDOptionsRowSpacing = 6.0;
+static const CGFloat LDOptionsSectionSpacing = 12.0;
+static const CGFloat LDOptionsControlSpacing = 6.0;
+
+// Pages are laid out top-down.
+@interface LDOptionsPageView : NSView
+@end
+
+@implementation LDOptionsPageView
+- (BOOL)isFlipped
+{
+  return YES;
+}
+@end
+
+@interface LDOptionsWindowController ()
+{
+  NSTabView *_tabView;
+  NSInteger _applying;
+
+  // Layout cursor for the page being built.
+  NSView *_page;
+  CGFloat _y;
+  CGFloat _left;
+  CGFloat _right;
+  BOOL _sectionStarted;
+
+  // General
+  NSButton *_humanFormat;
+  NSButton *_fullRowSelection;
+  NSButton *_listGrid;
+  NSButton *_listStripes;
+
+  // Filtering
+  NSTextView *_folderPatterns;
+  NSTextView *_filePatterns;
+  NSButton *_filterRegex;
+  NSTextField *_filterError;
+  NSTextField *_minimumSize;
+  NSPopUpButton *_minimumSizeUnit;
+
+  // Folder List
+  NSButton *_pacman;
+  NSButton *_timeSpent;
+  NSMutableArray *_columnButtons;
+
+  // Treemap
+  NSPopUpButton *_treemapStyle;
+  NSButton *_treemapGrid;
+  NSSlider *_brightness;
+  NSSlider *_cushionShading;
+  NSSlider *_height;
+  NSSlider *_scaleFactor;
+  NSSlider *_lightX;
+  NSSlider *_lightY;
+  NSMapTable *_sliderLabels;
+
+  // Cleanups
+  NSMutableArray *_cleanups;
+  NSTableView *_cleanupTable;
+  NSButton *_moveUp;
+  NSButton *_moveDown;
+  NSButton *_cleanupEnabled;
+  NSTextField *_cleanupTitle;
+  NSTextField *_cleanupCommand;
+  NSTextField *_cleanupHint;
+  NSButton *_worksForMountPoints;
+  NSButton *_worksForFolders;
+  NSButton *_worksForFiles;
+  NSButton *_recurse;
+  NSButton *_askForConfirmation;
+  NSButton *_runInTerminal;
+  NSButton *_waitForCompletion;
+  NSTextField *_cleanupTitleLabel;
+  NSTextField *_cleanupCommandLabel;
+  NSTextField *_refreshPolicyLabel;
+  NSPopUpButton *_refreshPolicy;
+
+  // Prompts
+  NSButton *_deleteWarning;
+
+  // Advanced
+  NSButton *_excludeMountPoints;
+  NSButton *_excludeSymlinks;
+  NSButton *_excludeHidden;
+  NSButton *_scanDuplicates;
+  NSPopUpButton *_threads;
+  NSTextField *_largeFileCount;
+  NSStepper *_largeFileStepper;
+  NSTextField *_historyCount;
+  NSStepper *_historyStepper;
+}
+@end
+
+@implementation LDOptionsWindowController
+
++ (LDOptionsWindowController *)sharedController
+{
+  static LDOptionsWindowController *shared = nil;
+  if (!shared) {
+    shared = [[LDOptionsWindowController alloc] init];
+  }
+  return shared;
+}
+
+- (id)init
+{
+  NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 720, 520)
+                                                 styleMask:NSTitledWindowMask | NSClosableWindowMask
+                                                   backing:NSBackingStoreBuffered
+                                                     defer:YES];
+  [window setTitle:@"Preferences"];
+  [window setReleasedWhenClosed:NO];
+  self = [super initWithWindow:window];
+  if (self) {
+    _columnButtons = [NSMutableArray array];
+    _sliderLabels = [NSMapTable strongToStrongObjectsMapTable];
+    _cleanups = [[[LDPreferences sharedPreferences] customCleanups] mutableCopy];
+    [self buildContents];
+    [_cleanupTable reloadData];
+    [_cleanupTable selectRow:0 byExtendingSelection:NO];
+    [self refreshControls];
+    [window center];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(preferencesDidChange:)
+                                                 name:LDPreferencesDidChangeNotification
+                                               object:nil];
+  }
+  return self;
+}
+
+- (void)dealloc
+{
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
+#pragma mark - Showing
+
+- (void)showWindow:(id)sender
+{
+  NSInteger page = [[LDPreferences sharedPreferences] lastOptionsPage];
+  if (page < 0 || page >= [_tabView numberOfTabViewItems]) {
+    page = LDOptionsPageGeneral;
+  }
+  [self refreshControls];
+  [_tabView selectTabViewItemAtIndex:page];
+  [super showWindow:sender];
+}
+
+- (void)showPage:(LDOptionsPage)page
+{
+  [self refreshControls];
+  if ((NSInteger)page >= 0 && (NSInteger)page < [_tabView numberOfTabViewItems]) {
+    [_tabView selectTabViewItemAtIndex:page];
+  }
+  [super showWindow:nil];
+}
+
+- (LDOptionsPage)selectedPage
+{
+  return (LDOptionsPage)[_tabView indexOfTabViewItem:[_tabView selectedTabViewItem]];
+}
+
+- (void)tabView:(NSTabView *)tabView didSelectTabViewItem:(NSTabViewItem *)item
+{
+  NSInteger page = [tabView indexOfTabViewItem:item];
+  if (page != NSNotFound && page != [[LDPreferences sharedPreferences] lastOptionsPage]) {
+    [self apply:^(LDPreferences *preferences) {
+      [preferences setLastOptionsPage:page];
+    }];
+  }
+}
+
+#pragma mark - Applying changes
+
+// Writes through LDPreferences without reloading the controls in response
+// to our own change notification.
+- (void)apply:(void (^)(LDPreferences *preferences))change
+{
+  _applying++;
+  change([LDPreferences sharedPreferences]);
+  _applying--;
+}
+
+- (void)preferencesDidChange:(NSNotification *)notification
+{
+  (void)notification;
+  if (_applying == 0) {
+    [self refreshControls];
+  }
+}
+
+#pragma mark - Control factories
+
+- (NSTextField *)labelWithString:(NSString *)string
+{
+  NSTextField *label = [[NSTextField alloc] initWithFrame:NSZeroRect];
+  [label setBezeled:NO];
+  [label setBordered:NO];
+  [label setDrawsBackground:NO];
+  [label setEditable:NO];
+  [label setSelectable:NO];
+  [label setStringValue:string];
+  [label sizeToFit];
+  return label;
+}
+
+- (NSButton *)checkboxWithTitle:(NSString *)title action:(SEL)action
+{
+  NSButton *button = [[NSButton alloc] initWithFrame:NSZeroRect];
+  [button setButtonType:NSSwitchButton];
+  [button setTitle:title];
+  [button setTarget:self];
+  [button setAction:action];
+  [button sizeToFit];
+  return button;
+}
+
+- (NSButton *)pushButtonWithTitle:(NSString *)title action:(SEL)action
+{
+  NSButton *button = [[NSButton alloc] initWithFrame:NSZeroRect];
+  [button setButtonType:NSMomentaryPushInButton];
+  [button setBezelStyle:NSRoundedBezelStyle];
+  [button setTitle:title];
+  [button setTarget:self];
+  [button setAction:action];
+  [button sizeToFit];
+  return button;
+}
+
+- (NSPopUpButton *)popUpWithTitles:(NSArray *)titles action:(SEL)action
+{
+  NSPopUpButton *popUp = [[NSPopUpButton alloc] initWithFrame:NSZeroRect pullsDown:NO];
+  [popUp addItemsWithTitles:titles];
+  [popUp setTarget:self];
+  [popUp setAction:action];
+  [popUp sizeToFit];
+  return popUp;
+}
+
+- (NSTextField *)numberFieldWithAction:(SEL)action
+{
+  NSTextField *field = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, 80, 24)];
+  [field setAlignment:NSRightTextAlignment];
+  [field setDelegate:self];
+  [field setTarget:self];
+  [field setAction:action];
+  [field sizeToFit];
+  return field;
+}
+
+- (NSStepper *)stepperFrom:(double)low to:(double)high action:(SEL)action
+{
+  NSStepper *stepper = [[NSStepper alloc] initWithFrame:NSZeroRect];
+  [stepper setMinValue:low];
+  [stepper setMaxValue:high];
+  [stepper setIncrement:1.0];
+  [stepper setValueWraps:NO];
+  [stepper setTarget:self];
+  [stepper setAction:action];
+  [stepper setFrameSize:NSMakeSize(19.0, 26.0)];
+  return stepper;
+}
+
+- (NSSlider *)sliderFrom:(double)low to:(double)high
+{
+  NSSlider *slider = [[NSSlider alloc] initWithFrame:NSMakeRect(0, 0, 220, 22)];
+  [slider setMinValue:low];
+  [slider setMaxValue:high];
+  [slider setContinuous:YES];
+  [slider setTarget:self];
+  [slider setAction:@selector(sliderChanged:)];
+  return slider;
+}
+
+#pragma mark - Layout
+
+- (NSView *)beginPage:(NSString *)label
+{
+  NSRect content = [_tabView contentRect];
+  _page = [[LDOptionsPageView alloc] initWithFrame:NSMakeRect(0, 0, NSWidth(content), NSHeight(content))];
+  [_page setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+  _y = LDOptionsMargin;
+  _left = LDOptionsMargin;
+  _right = NSWidth(content) - LDOptionsMargin;
+  _sectionStarted = NO;
+
+  NSTabViewItem *item = [[NSTabViewItem alloc] initWithIdentifier:label];
+  [item setLabel:label];
+  [item setView:_page];
+  [_tabView addTabViewItem:item];
+  return _page;
+}
+
+- (void)place:(NSView *)view x:(CGFloat)x width:(CGFloat)width height:(CGFloat)height mask:(NSUInteger)mask
+{
+  [view setFrame:NSMakeRect(x, _y, width, height)];
+  [view setAutoresizingMask:mask | NSViewMaxYMargin];
+  [_page addSubview:view];
+}
+
+- (void)addSectionTitle:(NSString *)title
+{
+  if (_sectionStarted) {
+    _y += LDOptionsSectionSpacing;
+  }
+  _sectionStarted = YES;
+  NSTextField *label = [self labelWithString:title];
+  [label setFont:[NSFont boldSystemFontOfSize:[NSFont systemFontSize]]];
+  [label sizeToFit];
+  [self place:label x:_left width:_right - _left height:NSHeight([label frame]) mask:NSViewWidthSizable];
+  _y += NSHeight([label frame]) + LDOptionsRowSpacing;
+}
+
+- (void)addFullWidthView:(NSView *)view height:(CGFloat)height
+{
+  _sectionStarted = YES;
+  [self place:view x:_left width:_right - _left height:height mask:NSViewWidthSizable];
+  _y += height + LDOptionsRowSpacing;
+}
+
+- (NSButton *)addCheckbox:(NSString *)title action:(SEL)action
+{
+  NSButton *button = [self checkboxWithTitle:title action:action];
+  [self addFullWidthView:button height:NSHeight([button frame])];
+  return button;
+}
+
+// Checkboxes side by side on one row.
+- (void)addCheckboxRow:(NSArray *)buttons
+{
+  _sectionStarted = YES;
+  CGFloat x = _left;
+  CGFloat height = 0;
+  for (NSButton *button in buttons) {
+    NSRect frame = [button frame];
+    [self place:button x:x width:NSWidth(frame) height:NSHeight(frame) mask:NSViewMaxXMargin];
+    x += NSWidth(frame) + LDOptionsMargin;
+    height = MAX(height, NSHeight(frame));
+  }
+  _y += height + LDOptionsRowSpacing;
+}
+
+// A preference row: the label on the left, the controls (at their current
+// widths) packed against the right edge, all vertically centred.
+- (NSTextField *)addRow:(NSString *)title controls:(NSArray *)controls
+{
+  _sectionStarted = YES;
+  CGFloat height = 0;
+  CGFloat controlsWidth = 0;
+  for (NSView *control in controls) {
+    height = MAX(height, NSHeight([control frame]));
+    controlsWidth += NSWidth([control frame]);
+  }
+  controlsWidth += LDOptionsControlSpacing * ([controls count] - 1);
+
+  NSTextField *label = [self labelWithString:title];
+  height = MAX(height, NSHeight([label frame]));
+  CGFloat rowY = _y;
+  _y = rowY + floor((height - NSHeight([label frame])) / 2.0);
+  [self place:label x:_left width:_right - _left - controlsWidth - LDOptionsControlSpacing height:NSHeight([label frame])
+         mask:NSViewWidthSizable];
+
+  CGFloat x = _right - controlsWidth;
+  for (NSView *control in controls) {
+    NSRect frame = [control frame];
+    _y = rowY + floor((height - NSHeight(frame)) / 2.0);
+    [self place:control x:x width:NSWidth(frame) height:NSHeight(frame) mask:NSViewMinXMargin];
+    x += NSWidth(frame) + LDOptionsControlSpacing;
+  }
+  _y = rowY + height + LDOptionsRowSpacing;
+  return label;
+}
+
+- (NSTextView *)addPatternEditor:(NSString *)title height:(CGFloat)height
+{
+  NSTextField *label = [self labelWithString:title];
+  [self addFullWidthView:label height:NSHeight([label frame])];
+
+  NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(0, 0, _right - _left, height)];
+  [scroll setBorderType:NSBezelBorder];
+  [scroll setHasVerticalScroller:YES];
+  [scroll setHasHorizontalScroller:NO];
+  NSSize size = [scroll contentSize];
+  NSTextView *textView = [[NSTextView alloc] initWithFrame:NSMakeRect(0, 0, size.width, size.height)];
+  [textView setRichText:NO];
+  [textView setImportsGraphics:NO];
+  [textView setAllowsUndo:YES];
+  [textView setFont:[NSFont userFixedPitchFontOfSize:0]];
+  [textView setMinSize:NSMakeSize(0, size.height)];
+  [textView setMaxSize:NSMakeSize(FLT_MAX, FLT_MAX)];
+  [textView setVerticallyResizable:YES];
+  [textView setHorizontallyResizable:NO];
+  [textView setAutoresizingMask:NSViewWidthSizable];
+  [[textView textContainer] setWidthTracksTextView:YES];
+  [textView setDelegate:self];
+  [scroll setDocumentView:textView];
+  [self addFullWidthView:scroll height:height];
+  return textView;
+}
+
+- (NSTextField *)addNote:(NSString *)text color:(NSColor *)color lines:(NSUInteger)lines
+{
+  NSTextField *note = [self labelWithString:text];
+  [note setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
+  [note setTextColor:color];
+  [[note cell] setWraps:YES];
+  [note sizeToFit];
+  [self addFullWidthView:note height:NSHeight([note frame]) * lines];
+  return note;
+}
+
+- (void)buildContents
+{
+  NSView *content = [[self window] contentView];
+  NSRect bounds = [content bounds];
+  _tabView = [[NSTabView alloc] initWithFrame:NSInsetRect(bounds, 12.0, 12.0)];
+  [_tabView setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+  [content addSubview:_tabView];
+
+  [self buildGeneralPage];
+  [self buildFilteringPage];
+  [self buildFolderListPage];
+  [self buildTreemapPage];
+  [self buildCleanupsPage];
+  [self buildPromptsPage];
+  [self buildAdvancedPage];
+  _page = nil;
+  [_tabView setDelegate:self];
+}
+
+- (void)buildGeneralPage
+{
+  [self beginPage:@"General"];
+  [self addSectionTitle:@"Sizes"];
+  _humanFormat = [self addCheckbox:@"Show sizes in human-readable format" action:@selector(generalChanged:)];
+  [self addSectionTitle:@"List Style"];
+  _fullRowSelection = [self addCheckbox:@"Full row selection" action:@selector(generalChanged:)];
+  _listGrid = [self addCheckbox:@"Show grid" action:@selector(generalChanged:)];
+  _listStripes = [self addCheckbox:@"Show stripes" action:@selector(generalChanged:)];
+}
+
+- (void)buildFilteringPage
+{
+  [self beginPage:@"Filtering"];
+  _folderPatterns = [self addPatternEditor:@"Folder paths to exclude:" height:84.0];
+  _y += LDOptionsSectionSpacing - LDOptionsRowSpacing;
+  _filePatterns = [self addPatternEditor:@"File name patterns to exclude:" height:84.0];
+  _filterRegex = [self addCheckbox:@"Use regular expressions instead of glob patterns" action:@selector(filterRegexChanged:)];
+  _filterError = [self labelWithString:@" "];
+  [_filterError setTextColor:[NSColor systemRedColor]];
+  [[_filterError cell] setLineBreakMode:NSLineBreakByTruncatingTail];
+  [self addFullWidthView:_filterError height:NSHeight([_filterError frame])];
+
+  _minimumSize = [self numberFieldWithAction:@selector(minimumSizeEntered:)];
+  [_minimumSize setFrameSize:NSMakeSize(100, NSHeight([_minimumSize frame]))];
+  _minimumSizeUnit = [self popUpWithTitles:@[@"bytes", @"KiB", @"MiB", @"GiB", @"TiB"]
+                                    action:@selector(minimumSizeUnitChanged:)];
+  [_minimumSizeUnit setFrameSize:NSMakeSize(MAX(NSWidth([_minimumSizeUnit frame]), 100.0), NSHeight([_minimumSizeUnit frame]))];
+  [self addRow:@"Exclude files smaller than" controls:@[_minimumSize, _minimumSizeUnit]];
+  _y += LDOptionsSectionSpacing - LDOptionsRowSpacing;
+  [self addNote:@"Changes apply to the next scan or refresh." color:[NSColor secondaryLabelColor] lines:1];
+}
+
++ (NSDictionary *)columnTitles
+{
+  return @{
+    LDColumnPhysicalSize: @"Physical Size",
+    LDColumnLogicalSize: @"Logical Size",
+    LDColumnItems: @"Items",
+    LDColumnFiles: @"Files",
+    LDColumnFolders: @"Folders",
+    LDColumnLastChange: @"Last Change",
+    LDColumnAttributes: @"Attributes",
+    LDColumnOwner: @"Owner",
+  };
+}
+
+- (void)buildFolderListPage
+{
+  [self beginPage:@"Folder List"];
+  [self addSectionTitle:@"Scanning"];
+  _pacman = [self addCheckbox:@"Pacman animation" action:@selector(folderListChanged:)];
+  _timeSpent = [self addCheckbox:@"Show time spent during scan" action:@selector(folderListChanged:)];
+  [self addSectionTitle:@"Optional Columns"];
+  NSDictionary *titles = [LDOptionsWindowController columnTitles];
+  for (NSString *column in [LDPreferences optionalColumns]) {
+    NSButton *button = [self addCheckbox:[titles objectForKey:column] ?: column action:@selector(columnChanged:)];
+    [_columnButtons addObject:button];
+  }
+}
+
+- (NSSlider *)addSliderRow:(NSString *)title from:(double)low to:(double)high
+{
+  NSSlider *slider = [self sliderFrom:low to:high];
+  NSTextField *value = [self labelWithString:@"-100 %"];
+  [value setAlignment:NSRightTextAlignment];
+  [value setFrameSize:NSMakeSize(NSWidth([value frame]) + 8.0, NSHeight([value frame]))];
+  [_sliderLabels setObject:value forKey:slider];
+  [self addRow:title controls:@[slider, value]];
+  return slider;
+}
+
+- (void)buildTreemapPage
+{
+  [self beginPage:@"Treemap"];
+  // WinDirStat's grid and highlight colour buttons and its live preview are
+  // left out; the treemap in the main window updates as the sliders move.
+  [self addSectionTitle:@"Layout"];
+  _treemapStyle = [self popUpWithTitles:@[@"KDirStat", @"SequoiaView"] action:@selector(treemapChanged:)];
+  [_treemapStyle setFrameSize:NSMakeSize(MAX(NSWidth([_treemapStyle frame]), 160.0), NSHeight([_treemapStyle frame]))];
+  [self addRow:@"Style" controls:@[_treemapStyle]];
+  _treemapGrid = [self addCheckbox:@"Show grid" action:@selector(treemapChanged:)];
+
+  [self addSectionTitle:@"Cushions"];
+  _brightness = [self addSliderRow:@"Brightness" from:0 to:100];
+  _cushionShading = [self addSliderRow:@"Cushion shading" from:0 to:100];
+  _height = [self addSliderRow:@"Height" from:0 to:100];
+  _scaleFactor = [self addSliderRow:@"Scale factor" from:0 to:100];
+
+  [self addSectionTitle:@"Light Source"];
+  _lightX = [self addSliderRow:@"Horizontal position" from:-100 to:100];
+  _lightY = [self addSliderRow:@"Vertical position" from:-100 to:100];
+
+  _y += LDOptionsSectionSpacing - LDOptionsRowSpacing;
+  NSButton *reset = [self pushButtonWithTitle:@"Reset to Defaults" action:@selector(resetTreemap:)];
+  NSRect frame = [reset frame];
+  [self place:reset x:_right - NSWidth(frame) width:NSWidth(frame) height:NSHeight(frame) mask:NSViewMinXMargin];
+  _y += NSHeight(frame);
+}
+
+- (void)buildCleanupsPage
+{
+  NSView *page = [self beginPage:@"Cleanups"];
+  CGFloat listWidth = 220.0;
+
+  _moveUp = [self pushButtonWithTitle:@"Move Up" action:@selector(moveCleanupUp:)];
+  _moveDown = [self pushButtonWithTitle:@"Move Down" action:@selector(moveCleanupDown:)];
+  CGFloat buttonHeight = NSHeight([_moveUp frame]);
+  CGFloat buttonWidth = floor((listWidth - LDOptionsControlSpacing) / 2.0);
+  CGFloat buttonY = NSHeight([page frame]) - LDOptionsMargin - buttonHeight;
+  [_moveUp setFrame:NSMakeRect(_left, buttonY, buttonWidth, buttonHeight)];
+  [_moveDown setFrame:NSMakeRect(_left + listWidth - buttonWidth, buttonY, buttonWidth, buttonHeight)];
+  [_moveUp setAutoresizingMask:NSViewMinYMargin];
+  [_moveDown setAutoresizingMask:NSViewMinYMargin];
+  [page addSubview:_moveUp];
+  [page addSubview:_moveDown];
+
+  CGFloat listHeight = buttonY - LDOptionsRowSpacing - _y;
+  NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(_left, _y, listWidth, listHeight)];
+  [scroll setBorderType:NSBezelBorder];
+  [scroll setHasVerticalScroller:YES];
+  [scroll setAutoresizingMask:NSViewHeightSizable];
+  _cleanupTable = [[NSTableView alloc] initWithFrame:NSMakeRect(0, 0, [scroll contentSize].width, listHeight)];
+  NSTableColumn *column = [[NSTableColumn alloc] initWithIdentifier:@"title"];
+  [column setEditable:NO];
+  [column setWidth:[scroll contentSize].width];
+  [column setResizingMask:NSTableColumnAutoresizingMask];
+  [_cleanupTable addTableColumn:column];
+  [_cleanupTable setHeaderView:nil];
+  [_cleanupTable setCornerView:nil];
+  [_cleanupTable setAllowsEmptySelection:NO];
+  [_cleanupTable setAllowsMultipleSelection:NO];
+  [_cleanupTable setColumnAutoresizingStyle:NSTableViewLastColumnOnlyAutoresizingStyle];
+  [_cleanupTable setDataSource:self];
+  [_cleanupTable setDelegate:self];
+  [scroll setDocumentView:_cleanupTable];
+  [page addSubview:scroll];
+
+  _left += listWidth + LDOptionsMargin;
+
+  _cleanupEnabled = [self addCheckbox:@"Enabled" action:@selector(cleanupChanged:)];
+  CGFloat fieldWidth = _right - _left - 110.0;
+  _cleanupTitle = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, fieldWidth, 24)];
+  [_cleanupTitle sizeToFit];
+  [_cleanupTitle setFrameSize:NSMakeSize(fieldWidth, NSHeight([_cleanupTitle frame]))];
+  [_cleanupTitle setDelegate:self];
+  _cleanupTitleLabel = [self addRow:@"Title" controls:@[_cleanupTitle]];
+  _cleanupCommand = [[NSTextField alloc] initWithFrame:NSMakeRect(0, 0, fieldWidth, 24)];
+  [_cleanupCommand sizeToFit];
+  [_cleanupCommand setFrameSize:NSMakeSize(fieldWidth, NSHeight([_cleanupCommand frame]))];
+  [_cleanupCommand setDelegate:self];
+  _cleanupCommandLabel = [self addRow:@"Command line" controls:@[_cleanupCommand]];
+  _cleanupHint = [self addNote:@"%p path, %n name; %sp, %sn subfolder path and name when recursing"
+                         color:[NSColor secondaryLabelColor]
+                         lines:2];
+
+  [self addSectionTitle:@"Works For"];
+  _worksForMountPoints = [self checkboxWithTitle:@"Mount points & scan roots" action:@selector(cleanupChanged:)];
+  _worksForFolders = [self checkboxWithTitle:@"Folders" action:@selector(cleanupChanged:)];
+  _worksForFiles = [self checkboxWithTitle:@"Files" action:@selector(cleanupChanged:)];
+  [self addCheckboxRow:@[_worksForMountPoints, _worksForFolders, _worksForFiles]];
+
+  [self addSectionTitle:@"Behavior"];
+  _recurse = [self addCheckbox:@"Recurse into subfolders" action:@selector(cleanupChanged:)];
+  _askForConfirmation = [self addCheckbox:@"Ask for confirmation" action:@selector(cleanupChanged:)];
+  _runInTerminal = [self addCheckbox:@"Run in a terminal" action:@selector(cleanupChanged:)];
+  _waitForCompletion = [self addCheckbox:@"Wait for completion" action:@selector(cleanupChanged:)];
+  _refreshPolicy = [self popUpWithTitles:@[@"No refresh", @"Refresh this entry", @"Refresh this entry's parent"]
+                                  action:@selector(cleanupChanged:)];
+  _refreshPolicyLabel = [self addRow:@"After running" controls:@[_refreshPolicy]];
+}
+
+- (void)buildPromptsPage
+{
+  [self beginPage:@"Prompts"];
+  [self addSectionTitle:@"Confirmations"];
+  _deleteWarning = [self addCheckbox:@"Warn before deleting" action:@selector(promptsChanged:)];
+}
+
+- (void)buildAdvancedPage
+{
+  [self beginPage:@"Advanced"];
+  [self addSectionTitle:@"Scanning"];
+  _excludeMountPoints = [self addCheckbox:@"Exclude mount points (do not enter other filesystems)"
+                                   action:@selector(advancedChanged:)];
+  _excludeSymlinks = [self addCheckbox:@"Exclude symbolic links" action:@selector(advancedChanged:)];
+  _excludeHidden = [self addCheckbox:@"Exclude hidden files and folders" action:@selector(advancedChanged:)];
+  _scanDuplicates = [self addCheckbox:@"Scan for duplicate files" action:@selector(advancedChanged:)];
+  NSMutableArray *counts = [NSMutableArray array];
+  for (NSUInteger i = 1; i <= 16; i++) {
+    [counts addObject:[NSString stringWithFormat:@"%lu", (unsigned long)i]];
+  }
+  _threads = [self popUpWithTitles:counts action:@selector(advancedChanged:)];
+  [_threads setFrameSize:NSMakeSize(MAX(NSWidth([_threads frame]), 80.0), NSHeight([_threads frame]))];
+  [self addRow:@"Scanning threads" controls:@[_threads]];
+
+  [self addSectionTitle:@"Lists"];
+  _largeFileCount = [self numberFieldWithAction:@selector(countEntered:)];
+  [_largeFileCount setFrameSize:NSMakeSize(80, NSHeight([_largeFileCount frame]))];
+  _largeFileStepper = [self stepperFrom:0 to:10000 action:@selector(countStepped:)];
+  [self addRow:@"Largest files shown" controls:@[_largeFileCount, _largeFileStepper]];
+  _historyCount = [self numberFieldWithAction:@selector(countEntered:)];
+  [_historyCount setFrameSize:NSMakeSize(80, NSHeight([_historyCount frame]))];
+  _historyStepper = [self stepperFrom:0 to:100 action:@selector(countStepped:)];
+  [self addRow:@"Folder history entries" controls:@[_historyCount, _historyStepper]];
+
+  [self addSectionTitle:@"Reset"];
+  NSButton *reset = [self pushButtonWithTitle:@"Reset All Preferences…" action:@selector(resetAll:)];
+  [self addRow:@"Restore every setting to its default" controls:@[reset]];
+}
+
+#pragma mark - Refreshing
+
+static NSInteger LDState(BOOL flag)
+{
+  return flag ? NSOnState : NSOffState;
+}
+
+- (void)setText:(NSString *)text ofTextView:(NSTextView *)textView
+{
+  if (![[textView string] isEqualToString:text]) {
+    [textView setString:text];
+  }
+}
+
+- (void)setString:(NSString *)string ofField:(NSTextField *)field
+{
+  if (![[field stringValue] isEqualToString:string]) {
+    [field setStringValue:string];
+  }
+}
+
+- (void)refreshControls
+{
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+
+  [_humanFormat setState:LDState([preferences humanFormat])];
+  [_fullRowSelection setState:LDState([preferences listFullRowSelection])];
+  [_listGrid setState:LDState([preferences listGrid])];
+  [_listStripes setState:LDState([preferences listStripes])];
+
+  [self setText:[preferences excludedFolderPatterns] ofTextView:_folderPatterns];
+  [self setText:[preferences excludedFilePatterns] ofTextView:_filePatterns];
+  [_filterRegex setState:LDState([preferences filterUsesRegex])];
+  [self setString:[NSString stringWithFormat:@"%llu", [preferences minimumFileSize]] ofField:_minimumSize];
+  [_minimumSizeUnit selectItemAtIndex:[preferences minimumFileSizeUnit]];
+  [self validateFilters];
+
+  [_pacman setState:LDState([preferences pacmanAnimation])];
+  [_timeSpent setState:LDState([preferences showTimeSpent])];
+  NSArray *columns = [LDPreferences optionalColumns];
+  for (NSUInteger i = 0; i < [columns count] && i < [_columnButtons count]; i++) {
+    [[_columnButtons objectAtIndex:i] setState:LDState([preferences isColumnShown:[columns objectAtIndex:i]])];
+  }
+
+  [_treemapStyle selectItemAtIndex:[preferences treemapStyle]];
+  [_treemapGrid setState:LDState([preferences treemapGrid])];
+  [_brightness setIntegerValue:[preferences treemapBrightness]];
+  [_cushionShading setIntegerValue:[preferences treemapCushionShading]];
+  [_height setIntegerValue:[preferences treemapHeight]];
+  [_scaleFactor setIntegerValue:[preferences treemapScaleFactor]];
+  [_lightX setIntegerValue:[preferences treemapLightSourceX]];
+  [_lightY setIntegerValue:[preferences treemapLightSourceY]];
+  for (NSSlider *slider in @[_brightness, _cushionShading, _height, _scaleFactor, _lightX, _lightY]) {
+    [self updateLabelForSlider:slider];
+  }
+
+  _cleanups = [[preferences customCleanups] mutableCopy];
+  [_cleanupTable reloadData];
+  if ([self selectedCleanupIndex] < 0 && [_cleanups count] > 0) {
+    [_cleanupTable selectRow:0 byExtendingSelection:NO];
+  }
+  [self refreshCleanupControls];
+
+  [_deleteWarning setState:LDState([preferences showDeleteWarning])];
+
+  [_excludeMountPoints setState:LDState([preferences excludeMountPoints])];
+  [_excludeSymlinks setState:LDState([preferences excludeSymbolicLinks])];
+  [_excludeHidden setState:LDState([preferences excludeHiddenEntries])];
+  [_scanDuplicates setState:LDState([preferences scanForDuplicates])];
+  [_threads selectItemAtIndex:(NSInteger)[preferences scanningThreads] - 1];
+  [self setString:[NSString stringWithFormat:@"%lu", (unsigned long)[preferences largeFileCount]] ofField:_largeFileCount];
+  [_largeFileStepper setIntegerValue:(NSInteger)[preferences largeFileCount]];
+  [self setString:[NSString stringWithFormat:@"%lu", (unsigned long)[preferences folderHistoryCount]] ofField:_historyCount];
+  [_historyStepper setIntegerValue:(NSInteger)[preferences folderHistoryCount]];
+}
+
+#pragma mark - General, Folder List, Prompts, Advanced
+
+- (void)generalChanged:(id)sender
+{
+  BOOL on = [(NSButton *)sender state] == NSOnState;
+  [self apply:^(LDPreferences *preferences) {
+    if (sender == self->_humanFormat) {
+      [preferences setHumanFormat:on];
+    } else if (sender == self->_fullRowSelection) {
+      [preferences setListFullRowSelection:on];
+    } else if (sender == self->_listGrid) {
+      [preferences setListGrid:on];
+    } else if (sender == self->_listStripes) {
+      [preferences setListStripes:on];
+    }
+  }];
+}
+
+- (void)folderListChanged:(id)sender
+{
+  BOOL on = [(NSButton *)sender state] == NSOnState;
+  [self apply:^(LDPreferences *preferences) {
+    if (sender == self->_pacman) {
+      [preferences setPacmanAnimation:on];
+    } else if (sender == self->_timeSpent) {
+      [preferences setShowTimeSpent:on];
+    }
+  }];
+}
+
+- (void)columnChanged:(id)sender
+{
+  NSUInteger index = [_columnButtons indexOfObjectIdenticalTo:sender];
+  NSArray *columns = [LDPreferences optionalColumns];
+  if (index == NSNotFound || index >= [columns count]) {
+    return;
+  }
+  BOOL on = [(NSButton *)sender state] == NSOnState;
+  [self apply:^(LDPreferences *preferences) {
+    [preferences setColumn:[columns objectAtIndex:index] shown:on];
+  }];
+}
+
+- (void)promptsChanged:(id)sender
+{
+  BOOL on = [(NSButton *)sender state] == NSOnState;
+  [self apply:^(LDPreferences *preferences) {
+    [preferences setShowDeleteWarning:on];
+  }];
+}
+
+- (void)advancedChanged:(id)sender
+{
+  BOOL on = [(NSButton *)sender state] == NSOnState;
+  [self apply:^(LDPreferences *preferences) {
+    if (sender == self->_excludeMountPoints) {
+      [preferences setExcludeMountPoints:on];
+    } else if (sender == self->_excludeSymlinks) {
+      [preferences setExcludeSymbolicLinks:on];
+    } else if (sender == self->_excludeHidden) {
+      [preferences setExcludeHiddenEntries:on];
+    } else if (sender == self->_scanDuplicates) {
+      [preferences setScanForDuplicates:on];
+    } else if (sender == self->_threads) {
+      [preferences setScanningThreads:(NSUInteger)[self->_threads indexOfSelectedItem] + 1];
+    }
+  }];
+}
+
+- (void)applyCountFromField:(NSTextField *)field reformat:(BOOL)reformat
+{
+  NSInteger value = MAX((NSInteger)0, [field integerValue]);
+  [self apply:^(LDPreferences *preferences) {
+    if (field == self->_largeFileCount) {
+      [preferences setLargeFileCount:(NSUInteger)value];
+    } else if (field == self->_historyCount) {
+      [preferences setFolderHistoryCount:(NSUInteger)value];
+    }
+  }];
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  NSUInteger stored = field == _largeFileCount ? [preferences largeFileCount] : [preferences folderHistoryCount];
+  [(field == _largeFileCount ? _largeFileStepper : _historyStepper) setIntegerValue:(NSInteger)stored];
+  if (reformat) {
+    [self setString:[NSString stringWithFormat:@"%lu", (unsigned long)stored] ofField:field];
+  }
+}
+
+- (void)countEntered:(id)sender
+{
+  [self applyCountFromField:sender reformat:YES];
+}
+
+- (void)countStepped:(id)sender
+{
+  NSTextField *field = sender == _largeFileStepper ? _largeFileCount : _historyCount;
+  [field setIntegerValue:[sender integerValue]];
+  [self applyCountFromField:field reformat:YES];
+}
+
+#pragma mark - Filtering
+
+- (void)validateFilters
+{
+  BOOL regex = [_filterRegex state] == NSOnState;
+  NSString *invalid = [LDFilterPatterns firstInvalidPatternInString:[_folderPatterns string] usesRegex:regex];
+  if (!invalid) {
+    invalid = [LDFilterPatterns firstInvalidPatternInString:[_filePatterns string] usesRegex:regex];
+  }
+  [_filterError setStringValue:invalid ? [NSString stringWithFormat:@"Invalid filter: %@", invalid] : @""];
+}
+
+- (void)textDidChange:(NSNotification *)notification
+{
+  NSTextView *textView = [notification object];
+  NSString *text = [[textView string] copy];
+  [self apply:^(LDPreferences *preferences) {
+    if (textView == self->_folderPatterns) {
+      [preferences setExcludedFolderPatterns:text];
+    } else if (textView == self->_filePatterns) {
+      [preferences setExcludedFilePatterns:text];
+    }
+  }];
+  [self validateFilters];
+}
+
+- (void)filterRegexChanged:(id)sender
+{
+  BOOL on = [(NSButton *)sender state] == NSOnState;
+  [self apply:^(LDPreferences *preferences) {
+    [preferences setFilterUsesRegex:on];
+  }];
+  [self validateFilters];
+}
+
+- (void)applyMinimumSizeReformat:(BOOL)reformat
+{
+  long long value = MAX(0LL, [[_minimumSize stringValue] longLongValue]);
+  [self apply:^(LDPreferences *preferences) {
+    [preferences setMinimumFileSize:(unsigned long long)value];
+  }];
+  if (reformat) {
+    [self setString:[NSString stringWithFormat:@"%lld", value] ofField:_minimumSize];
+  }
+}
+
+- (void)minimumSizeEntered:(id)sender
+{
+  (void)sender;
+  [self applyMinimumSizeReformat:YES];
+}
+
+- (void)minimumSizeUnitChanged:(id)sender
+{
+  LDSizeUnit unit = (LDSizeUnit)[sender indexOfSelectedItem];
+  [self apply:^(LDPreferences *preferences) {
+    [preferences setMinimumFileSizeUnit:unit];
+  }];
+}
+
+#pragma mark - Treemap
+
+- (void)updateLabelForSlider:(NSSlider *)slider
+{
+  NSTextField *label = [_sliderLabels objectForKey:slider];
+  [label setStringValue:[NSString stringWithFormat:@"%ld %%", (long)[slider integerValue]]];
+}
+
+- (void)treemapChanged:(id)sender
+{
+  [self apply:^(LDPreferences *preferences) {
+    if (sender == self->_treemapStyle) {
+      [preferences setTreemapStyle:[self->_treemapStyle indexOfSelectedItem]];
+    } else if (sender == self->_treemapGrid) {
+      [preferences setTreemapGrid:[(NSButton *)sender state] == NSOnState];
+    }
+  }];
+}
+
+- (void)sliderChanged:(id)sender
+{
+  NSInteger value = [sender integerValue];
+  [self updateLabelForSlider:sender];
+  [self apply:^(LDPreferences *preferences) {
+    if (sender == self->_brightness) {
+      [preferences setTreemapBrightness:value];
+    } else if (sender == self->_cushionShading) {
+      [preferences setTreemapCushionShading:value];
+    } else if (sender == self->_height) {
+      [preferences setTreemapHeight:value];
+    } else if (sender == self->_scaleFactor) {
+      [preferences setTreemapScaleFactor:value];
+    } else if (sender == self->_lightX) {
+      [preferences setTreemapLightSourceX:value];
+    } else if (sender == self->_lightY) {
+      [preferences setTreemapLightSourceY:value];
+    }
+  }];
+}
+
+- (void)resetTreemap:(id)sender
+{
+  (void)sender;
+  [self apply:^(LDPreferences *preferences) {
+    [preferences resetTreemapOptions];
+  }];
+  [self refreshControls];
+}
+
+#pragma mark - Cleanups
+
+- (NSInteger)selectedCleanupIndex
+{
+  NSInteger row = [_cleanupTable selectedRow];
+  return row >= 0 && row < (NSInteger)[_cleanups count] ? row : -1;
+}
+
+- (LDCustomCleanup *)selectedCleanup
+{
+  NSInteger index = [self selectedCleanupIndex];
+  return index >= 0 ? [_cleanups objectAtIndex:index] : nil;
+}
+
+- (NSInteger)numberOfRowsInTableView:(NSTableView *)tableView
+{
+  (void)tableView;
+  return (NSInteger)[_cleanups count];
+}
+
+- (id)tableView:(NSTableView *)tableView objectValueForTableColumn:(NSTableColumn *)column row:(NSInteger)row
+{
+  (void)tableView;
+  (void)column;
+  if (row < 0 || row >= (NSInteger)[_cleanups count]) {
+    return nil;
+  }
+  return [[_cleanups objectAtIndex:row] displayTitleForSlot:(NSUInteger)row];
+}
+
+- (void)tableViewSelectionDidChange:(NSNotification *)notification
+{
+  (void)notification;
+  [self refreshCleanupControls];
+}
+
+- (void)refreshCleanupControls
+{
+  // Leave any title or command field being edited before showing another
+  // slot in it.
+  NSResponder *responder = [[self window] firstResponder];
+  if ([responder isKindOfClass:[NSText class]] && ([(NSText *)responder delegate] == (id)_cleanupTitle ||
+                                                   [(NSText *)responder delegate] == (id)_cleanupCommand)) {
+    [[self window] makeFirstResponder:_cleanupTable];
+  }
+
+  NSInteger index = [self selectedCleanupIndex];
+  LDCustomCleanup *cleanup = [self selectedCleanup];
+  [cleanup normalize];
+  [_moveUp setEnabled:index > 0];
+  [_moveDown setEnabled:index >= 0 && index + 1 < (NSInteger)[_cleanups count]];
+
+  BOOL enabled = [cleanup isEnabled];
+  [_cleanupEnabled setEnabled:cleanup != nil];
+  [_cleanupEnabled setState:LDState(enabled)];
+  [self setString:cleanup ? [cleanup displayTitleForSlot:(NSUInteger)index] : @"" ofField:_cleanupTitle];
+  [self setString:[cleanup commandLine] ?: @"" ofField:_cleanupCommand];
+  [_worksForMountPoints setState:LDState([cleanup worksForMountPoints])];
+  [_worksForFolders setState:LDState([cleanup worksForDirectories])];
+  [_worksForFiles setState:LDState([cleanup worksForFiles])];
+  [_recurse setState:LDState([cleanup recurseIntoSubdirectories])];
+  [_askForConfirmation setState:LDState([cleanup askForConfirmation])];
+  [_runInTerminal setState:LDState([cleanup showInTerminal])];
+  [_waitForCompletion setState:LDState([cleanup waitForCompletion])];
+  [_refreshPolicy selectItemAtIndex:cleanup ? [cleanup refreshPolicy] : 0];
+
+  // PageCleanups.cpp:211-240.
+  for (NSControl *control in @[_cleanupTitle, _cleanupCommand, _worksForMountPoints, _worksForFolders,
+                               _worksForFiles, _askForConfirmation, _runInTerminal]) {
+    [control setEnabled:enabled];
+  }
+  [_recurse setEnabled:enabled && ([cleanup worksForMountPoints] || [cleanup worksForDirectories])];
+  [_waitForCompletion setEnabled:enabled && ![cleanup recurseIntoSubdirectories]];
+  [_refreshPolicy setEnabled:enabled && [cleanup waitForCompletion]];
+  // Labels follow their controls, as GTK dims an insensitive row.
+  [_cleanupTitleLabel setEnabled:enabled];
+  [_cleanupCommandLabel setEnabled:enabled];
+  [_cleanupHint setEnabled:enabled];
+  [_refreshPolicyLabel setEnabled:[_refreshPolicy isEnabled]];
+}
+
+- (void)saveCleanups
+{
+  NSArray *cleanups = [_cleanups copy];
+  [self apply:^(LDPreferences *preferences) {
+    [preferences setCustomCleanups:cleanups];
+  }];
+}
+
+- (void)cleanupChanged:(id)sender
+{
+  LDCustomCleanup *cleanup = [self selectedCleanup];
+  if (!cleanup) {
+    return;
+  }
+  BOOL on = [(NSButton *)sender state] == NSOnState;
+  if (sender == _cleanupEnabled) {
+    [cleanup setEnabled:on];
+  } else if (sender == _worksForMountPoints) {
+    [cleanup setWorksForMountPoints:on];
+  } else if (sender == _worksForFolders) {
+    [cleanup setWorksForDirectories:on];
+  } else if (sender == _worksForFiles) {
+    [cleanup setWorksForFiles:on];
+  } else if (sender == _recurse) {
+    [cleanup setRecurseIntoSubdirectories:on];
+  } else if (sender == _askForConfirmation) {
+    [cleanup setAskForConfirmation:on];
+  } else if (sender == _runInTerminal) {
+    [cleanup setShowInTerminal:on];
+  } else if (sender == _waitForCompletion) {
+    [cleanup setWaitForCompletion:on];
+  } else if (sender == _refreshPolicy) {
+    [cleanup setRefreshPolicy:(LDRefreshPolicy)[_refreshPolicy indexOfSelectedItem]];
+  }
+  [cleanup normalize];
+  [self saveCleanups];
+  [self refreshCleanupControls];
+}
+
+- (void)moveCleanupBy:(NSInteger)offset
+{
+  NSInteger index = [self selectedCleanupIndex];
+  NSInteger target = index + offset;
+  if (index < 0 || target < 0 || target >= (NSInteger)[_cleanups count]) {
+    return;
+  }
+  [_cleanups exchangeObjectAtIndex:(NSUInteger)index withObjectAtIndex:(NSUInteger)target];
+  [self saveCleanups];
+  [_cleanupTable reloadData];
+  [_cleanupTable selectRow:target byExtendingSelection:NO];
+  [self refreshCleanupControls];
+}
+
+- (void)moveCleanupUp:(id)sender
+{
+  (void)sender;
+  [self moveCleanupBy:-1];
+}
+
+- (void)moveCleanupDown:(id)sender
+{
+  (void)sender;
+  [self moveCleanupBy:1];
+}
+
+#pragma mark - Text fields
+
+- (void)controlTextDidChange:(NSNotification *)notification
+{
+  id field = [notification object];
+  if (field == _minimumSize) {
+    [self applyMinimumSizeReformat:NO];
+  } else if (field == _largeFileCount || field == _historyCount) {
+    [self applyCountFromField:field reformat:NO];
+  } else if (field == _cleanupTitle || field == _cleanupCommand) {
+    NSInteger index = [self selectedCleanupIndex];
+    LDCustomCleanup *cleanup = [self selectedCleanup];
+    if (!cleanup) {
+      return;
+    }
+    NSString *text = [field stringValue];
+    if (field == _cleanupCommand) {
+      [cleanup setCommandLine:text];
+    } else {
+      // A title left at, or emptied back to, the default stays "virgin" so it
+      // follows the slot number.
+      BOOL isDefault = [text length] == 0 || [text isEqualToString:[LDCustomCleanup defaultTitleForSlot:(NSUInteger)index]];
+      [cleanup setTitle:isDefault ? @"" : text];
+    }
+    [self saveCleanups];
+    if (field == _cleanupTitle) {
+      [_cleanupTable setNeedsDisplayInRect:[_cleanupTable rectOfRow:index]];
+    }
+  }
+}
+
+- (void)controlTextDidEndEditing:(NSNotification *)notification
+{
+  id field = [notification object];
+  if (field == _cleanupTitle && [[_cleanupTitle stringValue] length] == 0) {
+    NSInteger index = [self selectedCleanupIndex];
+    if (index >= 0) {
+      [_cleanupTitle setStringValue:[LDCustomCleanup defaultTitleForSlot:(NSUInteger)index]];
+    }
+  } else if (field == _minimumSize) {
+    [self applyMinimumSizeReformat:YES];
+  } else if (field == _largeFileCount || field == _historyCount) {
+    [self applyCountFromField:field reformat:YES];
+  }
+}
+
+#pragma mark - Reset All
+
+- (void)resetAll:(id)sender
+{
+  (void)sender;
+  NSAlert *alert = [[NSAlert alloc] init];
+  [alert setMessageText:@"Reset All Preferences?"];
+  [alert setInformativeText:@"Every setting, including filters and custom cleanups, returns to its default."];
+  [alert addButtonWithTitle:@"Cancel"];
+  [alert addButtonWithTitle:@"Reset"];
+  if ([alert runModal] != NSAlertSecondButtonReturn) {
+    return;
+  }
+  NSInteger page = [self selectedPage];
+  [self apply:^(LDPreferences *preferences) {
+    [preferences resetAll];
+    [preferences setLastOptionsPage:page];
+  }];
+  [self refreshControls];
+}
+
+@end
