@@ -181,7 +181,10 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 - (void)applyStat:(const struct stat *)info toNode:(LDFileNode *)node session:(LDScanSession *)session cache:(NSMutableDictionary *)cache
 {
   LDFileNodeKind kind = [node kind];
-  if (kind == LDFileNodeKindFile && info->st_nlink > 1) {
+  // When links are followed, a file can also be reached through a link, so
+  // every file is counted once by identity, not only multiply linked ones.
+  BOOL deduplicate = info->st_nlink > 1 || ![_options excludeSymbolicLinks];
+  if (kind == LDFileNodeKindFile && deduplicate) {
     if (![self insertKey:[self identityKeyForStat:info] intoSet:_visitedHardLinks]) {
       [node setSize:0 allocatedSize:0];
       [node setError:LDFileNodeErrorHardLinkDuplicate errorNumber:0];

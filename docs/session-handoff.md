@@ -45,3 +45,5 @@ Run GUI checks on a private display (`docs/development.md`, "GUI review on a pri
 - Theme/libs-gui issues reported to the Adwaita theme session rather than worked around: NSSplitView gives half-pixel frames with thin dividers; `-[NSTableView setColumnAutoresizingStyle:]` is not implemented, so GNUstep resizes a table's last column (the app keeps it at its natural width while fitting its flexible column); NSAlert has no accessory view or suppression button (the delete warning is a custom panel of standard controls); disabled pop-up buttons do not look disabled; pop-up buttons size too narrow for the theme's arrow; NSTabView does not scroll tabs that do not fit.
 - Refreshing a subtree counts hard links inside it again if their other links are outside it (the hard-link set covers one scan).
 - CSV Index is always 0 (inode numbers are not kept).
+- Show in Files is allowed on scan roots and mount points (WinDirStat allows folders and files only); on Linux the file manager handles them fine.
+- Adwaita theme #66/#67 (pop-up width, combo list padding) merged on the theme's main after the installed build; retest once Dan installs a new theme build.

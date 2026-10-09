@@ -35,18 +35,45 @@
   return [string dataUsingEncoding:NSUTF8StringEncoding];
 }
 
-- (void)testPlaceholdersAreReplacedOnceWithRawBytes
+- (void)testPlaceholdersBecomeQuotedShellParameters
 {
+  XCTAssertEqualObjects(@"gzip \"${1}\" # \"${2}\" \"${3}\" \"${4}\" 100%",
+                        [LDCustomCleanupRunner scriptForTemplate:@"gzip %p # %n %sp %sn 100%"]);
+  // WinDirStat users quote the placeholder themselves.
+  XCTAssertEqualObjects(@"rm -rf \"${1}\"", [LDCustomCleanupRunner scriptForTemplate:@"rm -rf \"%p\""]);
+
   NSData *path = [NSData dataWithBytes:"/d/50%n\xe9" length:8];
-  NSData *command = [LDCustomCleanupRunner commandForTemplate:@"gzip %p # %n %sp %sn 100%"
-                                                         path:path
-                                                subfolderPath:[self bytes:@"/d/sub"]];
-  NSMutableData *expected = [[self bytes:@"gzip "] mutableCopy];
-  [expected appendData:path];
-  [expected appendData:[self bytes:@" # "]];
-  [expected appendBytes:"50%n\xe9" length:5];
-  [expected appendData:[self bytes:@" /d/sub sub 100%"]];
-  XCTAssertEqualObjects(expected, command);
+  NSArray *command = [LDCustomCleanupRunner commandForTemplate:@"x %p" path:path subfolderPath:nil];
+  XCTAssertEqualObjects(@"/bin/sh", [command objectAtIndex:0]);
+  XCTAssertEqualObjects(path, [command objectAtIndex:4]);
+  XCTAssertEqualObjects([NSData dataWithBytes:"50%n\xe9" length:5], [command objectAtIndex:5]);
+  XCTAssertEqualObjects(path, [command objectAtIndex:6]);
+}
+
+- (void)testNamesAreNeverRunAsShellCode
+{
+  // A Linux name may contain quotes and command substitutions.
+  NSString *hostile = [_root stringByAppendingPathComponent:@"a\" ; touch INJECTED ; \"$(touch INJECTED2)"];
+  [[@"x" dataUsingEncoding:NSUTF8StringEncoding] writeToFile:hostile atomically:NO];
+  LDCustomCleanup *cleanup = [[LDCustomCleanup alloc] init];
+  [cleanup setEnabled:YES];
+  [cleanup setWorksForFiles:YES];
+  [cleanup setWaitForCompletion:YES];
+  [cleanup setCommandLine:@"cat \"%p\" > \"%p.copy\""];
+  __block NSArray *ran = nil;
+  [LDCustomCleanupRunner runCleanup:cleanup onPaths:@[[self bytes:hostile]] directories:@[@NO] completion:^(NSArray *ranPaths, NSArray *failures) {
+    (void)failures;
+    ran = ranPaths;
+  }];
+  NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:10];
+  while (!ran && [deadline timeIntervalSinceNow] > 0) {
+    [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+  }
+  NSFileManager *files = [NSFileManager defaultManager];
+  XCTAssertTrue([files fileExistsAtPath:[hostile stringByAppendingString:@".copy"]]);
+  XCTAssertFalse([files fileExistsAtPath:[_root stringByAppendingPathComponent:@"top/INJECTED"]]);
+  XCTAssertFalse([files fileExistsAtPath:[_root stringByAppendingPathComponent:@"INJECTED2"]]);
+  XCTAssertFalse([files fileExistsAtPath:[_root stringByAppendingPathComponent:@"INJECTED"]]);
 }
 
 - (void)testRecursionVisitsChildrenBeforeParents

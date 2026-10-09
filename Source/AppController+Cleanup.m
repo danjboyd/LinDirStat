@@ -296,10 +296,9 @@
     }
   }
   [self performFileOperation:@"Emptying the trash"
-                       paths:@[[NSNull null]]
-                   operation:^BOOL(NSData *unused, NSError **error) {
-    (void)unused;
-    return [LDFileOperations emptyTrashDirectories:trashes error:error];
+                       paths:trashes
+                   operation:^BOOL(NSData *trash, NSError **error) {
+    return [LDFileOperations emptyTrashDirectories:@[trash] error:error];
   }
               thenRefreshing:refresh];
 }
@@ -362,7 +361,9 @@
   [self showStatus:[NSString stringWithFormat:@"Running %@…", title]];
   [LDCustomCleanupRunner runCleanup:cleanup onPaths:paths directories:directories completion:^(NSArray *ranPaths, NSArray *failures) {
     (void)ranPaths;
-    _fileOperationRunning = NO;
+    if (waits) {
+      _fileOperationRunning = NO;
+    }
     if ([failures count] > 0) {
       NSMutableArray *lines = [NSMutableArray array];
       for (NSData *path in failures) {
@@ -372,8 +373,6 @@
     }
     if (waits) {
       [self refreshNodes:refresh];
-    } else {
-      [self finishBusyWork];
     }
   }];
 }
@@ -509,13 +508,18 @@
   LDScanSession *session = [[LDScanSession alloc] init];
   [self configureScanSession:session];
   _refreshSession = session;
-  [session startAsyncRefreshOfPathData:[node pathData] completion:^(LDFileNode *replacement) {
+  void (^finished)(LDFileNode *) = ^(LDFileNode *replacement) {
     if (session != _refreshSession) {
       return;
     }
     [self replaceNode:node withNode:[session isCanceled] ? nil : replacement keepIfCanceled:[session isCanceled]];
     [self refreshNextNode];
-  }];
+  };
+  if ([[node parent] isComputer]) {
+    [session startAsyncRescanOfRootPath:[node path] completion:finished];
+  } else {
+    [session startAsyncRefreshOfPathData:[node pathData] completion:finished];
+  }
 }
 
 - (void)replaceNode:(LDFileNode *)node withNode:(LDFileNode *)replacement keepIfCanceled:(BOOL)canceled

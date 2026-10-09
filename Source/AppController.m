@@ -1291,8 +1291,21 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 }
 
 // The selection of the focused file list; the treemap's selection when the
-// treemap has focus.
+// treemap has focus. Only nodes still in the tree count: a list can briefly
+// hold nodes that a refresh or deletion detached, whose paths are no longer
+// complete.
 - (NSArray *)selectedNodes
+{
+  NSMutableArray *inTree = [NSMutableArray array];
+  for (LDFileNode *node in [self listedSelectedNodes]) {
+    if (_rootNode && [_rootNode isAncestorOf:node]) {
+      [inTree addObject:node];
+    }
+  }
+  return inTree;
+}
+
+- (NSArray *)listedSelectedNodes
 {
   if ([_window firstResponder] == _treemapView) {
     LDFileNode *node = [_treemapView selectedNode];

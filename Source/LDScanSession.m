@@ -232,6 +232,18 @@
   }];
 }
 
+- (void)startAsyncRescanOfRootPath:(NSString *)path completion:(void (^)(LDFileNode *node))completion
+{
+  NSString *rootPath = [path copy];
+  [self startAsyncScanWithBlock:^(LDScanner *scanner) {
+    [scanner scanPath:rootPath session:self];
+  } completion:^{
+    if (completion) {
+      completion([self rootNode]);
+    }
+  }];
+}
+
 - (void)startAsyncScanWithBlock:(void (^)(LDScanner *scanner))scan completion:(void (^)(void))completion
 {
   __atomic_store_n(&_asyncFinished, NO, __ATOMIC_RELEASE);

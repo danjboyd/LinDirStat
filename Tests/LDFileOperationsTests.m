@@ -241,4 +241,20 @@
   XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:[self trashPath:@"files"]]);
 }
 
+- (void)testTrashDirectoriesMustNotBeSymlinks
+{
+  // A home trash reached through a symlink is not emptied: the link could
+  // point anywhere (spec: trash directories must not be symlinks).
+  NSString *elsewhere = [self dataPath:@"elsewhere"];
+  for (NSString *part in @[@"files", @"info"]) {
+    [[NSFileManager defaultManager] createDirectoryAtPath:[elsewhere stringByAppendingPathComponent:part]
+                              withIntermediateDirectories:YES attributes:nil error:NULL];
+  }
+  [self writeFile:[elsewhere stringByAppendingPathComponent:@"files/precious.txt"]];
+  NSString *trash = [_temporaryRoot stringByAppendingPathComponent:@"xdg/Trash"];
+  XCTAssertEqual(0, symlink([elsewhere fileSystemRepresentation], [trash fileSystemRepresentation]));
+
+  XCTAssertFalse([[LDFileOperations existingTrashDirectories] containsObject:[self bytesOf:trash]]);
+}
+
 @end

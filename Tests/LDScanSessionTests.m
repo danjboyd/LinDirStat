@@ -214,4 +214,25 @@
   XCTAssertEqual((unsigned long long)200, [[session rootNode] aggregateSize]);
 }
 
+- (void)testRootRescanKeepsTheFullPath
+{
+  NSString *path = [[[NSFileManager defaultManager] currentDirectoryPath] stringByAppendingPathComponent:@"Tests/Fixtures/basic-tree"];
+  LDScanSession *session = [[LDScanSession alloc] init];
+  __block LDFileNode *result = nil;
+  [session startAsyncRescanOfRootPath:path completion:^(LDFileNode *node) {
+    result = node;
+  }];
+  NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:10];
+  while (!result && [deadline timeIntervalSinceNow] > 0) {
+    [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.01]];
+  }
+  // Grafted under "This Computer", a rescanned volume must keep its path.
+  LDComputerNode *computer = [LDComputerNode computerNode];
+  [computer publishChildren:@[result]];
+  XCTAssertEqualObjects(path, [result path]);
+  const char *bytes = [path fileSystemRepresentation];
+  XCTAssertEqualObjects([NSData dataWithBytes:bytes length:strlen(bytes)], [result pathData]);
+  XCTAssertTrue([result fileCount] > 0);
+}
+
 @end

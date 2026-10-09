@@ -99,6 +99,9 @@ typedef enum {
 // scanEntryAtPathData:session:]). completion runs on the main queue with the
 // detached replacement node, or nil if the entry is gone.
 - (void)startAsyncRefreshOfPathData:(NSData *)pathData completion:(void (^)(LDFileNode *node))completion;
+// Scans a scan root (a volume under "This Computer") again; the result
+// keeps its full path and its own filesystem, like the original root.
+- (void)startAsyncRescanOfRootPath:(NSString *)path completion:(void (^)(LDFileNode *node))completion;
 - (BOOL)waitUntilFinishedBeforeDate:(NSDate *)deadline;
 - (NSDictionary *)snapshotDictionary;
 

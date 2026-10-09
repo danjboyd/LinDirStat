@@ -271,7 +271,9 @@ static NSString *const LDTabSearch = @"search";
     _duplicateFinder = nil;
     [_duplicatesTab setLabel:@"Duplicate Files"];
     [_fileTabs setNeedsDisplay:YES];
-    [self setDuplicateGroups:groups];
+    // The tree may have changed while hashing; drop what left it.
+    _duplicateGroups = groups;
+    [self fileListsDidChangeTree];
   }];
 }
 

@@ -12,9 +12,9 @@
 + (NSArray *)revealCommandsForPath:(NSData *)path;
 // Terminals run with the folder as their working directory too.
 + (NSArray *)terminalCommandsForDirectory:(NSData *)directory;
-// Terminals running a shell command (/bin/sh -c) and closing when it ends;
-// they wait for it, so the terminal exits when the command does.
-+ (NSArray *)terminalCommandsRunning:(NSData *)shellCommand inDirectory:(NSData *)directory;
+// Terminals running command (an argument list as above) and closing when it
+// ends; they wait for it, so the terminal exits when the command does.
++ (NSArray *)terminalCommandsRunning:(NSArray *)command inDirectory:(NSData *)directory;
 
 // file:// URI for a path, percent-encoding every byte that needs it.
 + (NSString *)fileURIForPath:(NSData *)path;

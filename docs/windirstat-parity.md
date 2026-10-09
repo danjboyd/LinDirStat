@@ -40,7 +40,7 @@ Status values:
 | Delete warning | matched | WinDirStat's warning lists every path, defaults to Cancel and has "Do not show this message again" (Preferences › Prompts restores it). |
 | Empty Folder, Move To, Empty Trash | matched | Empty Folder deletes a folder's contents permanently; Move To renames, or uses `mv` across filesystems, never replacing; Empty Trash empties the home and per-volume trashes. |
 | Refresh | matched | After any change on disk the affected items are rescanned in place or removed, totals and order updated upward, with selection and zoom kept (WinDirStat's refresh engine); a trash folder inside the tree is refreshed after trashing. Refresh Selected (F5), Refresh All (Shift+F5). |
-| Custom cleanups | matched | Ten slots (Ctrl+0–9) with WinDirStat's fields and rules: `/bin/sh -c`, `%p`, `%n`, `%sp`, `%sn` (not quoted), works-for kinds, recursion (children first), confirmation, run in a terminal, wait, refresh policy. |
+| Custom cleanups | matched | Ten slots (Ctrl+0–9) with WinDirStat's fields and rules: `/bin/sh -c`, `%p`, `%n`, `%sp`, `%sn`, works-for kinds, recursion (children first), confirmation, run in a terminal, wait, refresh policy. Different: WinDirStat pastes paths unquoted; Linux names can contain quotes and `$(…)`, so placeholders become shell parameters with the exact paths passed as arguments. |
 | Compute Hash | matched | MD5, SHA-1, SHA-256, SHA-384 and SHA-512 of one file. |
 | Windows-only cleanups | different | Compression, sparse files, hibernation, Disk Cleanup, shadow copies and the Explorer menu have no Linux equivalent and are left out. |
 

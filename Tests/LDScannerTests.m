@@ -589,6 +589,21 @@
   XCTAssertEqual((unsigned long long)(1000 + 7000 + 4000) + brokenSize, [root aggregateSize]);
 }
 
+- (void)testFollowedLinkToFileInTheTreeIsCountedOnce
+{
+  NSString *root = [[self temporaryRoot] stringByAppendingPathComponent:@"single"];
+  [[NSFileManager defaultManager] createDirectoryAtPath:root withIntermediateDirectories:YES attributes:nil error:NULL];
+  [self writeFile:@"single/target.bin" bytes:6000];
+  XCTAssertEqual(0, symlink("target.bin", [[root stringByAppendingPathComponent:@"alias"] fileSystemRepresentation]));
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setExcludeSymbolicLinks:NO];
+  LDFileNode *scanned = [self scan:root options:options session:nil];
+
+  XCTAssertEqual((unsigned long long)6000, [scanned aggregateSize]);
+  XCTAssertTrue([[self childNamed:@"alias" of:scanned] isHardLinkDuplicate]
+                != [[self childNamed:@"target.bin" of:scanned] isHardLinkDuplicate]);
+}
+
 - (void)testFollowedFolderLinkStillRespectsMountPoints
 {
   NSString *mounted = [NSString stringWithFormat:@"/run/user/%u", getuid()];

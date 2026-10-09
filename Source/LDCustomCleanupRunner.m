@@ -38,40 +38,46 @@ static NSData *LDParentPath(NSData *path)
 
 @implementation LDCustomCleanupRunner
 
-+ (NSData *)commandForTemplate:(NSString *)commandTemplate
-                          path:(NSData *)path
-                 subfolderPath:(NSData *)subfolderPath
++ (NSString *)scriptForTemplate:(NSString *)commandTemplate
 {
-  NSData *subfolder = subfolderPath ?: path;
-  const char *text = [commandTemplate UTF8String];
-  size_t length = strlen(text);
-  NSMutableData *command = [NSMutableData dataWithCapacity:length + [path length]];
-  for (size_t i = 0; i < length; i++) {
-    if (text[i] == '%') {
-      if (strncmp(text + i + 1, "sp", 2) == 0) {
-        [command appendData:subfolder];
-        i += 2;
-        continue;
-      }
-      if (strncmp(text + i + 1, "sn", 2) == 0) {
-        [command appendData:LDLastComponent(subfolder)];
-        i += 2;
-        continue;
-      }
-      if (text[i + 1] == 'p') {
-        [command appendData:path];
-        i += 1;
-        continue;
-      }
-      if (text[i + 1] == 'n') {
-        [command appendData:LDLastComponent(path)];
-        i += 1;
-        continue;
+  NSDictionary *parameters = @{@"sp": @"3", @"sn": @"4", @"p": @"1", @"n": @"2"};
+  NSMutableString *script = [NSMutableString string];
+  NSUInteger length = [commandTemplate length];
+  NSUInteger i = 0;
+  while (i < length) {
+    unichar c = [commandTemplate characterAtIndex:i];
+    NSString *name = nil;
+    if (c == '%') {
+      for (NSString *candidate in @[@"sp", @"sn", @"p", @"n"]) {
+        if (i + 1 + [candidate length] <= length
+            && [[commandTemplate substringWithRange:NSMakeRange(i + 1, [candidate length])] isEqualToString:candidate]) {
+          name = candidate;
+          break;
+        }
       }
     }
-    [command appendBytes:text + i length:1];
+    if (!name) {
+      [script appendFormat:@"%C", c];
+      i++;
+      continue;
+    }
+    NSUInteger end = i + 1 + [name length];
+    BOOL quoted = i > 0 && [commandTemplate characterAtIndex:i - 1] == '"'
+      && end < length && [commandTemplate characterAtIndex:end] == '"';
+    NSString *parameter = [NSString stringWithFormat:@"${%@}", [parameters objectForKey:name]];
+    [script appendString:quoted ? parameter : [NSString stringWithFormat:@"\"%@\"", parameter]];
+    i = end;
   }
-  return command;
+  return script;
+}
+
++ (NSArray *)commandForTemplate:(NSString *)commandTemplate
+                           path:(NSData *)path
+                  subfolderPath:(NSData *)subfolderPath
+{
+  NSData *subfolder = subfolderPath ?: path;
+  return @[@"/bin/sh", @"-c", [self scriptForTemplate:commandTemplate], @"sh",
+           path, LDLastComponent(path), subfolder, LDLastComponent(subfolder)];
 }
 
 static void LDCollectPostOrder(int parentFD, const char *name, NSData *path, dev_t device, NSMutableArray *order)
@@ -137,14 +143,14 @@ static void LDCollectPostOrder(int parentFD, const char *name, NSData *path, dev
 
 // Runs one command, waiting for it when asked. Returns NO if it could not
 // start or (when waiting) exited unsuccessfully.
-+ (BOOL)runCommand:(NSData *)command
++ (BOOL)runCommand:(NSArray *)command
        inDirectory:(NSData *)directory
           terminal:(BOOL)terminal
               wait:(BOOL)wait
 {
   NSArray *commands = terminal
     ? [LDDesktop terminalCommandsRunning:command inDirectory:directory]
-    : @[@[@"/bin/sh", @"-c", command]];
+    : @[command];
   if (!wait) {
     return [LDDesktop launchFirstAvailableCommand:commands inDirectory:directory];
   }
@@ -190,7 +196,7 @@ static void LDCollectPostOrder(int parentFD, const char *name, NSData *path, dev
       BOOL succeeded = YES;
       for (NSData *folder in folders) {
         NSData *subfolder = [settings recurseIntoSubdirectories] ? folder : nil;
-        NSData *command = [self commandForTemplate:commandTemplate path:path subfolderPath:subfolder];
+        NSArray *command = [self commandForTemplate:commandTemplate path:path subfolderPath:subfolder];
         if (![self runCommand:command
                   inDirectory:folder
                      terminal:[settings showInTerminal]

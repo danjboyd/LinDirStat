@@ -91,23 +91,28 @@ static NSData *LDParentOf(NSData *path)
 #endif
 }
 
-+ (NSArray *)terminalCommandsRunning:(NSData *)shellCommand inDirectory:(NSData *)directory
++ (NSArray *)terminalCommandsRunning:(NSArray *)command inDirectory:(NSData *)directory
 {
 #if defined(__APPLE__)
   (void)directory;
-  return @[@[@"/bin/sh", @"-c", shellCommand]];
+  return @[command];
 #else
   NSMutableData *workingDirectory = [NSMutableData dataWithBytes:"--working-directory=" length:20];
   [workingDirectory appendData:directory];
-  return @[
-    @[@"kgx", workingDirectory, @"--", @"/bin/sh", @"-c", shellCommand],
-    @[@"gnome-terminal", @"--wait", workingDirectory, @"--", @"/bin/sh", @"-c", shellCommand],
-    @[@"ptyxis", @"--new-window", @"--working-directory", directory, @"--", @"/bin/sh", @"-c", shellCommand],
-    @[@"konsole", @"--workdir", directory, @"-e", @"/bin/sh", @"-c", shellCommand],
-    @[@"xfce4-terminal", @"--disable-server", workingDirectory, @"-x", @"/bin/sh", @"-c", shellCommand],
-    @[@"x-terminal-emulator", @"-e", @"/bin/sh", @"-c", shellCommand],
-    @[@"xterm", @"-e", @"/bin/sh", @"-c", shellCommand],
+  NSArray *prefixes = @[
+    @[@"kgx", workingDirectory, @"--"],
+    @[@"gnome-terminal", @"--wait", workingDirectory, @"--"],
+    @[@"ptyxis", @"--new-window", @"--working-directory", directory, @"--"],
+    @[@"konsole", @"--workdir", directory, @"-e"],
+    @[@"xfce4-terminal", @"--disable-server", workingDirectory, @"-x"],
+    @[@"x-terminal-emulator", @"-e"],
+    @[@"xterm", @"-e"],
   ];
+  NSMutableArray *commands = [NSMutableArray array];
+  for (NSArray *prefix in prefixes) {
+    [commands addObject:[prefix arrayByAddingObjectsFromArray:command]];
+  }
+  return commands;
 #endif
 }
 

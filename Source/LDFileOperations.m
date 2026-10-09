@@ -458,13 +458,21 @@ static int LDRemoveTree(int directoryFD, const char *name, dev_t device)
 #else
   NSMutableArray *trashes = [NSMutableArray array];
   NSMutableSet *seen = [NSMutableSet set];
-  void (^consider)(NSData *) = ^(NSData *trash) {
+  // Emptying deletes for good, so every trash must be what the spec says:
+  // a real directory owned by us (never a symlink placed on a removable
+  // volume), with real files/ and info/ folders.
+  BOOL (^ownedDirectory)(NSData *) = ^BOOL(NSData *directory) {
     struct stat info;
-    NSMutableData *files = LDTerminated(LDJoinString(trash, "files"));
-    if (lstat([files bytes], &info) == 0 && S_ISDIR(info.st_mode) && ![seen containsObject:trash]) {
-      [seen addObject:trash];
-      [trashes addObject:trash];
+    return lstat([LDTerminated(directory) bytes], &info) == 0
+      && S_ISDIR(info.st_mode) && info.st_uid == getuid();
+  };
+  void (^consider)(NSData *) = ^(NSData *trash) {
+    if ([seen containsObject:trash] || !ownedDirectory(trash)
+        || !ownedDirectory(LDJoinString(trash, "files")) || !ownedDirectory(LDJoinString(trash, "info"))) {
+      return;
     }
+    [seen addObject:trash];
+    [trashes addObject:trash];
   };
   NSData *home = LDHomeTrash();
   if (home) {
@@ -491,7 +499,13 @@ static int LDRemoveTree(int directoryFD, const char *name, dev_t device)
         [top appendBytes:raw + i length:1];
       }
     }
-    consider(LDJoinString(LDJoinString(top, ".Trash"), [uid UTF8String]));
+    // $topdir/.Trash must be a sticky, non-symlinked directory.
+    NSData *shared = LDJoinString(top, ".Trash");
+    struct stat sharedInfo;
+    if (lstat([LDTerminated(shared) bytes], &sharedInfo) == 0
+        && S_ISDIR(sharedInfo.st_mode) && (sharedInfo.st_mode & S_ISVTX)) {
+      consider(LDJoinString(shared, [uid UTF8String]));
+    }
     consider(LDJoinString(top, [[@".Trash-" stringByAppendingString:uid] UTF8String]));
   }
   return trashes;
