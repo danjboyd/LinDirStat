@@ -121,9 +121,25 @@ conf="$runtime/etc/GNUstep/GNUstep.conf"
 # reads GlobalDefaults.plist next to GNUstep.conf below the user's own
 # NSGlobalDomain and app defaults, so a theme the user picked still wins.
 # (GNUstep reads GSTheme only from defaults, never from the environment.)
+#
+# The rest is what the Adwaita theme needs from settings a GNOME user's
+# GNUstep does not have yet, with the same ifUnset semantics:
+# - GSX11HandlesWindowDecorations = NO: the theme draws the header bar (title,
+#   window buttons, the toolbar in the bar's row). The theme asks for this
+#   itself only with a patched libs-gui (plugins-themes-adwaita README,
+#   "Header bar"); the bundled libs-gui is stock.
+# - The Control key acts as GNUstep's Command key, so shortcuts are Ctrl+…
+#   as in GNOME apps; Alt and Super take GNUstep's Control and Alternate.
 cat > "$runtime/etc/GNUstep/GlobalDefaults.plist" <<'EOF'
 {
   GSTheme = Adwaita;
+  GSX11HandlesWindowDecorations = NO;
+  GSFirstCommandKey = Control_L;
+  GSSecondCommandKey = Control_R;
+  GSFirstControlKey = Alt_L;
+  GSSecondControlKey = Alt_R;
+  GSFirstAlternateKey = Super_L;
+  GSSecondAlternateKey = Super_R;
 }
 EOF
 # gnustep-base ignores config files that group or others can write.
