@@ -202,7 +202,8 @@
   XCTAssertTrue([[lines objectAtIndex:1] hasSuffix:@",0x30000001,0x0000000000000000"], @"%@", [lines objectAtIndex:1]);
   NSString *one = [NSString stringWithFormat:@"\"%@\",1,0,1,", [[self temporaryRoot] stringByAppendingPathComponent:@"one"]];
   XCTAssertTrue([[lines objectAtIndex:2] hasPrefix:one], @"%@", [lines objectAtIndex:2]);
-  XCTAssertTrue([[lines objectAtIndex:2] hasSuffix:@",0x20000002,0x0000000000000000"], @"%@", [lines objectAtIndex:2]);
+  // A drive row (0x2, done); Index is the folder's inode.
+  XCTAssertTrue([[lines objectAtIndex:2] rangeOfString:@",0x20000002,0x"].location != NSNotFound, @"%@", [lines objectAtIndex:2]);
 
   // Loading it back gives a "This Computer" tree with full-path roots.
   NSError *error = nil;

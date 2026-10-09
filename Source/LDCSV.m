@@ -300,7 +300,7 @@ static void LDWriteSubtree(FILE *file, LDFileNode *node, NSMutableData *path, BO
   for (LDFileNode *child in children) {
     if ([node isComputer]) {
       // Its children are full-path roots.
-      LDWriteSubtree(file, child, [[child pathData] mutableCopy], NO, includeOwner);
+      LDWriteSubtree(file, child, [[child pathData] mutableCopy], NO, context);
       continue;
     }
     if (needsSeparator) {
