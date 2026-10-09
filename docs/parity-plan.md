@@ -42,7 +42,7 @@ checks every PR on its own platform before it is merged.
 | L10 | Linux AppImage: fix `gnustep-packager` for apps without file associations, then package | Linux | PR (packaged and validated; needs gnustep-packager `appimage-no-associations` merged upstream) |
 | M1 | macOS distribution: DMG through `gnustep-packager`'s `dmg` backend (AGENTS.md: no ad hoc DMG scripts); signing pipeline ready for a Developer ID and notarization once there is one | macOS | todo |
 | M2 | Full Disk Access: detect missing access and guide the user to System Settings | macOS | done (#3) |
-| M3 | Apple backends for anything new in L1–L9 that needs one (free space, progress range, hard links on APFS clones) | macOS | as PRs land |
+| M3 | Apple backends for anything new in L1–L9 that needs one (free space, progress range, hard links on APFS clones) | macOS | as PRs land (L1/L2 icons: #12) |
 
 ## Quality gates
 
