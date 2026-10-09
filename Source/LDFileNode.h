@@ -109,8 +109,10 @@ typedef enum {
 - (void)setExtensionKey:(NSString *)extensionKey;
 
 - (LDFileNodeError)error;
-// errorNumber is the errno for LDFileNodeErrorStatFailed.
+// errorNumber is the errno for LDFileNodeErrorStatFailed and
+// LDFileNodeErrorDirectoryUnreadable.
 - (void)setError:(LDFileNodeError)error errorNumber:(int)errorNumber;
+- (int)errorNumber;
 // A stable string for the error ("stat_failed:<reason>", "mount_point", ...).
 - (NSString *)errorCode;
 - (BOOL)isHardLinkDuplicate;

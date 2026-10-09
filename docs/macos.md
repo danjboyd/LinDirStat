@@ -41,9 +41,22 @@ The app is not sandboxed: a disk usage viewer needs to read the whole disk.
 ## Permissions
 
 - **Full Disk Access.** Without it, macOS hides some folders (Mail, Safari,
-  other users' data and so on). They show as unreadable, and macOS may ask
-  about Desktop, Documents and Downloads the first time. Grant it in System
-  Settings › Privacy & Security › Full Disk Access for complete scans.
+  other apps' data and so on), and reading them fails with `EPERM`. Ordinary
+  Unix permission errors are `EACCES`. They show as unreadable, and macOS
+  may ask about Desktop, Documents and Downloads the first time.
+  - After a scan that hit such folders, if the app lacks Full Disk Access
+    (`LDPrivacyAccess`), a sheet offers to open System Settings › Privacy &
+    Security › Full Disk Access. It appears once per launch and has a
+    "Don't ask again" box. Help › Full Disk Access Settings… opens the same
+    pane at any time.
+  - Some system folders refuse even with Full Disk Access. The prompt only
+    appears when access is missing.
+- **Grants and ad-hoc signing.** macOS ties privacy grants (Full Disk Access,
+  Automation) to the app's code signature. An ad-hoc signature changes with
+  every build, so after rebuilding or updating, a grant may look enabled
+  but no longer apply: remove LinDirStat from the list and add it again. A
+  stable signing identity (`SIGN_ID`, even a self-signed code-signing
+  certificate) keeps grants across builds.
 - **Automation (Finder).** Clean Up › Empty Trash asks Finder to empty the
   Trash, which covers every volume's trash. The first time, macOS asks to let
   LinDirStat control Finder.
