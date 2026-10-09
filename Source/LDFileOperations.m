@@ -10,7 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#if !defined(__APPLE__)
 #include <sys/syscall.h>
+#endif
 #include <time.h>
 #include <unistd.h>
 
@@ -119,6 +121,10 @@ static NSData *LDJoinString(NSData *directory, const char *name)
 + (BOOL)moveToTrash:(NSData *)path error:(NSError **)error
 {
   NSMutableData *terminated = LDTerminated(path);
+  struct stat info;
+  if (lstat([terminated bytes], &info) != 0) {
+    return LDFail(error, errno, @"Reading the item");
+  }
   NSURL *url = [NSURL fileURLWithFileSystemRepresentation:[terminated bytes] isDirectory:NO relativeToURL:nil];
   return [[NSFileManager defaultManager] trashItemAtURL:url resultingItemURL:NULL error:error];
 }
@@ -425,7 +431,7 @@ static int LDRemoveTree(int directoryFD, const char *name, dev_t device)
     return LDFail(error, EEXIST, @"Moving");
   }
 #if defined(__APPLE__)
-  if (rename([source bytes], [target bytes]) == 0) {
+  if (renamex_np([source bytes], [target bytes], RENAME_EXCL) == 0) {
     return YES;
   }
 #else

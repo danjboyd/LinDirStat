@@ -5,9 +5,46 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#if defined(__APPLE__)
+// CommonCrypto behind Nettle's names, so the code below is shared. Like
+// Nettle, a digest shorter than the full size is truncated.
+#include <CommonCrypto/CommonDigest.h>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#define LD_CC_DIGEST(name, ctx, prefix, size)                                     \
+  struct name##_ctx { ctx c; };                                                   \
+  static inline void name##_init(struct name##_ctx *x) { prefix##_Init(&x->c); }  \
+  static inline void name##_update(struct name##_ctx *x, size_t n, const uint8_t *b) \
+  {                                                                               \
+    while (n > 0) {                                                               \
+      CC_LONG chunk = n > 0x40000000 ? 0x40000000 : (CC_LONG)n;                   \
+      prefix##_Update(&x->c, b, chunk);                                           \
+      b += chunk;                                                                 \
+      n -= chunk;                                                                 \
+    }                                                                             \
+  }                                                                               \
+  static inline void name##_digest(struct name##_ctx *x, size_t n, uint8_t *out)  \
+  {                                                                               \
+    uint8_t full[size];                                                           \
+    prefix##_Final(full, &x->c);                                                  \
+    memcpy(out, full, n < size ? n : size);                                       \
+  }
+#define MD5_DIGEST_SIZE CC_MD5_DIGEST_LENGTH
+#define SHA1_DIGEST_SIZE CC_SHA1_DIGEST_LENGTH
+#define SHA256_DIGEST_SIZE CC_SHA256_DIGEST_LENGTH
+#define SHA384_DIGEST_SIZE CC_SHA384_DIGEST_LENGTH
+#define SHA512_DIGEST_SIZE CC_SHA512_DIGEST_LENGTH
+LD_CC_DIGEST(md5, CC_MD5_CTX, CC_MD5, CC_MD5_DIGEST_LENGTH)
+LD_CC_DIGEST(sha1, CC_SHA1_CTX, CC_SHA1, CC_SHA1_DIGEST_LENGTH)
+LD_CC_DIGEST(sha256, CC_SHA256_CTX, CC_SHA256, CC_SHA256_DIGEST_LENGTH)
+LD_CC_DIGEST(sha384, CC_SHA512_CTX, CC_SHA384, CC_SHA384_DIGEST_LENGTH)
+LD_CC_DIGEST(sha512, CC_SHA512_CTX, CC_SHA512, CC_SHA512_DIGEST_LENGTH)
+#pragma clang diagnostic pop
+#else
 #include <nettle/md5.h>
 #include <nettle/sha1.h>
 #include <nettle/sha2.h>
+#endif
 
 enum { LDHashReadSize = 64 * 1024 };
 enum { LDDuplicateDigestLength = 16 };

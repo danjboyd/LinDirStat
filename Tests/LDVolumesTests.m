@@ -2,7 +2,9 @@
 #import <XCTest/XCTest.h>
 #import "LDVolumes.h"
 
+#if !defined(__APPLE__)
 #include <sys/sysmacros.h>
+#endif
 
 @interface LDVolumesTests : XCTestCase
 @end

@@ -20,3 +20,5 @@ __pycache__/
 # Editor and OS noise.
 *~
 .DS_Store
+macos/build/
+marker-*

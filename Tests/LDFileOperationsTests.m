@@ -63,6 +63,8 @@
   [[@"hello" dataUsingEncoding:NSUTF8StringEncoding] writeToFile:path atomically:NO];
 }
 
+#if !defined(__APPLE__)
+// freedesktop.org trash and file manager; macOS uses its own.
 - (void)testTrashMovesItemAndWritesInfo
 {
   NSString *file = [self dataPath:@"report 1.txt"];
@@ -80,7 +82,10 @@
   XCTAssertTrue([info rangeOfString:@"/data/report%201.txt\n"].location != NSNotFound);
   XCTAssertTrue([info rangeOfString:@"\nDeletionDate="].location != NSNotFound);
 }
+#endif
 
+#if !defined(__APPLE__)
+// freedesktop.org trash and file manager; macOS uses its own.
 - (void)testTrashDoesNotOverwriteEarlierItemWithTheSameName
 {
   NSString *file = [self dataPath:@"same.txt"];
@@ -93,7 +98,10 @@
   XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:[self trashPath:@"files/same.txt.2"]]);
   XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:[self trashPath:@"info/same.txt.2.trashinfo"]]);
 }
+#endif
 
+#if !defined(__APPLE__)
+// freedesktop.org trash and file manager; macOS uses its own.
 - (void)testTrashMovesDirectoriesAndNamesThatAreNotUTF8
 {
   NSMutableData *directory = [[self bytesOf:[self dataPath:@""]] mutableCopy];
@@ -114,6 +122,7 @@
   [infoPath appendBytes:"/caf\xe9.trashinfo\0" length:16];
   XCTAssertEqual(0, lstat([infoPath bytes], &info));
 }
+#endif
 
 - (void)testTrashOfMissingItemFails
 {
@@ -122,6 +131,8 @@
   XCTAssertEqual((NSInteger)ENOENT, [error code]);
 }
 
+#if !defined(__APPLE__)
+// freedesktop.org trash and file manager; macOS uses its own.
 - (void)testTrashKeepsSymlinkAndItsTarget
 {
   NSString *target = [self dataPath:@"target.txt"];
@@ -135,6 +146,7 @@
   XCTAssertEqual(0, lstat([[self trashPath:@"files/link"] fileSystemRepresentation], &info));
   XCTAssertTrue(S_ISLNK(info.st_mode));
 }
+#endif
 
 - (void)testPermanentDeleteRemovesTreeButNotSymlinkTargets
 {
@@ -181,6 +193,8 @@
   XCTAssertEqualObjects(@"file:///a%20b/%25c%E9%2Cd", [LDDesktop fileURIForPath:path]);
 }
 
+#if !defined(__APPLE__)
+// freedesktop.org trash and file manager; macOS uses its own.
 - (void)testRevealUsesFileManagerInterfaceThenParentFolder
 {
   NSArray *commands = [LDDesktop revealCommandsForPath:[NSData dataWithBytes:"/srv/x y" length:8]];
@@ -190,6 +204,18 @@
   XCTAssertEqualObjects(@"xdg-open", [fallback objectAtIndex:0]);
   XCTAssertEqualObjects([NSData dataWithBytes:"/srv" length:4], [fallback objectAtIndex:1]);
 }
+#else
+- (void)testRevealUsesFinder
+{
+  NSArray *commands = [LDDesktop revealCommandsForPath:[NSData dataWithBytes:"/srv/x y" length:8]];
+  XCTAssertEqualObjects((@[@[@"open", @"-R", [NSData dataWithBytes:"/srv/x y" length:8]]]), commands);
+}
+
+- (void)testNoFreedesktopTrashOnMacOS
+{
+  XCTAssertEqual((NSUInteger)0, [[LDFileOperations existingTrashDirectories] count]);
+}
+#endif
 
 - (void)testCommandsRunUntilOneSucceeds
 {
@@ -227,6 +253,8 @@
   XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:[destination stringByAppendingPathComponent:@"move-me.txt"]]);
 }
 
+#if !defined(__APPLE__)
+// freedesktop.org trash and file manager; macOS uses its own.
 - (void)testEmptyTrashRemovesTrashedItems
 {
   NSString *file = [self dataPath:@"old.log"];
@@ -240,6 +268,7 @@
   XCTAssertEqual((NSUInteger)0, [[[NSFileManager defaultManager] contentsOfDirectoryAtPath:[self trashPath:@"info"] error:NULL] count]);
   XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:[self trashPath:@"files"]]);
 }
+#endif
 
 - (void)testTrashDirectoriesMustNotBeSymlinks
 {
