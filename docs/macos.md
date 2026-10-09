@@ -29,6 +29,22 @@ test run on macOS (it would use the user's real Trash). The version is `package.
 commit count. The app icon is drawn by `macos/icon/make-icon.swift` at build
 time.
 
+## DMG
+
+The disk image is made by gnustep-packager's `dmg` backend from the staged
+build, not by a script here:
+
+```sh
+pwsh ~/git/gnustep/gnustep-packager/scripts/run-packaging-pipeline.ps1 \
+  -Manifest package.manifest.json -Backend dmg -RunSmoke
+```
+
+It builds with `make -C macos`, stages `dist/stage/app/LinDirStat.app`, and
+writes `dist/packages/LinDirStat-0.1.0-macos-universal.dmg` (the app, an
+Applications link and the license notices). The app keeps its ad-hoc
+signature; notarization is off until there is a Developer ID. Details:
+[packaging.md](packaging.md#macos-dmg).
+
 ## Signing without a Developer ID
 
 There is no Apple Developer account, so the app is ad-hoc signed

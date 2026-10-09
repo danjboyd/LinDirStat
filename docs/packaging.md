@@ -10,7 +10,7 @@ Current packaging scope:
 
 - Linux packaging uses the `appimage` backend.
 - Windows MSI is disabled for this project unless explicitly revisited.
-- macOS packaging is planned, but `gnustep-packager` does not currently have a macOS target.
+- macOS packaging uses the `dmg` backend (native AppKit build, see "macOS DMG" below).
 
 ## Linux AppImage
 
@@ -156,18 +156,97 @@ Note for screenshot runs: gnustep-base does not read
 To keep test runs out of the real `~/GNUstep/Defaults`, set `GNUSTEP_HOME` to
 a scratch directory.
 
-## macOS Packaging Direction
+## macOS DMG
 
-The intended macOS distribution shape is a native macOS `.dmg` installer or disk image built around Apple's frameworks and app bundle conventions.
+The macOS app is the native AppKit build (`make -C macos`, see
+[macos.md](macos.md)), not a GNUstep runtime payload. `package.manifest.json`
+describes it in `platformOverrides.macos`, which gnustep-packager merges over
+the manifest whenever the target platform is macOS (on a Mac, or with
+`-Backend dmg`): it swaps the pipeline commands, entry path, validation paths
+and notices, drops the `gnustep-gui` profile, and removes the GNUstep launch
+environment, which a native bundle does not use. The Linux view of the
+manifest is unchanged.
 
-Do not add ad hoc macOS DMG scripts directly to LinDirStat. The packaging path should mature in `gnustep-packager` first, then LinDirStat should enable the macOS backend in its manifest once that backend exists.
+There is no DMG script in this repository: the image is built by
+gnustep-packager's `dmg` backend from the staged bundle.
 
-Expected future `gnustep-packager` capabilities:
+### Requirements
 
-- a macOS backend, likely named `dmg` or `macos-dmg`
-- native `.app` bundle staging rules
-- DMG layout configuration
-- code signing and notarization hooks
-- validation for bundle metadata, launch behavior, signing state, and packaged defaults
+- macOS 13 or later with Xcode or the Command Line Tools, and `pwsh`.
+- gnustep-packager with the `dmg` backend (branch `dmg-backend` until it is
+  merged).
+- For the Finder window layout (app on the left, Applications on the right):
+  a logged-in desktop session where the terminal may control Finder (System
+  Settings › Privacy & Security › Automation). Without it the layout is
+  skipped with a log line and the DMG opens in Finder's default window.
 
-Until that exists, keep macOS packaging requirements documented here and keep the manifest valid against the currently supported packager schema.
+### Commands
+
+From the repository root on a Mac:
+
+```sh
+PACKAGER=~/git/gnustep/gnustep-packager/scripts/gnustep-packager.ps1
+pwsh $PACKAGER -Manifest package.manifest.json -Command manifest-check
+pwsh $PACKAGER -Manifest package.manifest.json -Command build      # make -C macos
+pwsh $PACKAGER -Manifest package.manifest.json -Command stage      # scripts/package-stage-macos.sh dist/stage
+pwsh $PACKAGER -Manifest package.manifest.json -Command validate
+pwsh $PACKAGER -Manifest package.manifest.json -Command package -Backend dmg
+pwsh $PACKAGER -Manifest package.manifest.json -Command validate -Backend dmg -RunSmoke
+```
+
+or the whole sequence:
+`pwsh ~/git/gnustep/gnustep-packager/scripts/run-packaging-pipeline.ps1 -Manifest package.manifest.json -Backend dmg -RunSmoke`.
+
+To check the Linux view of the manifest from a Mac:
+`pwsh $PACKAGER -Manifest package.manifest.json -Command manifest-check -Platform linux`.
+
+### Payload and image
+
+`scripts/package-stage-macos.sh dist/stage` builds the app if needed,
+verifies its signature, and stages:
+
+| Path | Contents |
+| --- | --- |
+| `app/LinDirStat.app` | The universal (arm64 + x86_64), ad-hoc signed bundle from `macos/build`, copied with `ditto` |
+| `runtime/` | Empty: the bundle links only Apple frameworks |
+| `metadata/licenses` | `LinDirStat.txt` (with `COPYING` when present) and `WinDirStat-reference.txt` |
+
+The package step writes `dist/packages/LinDirStat-0.1.0-macos-universal.dmg`
+(about 1.9 MB) with `.metadata.json` and `.diagnostics.txt` sidecars. The
+volume `LinDirStat` holds `LinDirStat.app`, an `Applications` link and
+`THIRD-PARTY-NOTICES.txt` (both notices, with their text).
+
+`backends.dmg` settings:
+
+- `signing.identity` is `-` (ad-hoc) and `signing.resign` is `false`: the
+  image keeps the signature `make -C macos` gave the app (hardened runtime,
+  `macos/LinDirStat.entitlements`). `signing.entitlementsPath` already points
+  at that file for a later re-sign with a real identity.
+- `notarization.enabled` is `false`. The keychain profile would come from the
+  `LINDIRSTAT_NOTARY_PROFILE` environment variable; the manifest never holds
+  credentials.
+- The launch smoke (`-RunSmoke`) starts the app from the mounted image for
+  8 seconds with `LINDIRSTAT_SCAN_PATH=/usr/share/zoneinfo`, then kills it.
+  The window appears on screen while it runs.
+
+### Validation
+
+`validate -Backend dmg` runs `hdiutil verify`, mounts the image read-only
+and hidden from Finder, checks the bundle, the `Applications` link and the
+notice report, runs `codesign --verify --deep --strict` on the mounted app,
+records the Gatekeeper assessment, runs the smoke launch, and detaches.
+Gatekeeper rejects an ad-hoc signed app (`spctl` "rejected"); that is
+recorded, not a failure. Downloaded copies need the first-launch steps in
+[macos.md](macos.md#signing-without-a-developer-id).
+
+Run on 2026-10-09 (macOS 26.5, Apple Silicon, Xcode 26.4): every check
+passed; Finder layout applied; Gatekeeper rejected (ad-hoc, expected); the app
+stayed running through the smoke window from the mounted image.
+
+### With a Developer ID later
+
+Set `backends.dmg.signing.identity` to the Developer ID Application identity
+and `signing.resign` to `true` (or pass `SIGN_ID` to the build), store notary
+credentials with `xcrun notarytool store-credentials <profile>`, export
+`LINDIRSTAT_NOTARY_PROFILE=<profile>`, and set `notarization.enabled` to
+`true`. See gnustep-packager's `docs/dmg-backend.md`.
