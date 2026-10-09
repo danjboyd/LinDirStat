@@ -2,15 +2,44 @@
 #import "LDFileNode.h"
 #import "LDScanSession.h"
 #import "LDExtensionStats.h"
+#import "LDScanOptions.h"
 
 #include <dirent.h>
 #include <dispatch/dispatch.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <string.h>
 #include <sys/stat.h>
 
-static const NSUInteger LDDefaultScanThreads = 4;
+typedef enum {
+  LDLinkSkip = 0,
+  LDLinkLeaf,
+  LDLinkFollow
+} LDLinkDisposition;
+
+// One directory waiting to be read. rootDevice is the filesystem of the scan
+// root it belongs to, for the mount-point rule.
+@interface LDScanJob : NSObject
+{
+@public
+  LDDirectoryNode *_node;
+  NSData *_path;
+  dev_t _rootDevice;
+}
+@end
+
+@implementation LDScanJob
+@end
+
+static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice)
+{
+  LDScanJob *job = [[LDScanJob alloc] init];
+  job->_node = (LDDirectoryNode *)node;
+  job->_path = path;
+  job->_rootDevice = rootDevice;
+  return job;
+}
 
 @implementation LDScanner
 
@@ -26,7 +55,8 @@ static const NSUInteger LDDefaultScanThreads = 4;
     _pendingDirectories = [[NSMutableArray alloc] init];
     _arenas = [[NSMutableArray alloc] init];
     _sortMetric = LDSizeMetricPhysical;
-    _threadCount = LDDefaultScanThreads;
+    _options = [[LDScanOptions alloc] init];
+    _threadCount = [_options threadCount];
   }
   return self;
 }
@@ -36,17 +66,32 @@ static const NSUInteger LDDefaultScanThreads = 4;
   pthread_mutex_destroy(&_sharedStateLock);
 }
 
-- (BOOL)crossesFilesystems { return _crossesFilesystems; }
-- (void)setCrossesFilesystems:(BOOL)crossesFilesystems { _crossesFilesystems = crossesFilesystems; }
+- (LDScanOptions *)scanOptions { return _options; }
+
+- (void)setScanOptions:(LDScanOptions *)options
+{
+  _options = options ? [options copy] : [[LDScanOptions alloc] init];
+  _threadCount = [_options threadCount];
+}
+
+- (BOOL)crossesFilesystems { return ![_options excludeMountPoints]; }
+
+- (void)setCrossesFilesystems:(BOOL)crossesFilesystems
+{
+  LDScanOptions *options = [_options copy];
+  [options setExcludeMountPoints:!crossesFilesystems];
+  _options = options;
+}
+
 - (LDSizeMetric)sortMetric { return _sortMetric; }
 - (void)setSortMetric:(LDSizeMetric)sortMetric { _sortMetric = sortMetric; }
-+ (NSUInteger)defaultThreadCount { return LDDefaultScanThreads; }
++ (NSUInteger)defaultThreadCount { return [[[LDScanOptions alloc] init] threadCount]; }
 - (NSUInteger)threadCount { return _threadCount; }
 - (void)setThreadCount:(NSUInteger)threadCount { _threadCount = MAX((NSUInteger)1, threadCount); }
 
-- (BOOL)shouldDescendIntoDevice:(dev_t)device
+- (BOOL)shouldDescendIntoDevice:(dev_t)device rootDevice:(dev_t)rootDevice
 {
-  return _crossesFilesystems || device == _rootDevice;
+  return ![_options excludeMountPoints] || device == rootDevice;
 }
 
 - (LDFileNodeKind)kindForMode:(mode_t)mode
@@ -163,6 +208,37 @@ static const NSUInteger LDDefaultScanThreads = 4;
   }
 }
 
+#pragma mark - Filters
+
+- (LDPathFilter *)compiledFilterForPatterns:(NSArray *)patterns
+{
+  if ([patterns count] == 0) {
+    return nil;
+  }
+  LDPathFilter *filter = [[LDPathFilter alloc] initWithPatterns:patterns usesRegex:[_options usesRegex]];
+  return [filter count] > 0 ? filter : nil;
+}
+
+// Decides what a symlink entry becomes. A link is followed by replacing info
+// with its target's; a dangling link counts as a link to a file.
+- (LDLinkDisposition)dispositionForLinkAt:(int)directoryFD
+                                     name:(const char *)name
+                                     stat:(struct stat *)info
+                              isDirectory:(BOOL *)isDirectory
+{
+  struct stat target;
+  BOOL resolved = fstatat(directoryFD, name, &target, 0) == 0;
+  *isDirectory = resolved && S_ISDIR(target.st_mode);
+  if ([_options excludeSymbolicLinks]) {
+    return *isDirectory ? LDLinkLeaf : LDLinkSkip;
+  }
+  if (!resolved) {
+    return LDLinkLeaf;
+  }
+  *info = target;
+  return LDLinkFollow;
+}
+
 #pragma mark - Scanning
 
 - (void)resetForScan
@@ -173,6 +249,35 @@ static const NSUInteger LDDefaultScanThreads = 4;
   [_arenas removeAllObjects];
   _retiredArrays = [[NSMutableArray alloc] init];
   _activeWorkers = 0;
+  _folderFilter = [self compiledFilterForPatterns:[_options excludedFolderPatterns]];
+  _fileFilter = [self compiledFilterForPatterns:[_options excludedFilePatterns]];
+}
+
+// The node for a scan root, following a symlink at the root. The root is
+// never filtered. If it cannot be read the result carries the stat error.
+- (LDFileNode *)nodeForRootPath:(NSString *)path stat:(struct stat *)info session:(LDScanSession *)session
+{
+  if (stat([path fileSystemRepresentation], info) != 0) {
+    LDFileNode *missing = [LDFileNode nodeWithPath:path kind:LDFileNodeKindSpecial size:0];
+    [missing setError:LDFileNodeErrorStatFailed errorNumber:errno];
+    [session incrementErrorCount];
+    [session incrementSkippedCount];
+    return missing;
+  }
+  LDFileNodeKind kind = [self kindForMode:info->st_mode];
+  unsigned long long size = 0;
+  unsigned long long allocated = 0;
+  [self sizesForStat:info kind:kind size:&size allocated:&allocated];
+  LDFileNode *root = [LDFileNode nodeWithPath:path kind:kind size:size];
+  [root setAllocatedSize:allocated];
+  [self applyStat:info toNode:root session:session cache:nil];
+  return root;
+}
+
+- (NSData *)pathBytesForPath:(NSString *)path
+{
+  const char *bytes = [path fileSystemRepresentation];
+  return [NSData dataWithBytes:bytes length:strlen(bytes)];
 }
 
 - (LDFileNode *)scanPath:(NSString *)path session:(LDScanSession *)session
@@ -181,30 +286,51 @@ static const NSUInteger LDDefaultScanThreads = 4;
   [session markScanning];
   [session setCurrentPath:path];
 
-  // The root follows symlinks so scanning a linked folder scans its target.
   struct stat info;
-  const char *rootPath = [path fileSystemRepresentation];
-  if (stat(rootPath, &info) != 0) {
-    LDFileNode *missing = [LDFileNode nodeWithPath:path kind:LDFileNodeKindSpecial size:0];
-    [missing setError:LDFileNodeErrorStatFailed errorNumber:errno];
-    [session incrementErrorCount];
-    [session incrementSkippedCount];
-    [session setRootNode:missing];
+  LDFileNode *root = [self nodeForRootPath:path stat:&info session:session];
+  if ([root error] == LDFileNodeErrorStatFailed) {
+    [session setRootNode:root];
     [session markComplete];
-    return missing;
+    return root;
   }
-
-  _rootDevice = info.st_dev;
-  LDFileNodeKind kind = [self kindForMode:info.st_mode];
-  unsigned long long size = 0;
-  unsigned long long allocated = 0;
-  [self sizesForStat:&info kind:kind size:&size allocated:&allocated];
-  LDFileNode *root = [LDFileNode nodeWithPath:path kind:kind size:size];
-  [root setAllocatedSize:allocated];
-  [self applyStat:&info toNode:root session:session cache:nil];
-  [self scanEntry:root stat:&info pathBytes:[NSData dataWithBytes:rootPath length:strlen(rootPath)] session:session];
+  [self scanEntry:root stat:&info pathBytes:[self pathBytesForPath:path] rootDevice:info.st_dev session:session];
   [session markComplete];
   return root;
+}
+
+- (LDFileNode *)scanPaths:(NSArray *)paths session:(LDScanSession *)session
+{
+  if ([paths count] == 1) {
+    return [self scanPath:[paths objectAtIndex:0] session:session];
+  }
+  [self resetForScan];
+  [session markScanning];
+  [session setCurrentPath:[paths firstObject]];
+
+  LDComputerNode *computer = [LDComputerNode computerNode];
+  NSMutableArray *roots = [NSMutableArray array];
+  NSUInteger queued = 0;
+  for (NSString *path in paths) {
+    struct stat info;
+    LDFileNode *root = [self nodeForRootPath:path stat:&info session:session];
+    [roots addObject:root];
+    if ([root error] != LDFileNodeErrorStatFailed
+        && [self queueRoot:root stat:&info pathBytes:[self pathBytesForPath:path] rootDevice:info.st_dev session:session]) {
+      queued++;
+    }
+  }
+  // Each queued root holds one pending read on the computer node, so it
+  // stays pending until the last root is done.
+  [computer publishChildren:roots];
+  [computer beginPendingScans:queued];
+  [session setRootNode:computer];
+  if (queued > 0) {
+    [self runWorkersWithSession:session];
+  }
+  [self giveArenasToDirectory:computer];
+  [self finishTree:computer session:session];
+  [session markComplete];
+  return computer;
 }
 
 - (LDFileNode *)scanEntryAtPathData:(NSData *)pathData session:(LDScanSession *)session
@@ -232,49 +358,89 @@ static const NSUInteger LDDefaultScanThreads = 4;
     [session markComplete];
     return nil;
   }
-  _rootDevice = parentInfo.st_dev;
 
   LDFileNodeKind kind = [self kindForMode:info.st_mode];
+  if (kind == LDFileNodeKindSymlink) {
+    BOOL isDirectory = NO;
+    LDLinkDisposition disposition = [self dispositionForLinkAt:AT_FDCWD name:path stat:&info isDirectory:&isDirectory];
+    if (disposition == LDLinkSkip) {
+      [session markComplete];
+      return nil;
+    }
+    if (disposition == LDLinkFollow) {
+      kind = [self kindForMode:info.st_mode];
+    }
+  }
   unsigned long long size = 0;
   unsigned long long allocated = 0;
   [self sizesForStat:&info kind:kind size:&size allocated:&allocated];
   LDFileNode *node = [LDFileNode nodeWithNameBytes:name length:strlen(name) arena:nil
                                               kind:kind size:size allocatedSize:allocated];
   [self applyStat:&info toNode:node session:session cache:nil];
-  if (kind == LDFileNodeKindDirectory && ![self shouldDescendIntoDevice:info.st_dev]) {
+  if (kind == LDFileNodeKindDirectory && ![self shouldDescendIntoDevice:info.st_dev rootDevice:parentInfo.st_dev]) {
     [node setError:LDFileNodeErrorMountPoint errorNumber:0];
     [session incrementSkippedCount];
     [session setRootNode:node];
     [session markComplete];
     return node;
   }
-  [self scanEntry:node stat:&info pathBytes:pathData session:session];
+  [self scanEntry:node stat:&info pathBytes:pathData rootDevice:parentInfo.st_dev session:session];
   [session markComplete];
   return node;
+}
+
+// Queues a root directory for the workers; a file root is only counted.
+// Returns NO if nothing was queued (a file, or a directory already queued
+// through another root).
+- (BOOL)queueRoot:(LDFileNode *)root
+             stat:(const struct stat *)info
+        pathBytes:(NSData *)pathBytes
+       rootDevice:(dev_t)rootDevice
+          session:(LDScanSession *)session
+{
+  if ([root kind] != LDFileNodeKindDirectory) {
+    [session recordFileWithBytes:[root allocatedSize]];
+    return NO;
+  }
+  if (![self insertKey:[self identityKeyForStat:info] intoSet:_visitedDirectories]) {
+    [root setError:LDFileNodeErrorDirectoryCycle errorNumber:0];
+    [session incrementSkippedCount];
+    return NO;
+  }
+  [(LDDirectoryNode *)root beginPendingScans:1];
+  [session recordDirectory];
+  [_pendingDirectories addObject:LDMakeScanJob(root, pathBytes, rootDevice)];
+  return YES;
+}
+
+- (void)giveArenasToDirectory:(LDDirectoryNode *)directory
+{
+  [directory setOwnedStorage:[_arenas copy]];
+  [_arenas removeAllObjects];
+}
+
+- (void)finishTree:(LDFileNode *)root session:(LDScanSession *)session
+{
+  [root recalculateAggregateSize];
+  [root sortChildrenByMetric:_sortMetric retiring:_retiredArrays];
+  [session setRootNode:root];
 }
 
 // Reads root's subtree (if it is a directory), then totals and sorts it.
 // The root is published to the session first, so the tree can be shown
 // while it grows.
-- (void)scanEntry:(LDFileNode *)root stat:(const struct stat *)info pathBytes:(NSData *)pathBytes session:(LDScanSession *)session
+- (void)scanEntry:(LDFileNode *)root
+             stat:(const struct stat *)info
+        pathBytes:(NSData *)pathBytes
+       rootDevice:(dev_t)rootDevice
+          session:(LDScanSession *)session
 {
-  if ([root kind] == LDFileNodeKindDirectory) {
-    LDDirectoryNode *directory = (LDDirectoryNode *)root;
-    [directory beginPendingScans:1];
+  if ([self queueRoot:root stat:info pathBytes:pathBytes rootDevice:rootDevice session:session]) {
     [session setRootNode:root];
-    [session recordDirectory];
-    [_visitedDirectories addObject:[self identityKeyForStat:info]];
-    [_pendingDirectories addObject:@[root, pathBytes]];
     [self runWorkersWithSession:session];
-    [directory setOwnedStorage:[_arenas copy]];
-    [_arenas removeAllObjects];
-  } else {
-    [session recordFileWithBytes:[root allocatedSize]];
+    [self giveArenasToDirectory:(LDDirectoryNode *)root];
   }
-
-  [root recalculateAggregateSize];
-  [root sortChildrenByMetric:_sortMetric retiring:_retiredArrays];
-  [session setRootNode:root];
+  [self finishTree:root session:session];
 }
 
 - (NSArray *)takeRetiredArrays
@@ -286,7 +452,8 @@ static const NSUInteger LDDefaultScanThreads = 4;
 
 // Drains _pendingDirectories with _threadCount workers. A worker waits while
 // the stack is empty but another worker may still add subdirectories, and
-// all workers exit once nothing is pending and nobody is busy.
+// all workers exit once nothing is pending and nobody is busy. While the
+// session is suspended, workers block between directory reads.
 - (void)runWorkersWithSession:(LDScanSession *)session
 {
   dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
@@ -298,7 +465,8 @@ static const NSUInteger LDDefaultScanThreads = 4;
     [_arenas addObject:arena];
     [_workCondition unlock];
     while (YES) {
-      NSArray *job = nil;
+      [session waitWhileSuspended];
+      LDScanJob *job = nil;
       [_workCondition lock];
       while ([_pendingDirectories count] == 0 && _activeWorkers > 0 && ![session isCanceled]) {
         [_workCondition wait];
@@ -315,11 +483,7 @@ static const NSUInteger LDDefaultScanThreads = 4;
 
       NSArray *subdirectories = nil;
       @autoreleasepool {
-        subdirectories = [self readDirectoryNode:[job objectAtIndex:0]
-                                       pathBytes:[job objectAtIndex:1]
-                                         session:session
-                                           arena:arena
-                                           cache:keyCache];
+        subdirectories = [self readDirectoryJob:job session:session arena:arena cache:keyCache];
       }
 
       [_workCondition lock];
@@ -331,54 +495,69 @@ static const NSUInteger LDDefaultScanThreads = 4;
   });
 }
 
-// Reads one directory, adding its entries as children of node. Paths stay
-// raw bytes so names that are not valid UTF-8 still open. Returns the
-// subdirectories still to scan as [node, path bytes] pairs.
-- (NSArray *)readDirectoryNode:(LDFileNode *)node
-                     pathBytes:(NSData *)pathBytes
-                       session:(LDScanSession *)session
-                         arena:(LDNameArena *)arena
-                         cache:(NSMutableDictionary *)cache
+// Reads one directory, adding its entries as children of the job's node.
+// Paths stay raw bytes so names that are not valid UTF-8 still open. Entries
+// the options exclude are not added and count toward nothing. Returns the
+// subdirectories still to scan as jobs.
+- (NSArray *)readDirectoryJob:(LDScanJob *)job
+                      session:(LDScanSession *)session
+                        arena:(LDNameArena *)arena
+                        cache:(NSMutableDictionary *)cache
 {
+  LDDirectoryNode *directoryNode = job->_node;
+  NSData *pathBytes = job->_path;
   size_t pathLength = [pathBytes length];
-  char *path = malloc(pathLength + 1);
+  BOOL rootIsSlash = (pathLength == 1 && ((const char *)[pathBytes bytes])[0] == '/');
+  // path holds "<directory>/" followed by the current entry's name.
+  size_t prefixLength = rootIsSlash ? pathLength : pathLength + 1;
+  char *path = malloc(prefixLength + NAME_MAX + 1);
   memcpy(path, [pathBytes bytes], pathLength);
   path[pathLength] = '\0';
   [session setCurrentPath:[[NSFileManager defaultManager] stringWithFileSystemRepresentation:path length:pathLength]];
 
-  LDDirectoryNode *directoryNode = (LDDirectoryNode *)node;
   DIR *directory = opendir(path);
   if (directory == NULL) {
     free(path);
-    [node setError:LDFileNodeErrorDirectoryUnreadable errorNumber:errno];
+    [directoryNode setError:LDFileNodeErrorDirectoryUnreadable errorNumber:errno];
     [session incrementErrorCount];
     [session incrementSkippedCount];
     [directoryNode finishPendingScan];
     return nil;
   }
+  path[prefixLength - 1] = '/';
+  char *nameSlot = path + prefixLength;
 
+  BOOL excludeHidden = [_options excludeHidden];
+  BOOL crossesFilesystems = ![_options excludeMountPoints];
+  unsigned long long minimumFileSize = [_options minimumFileSize];
   int directoryFD = dirfd(directory);
-  BOOL rootIsSlash = (pathLength == 1 && path[0] == '/');
   NSMutableArray *subdirectories = [NSMutableArray array];
   NSMutableArray *children = [NSMutableArray array];
   NSUInteger files = 0;
   NSUInteger directories = 0;
   unsigned long long bytes = 0;
   unsigned long long logicalBytes = 0;
-  int64_t newest = (int64_t)[node modificationTime];
+  int64_t newest = (int64_t)[directoryNode modificationTime];
   struct dirent *entry = NULL;
   while ((entry = readdir(directory)) != NULL) {
-    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+    const char *name = entry->d_name;
+    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
       continue;
     }
     if ([session isCanceled]) {
       break;
     }
+    if (excludeHidden && name[0] == '.') {
+      continue;
+    }
 
-    size_t nameLength = strlen(entry->d_name);
+    size_t nameLength = strlen(name);
     struct stat info;
-    if (fstatat(directoryFD, entry->d_name, &info, AT_SYMLINK_NOFOLLOW) != 0) {
-      LDFileNode *failed = [LDFileNode nodeWithNameBytes:entry->d_name length:nameLength arena:arena
+    if (fstatat(directoryFD, name, &info, AT_SYMLINK_NOFOLLOW) != 0) {
+      if (_fileFilter && [_fileFilter matchesBytes:name]) {
+        continue;
+      }
+      LDFileNode *failed = [LDFileNode nodeWithNameBytes:name length:nameLength arena:arena
                                                     kind:LDFileNodeKindSpecial size:0 allocatedSize:0];
       [failed setError:LDFileNodeErrorStatFailed errorNumber:errno];
       [session incrementErrorCount];
@@ -389,10 +568,30 @@ static const NSUInteger LDDefaultScanThreads = 4;
     }
 
     LDFileNodeKind kind = [self kindForMode:info.st_mode];
+    BOOL directoryLike = (kind == LDFileNodeKindDirectory);
+    if (kind == LDFileNodeKindSymlink) {
+      LDLinkDisposition disposition = [self dispositionForLinkAt:directoryFD name:name stat:&info isDirectory:&directoryLike];
+      if (disposition == LDLinkSkip) {
+        continue;
+      }
+      if (disposition == LDLinkFollow) {
+        kind = [self kindForMode:info.st_mode];
+      }
+    }
+    if (directoryLike) {
+      memcpy(nameSlot, name, nameLength + 1);
+      if (_folderFilter && [_folderFilter matchesBytes:path]) {
+        continue;
+      }
+    } else if ((_fileFilter && [_fileFilter matchesBytes:name])
+               || (kind == LDFileNodeKindFile && (unsigned long long)info.st_size < minimumFileSize)) {
+      continue;
+    }
+
     unsigned long long size = 0;
     unsigned long long allocated = 0;
     [self sizesForStat:&info kind:kind size:&size allocated:&allocated];
-    LDFileNode *child = [LDFileNode nodeWithNameBytes:entry->d_name length:nameLength arena:arena
+    LDFileNode *child = [LDFileNode nodeWithNameBytes:name length:nameLength arena:arena
                                                  kind:kind size:size allocatedSize:allocated];
     [self applyStat:&info toNode:child session:session cache:cache];
     [children addObject:child];
@@ -405,20 +604,15 @@ static const NSUInteger LDDefaultScanThreads = 4;
       continue;
     }
     directories++;
-    if (![self shouldDescendIntoDevice:info.st_dev]) {
+    if (!crossesFilesystems && info.st_dev != job->_rootDevice) {
       [child setError:LDFileNodeErrorMountPoint errorNumber:0];
       [session incrementSkippedCount];
     } else if (![self insertKey:[self identityKeyForStat:&info] intoSet:_visitedDirectories]) {
       [child setError:LDFileNodeErrorDirectoryCycle errorNumber:0];
       [session incrementSkippedCount];
     } else {
-      NSMutableData *childPath = [NSMutableData dataWithCapacity:pathLength + nameLength + 1];
-      [childPath appendBytes:path length:pathLength];
-      if (!rootIsSlash) {
-        [childPath appendBytes:"/" length:1];
-      }
-      [childPath appendBytes:entry->d_name length:nameLength];
-      [subdirectories addObject:@[child, childPath]];
+      NSData *childPath = [NSData dataWithBytes:path length:prefixLength + nameLength];
+      [subdirectories addObject:LDMakeScanJob(child, childPath, job->_rootDevice)];
     }
   }
   closedir(directory);
@@ -428,8 +622,8 @@ static const NSUInteger LDDefaultScanThreads = 4;
   // of this node. Each queued subdirectory holds one pending read here.
   [directoryNode publishChildren:children];
   [directoryNode addLiveFiles:files directories:directories size:logicalBytes allocatedSize:bytes modificationTime:newest];
-  for (NSArray *job in subdirectories) {
-    [(LDDirectoryNode *)[job objectAtIndex:0] beginPendingScans:1];
+  for (LDScanJob *subdirectory in subdirectories) {
+    [subdirectory->_node beginPendingScans:1];
   }
   [directoryNode beginPendingScans:[subdirectories count]];
   [directoryNode finishPendingScan];

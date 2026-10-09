@@ -152,6 +152,7 @@ static Class LDClassForKind(LDFileNodeKind kind)
 - (const char *)nameBytes { return _name; }
 - (LDFileNodeKind)kind { return (LDFileNodeKind)_kind; }
 - (BOOL)isLeaf { return YES; }
+- (BOOL)isComputer { return NO; }
 - (unsigned long long)size { return _size; }
 - (unsigned long long)allocatedSize { return _allocatedSize; }
 - (unsigned long long)aggregateSize { return _size; }
@@ -537,6 +538,24 @@ static void LDAtomicMax64(int64_t *target, int64_t value)
     [[_children objectAtIndex:i] sortChildrenByMetric:metric retiring:retired];
   }
 }
+
+@end
+
+static const char LDComputerNodeName[] = "This Computer";
+
+@implementation LDComputerNode
+
++ (LDComputerNode *)computerNode
+{
+  LDComputerNode *node = [[LDComputerNode alloc] initWithNodeKind:LDFileNodeKindDirectory];
+  [node setNameBytes:LDComputerNodeName length:strlen(LDComputerNodeName) arena:nil];
+  return node;
+}
+
+- (BOOL)isComputer { return YES; }
+- (NSString *)path { return [self displayName]; }
+- (NSData *)pathData { return [NSData data]; }
+- (void)appendPathToData:(NSMutableData *)data { (void)data; }
 
 @end
 

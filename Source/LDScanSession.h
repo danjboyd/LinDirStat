@@ -1,6 +1,8 @@
 #import <Foundation/Foundation.h>
 #import "LDFileNode.h"
 
+@class LDScanOptions;
+
 typedef enum {
   LDScanSessionStateIdle = 0,
   LDScanSessionStateScanning = 1,
@@ -23,12 +25,16 @@ typedef enum {
   volatile unsigned long long _bytesScanned;
   NSDate *_startedAt;
   NSDate *_finishedAt;
+  NSDate *_suspendedAt;
+  NSTimeInterval _suspendedDuration;
+  NSCondition *_suspendCondition;
+  volatile BOOL _suspended;
   LDFileNode *_rootNode;
   volatile BOOL _canceled;
   volatile BOOL _asyncFinished;
-  NSString *_asyncPath;
   LDSizeMetric _sortMetric;
   NSUInteger _threadCount;
+  LDScanOptions *_scanOptions;
 }
 
 - (LDScanSessionState)state;
@@ -48,6 +54,7 @@ typedef enum {
 // Batched form used by scanner workers, once per directory read.
 - (void)recordFiles:(NSUInteger)files directories:(NSUInteger)directories bytes:(unsigned long long)bytes;
 
+// Wall-clock scan time, not counting time spent suspended.
 - (NSTimeInterval)elapsedTime;
 
 - (LDFileNode *)rootNode;
@@ -63,14 +70,31 @@ typedef enum {
 - (void)cancel;
 - (BOOL)isCanceled;
 - (BOOL)isFinished;
+
+// Suspend pauses the scan's workers between directory reads (they block,
+// they do not spin) until -resume or -cancel.
+- (void)suspend;
+- (void)resume;
+- (BOOL)isSuspended;
+// Called by scanner workers: returns once the session is not suspended or
+// has been canceled.
+- (void)waitWhileSuspended;
+
 // Number of directories read concurrently (see -[LDScanner threadCount]).
 - (NSUInteger)threadCount;
 - (void)setThreadCount:(NSUInteger)threadCount;
+// Filters and exclusions for the async scans and entry rescans. Setting them
+// also sets threadCount to theirs. nil (the default) means default options.
+- (LDScanOptions *)scanOptions;
+- (void)setScanOptions:(LDScanOptions *)options;
 
 // Scans on a libdispatch queue. completion, if given, runs on the main queue
 // once the tree is complete (or the scan was canceled).
 - (void)startAsyncScanPath:(NSString *)path;
 - (void)startAsyncScanPath:(NSString *)path completion:(void (^)(void))completion;
+// Scans several paths under a "This Computer" root (see -[LDScanner
+// scanPaths:session:]).
+- (void)startAsyncScanPaths:(NSArray *)paths completion:(void (^)(void))completion;
 // Scans one entry of an existing tree again (see -[LDScanner
 // scanEntryAtPathData:session:]). completion runs on the main queue with the
 // detached replacement node, or nil if the entry is gone.

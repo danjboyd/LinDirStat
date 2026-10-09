@@ -1,6 +1,7 @@
 #import "LDScanSession.h"
 #import "LDFileNode.h"
 #import "LDScanner.h"
+#import "LDScanOptions.h"
 
 #include <dispatch/dispatch.h>
 
@@ -11,6 +12,7 @@
   self = [super init];
   if (self) {
     _lock = [[NSLock alloc] init];
+    _suspendCondition = [[NSCondition alloc] init];
     _sortMetric = LDSizeMetricPhysical;
     _threadCount = [LDScanner defaultThreadCount];
   }
@@ -29,6 +31,15 @@
 - (void)setSortMetric:(LDSizeMetric)sortMetric { _sortMetric = sortMetric; }
 - (NSUInteger)threadCount { return _threadCount; }
 - (void)setThreadCount:(NSUInteger)threadCount { _threadCount = threadCount; }
+- (LDScanOptions *)scanOptions { return _scanOptions; }
+
+- (void)setScanOptions:(LDScanOptions *)options
+{
+  _scanOptions = [options copy];
+  if (_scanOptions) {
+    _threadCount = [_scanOptions threadCount];
+  }
+}
 
 - (void)incrementSkippedCount { __atomic_add_fetch(&_skippedCount, 1, __ATOMIC_RELAXED); }
 - (void)incrementErrorCount { __atomic_add_fetch(&_errorCount, 1, __ATOMIC_RELAXED); }
@@ -91,11 +102,17 @@
   [_lock lock];
   NSDate *start = _startedAt;
   NSDate *finish = _finishedAt;
+  NSDate *suspendedAt = _suspendedAt;
+  NSTimeInterval suspended = _suspendedDuration;
   [_lock unlock];
   if (!start) {
     return 0.0;
   }
-  return [(finish ? finish : [NSDate date]) timeIntervalSinceDate:start];
+  NSDate *end = finish ? finish : [NSDate date];
+  if (suspendedAt) {
+    suspended += MAX(0.0, [end timeIntervalSinceDate:suspendedAt]);
+  }
+  return MAX(0.0, [end timeIntervalSinceDate:start] - suspended);
 }
 
 - (void)setStartedAt:(NSDate *)startedAt finishedAt:(NSDate *)finishedAt
@@ -103,6 +120,10 @@
   [_lock lock];
   _startedAt = startedAt;
   _finishedAt = finishedAt;
+  _suspendedDuration = 0.0;
+  if (_suspendedAt) {
+    _suspendedAt = startedAt;
+  }
   [_lock unlock];
 }
 
@@ -130,7 +151,52 @@
 
 - (void)cancel
 {
+  [_suspendCondition lock];
   __atomic_store_n(&_canceled, YES, __ATOMIC_RELEASE);
+  [_suspendCondition broadcast];
+  [_suspendCondition unlock];
+}
+
+- (BOOL)isSuspended { return __atomic_load_n(&_suspended, __ATOMIC_ACQUIRE); }
+
+- (void)suspend
+{
+  [_suspendCondition lock];
+  if (!_suspended) {
+    __atomic_store_n(&_suspended, YES, __ATOMIC_RELEASE);
+    [_lock lock];
+    _suspendedAt = [NSDate date];
+    [_lock unlock];
+  }
+  [_suspendCondition unlock];
+}
+
+- (void)resume
+{
+  [_suspendCondition lock];
+  if (_suspended) {
+    __atomic_store_n(&_suspended, NO, __ATOMIC_RELEASE);
+    [_lock lock];
+    if (_suspendedAt) {
+      _suspendedDuration += MAX(0.0, [[NSDate date] timeIntervalSinceDate:_suspendedAt]);
+    }
+    _suspendedAt = nil;
+    [_lock unlock];
+    [_suspendCondition broadcast];
+  }
+  [_suspendCondition unlock];
+}
+
+- (void)waitWhileSuspended
+{
+  if (![self isSuspended]) {
+    return;
+  }
+  [_suspendCondition lock];
+  while (_suspended && !_canceled) {
+    [_suspendCondition wait];
+  }
+  [_suspendCondition unlock];
 }
 
 - (void)startAsyncScanPath:(NSString *)path
@@ -140,9 +206,17 @@
 
 - (void)startAsyncScanPath:(NSString *)path completion:(void (^)(void))completion
 {
-  _asyncPath = [path copy];
+  NSString *scanPath = [path copy];
   [self startAsyncScanWithBlock:^(LDScanner *scanner) {
-    [scanner scanPath:_asyncPath session:self];
+    [scanner scanPath:scanPath session:self];
+  } completion:completion];
+}
+
+- (void)startAsyncScanPaths:(NSArray *)paths completion:(void (^)(void))completion
+{
+  NSArray *scanPaths = [paths copy];
+  [self startAsyncScanWithBlock:^(LDScanner *scanner) {
+    [scanner scanPaths:scanPaths session:self];
   } completion:completion];
 }
 
@@ -166,6 +240,9 @@
     NSArray *retired = nil;
     @autoreleasepool {
       LDScanner *scanner = [[LDScanner alloc] init];
+      if (_scanOptions) {
+        [scanner setScanOptions:_scanOptions];
+      }
       [scanner setSortMetric:_sortMetric];
       [scanner setThreadCount:_threadCount];
       scan(scanner);
