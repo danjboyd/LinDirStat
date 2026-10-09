@@ -24,7 +24,9 @@ LinDirStat_OBJC_FILES = \
   LDTreeCells.m \
   LDFileOperations.m \
   LDDesktop.m \
-  LDPreferences.m
+  LDPreferences.m \
+  LDFilterPatterns.m \
+  LDOptionsWindowController.m
 
 LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist $(wildcard Resources/Icons/*.png)
 
