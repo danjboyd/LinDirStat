@@ -44,19 +44,11 @@
     "workingDirectory": "app/LinDirStat.app",
     "arguments": [],
     "env": {
+      "GNUSTEP_CONFIG_FILE": "{@runtimeRoot}/etc/GNUstep/GNUstep.conf",
+      "LD_LIBRARY_PATH": "{@runtimeRoot}/lib",
       "GSTheme": {
         "value": "Adwaita",
         "policy": "ifUnset"
-      }
-    }
-  },
-  "packagedDefaults": {
-    "defaultTheme": "Adwaita",
-    "appDomain": {
-      "domain": "org.lindirstat.LinDirStat",
-      "values": {
-        "FirstRunComplete": true,
-        "DefaultFixtureScanEnabled": true
       }
     }
   },
@@ -72,10 +64,18 @@
       "enabled": true,
       "kind": "staged-layout",
       "requiredPaths": [
+        "app/LinDirStat.app/LinDirStat",
+        "app/LinDirStat.app/Resources/Info-gnustep.plist",
         "metadata/icons/lindirstat.png",
         "metadata/licenses/LinDirStat.txt",
+        "metadata/licenses/host-libraries.txt",
         "runtime/bin/defaults",
-        "runtime/config/theme.conf"
+        "runtime/etc/GNUstep/GNUstep.conf",
+        "runtime/etc/GNUstep/GlobalDefaults.plist",
+        "runtime/lib/libOpenSave.so.0",
+        "runtime/lib/libgnustep-gui.so.0.32",
+        "runtime/System/Library/Bundles/libgnustep-back-032.bundle/libgnustep-back-032",
+        "runtime/System/Library/Themes/Adwaita.theme/Adwaita"
       ],
       "timeoutSeconds": 30
     },
@@ -88,19 +88,38 @@
           "kind": "notice-report"
         },
         {
+          "kind": "bundled-theme",
+          "name": "Adwaita"
+        },
+        {
           "kind": "metadata-file",
           "path": "metadata/icons/lindirstat.png"
         }
       ]
     },
     "installedResult": {
+      "requiredContent": [
+        {
+          "kind": "notice-report"
+        },
+        {
+          "kind": "bundled-theme",
+          "name": "Adwaita"
+        }
+      ],
       "requiredPaths": [
-        "usr/metadata/icons/lindirstat.png"
+        "usr/metadata/icons/lindirstat.png",
+        "usr/runtime/etc/GNUstep/GlobalDefaults.plist"
       ]
     }
   },
   "integrations": {
-    "shortcutName": "LinDirStat"
+    "shortcutName": "LinDirStat",
+    "categories": [
+      "System",
+      "FileTools"
+    ],
+    "fileAssociations": []
   },
   "compliance": {
     "runtimeNotices": [
@@ -118,6 +137,61 @@
         "source": "Local reference source only; not linked into LinDirStat",
         "homepage": "https://github.com/windirstat/windirstat",
         "stageRelativePath": "metadata/licenses/WinDirStat-reference.txt"
+      },
+      {
+        "name": "GNUstep Base",
+        "license": "LGPL-2.1-or-later",
+        "source": "runtime/lib/libgnustep-base.so.1.31",
+        "homepage": "https://github.com/gnustep/libs-base",
+        "stageRelativePath": "metadata/licenses/GNUstep-base.txt"
+      },
+      {
+        "name": "GNUstep GUI",
+        "license": "LGPL-2.1-or-later",
+        "source": "runtime/lib/libgnustep-gui.so.0.32",
+        "homepage": "https://github.com/gnustep/libs-gui",
+        "stageRelativePath": "metadata/licenses/GNUstep-gui.txt"
+      },
+      {
+        "name": "GNUstep Back",
+        "license": "LGPL-2.1-or-later",
+        "source": "runtime/System/Library/Bundles/libgnustep-back-032.bundle",
+        "homepage": "https://github.com/gnustep/libs-back",
+        "stageRelativePath": "metadata/licenses/GNUstep-back.txt"
+      },
+      {
+        "name": "libobjc2",
+        "license": "MIT",
+        "source": "runtime/lib/libobjc.so.4.6",
+        "homepage": "https://github.com/gnustep/libobjc2",
+        "stageRelativePath": "metadata/licenses/libobjc2.txt"
+      },
+      {
+        "name": "libdispatch",
+        "license": "Apache-2.0",
+        "source": "runtime/lib/libdispatch.so",
+        "homepage": "https://github.com/swiftlang/swift-corelibs-libdispatch",
+        "stageRelativePath": "metadata/licenses/libdispatch.txt"
+      },
+      {
+        "name": "libs-OpenSave",
+        "license": "LGPL-2.1-or-later",
+        "source": "runtime/lib/libOpenSave.so.0",
+        "homepage": "https://github.com/danjboyd/libs-OpenSave",
+        "stageRelativePath": "metadata/licenses/libs-OpenSave.txt"
+      },
+      {
+        "name": "Adwaita GNUstep theme",
+        "license": "LGPL-2.1-or-later",
+        "source": "runtime/System/Library/Themes/Adwaita.theme",
+        "homepage": "https://github.com/danjboyd/plugins-themes-Adwaita",
+        "stageRelativePath": "metadata/licenses/Adwaita-theme.txt"
+      },
+      {
+        "name": "Bundled distribution libraries",
+        "license": "Various; see host-libraries/ copyright files",
+        "source": "Debian packages listed in host-libraries.txt",
+        "stageRelativePath": "metadata/licenses/host-libraries.txt"
       }
     ]
   },
@@ -129,6 +203,9 @@
       "enabled": true,
       "desktopEntryName": "lindirstat.desktop",
       "iconRelativePath": "metadata/icons/lindirstat.png",
+      "validation": {
+        "runtimeClosure": "strict"
+      },
       "smoke": {
         "mode": "launch-only"
       }

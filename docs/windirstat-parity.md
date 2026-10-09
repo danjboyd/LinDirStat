@@ -49,8 +49,8 @@ Status values:
 | Area | Status | Notes |
 | --- | --- | --- |
 | Linux GNUstep build | partial | Builds through `gnustep-cli-new`. |
-| Linux Adwaita default | partial | Manifest declares Adwaita as packaged default with `ifUnset`; full packaged theme payload validation remains. |
-| Linux AppImage | partial | `gnustep-packager` manifest/build/stage/validate path exists. Full AppImage packaging is currently blocked by packager handling of apps with no MIME/file associations. |
+| Linux Adwaita default | done | The payload bundles `Adwaita.theme` and makes it the default through a `GlobalDefaults.plist` beside a relocatable `GNUstep.conf`, below the user's own defaults (`ifUnset`); the package contracts require the bundled theme. See `docs/packaging.md`. |
+| Linux AppImage | partial | The stage script produces a self-contained payload (GNUstep, libobjc2, libdispatch, libs-OpenSave, nettle and the other non-host libraries, Adwaita, icon, notices) that starts, applies Adwaita and scans from the `AppRun` environment without build-machine paths. The packager's no-file-associations failure is fixed on its `appimage-no-associations` branch; the first `package`/`validate -Backend appimage` run is pending. |
 | macOS app | partial | Builds and runs natively against Apple's AppKit, with the test suite passing on macOS; see `docs/macos.md`. |
 | macOS DMG packaging | deferred | Requires a new `gnustep-packager` macOS DMG-style backend. |
 

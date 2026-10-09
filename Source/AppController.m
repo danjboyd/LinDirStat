@@ -1340,7 +1340,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   }
   NSMutableArray *nodes = [NSMutableArray array];
   NSIndexSet *rows = [_directoryTable selectedRowIndexes];
-  NSUInteger row = [rows firstIndex];
+  // A nil set would give 0, not NSNotFound, and loop forever: toolbar
+  // validation can run from -setToolbar: before the table exists.
+  NSUInteger row = rows ? [rows firstIndex] : NSNotFound;
   while (row != NSNotFound) {
     id item = [_directoryTable itemAtRow:(NSInteger)row];
     if (item) {

@@ -59,11 +59,15 @@ pwsh ~/git/gnustep/gnustep-packager/scripts/gnustep-packager.ps1 -Manifest packa
 pwsh ~/git/gnustep/gnustep-packager/scripts/gnustep-packager.ps1 -Manifest package.manifest.json -Command validate
 ```
 
-Linux distribution should use the AppImage backend once the staged runtime is complete:
+Linux distribution uses the AppImage backend:
 
 ```sh
 pwsh ~/git/gnustep/gnustep-packager/scripts/gnustep-packager.ps1 -Manifest package.manifest.json -Command package -Backend appimage
+pwsh ~/git/gnustep/gnustep-packager/scripts/gnustep-packager.ps1 -Manifest package.manifest.json -Command validate -Backend appimage -RunSmoke
 ```
+
+The staged payload, its inputs, the smoke-test display, and the theme default
+are described in `docs/packaging.md`.
 
 macOS packaging is intentionally not enabled yet. `gnustep-packager` needs a native DMG-style backend first; see `docs/packaging.md`.
 
