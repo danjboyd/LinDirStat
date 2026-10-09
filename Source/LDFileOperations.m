@@ -1,6 +1,8 @@
 #import "LDFileOperations.h"
+#import "LDDesktop.h"
 
 #include <dirent.h>
+#include <dispatch/dispatch.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -408,6 +410,125 @@ static int LDRemoveTree(int directoryFD, const char *name, dev_t device)
     return LDFail(error, result, result == EXDEV ? @"Deleting stopped at a mounted filesystem" : @"Deleting");
   }
   return YES;
+}
+
++ (BOOL)moveItem:(NSData *)path toDirectory:(NSData *)directory error:(NSError **)error
+{
+  NSMutableData *source = LDTerminated(path);
+  NSData *name = LDNamePart(path);
+  NSMutableData *target = LDTerminated(LDJoin(directory, [name bytes], [name length]));
+  struct stat info;
+  if (lstat([source bytes], &info) != 0) {
+    return LDFail(error, errno, @"Reading the item");
+  }
+  if (lstat([target bytes], &info) == 0) {
+    return LDFail(error, EEXIST, @"Moving");
+  }
+#if defined(__APPLE__)
+  if (rename([source bytes], [target bytes]) == 0) {
+    return YES;
+  }
+#else
+  if (LDRenameNoReplace([source bytes], [target bytes]) == 0) {
+    return YES;
+  }
+#endif
+  if (errno != EXDEV) {
+    return LDFail(error, errno, @"Moving");
+  }
+  // Another filesystem: let mv copy and remove, without overwriting.
+  __block BOOL moved = NO;
+  dispatch_semaphore_t done = dispatch_semaphore_create(0);
+  NSArray *command = @[@"mv", @"-n", @"--", path, directory];
+  [LDDesktop runFirstSuccessfulCommand:@[command] inDirectory:nil queue:nil completion:^(BOOL succeeded) {
+    moved = succeeded;
+    dispatch_semaphore_signal(done);
+  }];
+  dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
+  if (!moved || lstat([target bytes], &info) != 0) {
+    return LDFail(error, EIO, @"Moving to another filesystem");
+  }
+  return YES;
+}
+
++ (NSArray *)existingTrashDirectories
+{
+#if defined(__APPLE__)
+  return @[];
+#else
+  NSMutableArray *trashes = [NSMutableArray array];
+  NSMutableSet *seen = [NSMutableSet set];
+  void (^consider)(NSData *) = ^(NSData *trash) {
+    struct stat info;
+    NSMutableData *files = LDTerminated(LDJoinString(trash, "files"));
+    if (lstat([files bytes], &info) == 0 && S_ISDIR(info.st_mode) && ![seen containsObject:trash]) {
+      [seen addObject:trash];
+      [trashes addObject:trash];
+    }
+  };
+  NSData *home = LDHomeTrash();
+  if (home) {
+    consider(home);
+  }
+  NSString *uid = [NSString stringWithFormat:@"%u", (unsigned)getuid()];
+  NSString *mounts = [NSString stringWithContentsOfFile:@"/proc/self/mounts" encoding:NSUTF8StringEncoding error:NULL];
+  for (NSString *line in [mounts componentsSeparatedByString:@"\n"]) {
+    NSArray *fields = [line componentsSeparatedByString:@" "];
+    if ([fields count] < 2) {
+      continue;
+    }
+    // /proc/self/mounts escapes spaces and other bytes as octal \ooo.
+    NSString *escaped = [fields objectAtIndex:1];
+    NSMutableData *top = [NSMutableData data];
+    const char *raw = [escaped UTF8String];
+    for (size_t i = 0; raw[i]; i++) {
+      if (raw[i] == '\\' && raw[i + 1] && raw[i + 2] && raw[i + 3]) {
+        char octal[4] = {raw[i + 1], raw[i + 2], raw[i + 3], 0};
+        char byte = (char)strtol(octal, NULL, 8);
+        [top appendBytes:&byte length:1];
+        i += 3;
+      } else {
+        [top appendBytes:raw + i length:1];
+      }
+    }
+    consider(LDJoinString(LDJoinString(top, ".Trash"), [uid UTF8String]));
+    consider(LDJoinString(top, [[@".Trash-" stringByAppendingString:uid] UTF8String]));
+  }
+  return trashes;
+#endif
+}
+
++ (BOOL)emptyTrashDirectories:(NSArray *)trashDirectories error:(NSError **)error
+{
+  BOOL emptied = YES;
+  for (NSData *trash in trashDirectories) {
+    for (NSString *part in @[@"files", @"info", @"expunged"]) {
+      NSData *folder = LDJoinString(trash, [part UTF8String]);
+      DIR *directory = opendir([LDTerminated(folder) bytes]);
+      if (!directory) {
+        continue;
+      }
+      NSMutableArray *entries = [NSMutableArray array];
+      struct dirent *entry = NULL;
+      while ((entry = readdir(directory)) != NULL) {
+        if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+          [entries addObject:LDJoinString(folder, entry->d_name)];
+        }
+      }
+      closedir(directory);
+      for (NSData *item in entries) {
+        NSError *itemError = nil;
+        if (![self deletePermanently:item error:&itemError]) {
+          if (emptied && error) {
+            *error = itemError;
+          }
+          emptied = NO;
+        }
+      }
+    }
+    unlink([LDTerminated(LDJoinString(trash, "directorysizes")) bytes]);
+  }
+  return emptied;
 }
 
 @end

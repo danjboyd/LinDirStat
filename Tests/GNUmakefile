@@ -14,10 +14,11 @@ LinDirStatTests_OBJC_FILES = \
   LDExtensionColorTests.m \
   LDFileTypeDescriptionsTests.m \
   LDTreeSortingTests.m \
-  LDFileActionTests.m \
   LDScanSessionTests.m \
   LDFileOperationsTests.m \
   LDPreferencesTests.m \
+  LDCommandRulesTests.m \
+  LDCustomCleanupRunnerTests.m \
   ../Source/LDFileNode.m \
   ../Source/LDExtensionStats.m \
   ../Source/LDSizeFormatter.m \
@@ -26,13 +27,13 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDTreemapItem.m \
   ../Source/LDTreemapLayout.m \
   ../Source/LDExtensionColor.m \
-  ../Source/LDFileActionPlan.m \
-  ../Source/LDFileActions.m \
   ../Source/LDFileTypeDescriptions.m \
   ../Source/LDTreeSorting.m \
   ../Source/LDFileOperations.m \
   ../Source/LDDesktop.m \
-  ../Source/LDPreferences.m
+  ../Source/LDPreferences.m \
+  ../Source/LDCommandRules.m \
+  ../Source/LDCustomCleanupRunner.m
 
 LinDirStatTests_INCLUDE_DIRS = -I../Source -I.
 ifneq ($(TOOLS_XCTEST_ROOT),)

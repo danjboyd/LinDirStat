@@ -21,6 +21,19 @@
 // folders are left in place.
 + (BOOL)deletePermanently:(NSData *)path error:(NSError **)error;
 
+// Moves the item into directory, keeping its name and never replacing an
+// existing entry. Within a filesystem this is a rename; across filesystems
+// mv(1) copies and removes it.
++ (BOOL)moveItem:(NSData *)path toDirectory:(NSData *)directory error:(NSError **)error;
+
+// The trash directories (each containing files/ and info/) that exist for
+// this user: the home trash and the per-volume trashes of mounted
+// filesystems.
++ (NSArray *)existingTrashDirectories;
+// Permanently deletes everything in the given trash directories' files/ and
+// info/ folders. Returns NO and the first error if anything was left.
++ (BOOL)emptyTrashDirectories:(NSArray *)trashDirectories error:(NSError **)error;
+
 // The trash directory (containing files/ and info/) the item would be moved
 // into, creating it if needed; nil if the item has no usable trash. Exposed
 // for tests.

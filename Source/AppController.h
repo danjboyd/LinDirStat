@@ -1,6 +1,7 @@
 #import <AppKit/AppKit.h>
 #import "LDFileNode.h"
 #import "LDTreeSorting.h"
+#import "LDListViews.h"
 
 @class LDScanSession;
 @class LDTreemapView;
@@ -10,7 +11,7 @@
   NSWindow *_window;
   NSSplitView *_mainSplit;
   NSSplitView *_topSplit;
-  NSOutlineView *_directoryTable;
+  LDOutlineView *_directoryTable;
   NSTableView *_extensionTable;
   LDTreemapView *_treemapView;
   NSTextField *_statusField;
@@ -22,7 +23,6 @@
   NSMutableDictionary *_tintedIcons;
   NSMapTable *_sortedChildrenCache;
   LDScanSession *_scanSession;
-  NSTimer *_scanTimer;
   NSTimer *_memoryTimer;
   LDFileNode *_rootNode;
   NSString *_currentScanPath;
@@ -35,5 +35,10 @@
   BOOL _splitPositionsSet;
   NSTimeInterval _lastLiveReload;
   NSTimeInterval _pacmanEpoch;
+  NSTimer *_busyTimer;
+  NSMutableArray *_refreshQueue;
+  LDScanSession *_refreshSession;
+  BOOL _fileOperationRunning;
+  NSMenu *_cleanupMenu;
 }
 @end

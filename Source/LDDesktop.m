@@ -91,6 +91,26 @@ static NSData *LDParentOf(NSData *path)
 #endif
 }
 
++ (NSArray *)terminalCommandsRunning:(NSData *)shellCommand inDirectory:(NSData *)directory
+{
+#if defined(__APPLE__)
+  (void)directory;
+  return @[@[@"/bin/sh", @"-c", shellCommand]];
+#else
+  NSMutableData *workingDirectory = [NSMutableData dataWithBytes:"--working-directory=" length:20];
+  [workingDirectory appendData:directory];
+  return @[
+    @[@"kgx", workingDirectory, @"--", @"/bin/sh", @"-c", shellCommand],
+    @[@"gnome-terminal", @"--wait", workingDirectory, @"--", @"/bin/sh", @"-c", shellCommand],
+    @[@"ptyxis", @"--new-window", @"--working-directory", directory, @"--", @"/bin/sh", @"-c", shellCommand],
+    @[@"konsole", @"--workdir", directory, @"-e", @"/bin/sh", @"-c", shellCommand],
+    @[@"xfce4-terminal", @"--disable-server", workingDirectory, @"-x", @"/bin/sh", @"-c", shellCommand],
+    @[@"x-terminal-emulator", @"-e", @"/bin/sh", @"-c", shellCommand],
+    @[@"xterm", @"-e", @"/bin/sh", @"-c", shellCommand],
+  ];
+#endif
+}
+
 + (NSString *)pathOfExecutable:(NSString *)name
 {
   if ([name hasPrefix:@"/"]) {
@@ -164,6 +184,14 @@ static pid_t LDSpawn(NSString *program, NSArray *command, NSData *directory)
                       inDirectory:(NSData *)directory
                        completion:(void (^)(BOOL succeeded))completion
 {
+  [self runFirstSuccessfulCommand:commands inDirectory:directory queue:dispatch_get_main_queue() completion:completion];
+}
+
++ (void)runFirstSuccessfulCommand:(NSArray *)commands
+                      inDirectory:(NSData *)directory
+                            queue:(dispatch_queue_t)queue
+                       completion:(void (^)(BOOL succeeded))completion
+{
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
     BOOL succeeded = NO;
     for (NSArray *command in commands) {
@@ -180,10 +208,12 @@ static pid_t LDSpawn(NSString *program, NSArray *command, NSData *directory)
         break;
       }
     }
-    if (completion) {
-      dispatch_async(dispatch_get_main_queue(), ^{
+    if (completion && queue) {
+      dispatch_async(queue, ^{
         completion(succeeded);
       });
+    } else if (completion) {
+      completion(succeeded);
     }
   });
 }

@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+#include <dispatch/dispatch.h>
 
 // Hands items to the desktop: the default application, the file manager and
 // a terminal. A command is an NSArray whose first element is the program name
@@ -11,6 +12,9 @@
 + (NSArray *)revealCommandsForPath:(NSData *)path;
 // Terminals run with the folder as their working directory too.
 + (NSArray *)terminalCommandsForDirectory:(NSData *)directory;
+// Terminals running a shell command (/bin/sh -c) and closing when it ends;
+// they wait for it, so the terminal exits when the command does.
++ (NSArray *)terminalCommandsRunning:(NSData *)shellCommand inDirectory:(NSData *)directory;
 
 // file:// URI for a path, percent-encoding every byte that needs it.
 + (NSString *)fileURIForPath:(NSData *)path;
@@ -23,6 +27,12 @@
 // main queue. directory, if given, is the working directory.
 + (void)runFirstSuccessfulCommand:(NSArray *)commands
                       inDirectory:(NSData *)directory
+                       completion:(void (^)(BOOL succeeded))completion;
+// As above, with completion on queue; nil runs it on the background queue
+// that ran the commands.
++ (void)runFirstSuccessfulCommand:(NSArray *)commands
+                      inDirectory:(NSData *)directory
+                            queue:(dispatch_queue_t)queue
                        completion:(void (^)(BOOL succeeded))completion;
 
 // Starts the first installed command without waiting for it to exit (for

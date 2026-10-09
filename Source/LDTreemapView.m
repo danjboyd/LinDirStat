@@ -15,6 +15,7 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
     _options = LDTreemapDefaultOptions();
     _metric = LDSizeMetricPhysical;
     _needsRender = YES;
+    _reselectStack = [[NSMutableArray alloc] init];
   }
   return self;
 }
@@ -48,6 +49,7 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
   _rootNode = rootNode;
   _zoomNode = nil;
   _selectedNode = nil;
+  [_reselectStack removeAllObjects];
   _hoverNode = nil;
   _colorIndexes = colorIndexes;
   _metric = metric;
@@ -61,12 +63,21 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
   [self invalidateRender];
 }
 
-- (void)setSelectedNode:(LDFileNode *)node
+- (void)storeSelectedNode:(LDFileNode *)node
 {
   if (_selectedNode != node) {
     _selectedNode = node;
     [self setNeedsDisplay:YES];
   }
+}
+
+// Selection from elsewhere ends a Select Parent / Reselect Child walk.
+- (void)setSelectedNode:(LDFileNode *)node
+{
+  if (node != _selectedNode) {
+    [_reselectStack removeAllObjects];
+  }
+  [self storeSelectedNode:node];
 }
 
 - (void)setHighlightedExtensionKey:(NSString *)extensionKey
@@ -298,8 +309,13 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
     return;
   }
   [self setHighlightedExtensionKey:nil];
-  [self setSelectedNode:node];
+  [self storeSelectedNode:node];
   [_delegate treemapView:self didSelectNode:node];
+}
+
+- (void)setZoomNode:(LDFileNode *)node
+{
+  [self zoomToNode:node ?: _rootNode];
 }
 
 - (void)zoomToNode:(LDFileNode *)node
@@ -362,7 +378,24 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 {
   (void)sender;
   if ([self canSelectParent]) {
-    [self selectNodeAndNotify:[_selectedNode parent]];
+    LDFileNode *child = _selectedNode;
+    [self selectNodeAndNotify:[child parent]];
+    [_reselectStack addObject:child];
+  }
+}
+
+- (BOOL)canReselectChild
+{
+  return [_reselectStack count] > 0;
+}
+
+- (IBAction)reselectChild:(id)sender
+{
+  (void)sender;
+  LDFileNode *child = [_reselectStack lastObject];
+  if (child) {
+    [_reselectStack removeLastObject];
+    [self selectNodeAndNotify:child];
   }
 }
 
@@ -376,10 +409,25 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
   if (!node) {
     return;
   }
+  [_reselectStack removeAllObjects];
   [self selectNodeAndNotify:node];
   if ([event clickCount] == 2) {
     [self zoomIn:self];
   }
+}
+
+// A right click selects what is under the pointer before the menu opens.
+- (NSMenu *)menuForEvent:(NSEvent *)event
+{
+  LDFileNode *node = [self nodeAtPoint:[self convertPoint:[event locationInWindow] fromView:nil]];
+  if (!node) {
+    return nil;
+  }
+  if (node != _selectedNode) {
+    [_reselectStack removeAllObjects];
+    [self selectNodeAndNotify:node];
+  }
+  return [self menu];
 }
 
 - (void)otherMouseDown:(NSEvent *)event
@@ -437,6 +485,8 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
     [self zoomOut:self];
   } else if ([characters isEqualToString:@"/"]) {
     [self selectParent:self];
+  } else if ([characters isEqualToString:@"*"]) {
+    [self reselectChild:self];
   } else {
     [super keyDown:event];
   }

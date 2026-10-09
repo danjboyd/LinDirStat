@@ -208,4 +208,37 @@
   XCTAssertTrue(result);
 }
 
+- (void)testMoveRefusesToReplaceAndMovesIntoFolder
+{
+  NSString *file = [self dataPath:@"move-me.txt"];
+  NSString *destination = [self dataPath:@"dest"];
+  [self writeFile:file];
+  [[NSFileManager defaultManager] createDirectoryAtPath:destination withIntermediateDirectories:YES attributes:nil error:NULL];
+  [self writeFile:[destination stringByAppendingPathComponent:@"move-me.txt"]];
+
+  NSError *error = nil;
+  XCTAssertFalse([LDFileOperations moveItem:[self bytesOf:file] toDirectory:[self bytesOf:destination] error:&error]);
+  XCTAssertEqual((NSInteger)EEXIST, [error code]);
+  XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:file]);
+
+  [[NSFileManager defaultManager] removeItemAtPath:[destination stringByAppendingPathComponent:@"move-me.txt"] error:NULL];
+  XCTAssertTrue([LDFileOperations moveItem:[self bytesOf:file] toDirectory:[self bytesOf:destination] error:NULL]);
+  XCTAssertFalse([[NSFileManager defaultManager] fileExistsAtPath:file]);
+  XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:[destination stringByAppendingPathComponent:@"move-me.txt"]]);
+}
+
+- (void)testEmptyTrashRemovesTrashedItems
+{
+  NSString *file = [self dataPath:@"old.log"];
+  [self writeFile:file];
+  XCTAssertTrue([LDFileOperations moveToTrash:[self bytesOf:file] error:NULL]);
+  NSData *trash = [self bytesOf:[_temporaryRoot stringByAppendingPathComponent:@"xdg/Trash"]];
+  XCTAssertTrue([[LDFileOperations existingTrashDirectories] containsObject:trash]);
+
+  XCTAssertTrue([LDFileOperations emptyTrashDirectories:@[trash] error:NULL]);
+  XCTAssertEqual((NSUInteger)0, [[[NSFileManager defaultManager] contentsOfDirectoryAtPath:[self trashPath:@"files"] error:NULL] count]);
+  XCTAssertEqual((NSUInteger)0, [[[NSFileManager defaultManager] contentsOfDirectoryAtPath:[self trashPath:@"info"] error:NULL] count]);
+  XCTAssertTrue([[NSFileManager defaultManager] fileExistsAtPath:[self trashPath:@"files"]]);
+}
+
 @end

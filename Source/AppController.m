@@ -1,4 +1,7 @@
 #import "AppController.h"
+#import "AppController+Private.h"
+#import "LDCommandRules.h"
+#import "LDPreferences.h"
 #import "LDExtensionColor.h"
 #import "LDExtensionStats.h"
 #import "LDFileNode.h"
@@ -24,7 +27,7 @@ static const CGFloat LDStatusBarHeight = 30.0;
 static const NSTimeInterval LDPacmanFrameInterval = 1.0 / 25.0;
 static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
-@interface AppController (TableData) <NSTableViewDataSource, NSTableViewDelegate, NSOutlineViewDataSource, NSOutlineViewDelegate, NSToolbarDelegate, NSSplitViewDelegate, LDTreemapViewDelegate>
+@interface AppController (TableData) <NSTableViewDataSource, NSTableViewDelegate, NSOutlineViewDataSource, NSOutlineViewDelegate, NSToolbarDelegate, NSSplitViewDelegate, LDTreemapViewDelegate, LDListViewCommands>
 @end
 
 @implementation AppController
@@ -97,6 +100,11 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   return menu;
 }
 
+- (NSString *)functionKey:(unichar)key
+{
+  return [NSString stringWithCharacters:&key length:1];
+}
+
 - (void)buildMainMenu
 {
   NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:@"LinDirStat"];
@@ -108,23 +116,109 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
   NSMenu *fileMenu = [self addSubmenuTitled:@"File" to:mainMenu];
   [self addItemTo:fileMenu title:@"Select Target…" action:@selector(openPath:) key:@"o" target:self];
-  [self addItemTo:fileMenu title:@"Refresh All" action:@selector(rescan:) key:@"r" target:self];
+  [fileMenu addItem:[NSMenuItem separatorItem]];
+  NSMenuItem *refreshAll = (NSMenuItem *)[self addItemTo:fileMenu title:@"Refresh All" action:@selector(rescan:) key:[self functionKey:NSF5FunctionKey] target:self];
+  [refreshAll setKeyEquivalentModifierMask:NSShiftKeyMask];
+  NSMenuItem *refreshSelected = (NSMenuItem *)[self addItemTo:fileMenu title:@"Refresh Selected" action:@selector(refreshSelected:) key:[self functionKey:NSF5FunctionKey] target:self];
+  [refreshSelected setKeyEquivalentModifierMask:0];
+  [fileMenu addItem:[NSMenuItem separatorItem]];
   [self addItemTo:fileMenu title:@"Stop Scan" action:@selector(stopScan:) key:@"." target:self];
 
   NSMenu *editMenu = [self addSubmenuTitled:@"Edit" to:mainMenu];
   [self addItemTo:editMenu title:@"Copy Path" action:@selector(copyPath:) key:@"c" target:self];
 
+  NSMenu *cleanupMenu = [self addSubmenuTitled:@"Clean Up" to:mainMenu];
+  [self populateCleanupMenu:cleanupMenu forTreemap:NO];
+  _cleanupMenu = cleanupMenu;
+
   NSMenu *treemapMenu = [self addSubmenuTitled:@"Treemap" to:mainMenu];
   [self addItemTo:treemapMenu title:@"Zoom In" action:@selector(zoomIn:) key:@"+" target:self];
   [self addItemTo:treemapMenu title:@"Zoom Out" action:@selector(zoomOut:) key:@"-" target:self];
   [self addItemTo:treemapMenu title:@"Reset Zoom" action:@selector(resetZoom:) key:@"0" target:self];
-  [self addItemTo:treemapMenu title:@"Select Parent" action:@selector(selectParent:) key:nil target:self];
+  [self addItemTo:treemapMenu title:@"Reselect Child" action:@selector(reselectChild:) key:@"=" target:self];
+  [self addItemTo:treemapMenu title:@"Select Parent" action:@selector(selectParent:) key:@"u" target:self];
   [treemapMenu addItem:[NSMenuItem separatorItem]];
   [self addItemTo:treemapMenu title:@"Use Logical Size" action:@selector(toggleLogicalSize:) key:@"l" target:self];
   [self addItemTo:treemapMenu title:@"Show Grid" action:@selector(toggleGrid:) key:nil target:self];
   [self addItemTo:treemapMenu title:@"SequoiaView Layout" action:@selector(toggleLayoutStyle:) key:nil target:self];
 
   [NSApp setMainMenu:mainMenu];
+}
+
+// The Clean Up menu, also used (with the treemap's commands) as the context
+// menu of the file lists and the treemap (windirstat.rc).
+- (void)populateCleanupMenu:(NSMenu *)menu forTreemap:(BOOL)forTreemap
+{
+  if (forTreemap) {
+    [self addItemTo:menu title:@"Zoom In" action:@selector(zoomIn:) key:nil target:self];
+    [self addItemTo:menu title:@"Zoom Out" action:@selector(zoomOut:) key:nil target:self];
+    [self addItemTo:menu title:@"Reset Zoom" action:@selector(resetZoom:) key:nil target:self];
+    [self addItemTo:menu title:@"Reselect Child" action:@selector(reselectChild:) key:nil target:self];
+    [self addItemTo:menu title:@"Select Parent" action:@selector(selectParent:) key:nil target:self];
+    [menu addItem:[NSMenuItem separatorItem]];
+    [self addItemTo:menu title:@"Copy Path" action:@selector(copyPath:) key:nil target:self];
+    [self addItemTo:menu title:@"Show in Files" action:@selector(revealItem:) key:nil target:self];
+    [self addItemTo:menu title:@"Open Terminal Here" action:@selector(openTerminal:) key:nil target:self];
+    return;
+  }
+  BOOL isMainMenu = ([menu supermenu] != nil);
+  [self addItemTo:menu title:@"Open" action:@selector(openItem:) key:nil target:self];
+  [self addItemTo:menu title:@"Show in Files" action:@selector(revealItem:) key:isMainMenu ? @"e" : nil target:self];
+  [self addItemTo:menu title:@"Open Terminal Here" action:@selector(openTerminal:) key:isMainMenu ? @"t" : nil target:self];
+  if (!isMainMenu) {
+    [self addItemTo:menu title:@"Copy Path" action:@selector(copyPath:) key:nil target:self];
+    [self addItemTo:menu title:@"Refresh Selected" action:@selector(refreshSelected:) key:nil target:self];
+  }
+  [self addItemTo:menu title:@"Properties" action:@selector(showProperties:) key:isMainMenu ? @"i" : nil target:self];
+  [menu addItem:[NSMenuItem separatorItem]];
+  [self addItemTo:menu title:@"Move to Trash" action:@selector(moveToTrash:) key:nil target:self];
+  [self addItemTo:menu title:@"Delete Permanently…" action:@selector(deletePermanently:) key:nil target:self];
+  if (isMainMenu) {
+    [self addItemTo:menu title:@"Empty Trash…" action:@selector(emptyTrash:) key:nil target:self];
+  }
+  [self addItemTo:menu title:@"Empty Folder…" action:@selector(emptyFolder:) key:nil target:self];
+  [self addItemTo:menu title:@"Move To…" action:@selector(moveItemsTo:) key:isMainMenu ? @"m" : nil target:self];
+  [menu addItem:[NSMenuItem separatorItem]];
+  NSMenuItem *custom = (NSMenuItem *)[menu addItemWithTitle:@"Custom Cleanup" action:NULL keyEquivalent:@""];
+  [custom setSubmenu:[self customCleanupMenu]];
+  if (isMainMenu) {
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(preferencesDidChange:)
+                                                 name:LDPreferencesDidChangeNotification
+                                               object:nil];
+  }
+}
+
+- (void)rebuildCustomCleanupMenus
+{
+  NSMenuItem *custom = (NSMenuItem *)[_cleanupMenu itemWithTitle:@"Custom Cleanup"];
+  [custom setSubmenu:[self customCleanupMenu]];
+}
+
+- (void)preferencesDidChange:(NSNotification *)notification
+{
+  (void)notification;
+  [self rebuildCustomCleanupMenus];
+}
+
+- (NSMenu *)contextMenuForListView:(NSTableView *)view
+{
+  (void)view;
+  NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
+  [self populateCleanupMenu:menu forTreemap:NO];
+  return menu;
+}
+
+- (void)listViewOpenSelection:(NSTableView *)view
+{
+  (void)view;
+  [self openItem:nil];
+}
+
+- (void)listView:(NSTableView *)view deleteSelectionPermanently:(BOOL)permanently
+{
+  (void)view;
+  [self deleteNodes:[self selectedNodes] permanently:permanently];
 }
 
 - (BOOL)isScanning
@@ -137,8 +231,32 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   return [NSDate timeIntervalSinceReferenceDate] - _pacmanEpoch;
 }
 
+- (BOOL)isBusy
+{
+  return [self isScanning] || _refreshQueue != nil || _fileOperationRunning;
+}
+
 - (BOOL)validateAction:(SEL)action
 {
+  NSDictionary *commands = @{
+    NSStringFromSelector(@selector(openItem:)): @(LDCommandOpen),
+    NSStringFromSelector(@selector(showProperties:)): @(LDCommandProperties),
+    NSStringFromSelector(@selector(copyPath:)): @(LDCommandCopyPath),
+    NSStringFromSelector(@selector(revealItem:)): @(LDCommandReveal),
+    NSStringFromSelector(@selector(openTerminal:)): @(LDCommandTerminal),
+    NSStringFromSelector(@selector(refreshSelected:)): @(LDCommandRefreshSelected),
+    NSStringFromSelector(@selector(moveToTrash:)): @(LDCommandMoveToTrash),
+    NSStringFromSelector(@selector(deletePermanently:)): @(LDCommandDeletePermanently),
+    NSStringFromSelector(@selector(emptyFolder:)): @(LDCommandEmptyFolder),
+    NSStringFromSelector(@selector(moveItemsTo:)): @(LDCommandMoveTo),
+  };
+  NSNumber *command = [commands objectForKey:NSStringFromSelector(action)];
+  if (command) {
+    return [LDCommandRules isCommand:(LDCommand)[command intValue]
+                     enabledForNodes:[self selectedNodes]
+                            rootNode:_rootNode
+                                busy:[self isBusy]];
+  }
   if (action == @selector(zoomIn:)) {
     return [_treemapView canZoomIn];
   }
@@ -148,14 +266,15 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   if (action == @selector(selectParent:)) {
     return [_treemapView canSelectParent];
   }
-  if (action == @selector(copyPath:)) {
-    return [self selectedNode] != nil;
+  if (action == @selector(reselectChild:)) {
+    return [_treemapView canReselectChild];
   }
   if (action == @selector(stopScan:)) {
-    return [self isScanning];
+    return [self isBusy];
   }
-  if (action == @selector(toggleLogicalSize:) || action == @selector(openPath:) || action == @selector(rescan:)) {
-    return ![self isScanning];
+  if (action == @selector(toggleLogicalSize:) || action == @selector(openPath:) || action == @selector(rescan:)
+      || action == @selector(emptyTrash:)) {
+    return ![self isBusy];
   }
   return YES;
 }
@@ -163,6 +282,15 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (BOOL)validateMenuItem:(NSMenuItem *)item
 {
   SEL action = [item action];
+  if (action == @selector(runCustomCleanup:)) {
+    NSArray *cleanups = [[LDPreferences sharedPreferences] customCleanups];
+    NSInteger slot = [item tag];
+    return slot >= 0 && slot < (NSInteger)[cleanups count]
+      && [LDCommandRules isCleanup:[cleanups objectAtIndex:(NSUInteger)slot]
+                   enabledForNodes:[self selectedNodes]
+                          rootNode:_rootNode
+                              busy:[self isBusy]];
+  }
   if (action == @selector(toggleLogicalSize:)) {
     [item setState:_sizeMetric == LDSizeMetricLogical ? NSOnState : NSOffState];
   } else if (action == @selector(toggleGrid:)) {
@@ -284,7 +412,8 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (void)buildDirectoryTable
 {
-  _directoryTable = [[NSOutlineView alloc] initWithFrame:NSMakeRect(0, 0, 700, 300)];
+  _directoryTable = [[LDOutlineView alloc] initWithFrame:NSMakeRect(0, 0, 700, 300)];
+  [_directoryTable setCommandTarget:self];
   NSTableColumn *name = [self addColumn:@"name" title:@"Name" width:220 right:NO toTable:_directoryTable];
   LDIconTextCell *nameCell = [[LDIconTextCell alloc] initTextCell:@""];
   [nameCell setLineBreakMode:NSLineBreakByTruncatingTail];
@@ -316,7 +445,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
   [name setMinWidth:160.0];
   [_directoryTable setColumnAutoresizingStyle:NSTableViewNoColumnAutoresizing];
-  [_directoryTable setAllowsMultipleSelection:NO];
+  [_directoryTable setAllowsMultipleSelection:YES];
   // Header clicks sort; GTK never selects (and tints) a whole column.
   [_directoryTable setAllowsColumnSelection:NO];
   [_directoryTable setAutosaveName:@"LinDirStatDirectoryTree2"];
@@ -404,6 +533,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
   _treemapView = [[LDTreemapView alloc] initWithFrame:NSMakeRect(0, 0, bounds.size.width, 300)];
   [_treemapView setDelegate:self];
+  NSMenu *treemapMenu = [[NSMenu alloc] initWithTitle:@""];
+  [self populateCleanupMenu:treemapMenu forTreemap:YES];
+  [_treemapView setMenu:treemapMenu];
   [_treemapView setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
 
   // WinDirStat's composition: directory tree and extension list side by
@@ -550,14 +682,15 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     return;
   }
 
-  [_scanTimer invalidate];
-  _scanTimer = nil;
+  [_refreshSession cancel];
+  _refreshSession = nil;
+  _refreshQueue = nil;
   _currentScanPath = [scanPath copy];
   [self clearResults];
 
   LDScanSession *session = [[LDScanSession alloc] init];
   _scanSession = session;
-  [session setSortMetric:_sizeMetric];
+  [self configureScanSession:session];
   [session startAsyncScanPath:scanPath completion:^{
     // Ignore a scan that was replaced before it finished.
     if (session == _scanSession) {
@@ -566,19 +699,50 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   }];
 
   [_window setTitle:[self displayPath:scanPath]];
-  [_spinner startAnimation:nil];
+  _lastLiveReload = 0.0;
+  [self startBusyIndicator];
   [self updateScanStatus];
   [self refreshCommandState];
+}
 
-  // The tree is shown while it grows: the timer animates the pacman, and
-  // re-sorts and reloads the tree a few times a second. Completion arrives
-  // through the session's completion block.
-  _lastLiveReload = 0.0;
-  _scanTimer = [NSTimer scheduledTimerWithTimeInterval:LDPacmanFrameInterval
-                                                target:self
-                                              selector:@selector(scanTimerFired:)
-                                              userInfo:nil
-                                               repeats:YES];
+- (void)configureScanSession:(LDScanSession *)session
+{
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [session setSortMetric:_sizeMetric];
+  [session setThreadCount:[preferences scanningThreads]];
+}
+
+// The timer animates the pacmen while anything runs. While scanning, it
+// also re-sorts and reloads the growing tree a few times a second;
+// completion arrives through the session's completion block.
+- (void)startBusyIndicator
+{
+  [_spinner startAnimation:nil];
+  if (!_busyTimer) {
+    _busyTimer = [NSTimer scheduledTimerWithTimeInterval:LDPacmanFrameInterval
+                                                  target:self
+                                                selector:@selector(busyTimerFired:)
+                                                userInfo:nil
+                                                 repeats:YES];
+  }
+}
+
+- (void)finishBusyWork
+{
+  if ([self isBusy]) {
+    return;
+  }
+  [_busyTimer invalidate];
+  _busyTimer = nil;
+  [_spinner stopAnimation:nil];
+  [self refreshCommandState];
+  [self showSummaryStatus];
+  [_directoryTable setNeedsDisplay:YES];
+}
+
+- (void)showStatus:(NSString *)status
+{
+  [_statusField setStringValue:status ?: @""];
 }
 
 // Forgets the previous results before a new scan.
@@ -609,9 +773,13 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
                                 [LDSizeFormatter stringForBytes:[_scanSession bytesScanned]]]];
 }
 
-- (void)scanTimerFired:(NSTimer *)timer
+- (void)busyTimerFired:(NSTimer *)timer
 {
   (void)timer;
+  if (![self isScanning]) {
+    [self redrawSubtreeColumn];
+    return;
+  }
   NSTimeInterval elapsed = [_scanSession elapsedTime];
   if (!_rootNode && [_scanSession rootNode]) {
     _rootNode = [_scanSession rootNode];
@@ -655,11 +823,8 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (void)finishAsyncScan
 {
-  [_scanTimer invalidate];
-  _scanTimer = nil;
-  [_spinner stopAnimation:nil];
   LDFileNode *root = [_scanSession rootNode];
-  [self refreshCommandState];
+  [self finishBusyWork];
   if (!root) {
     [_statusField setStringValue:@"Scan failed"];
     return;
@@ -712,6 +877,55 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [_extensionTable reloadData];
 }
 
+// After refreshes and deletions: rebuild what is derived from the tree,
+// keeping the selection and zoom where the nodes still exist.
+- (void)didChangeTree
+{
+  NSArray *selected = [self selectedNodes];
+  LDFileNode *zoom = [_treemapView zoomNode];
+  LDFileNode *treemapSelection = [_treemapView selectedNode];
+  [self reloadResults];
+  if (zoom && [_rootNode isAncestorOf:zoom]) {
+    [_treemapView setZoomNode:zoom];
+  }
+  _syncingSelection = YES;
+  NSMutableIndexSet *rows = [NSMutableIndexSet indexSet];
+  for (LDFileNode *node in selected) {
+    NSInteger row = [_rootNode isAncestorOf:node] ? [_directoryTable rowForItem:node] : -1;
+    if (row >= 0) {
+      [rows addIndex:(NSUInteger)row];
+    }
+  }
+  [_directoryTable selectRowIndexes:rows byExtendingSelection:NO];
+  _syncingSelection = NO;
+  if (treemapSelection && [_rootNode isAncestorOf:treemapSelection]) {
+    [_treemapView setSelectedNode:treemapSelection];
+  }
+  [self updateSelectionField];
+  [self refreshCommandState];
+}
+
+- (void)forgetNode:(LDFileNode *)node replacement:(LDFileNode *)replacement
+{
+  BOOL wasExpanded = [_directoryTable isItemExpanded:node];
+  BOOL wasSelected = [[self selectedNodes] indexOfObjectIdenticalTo:node] != NSNotFound;
+  [_directoryTable collapseItem:node collapseChildren:YES];
+  [_sortedChildrenCache removeAllObjects];
+  [_directoryTable reloadData];
+  if (replacement && wasExpanded) {
+    [_directoryTable expandItem:replacement];
+  }
+  if (replacement && wasSelected) {
+    NSInteger row = [_directoryTable rowForItem:replacement];
+    if (row >= 0) {
+      _syncingSelection = YES;
+      [_directoryTable selectRow:row byExtendingSelection:YES];
+      _syncingSelection = NO;
+    }
+    [_treemapView setSelectedNode:replacement];
+  }
+}
+
 - (void)rescan:(id)sender
 {
   (void)sender;
@@ -722,6 +936,8 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 {
   (void)sender;
   [_scanSession cancel];
+  [_refreshSession cancel];
+  [_refreshQueue removeAllObjects];
   [_statusField setStringValue:@"Stopping…"];
 }
 
@@ -759,23 +975,35 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (void)zoomOut:(id)sender { [_treemapView zoomOut:sender]; [self refreshCommandState]; }
 - (void)resetZoom:(id)sender { [_treemapView resetZoom:sender]; [self refreshCommandState]; }
 - (void)selectParent:(id)sender { [_treemapView selectParent:sender]; [self refreshCommandState]; }
+- (void)reselectChild:(id)sender { [_treemapView reselectChild:sender]; [self refreshCommandState]; }
 
 - (LDFileNode *)selectedNode
 {
   return [_treemapView selectedNode];
 }
 
-- (void)copyPath:(id)sender
+// The selection of the focused file list; the treemap's selection when the
+// treemap has focus.
+- (NSArray *)selectedNodes
 {
-  (void)sender;
-  LDFileNode *node = [self selectedNode];
-  if (!node) {
-    return;
+  if ([_window firstResponder] == _treemapView) {
+    LDFileNode *node = [_treemapView selectedNode];
+    return node ? @[node] : @[];
   }
-  NSPasteboard *pasteboard = [NSPasteboard generalPasteboard];
-  [pasteboard declareTypes:@[NSStringPboardType] owner:nil];
-  [pasteboard setString:[node path] forType:NSStringPboardType];
-  [_statusField setStringValue:[NSString stringWithFormat:@"Copied %@", [self displayPath:[node path]]]];
+  NSMutableArray *nodes = [NSMutableArray array];
+  NSIndexSet *rows = [_directoryTable selectedRowIndexes];
+  NSUInteger row = [rows firstIndex];
+  while (row != NSNotFound) {
+    id item = [_directoryTable itemAtRow:(NSInteger)row];
+    if (item) {
+      [nodes addObject:item];
+    }
+    row = [rows indexGreaterThanIndex:row];
+  }
+  if ([nodes count] == 0 && [_treemapView selectedNode]) {
+    [nodes addObject:[_treemapView selectedNode]];
+  }
+  return nodes;
 }
 
 - (void)toggleLogicalSize:(id)sender
@@ -843,11 +1071,16 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
           [LDSizeFormatter stringForBytes:[node aggregateSizeForMetric:_sizeMetric]]];
 }
 
+// WinDirStat's second status pane: the size of everything selected.
 - (void)updateSelectionField
 {
-  LDFileNode *node = [self selectedNode];
-  [_selectionField setStringValue:node ? [NSString stringWithFormat:@"Selection: %@",
-                                          [LDSizeFormatter stringForBytes:[node aggregateSizeForMetric:_sizeMetric]]] : @""];
+  unsigned long long total = 0;
+  NSArray *nodes = [LDCommandRules topmostNodes:[self selectedNodes]];
+  for (LDFileNode *node in nodes) {
+    total += [node aggregateSizeForMetric:_sizeMetric];
+  }
+  NSString *label = _sizeMetric == LDSizeMetricLogical ? @"Logical Size" : @"Physical Size";
+  [_selectionField setStringValue:[nodes count] ? [NSString stringWithFormat:@"%@: %@", label, [LDSizeFormatter stringForBytes:total]] : @""];
 }
 
 - (void)treemapView:(LDTreemapView *)view didSelectNode:(LDFileNode *)node
@@ -862,7 +1095,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (void)treemapView:(LDTreemapView *)view didHoverNode:(LDFileNode *)node
 {
   (void)view;
-  if (_scanTimer) {
+  if ([self isBusy]) {
     return;
   }
   if (node) {
@@ -892,6 +1125,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     return;
   }
   NSInteger row = [_directoryTable selectedRow];
+  NSInteger clicked = [_directoryTable clickedRow];
+  if (clicked >= 0 && [_directoryTable isRowSelected:clicked]) {
+    row = clicked;
+  }
   LDFileNode *node = row >= 0 ? [_directoryTable itemAtRow:row] : nil;
   [_treemapView setHighlightedExtensionKey:nil];
   [_treemapView setSelectedNode:node];
@@ -1203,7 +1440,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (void)dealloc
 {
-  [_scanTimer invalidate];
+  [_busyTimer invalidate];
   [_memoryTimer invalidate];
   [[NSNotificationCenter defaultCenter] removeObserver:self];
 }

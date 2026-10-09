@@ -29,6 +29,7 @@
   BOOL _needsRender;
   BOOL _dimmed;
   LDFileNode *_hoverNode;
+  NSMutableArray *_reselectStack;
 }
 
 - (id)delegate;
@@ -51,6 +52,8 @@
 - (void)setDimmed:(BOOL)dimmed;
 
 - (LDFileNode *)zoomNode;
+// Zooms to node (nil or the root resets the zoom).
+- (void)setZoomNode:(LDFileNode *)node;
 - (BOOL)isZoomed;
 - (BOOL)canZoomIn;
 - (BOOL)canZoomOut;
@@ -59,6 +62,9 @@
 - (IBAction)zoomOut:(id)sender;
 - (IBAction)resetZoom:(id)sender;
 - (IBAction)selectParent:(id)sender;
+// WinDirStat's Reselect Child: undoes Select Parent steps.
+- (BOOL)canReselectChild;
+- (IBAction)reselectChild:(id)sender;
 
 - (LDFileNode *)nodeAtPoint:(NSPoint)point;
 - (LDTreemap *)treemap;
