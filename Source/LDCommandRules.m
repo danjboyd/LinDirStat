@@ -1,16 +1,11 @@
 #import "LDCommandRules.h"
 #import "LDPreferences.h"
 
-// LDComputerNode answers -isComputer.
-@protocol LDComputerQuery
-- (BOOL)isComputer;
-@end
-
 @implementation LDCommandRules
 
 + (BOOL)isComputerNode:(LDFileNode *)node
 {
-  return [node respondsToSelector:@selector(isComputer)] && [(id<LDComputerQuery>)node isComputer];
+  return [node isComputer];
 }
 
 + (BOOL)isVolumeNode:(LDFileNode *)node rootNode:(LDFileNode *)root

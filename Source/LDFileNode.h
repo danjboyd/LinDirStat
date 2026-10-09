@@ -75,6 +75,8 @@ typedef enum {
 - (const char *)nameBytes;
 - (LDFileNodeKind)kind;
 - (BOOL)isLeaf;
+// YES only for the synthetic root of a multi-root scan (LDComputerNode).
+- (BOOL)isComputer;
 
 // Logical size (st_size) of this node alone.
 - (unsigned long long)size;
@@ -185,6 +187,13 @@ typedef enum {
 // Recomputes this directory's totals from its direct children only.
 - (void)recalculateOwnTotals;
 
+@end
+
+// The synthetic root of a scan of several paths ("This Computer", WinDirStat's
+// MyComputer item). Its children are full-path roots, so their paths do not
+// depend on it: its -path is its display name and its -pathData is empty.
+@interface LDComputerNode : LDDirectoryNode
++ (LDComputerNode *)computerNode;
 @end
 
 // Bump allocator for node names. Not thread-safe: each scan worker uses its

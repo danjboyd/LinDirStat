@@ -25,6 +25,8 @@ LinDirStatTests_OBJC_FILES = \
   LDDuplicateFinderTests.m \
   LDSearchTests.m \
   LDFilterPatternsTests.m \
+  LDScanOptionsTests.m \
+  LDVolumesTests.m \
   ../Source/LDFileNode.m \
   ../Source/LDExtensionStats.m \
   ../Source/LDSizeFormatter.m \
@@ -47,7 +49,9 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDLargestFiles.m \
   ../Source/LDDuplicateFinder.m \
   ../Source/LDSearch.m \
-  ../Source/LDFilterPatterns.m
+  ../Source/LDFilterPatterns.m \
+  ../Source/LDScanOptions.m \
+  ../Source/LDVolumes.m
 
 LinDirStatTests_INCLUDE_DIRS = -I../Source -I.
 ifneq ($(TOOLS_XCTEST_ROOT),)

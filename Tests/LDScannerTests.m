@@ -4,8 +4,11 @@
 #import "LDExtensionStats.h"
 #import "LDScanner.h"
 #import "LDScanSession.h"
+#import "LDScanOptions.h"
 
 #include <fcntl.h>
+#include <limits.h>
+#include <stdio.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -172,11 +175,14 @@
 
   struct stat info;
   stat([[self fixturePath] fileSystemRepresentation], &info);
-  XCTAssertTrue([scanner shouldDescendIntoDevice:info.st_dev]);
-  XCTAssertFalse([scanner shouldDescendIntoDevice:info.st_dev + 1]);
+  XCTAssertFalse([scanner crossesFilesystems]);
+  XCTAssertTrue([[scanner scanOptions] excludeMountPoints]);
+  XCTAssertTrue([scanner shouldDescendIntoDevice:info.st_dev rootDevice:info.st_dev]);
+  XCTAssertFalse([scanner shouldDescendIntoDevice:info.st_dev + 1 rootDevice:info.st_dev]);
 
   [scanner setCrossesFilesystems:YES];
-  XCTAssertTrue([scanner shouldDescendIntoDevice:info.st_dev + 1]);
+  XCTAssertFalse([[scanner scanOptions] excludeMountPoints]);
+  XCTAssertTrue([scanner shouldDescendIntoDevice:info.st_dev + 1 rootDevice:info.st_dev]);
 }
 
 - (void)testMountedSubdirectoryIsNotDescended
@@ -362,6 +368,317 @@
   [[NSFileManager defaultManager] removeItemAtPath:[gone path] error:NULL];
 
   XCTAssertNil([[[LDScanner alloc] init] scanEntryAtPathData:[gone pathData] session:[[LDScanSession alloc] init]]);
+}
+
+#pragma mark - Filters and exclusions
+
+- (NSString *)makeDirectory:(NSString *)relativePath
+{
+  NSString *path = [[self temporaryRoot] stringByAppendingPathComponent:relativePath];
+  [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:NULL];
+  return path;
+}
+
+- (void)link:(NSString *)relativeLink to:(NSString *)target
+{
+  NSString *path = [[self temporaryRoot] stringByAppendingPathComponent:relativeLink];
+  XCTAssertEqual(0, symlink([target fileSystemRepresentation], [path fileSystemRepresentation]));
+}
+
+- (LDFileNode *)scan:(NSString *)path options:(LDScanOptions *)options session:(LDScanSession *)session
+{
+  LDScanner *scanner = [[LDScanner alloc] init];
+  [scanner setScanOptions:options];
+  return [scanner scanPath:path session:session ? session : [[LDScanSession alloc] init]];
+}
+
+- (void)testExcludedFolderPatternsMatchTheFullPath
+{
+  NSString *root = [self makeDirectory:@"root"];
+  [self makeDirectory:@"root/Cache"];
+  [self makeDirectory:@"root/sub/cache"];
+  [self makeDirectory:@"root/sub/keep"];
+  [self writeFile:@"root/Cache/a.bin" bytes:1000];
+  [self writeFile:@"root/sub/cache/b.bin" bytes:2000];
+  [self writeFile:@"root/sub/keep/c.bin" bytes:4000];
+
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setExcludedFolderPatterns:[NSArray arrayWithObject:[root stringByAppendingPathComponent:@"cache"]]];
+  LDScanSession *session = [[LDScanSession alloc] init];
+  LDFileNode *scanned = [self scan:root options:options session:session];
+
+  XCTAssertNil([self childNamed:@"Cache" of:scanned]);
+  XCTAssertNotNil([self childNamed:@"cache" of:[self childNamed:@"sub" of:scanned]]);
+  XCTAssertEqual((unsigned long long)6000, [scanned aggregateSize]);
+  XCTAssertEqual((NSUInteger)2, [session filesScanned]);
+  XCTAssertEqual((NSUInteger)0, [session skippedCount]);
+
+  // "*" never crosses "/", so the nested folder needs its own level.
+  [options setExcludedFolderPatterns:[NSArray arrayWithObject:[root stringByAppendingPathComponent:@"*/cache"]]];
+  scanned = [self scan:root options:options session:nil];
+  XCTAssertNotNil([self childNamed:@"Cache" of:scanned]);
+  XCTAssertNil([self childNamed:@"cache" of:[self childNamed:@"sub" of:scanned]]);
+  XCTAssertEqual((unsigned long long)5000, [scanned aggregateSize]);
+}
+
+- (void)testExcludedFilePatternsMatchTheNameOnly
+{
+  NSString *root = [self makeDirectory:@"root"];
+  [self makeDirectory:@"root/logs.d"];
+  [self writeFile:@"root/a.log" bytes:100];
+  [self writeFile:@"root/b.txt" bytes:200];
+  [self writeFile:@"root/logs.d/C.LOG" bytes:400];
+  [self writeFile:@"root/logs.d/d.txt" bytes:800];
+
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setExcludedFilePatterns:[NSArray arrayWithObjects:@"*.log", @"logs.d", nil]];
+  LDScanSession *session = [[LDScanSession alloc] init];
+  LDFileNode *scanned = [self scan:root options:options session:session];
+
+  // "logs.d" is a folder, so the file pattern does not apply to it.
+  XCTAssertNotNil([self childNamed:@"logs.d" of:scanned]);
+  XCTAssertEqual((unsigned long long)1000, [scanned aggregateSize]);
+  XCTAssertEqual((NSUInteger)2, [scanned fileCount]);
+  XCTAssertEqual((NSUInteger)2, [session filesScanned]);
+}
+
+- (void)testRegexFiltersAndInvalidPatternsAreSkipped
+{
+  NSString *root = [self makeDirectory:@"root"];
+  [self writeFile:@"root/a.log" bytes:100];
+  [self writeFile:@"root/b.txt" bytes:200];
+
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setUsesRegex:YES];
+  [options setExcludedFilePatterns:[NSArray arrayWithObjects:@"(bad", @".*\\.LOG", nil]];
+  XCTAssertFalse([options validateWithError:NULL]);
+  LDFileNode *scanned = [self scan:root options:options session:nil];
+  XCTAssertEqual((unsigned long long)200, [scanned aggregateSize]);
+}
+
+- (void)testFiltersMatchNamesThatAreNotUTF8
+{
+  NSString *root = [self makeDirectory:@"root"];
+  const char *rootBytes = [root fileSystemRepresentation];
+  char path[PATH_MAX];
+  snprintf(path, sizeof(path), "%s/caf\xe9", rootBytes);
+  XCTAssertEqual(0, mkdir(path, 0755));
+  snprintf(path, sizeof(path), "%s/caf\xe9/inner.bin", rootBytes);
+  XCTAssertEqual(0, close(open(path, O_CREAT | O_WRONLY, 0644)));
+  snprintf(path, sizeof(path), "%s/menu\xe9.tmp", rootBytes);
+  int fd = open(path, O_CREAT | O_WRONLY, 0644);
+  XCTAssertEqual((ssize_t)300, write(fd, [[NSMutableData dataWithLength:300] bytes], 300));
+  close(fd);
+  [self writeFile:@"root/kept.bin" bytes:50];
+
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setExcludedFolderPatterns:[NSArray arrayWithObject:[root stringByAppendingPathComponent:@"CAF?"]]];
+  [options setExcludedFilePatterns:[NSArray arrayWithObject:@"menu?.TMP"]];
+  LDFileNode *scanned = [self scan:root options:options session:nil];
+
+  XCTAssertEqual((NSUInteger)1, [[scanned children] count]);
+  XCTAssertEqualObjects(@"kept.bin", [[[scanned children] objectAtIndex:0] displayName]);
+}
+
+- (void)testMinimumFileSizeUsesTheLogicalSize
+{
+  NSString *root = [self makeDirectory:@"root"];
+  [self writeFile:@"root/small.bin" bytes:999];
+  [self writeFile:@"root/exact.bin" bytes:1000];
+  NSString *sparse = [root stringByAppendingPathComponent:@"sparse.img"];
+  int fd = open([sparse fileSystemRepresentation], O_CREAT | O_WRONLY, 0644);
+  XCTAssertEqual(0, ftruncate(fd, 8 * 1024 * 1024));
+  close(fd);
+
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setMinimumFileSize:1000];
+  LDFileNode *scanned = [self scan:root options:options session:nil];
+
+  XCTAssertNil([self childNamed:@"small.bin" of:scanned]);
+  XCTAssertNotNil([self childNamed:@"exact.bin" of:scanned]);
+  XCTAssertNotNil([self childNamed:@"sparse.img" of:scanned]);
+  XCTAssertEqual((NSUInteger)2, [scanned fileCount]);
+}
+
+- (void)testExcludeHiddenSkipsDotEntriesButNotTheRoot
+{
+  NSString *root = [self makeDirectory:@".root"];
+  [self makeDirectory:@".root/.git/objects"];
+  [self writeFile:@".root/.git/objects/blob" bytes:5000];
+  [self writeFile:@".root/.profile" bytes:100];
+  [self writeFile:@".root/visible.txt" bytes:10];
+
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  LDFileNode *all = [self scan:root options:options session:nil];
+  XCTAssertEqual((NSUInteger)3, [all fileCount]);
+
+  [options setExcludeHidden:YES];
+  LDScanSession *session = [[LDScanSession alloc] init];
+  LDFileNode *visible = [self scan:root options:options session:session];
+  XCTAssertEqual((NSUInteger)1, [[visible children] count]);
+  XCTAssertEqual((unsigned long long)10, [visible aggregateSize]);
+  XCTAssertEqual((NSUInteger)1, [visible directoryCount]);
+  XCTAssertEqual((NSUInteger)1, [session directoriesScanned]);
+}
+
+- (void)buildLinkTree
+{
+  [self makeDirectory:@"root/data"];
+  [self makeDirectory:@"outside/folder"];
+  [self writeFile:@"root/data/inside.bin" bytes:1000];
+  [self writeFile:@"outside/folder/big.bin" bytes:7000];
+  NSString *target = [self writeFile:@"outside/target.bin" bytes:4000];
+  XCTAssertEqual(0, link([target fileSystemRepresentation],
+                         [[[self temporaryRoot] stringByAppendingPathComponent:@"outside/hardlink.bin"] fileSystemRepresentation]));
+  NSString *outside = [[self temporaryRoot] stringByAppendingPathComponent:@"outside"];
+  [self link:@"root/folderlink" to:[outside stringByAppendingPathComponent:@"folder"]];
+  [self link:@"root/filelink" to:target];
+  [self link:@"root/filelink2" to:target];
+  [self link:@"root/broken" to:@"/nonexistent/lindirstat"];
+  [self link:@"root/loop" to:@"."];
+}
+
+- (void)testSymbolicLinksAreExcludedByDefault
+{
+  [self buildLinkTree];
+  LDScanSession *session = [[LDScanSession alloc] init];
+  LDFileNode *root = [self scan:[[self temporaryRoot] stringByAppendingPathComponent:@"root"]
+                        options:[[LDScanOptions alloc] init] session:session];
+
+  XCTAssertNil([self childNamed:@"filelink" of:root]);
+  XCTAssertNil([self childNamed:@"filelink2" of:root]);
+  XCTAssertNil([self childNamed:@"broken" of:root]);
+  LDFileNode *folderLink = [self childNamed:@"folderlink" of:root];
+  LDFileNode *loop = [self childNamed:@"loop" of:root];
+  XCTAssertEqual(LDFileNodeKindSymlink, [folderLink kind]);
+  XCTAssertEqual(LDFileNodeKindSymlink, [loop kind]);
+  XCTAssertEqual((NSUInteger)0, [[folderLink children] count]);
+  XCTAssertEqual((NSUInteger)3, [[root children] count]);
+  XCTAssertEqual((unsigned long long)1000 + [folderLink size] + [loop size], [root aggregateSize]);
+}
+
+- (void)testSymbolicLinksAreFollowedWhenNotExcluded
+{
+  [self buildLinkTree];
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setExcludeSymbolicLinks:NO];
+  LDFileNode *root = [self scan:[[self temporaryRoot] stringByAppendingPathComponent:@"root"] options:options session:nil];
+
+  LDFileNode *folderLink = [self childNamed:@"folderlink" of:root];
+  XCTAssertEqual(LDFileNodeKindDirectory, [folderLink kind]);
+  XCTAssertEqual((NSUInteger)1, [[folderLink children] count]);
+  XCTAssertEqualObjects([[[self temporaryRoot] stringByAppendingPathComponent:@"root/folderlink"] stringByAppendingPathComponent:@"big.bin"],
+                        [[[folderLink children] objectAtIndex:0] path]);
+
+  // Both links lead to one inode with two hard links: counted once.
+  LDFileNode *fileLink = [self childNamed:@"filelink" of:root];
+  LDFileNode *fileLink2 = [self childNamed:@"filelink2" of:root];
+  XCTAssertEqual(LDFileNodeKindFile, [fileLink kind]);
+  XCTAssertEqual(LDFileNodeKindFile, [fileLink2 kind]);
+  XCTAssertTrue([fileLink isHardLinkDuplicate] != [fileLink2 isHardLinkDuplicate]);
+  XCTAssertEqualObjects(@"filelink", [fileLink displayName]);
+  XCTAssertEqual((unsigned long long)4000, [fileLink size] + [fileLink2 size]);
+
+  // A dangling link stays a link; a link back to the root is a cycle.
+  XCTAssertEqual(LDFileNodeKindSymlink, [[self childNamed:@"broken" of:root] kind]);
+  LDFileNode *loop = [self childNamed:@"loop" of:root];
+  XCTAssertEqual(LDFileNodeKindDirectory, [loop kind]);
+  XCTAssertEqual(LDFileNodeErrorDirectoryCycle, [loop error]);
+
+  unsigned long long brokenSize = [[self childNamed:@"broken" of:root] size];
+  XCTAssertEqual((unsigned long long)(1000 + 7000 + 4000) + brokenSize, [root aggregateSize]);
+}
+
+- (void)testFollowedFolderLinkStillRespectsMountPoints
+{
+  NSString *mounted = [NSString stringWithFormat:@"/run/user/%u", getuid()];
+  struct stat mountedInfo;
+  struct stat temporaryInfo;
+  if (stat([mounted fileSystemRepresentation], &mountedInfo) != 0
+      || stat([[self temporaryRoot] fileSystemRepresentation], &temporaryInfo) != 0
+      || mountedInfo.st_dev == temporaryInfo.st_dev) {
+    return;
+  }
+  [self makeDirectory:@"root"];
+  [self link:@"root/runlink" to:mounted];
+
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setExcludeSymbolicLinks:NO];
+  LDFileNode *root = [self scan:[[self temporaryRoot] stringByAppendingPathComponent:@"root"] options:options session:nil];
+  LDFileNode *runLink = [self childNamed:@"runlink" of:root];
+  XCTAssertTrue([runLink isMountPoint]);
+  XCTAssertEqual((NSUInteger)0, [[runLink children] count]);
+}
+
+#pragma mark - Multi-root scans
+
+- (void)testScanningOnePathIsAPlainScan
+{
+  NSString *root = [self makeDirectory:@"a"];
+  [self writeFile:@"a/x.bin" bytes:100];
+  LDFileNode *scanned = [[[LDScanner alloc] init] scanPaths:[NSArray arrayWithObject:root] session:[[LDScanSession alloc] init]];
+  XCTAssertFalse([scanned isComputer]);
+  XCTAssertEqualObjects(root, [scanned path]);
+  XCTAssertEqual((unsigned long long)100, [scanned aggregateSize]);
+}
+
+- (void)testScanningSeveralPathsBuildsAComputerNode
+{
+  NSString *a = [self makeDirectory:@"a"];
+  NSString *b = [[self makeDirectory:@"b/inner"] stringByDeletingLastPathComponent];
+  [self writeFile:@"a/one.bin" bytes:1000];
+  [self writeFile:@"a/two.bin" bytes:2000];
+  [self writeFile:@"b/inner/three.bin" bytes:3000];
+  XCTAssertEqual(0, link([[a stringByAppendingPathComponent:@"one.bin"] fileSystemRepresentation],
+                         [[b stringByAppendingPathComponent:@"one-again.bin"] fileSystemRepresentation]));
+  NSString *missing = [[self temporaryRoot] stringByAppendingPathComponent:@"missing"];
+
+  LDScanSession *session = [[LDScanSession alloc] init];
+  LDScanner *scanner = [[LDScanner alloc] init];
+  LDFileNode *computer = [scanner scanPaths:[NSArray arrayWithObjects:a, b, missing, nil] session:session];
+
+  XCTAssertTrue([computer isComputer]);
+  XCTAssertTrue([computer isKindOfClass:[LDComputerNode class]]);
+  XCTAssertEqualObjects(@"This Computer", [computer displayName]);
+  XCTAssertEqualObjects(@"This Computer", [computer path]);
+  XCTAssertEqual((NSUInteger)0, [[computer pathData] length]);
+  XCTAssertEqual(computer, [session rootNode]);
+  XCTAssertEqual(LDScanSessionStateComplete, [session state]);
+  XCTAssertFalse([computer isScanPending]);
+
+  XCTAssertEqual((NSUInteger)3, [[computer children] count]);
+  LDFileNode *aNode = [self childNamed:@"a" of:computer];
+  LDFileNode *bNode = [self childNamed:@"b" of:computer];
+  XCTAssertFalse([aNode isComputer]);
+  XCTAssertEqualObjects(a, [aNode path]);
+  XCTAssertEqualObjects([NSData dataWithBytes:[a fileSystemRepresentation] length:strlen([a fileSystemRepresentation])], [aNode pathData]);
+  LDFileNode *three = [self childNamed:@"three.bin" of:[self childNamed:@"inner" of:bNode]];
+  XCTAssertEqualObjects([b stringByAppendingPathComponent:@"inner/three.bin"], [three path]);
+  XCTAssertTrue([[[self childNamed:@"missing" of:computer] errorCode] hasPrefix:@"stat_failed:"]);
+
+  // The hard link across roots is counted once.
+  XCTAssertEqual((unsigned long long)6000, [computer aggregateSize]);
+  XCTAssertEqual((NSUInteger)5, [computer fileCount]);
+  XCTAssertEqual((NSUInteger)1, [session errorCount]);
+}
+
+- (void)testEntryRescanWorksUnderAComputerRoot
+{
+  NSString *a = [self makeDirectory:@"a/sub"];
+  NSString *b = [self makeDirectory:@"b"];
+  [self writeFile:@"a/sub/x.bin" bytes:1000];
+  [self writeFile:@"b/y.bin" bytes:500];
+  LDFileNode *computer = [[[LDScanner alloc] init] scanPaths:[NSArray arrayWithObjects:[a stringByDeletingLastPathComponent], b, nil]
+                                                      session:[[LDScanSession alloc] init]];
+  LDFileNode *sub = [self childNamed:@"sub" of:[self childNamed:@"a" of:computer]];
+  [self writeFile:@"a/sub/z.bin" bytes:2000];
+
+  LDFileNode *fresh = [[[LDScanner alloc] init] scanEntryAtPathData:[sub pathData] session:[[LDScanSession alloc] init]];
+  XCTAssertEqual((unsigned long long)3000, [fresh aggregateSize]);
+  [(LDDirectoryNode *)[sub parent] replaceChild:sub withNode:fresh];
+  [[fresh parent] updateTotalsUpwardSortedByMetric:LDSizeMetricPhysical];
+  XCTAssertEqual((unsigned long long)3500, [computer aggregateSize]);
+  XCTAssertEqualObjects([a stringByAppendingPathComponent:@"z.bin"], [[self childNamed:@"z.bin" of:fresh] path]);
 }
 
 @end
