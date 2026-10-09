@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Extra Text Editor
+Exec=true %f
+MimeType=text/plain;

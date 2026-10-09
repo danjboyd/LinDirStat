@@ -5,6 +5,7 @@
 
 @class LDScanSession;
 @class LDTreemapView;
+@class LDFileWatcher;
 
 @interface AppController : NSObject <NSApplicationDelegate, LDListViewCommands, NSTabViewDelegate>
 {
@@ -59,5 +60,13 @@
   NSMapTable *_naturalColumnWidths;
   NSScrollView *_extensionScroll;
   NSMutableArray *_detachedSubtrees;
+  NSTabViewItem *_watcherTab;
+  LDTableView *_watcherTable;
+  NSMutableArray *_watcherEvents;
+  NSArray *_watcherRows;
+  LDFileWatcher *_fileWatcher;
+  BOOL _watcherWanted;
+  NSDateFormatter *_watcherTimeFormatter;
+  NSArray *_openWithNodes;
 }
 @end

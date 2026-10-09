@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Viewer
+Exec=true %f
+MimeType=text/plain;image/png;inode/directory;
+Icon=viewer
+
+[Desktop Action other]
+Name=Other
+Exec=false

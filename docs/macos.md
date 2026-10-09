@@ -3,7 +3,10 @@
 LinDirStat builds natively on macOS against Apple's AppKit. GNUstep is not
 used. Shared code is the same as on Linux; platform differences live in
 small modules (`LDPlatformUI`, `LDHasher`, `LDVolumes`, `LDSystemInfo`,
-`LDDesktop`, `LDFileOperations`, `LDFileTypeDescriptions`).
+`LDDesktop`, `LDFileOperations`, `LDFileTypeDescriptions`, `LDFileWatcher`,
+`LDOpenWith`). `LDFileWatcherApple.m` and the Apple branch of `LDOpenWith.m`
+are stubs (File Watcher unsupported, Open With empty) until the FSEvents and
+NSWorkspace backends are written (parity plan M8, M9).
 
 ## Build
 

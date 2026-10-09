@@ -42,7 +42,14 @@ LinDirStat_OBJC_FILES = \
   LDVolumes.m \
   LDSelectTargetRules.m \
   LDSelectTargetPanel.m \
-  LDPlatformUI.m
+  LDPlatformUI.m \
+  LDFileWatcher.m \
+  LDFileWatcherLinux.m \
+  LDFileWatcherApple.m \
+  LDDesktopEntry.m \
+  LDMimeApps.m \
+  LDOpenWith.m \
+  LDOpenWithLinux.m
 
 LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist $(wildcard Resources/Icons/*.png)
 

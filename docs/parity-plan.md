@@ -29,9 +29,9 @@ checks every PR on its own platform before it is merged.
 | L5 | Preferences: treemap grid and highlight colour pickers with a live preview; subtree bar level colours and level count; "Automatically resize columns" | Linux | todo |
 | L6 | Chrome: Show Toolbar, Show Status Bar, Large Toolbar Icons; Ctrl+F1–F4 tab shortcuts and Tab cycling into the extension list; Expand/Collapse as the tree context menu's default item; Name sorts by type first; Empty Trash label "(N Items, X)"; Help menu (manual, report a bug) | Linux | todo |
 | L7 | Duplicates found during the scan, not after it | Linux | todo |
-| L8 | File Watcher tab (Tools › Start File Watcher): `LDFileWatcher` interface, inotify backend, tab UI | Linux | todo |
+| L8 | File Watcher tab (Tools › Start File Watcher): `LDFileWatcher` interface, inotify backend, tab UI | Linux | PR |
 | M8 | File Watcher FSEvents backend for `LDFileWatcher` | macOS | blocked on L8 interface |
-| L9 | "Open With" submenu in place of WinDirStat's Explorer menu: `LDOpenWith` interface, Linux backend (desktop entries / `gio`), menu UI | Linux | todo |
+| L9 | "Open With" submenu in place of WinDirStat's Explorer menu: `LDOpenWith` interface, Linux backend (desktop entries / `gio`), menu UI | Linux | PR |
 | M9 | "Open With" Apple backend (`NSWorkspace` application URLs) | macOS | blocked on L9 interface |
 | M5 | Localization (WinDirStat's Language setting): `.lproj` string tables shared by both builds; done last because it touches every UI string | macOS | after L1–L9 |
 

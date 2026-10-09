@@ -55,6 +55,9 @@
 - (void)saveDuplicatesToCSV:(id)sender;
 - (void)loadResultsFromCSV:(id)sender;
 - (void)computeHash:(id)sender;
+// Tools › Start/Stop File Watcher.
+- (void)toggleFileWatcher:(id)sender;
+- (BOOL)isFileWatcherOn;
 @end
 
 @class LDSearchOptions;
@@ -89,4 +92,7 @@
 - (void)refreshSelected:(id)sender;
 - (void)refreshNodes:(NSArray *)nodes;
 - (LDFileNode *)nodeForPathData:(NSData *)pathData;
+// The Open With submenu: the applications for nodes, or none.
+- (void)fillOpenWithMenu:(NSMenu *)menu forNodes:(NSArray *)nodes;
+- (void)openWithApplication:(id)sender;
 @end

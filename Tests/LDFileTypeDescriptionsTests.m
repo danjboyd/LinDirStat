@@ -30,6 +30,16 @@
   XCTAssertEqualObjects(@"Data & settings", [[self descriptions] descriptionForExtensionKey:@"dat"]);
 }
 
+- (void)testMimeTypeForExtension
+{
+  LDFileTypeDescriptions *descriptions = [self descriptions];
+  XCTAssertEqualObjects(@"text/plain", [descriptions mimeTypeForExtensionKey:@"txt"]);
+  XCTAssertEqualObjects(@"application/x-high", [descriptions mimeTypeForExtensionKey:@"dat"]);
+  XCTAssertNil([descriptions mimeTypeForExtensionKey:@"zzz"]);
+  XCTAssertNil([descriptions mimeTypeForExtensionKey:nil]);
+  XCTAssertNil([[[LDFileTypeDescriptions alloc] initWithMimeDirectory:nil] mimeTypeForExtensionKey:@"txt"]);
+}
+
 - (void)testUnknownAndMissingExtensions
 {
   LDFileTypeDescriptions *descriptions = [self descriptions];

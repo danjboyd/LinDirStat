@@ -22,6 +22,8 @@ Step D:
 - File tabs (`AppController+FileLists.m`): Largest Files, Duplicate Files (`LDDuplicateFinder`), Search Results (`LDSearch`). Also CSV save/load (`LDCSV`), Compute Hash (`LDHasher`, nettle), filters and exclusions (`LDScanOptions`), suspend/resume, "This Computer" multi-volume scans (`LDComputerNode`), volumes (`LDVolumes`), the Select Target dialog, the Preferences window (`LDOptionsWindowController`) backed by `LDPreferences`, and Options › Show File Types/Show Treemap.
 - Dark mode follows GNOME's style through the theme; checked on a private display.
 
+Parity plan L8/L9: File Watcher tab (Tools › Start File Watcher, `LDFileWatcher`, inotify in `LDFileWatcherLinux.m`) and the Open With submenu (`LDOpenWith`, `LDDesktopEntry`, `LDMimeApps`). Their Apple backends are stubs.
+
 macOS: LinDirStat also builds natively against Apple's AppKit (`make -C macos`); platform differences live in small modules. See `docs/macos.md`.
 
 ## Verify

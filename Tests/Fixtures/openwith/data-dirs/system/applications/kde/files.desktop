@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=KDE Files
+Exec=true %u
+MimeType=inode/directory;
