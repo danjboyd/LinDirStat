@@ -587,12 +587,13 @@
   [self showStatus:[NSString stringWithFormat:@"Refreshing %@…", [self displayPath:[node path]]]];
   LDScanSession *session = [[LDScanSession alloc] init];
   [self configureScanSession:session];
+  [self prepareRefreshSession:session ofNode:node];
   _refreshSession = session;
   void (^finished)(LDFileNode *) = ^(LDFileNode *replacement) {
     if (session != _refreshSession) {
       return;
     }
-    [self replaceNode:node withNode:[session isCanceled] ? nil : replacement keepIfCanceled:[session isCanceled]];
+    [self replaceNode:node withNode:replacement keepIfCanceled:[session isCanceled]];
     [self refreshNextNode];
   };
   if ([[node parent] isComputer]) {
@@ -609,6 +610,7 @@
     [(LDDirectoryNode *)node clearPendingScans];
   }
   if (!parent || canceled) {
+    [self updateHardLinksAfterReplacing:node withNode:replacement canceled:YES];
     return;
   }
   // Parent pointers do not retain, and the file lists may still hold nodes
@@ -621,6 +623,7 @@
     [parent removeChild:node];
   }
   [parent updateTotalsUpwardSortedByMetric:_sizeMetric];
+  [self updateHardLinksAfterReplacing:node withNode:replacement canceled:NO];
   [self forgetNode:node replacement:replacement];
 }
 

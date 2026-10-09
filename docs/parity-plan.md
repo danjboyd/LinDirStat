@@ -23,7 +23,7 @@ checks every PR on its own platform before it is merged.
 | # | Gap | Owner | Status |
 |---|---|---|---|
 | L1 | Show Free Space / Show Unknown (F6/F7): `<Free Space>` and `<Unknown>` under volume roots, WinDirStat's lighter/darker colour flags in `LDTreemap` | Linux | PR |
-| L2 | Hard links: `<Hardlinks>` pseudo-folder and ⧉ marker that jumps between links; Refresh Selected keeps the scan's hard-link set; CSV restores hard-link physical sizes and writes real Index values | Linux | todo |
+| L2 | Hard links: `<Hardlinks>` pseudo-folder and ⧉ marker that jumps between links; Refresh Selected keeps the scan's hard-link set; CSV restores hard-link physical sizes and writes real Index values | Linux | PR |
 | L3 | Command line: `--savetocsv`, `--savedupestocsv`, `--loadfromcsv` | Linux | PR |
 | L4 | Scan progress: percent bar in the status bar and "NN%" title for volume roots, per-row time spent, pacman "zzz" when a folder stalls | Linux | todo |
 | L5 | Preferences: treemap grid and highlight colour pickers with a live preview; subtree bar level colours and level count; "Automatically resize columns" | Linux | todo |

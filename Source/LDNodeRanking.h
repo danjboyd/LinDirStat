@@ -7,6 +7,7 @@
 FOUNDATION_EXPORT NSComparisonResult LDCompareNodePaths(LDFileNode *left, LDFileNode *right);
 
 // Calls visitor for root and every node below it, parents before children.
+// The "<Hardlinks>" pseudo-folders are skipped (see LDHardLinks.h).
 FOUNDATION_EXPORT void LDVisitNodes(LDFileNode *root, void (^visitor)(LDFileNode *node));
 
 // Keeps the limit best nodes offered to it, best meaning larger size first,

@@ -15,6 +15,7 @@ windirstat-parity-exporter_OBJC_FILES = \
   ../Source/LDDuplicateFinder.m \
   ../Source/LDHasher.m \
   ../Source/LDNodeRanking.m \
+  ../Source/LDHardLinks.m \
   ../Source/LDTreemapItem.m \
   ../Source/LDTreemapLayout.m \
   ../Source/LDExtensionColor.m

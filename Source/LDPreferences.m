@@ -162,6 +162,7 @@ static const NSUInteger LDCustomCleanupSlots = 10;
     @"ExcludeVolumeMountPoints": @YES,
     @"ExcludeSymbolicLinks": @YES,
     @"ExcludeHidden": @NO,
+    @"ProcessHardlinks": @YES,
     @"ScanningThreads": @4,
     @"LargeFileCount": @50,
     @"FolderHistoryCount": @10,
@@ -341,6 +342,8 @@ static NSInteger LDClamp(NSInteger value, NSInteger low, NSInteger high)
 - (void)setExcludeSymbolicLinks:(BOOL)flag { [self setBool:flag forKey:@"ExcludeSymbolicLinks"]; }
 - (BOOL)excludeHiddenEntries { return [self boolForKey:@"ExcludeHidden"]; }
 - (void)setExcludeHiddenEntries:(BOOL)flag { [self setBool:flag forKey:@"ExcludeHidden"]; }
+- (BOOL)processHardLinks { return [self boolForKey:@"ProcessHardlinks"]; }
+- (void)setProcessHardLinks:(BOOL)flag { [self setBool:flag forKey:@"ProcessHardlinks"]; }
 - (NSUInteger)scanningThreads { return (NSUInteger)LDClamp([self integerForKey:@"ScanningThreads"], 1, 16); }
 - (void)setScanningThreads:(NSUInteger)count { [self setInteger:LDClamp((NSInteger)count, 1, 16) forKey:@"ScanningThreads"]; }
 - (NSUInteger)largeFileCount { return (NSUInteger)LDClamp([self integerForKey:@"LargeFileCount"], 0, 10000); }

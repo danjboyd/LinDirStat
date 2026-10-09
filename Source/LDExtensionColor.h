@@ -13,6 +13,10 @@ typedef uint32_t LDRGBColor;
 #define LDRGBColorFlagDarker ((LDRGBColor)0x01000000)
 #define LDRGBColorFlagLighter ((LDRGBColor)0x02000000)
 #define LDRGBColorFlagMask ((LDRGBColor)0x03000000)
+// Names used by the hard-link pseudo-items (same flags).
+#define LDTreemapColorFlagDarker LDRGBColorFlagDarker
+#define LDTreemapColorFlagLighter LDRGBColorFlagLighter
+#define LDTreemapColorFlagMask LDRGBColorFlagMask
 
 // WinDirStat's treemap palette and color math (references/WinDirStat
 // windirstat/Controls/TreeMap.h).

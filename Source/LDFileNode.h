@@ -49,7 +49,7 @@ typedef enum {
   uint32_t _mode;
   uint8_t _kind;
   uint8_t _error;
-  uint8_t _ownsName;
+  uint8_t _flags;
   uint8_t _errorNumber;
 }
 
@@ -127,6 +127,12 @@ typedef enum {
 - (NSString *)errorCode;
 - (BOOL)isHardLinkDuplicate;
 - (BOOL)isMountPoint;
+// WinDirStat's ITF_HARDLINK: a link of a file with several links in the
+// tree, counted under "<Hardlinks>" (see LDHardLinks.h). Its aggregate sizes
+// are 0, so it adds nothing to its folders; -size and -allocatedSize keep
+// what the scan gave it.
+- (BOOL)isHardLink;
+- (void)setHardLink:(BOOL)flag;
 
 - (LDFileNode *)parent;
 - (NSArray *)children;
@@ -171,8 +177,10 @@ typedef enum {
   uint32_t _pendingScans;
 }
 
-// Keeps storage the subtree depends on (the scan's name arenas) alive.
+// Keeps storage the subtree depends on (the scan's name arenas and hard-link
+// table) alive.
 - (void)setOwnedStorage:(id)storage;
+- (id)ownedStorage;
 
 // Live scans. A directory's children are published once, as a complete
 // array that is never mutated, so the main thread can read the tree while

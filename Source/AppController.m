@@ -14,6 +14,7 @@
 #import "LDFileNode.h"
 #import "LDFileTypeDescriptions.h"
 #import "LDFileWatcher.h"
+#import "LDHardLinks.h"
 #import "LDPlatformUI.h"
 #import "LDScanSession.h"
 #import "LDSizeFormatter.h"
@@ -1800,6 +1801,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (NSImage *)iconForNode:(LDFileNode *)node
 {
+  LDHardLinkItemType hardLinkItem = LDHardLinkItemTypeOfNode(node);
+  if (hardLinkItem != LDHardLinkItemNone && hardLinkItem != LDHardLinkItemReference) {
+    return [self iconNamed:@"edit-copy-symbolic"];
+  }
   NSImage *native = [LDPlatformUI fileIconForNode:node];
   if (native) {
     return native;
@@ -1928,23 +1933,25 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     return [self percentStringForFraction:[self fractionOfParentForNode:node]];
   }
   if ([identifier isEqualToString:LDColumnPhysicalSize]) {
-    return [LDSizeFormatter stringForBytes:[node aggregateAllocatedSize]];
+    return [self physicalSizeStringForNode:node];
   }
   if ([identifier isEqualToString:LDColumnLogicalSize]) {
-    return [LDSizeFormatter stringForBytes:[node aggregateSize]];
+    return [self logicalSizeStringForNode:node];
   }
+  BOOL pseudo = LDIsHardLinkItem(node);
   if ([identifier isEqualToString:LDColumnLastChange]) {
     NSTimeInterval time = [node aggregateModificationTime];
     return time > 0 ? [_dateFormatter stringFromDate:[NSDate dateWithTimeIntervalSince1970:time]] : @"";
   }
   if ([identifier isEqualToString:LDColumnAttributes]) {
-    return [LDFileAttributes attributeStringForNode:node];
+    return pseudo ? @"" : [LDFileAttributes attributeStringForNode:node];
   }
   if ([identifier isEqualToString:LDColumnOwner]) {
-    return [self ownerOfNode:node];
+    return pseudo ? @"" : [self ownerOfNode:node];
   }
-  // Items, Files and Folders are blank for files, as in WinDirStat.
-  if ([node kind] != LDFileNodeKindDirectory) {
+  // Items, Files and Folders are blank for files and pseudo-items, as in
+  // WinDirStat.
+  if ([node kind] != LDFileNodeKindDirectory || pseudo) {
     return @"";
   }
   NSUInteger folders = [node directoryCount] > 0 ? [node directoryCount] - 1 : 0;

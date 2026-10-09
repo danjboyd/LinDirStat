@@ -3,6 +3,7 @@
 
 @class LDScanOptions;
 @class LDDuplicateCollector;
+@class LDHardLinkTable;
 
 typedef enum {
   LDScanSessionStateIdle = 0,
@@ -37,6 +38,8 @@ typedef enum {
   NSUInteger _threadCount;
   LDScanOptions *_scanOptions;
   LDDuplicateCollector *_duplicateCollector;
+  LDHardLinkTable *_hardLinkTable;
+  LDFileNode *_replacedNode;
 }
 
 - (LDScanSessionState)state;
@@ -96,6 +99,10 @@ typedef enum {
 // also sets threadCount to theirs. nil (the default) means default options.
 - (LDScanOptions *)scanOptions;
 - (void)setScanOptions:(LDScanOptions *)options;
+
+// For the entry rescans: the tree's hard-link table and the node being
+// rescanned (see -[LDScanner setHardLinkTable:replacing:]).
+- (void)setHardLinkTable:(LDHardLinkTable *)table replacing:(LDFileNode *)node;
 
 // Scans on a libdispatch queue. completion, if given, runs on the main queue
 // once the tree is complete (or the scan was canceled).

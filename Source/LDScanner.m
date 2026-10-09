@@ -4,6 +4,7 @@
 #import "LDExtensionStats.h"
 #import "LDScanOptions.h"
 #import "LDDuplicateFinder.h"
+#import "LDHardLinks.h"
 
 #include <dirent.h>
 #include <dispatch/dispatch.h>
@@ -111,6 +112,15 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   _options = options;
 }
 
+- (void)setHardLinkTable:(LDHardLinkTable *)table replacing:(LDFileNode *)node
+{
+  _hardLinks = table;
+  _replacedNode = node;
+  _usesGivenHardLinks = (table != nil);
+}
+
+- (LDHardLinkTable *)hardLinkTable { return _hardLinks; }
+
 - (LDSizeMetric)sortMetric { return _sortMetric; }
 - (void)setSortMetric:(LDSizeMetric)sortMetric { _sortMetric = sortMetric; }
 + (NSUInteger)defaultThreadCount { return [[[LDScanOptions alloc] init] threadCount]; }
@@ -209,10 +219,14 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 - (void)applyStat:(const struct stat *)info toNode:(LDFileNode *)node session:(LDScanSession *)session cache:(NSMutableDictionary *)cache
 {
   LDFileNodeKind kind = [node kind];
-  // When links are followed, a file can also be reached through a link, so
-  // every file is counted once by identity, not only multiply linked ones.
-  BOOL deduplicate = info->st_nlink > 1 || ![_options excludeSymbolicLinks];
-  if (kind == LDFileNodeKindFile && deduplicate) {
+  if (kind == LDFileNodeKindFile && info->st_nlink > 1) {
+    if (![_hardLinks addLink:node device:info->st_dev inode:(unsigned long long)info->st_ino
+                        size:[node size] allocatedSize:[node allocatedSize] ignoringLinksUnder:_replacedNode]) {
+      [session incrementSkippedCount];
+    }
+  } else if (kind == LDFileNodeKindFile && ![_options excludeSymbolicLinks]) {
+    // When links are followed, a file can also be reached through a link, so
+    // every file is counted once by identity, not only multiply linked ones.
     if (![self insertKey:[self identityKeyForStat:info] intoSet:_visitedHardLinks]) {
       [node setSize:0 allocatedSize:0];
       [node setError:LDFileNodeErrorHardLinkDuplicate errorNumber:0];
@@ -275,6 +289,11 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 - (void)resetForScan
 {
   [_visitedHardLinks removeAllObjects];
+  if (!_usesGivenHardLinks) {
+    _hardLinks = [[LDHardLinkTable alloc] init];
+    [_hardLinks setShowsHardLinks:[_options processHardLinks]];
+  }
+  _attachesHardLinks = NO;
   [_visitedDirectories removeAllObjects];
   [_pendingDirectories removeAllObjects];
   [_arenas removeAllObjects];
@@ -316,6 +335,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 {
   [self resetForScan];
   [self beginDuplicateCollectionForSession:session];
+  _attachesHardLinks = !_usesGivenHardLinks;
   [session markScanning];
   [session setCurrentPath:path];
 
@@ -358,6 +378,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   }
   [self resetForScan];
   [self beginDuplicateCollectionForSession:session];
+  _attachesHardLinks = !_usesGivenHardLinks;
   [session markScanning];
   [session setCurrentPath:[paths firstObject]];
 
@@ -472,12 +493,15 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 
 - (void)giveArenasToDirectory:(LDDirectoryNode *)directory
 {
-  [directory setOwnedStorage:[_arenas copy]];
+  [directory setOwnedStorage:_attachesHardLinks ? [_arenas arrayByAddingObject:_hardLinks] : [_arenas copy]];
   [_arenas removeAllObjects];
 }
 
 - (void)finishTree:(LDFileNode *)root session:(LDScanSession *)session
 {
+  if (_attachesHardLinks) {
+    [LDHardLinks updateTree:root table:_hardLinks metric:_sortMetric retiring:_retiredArrays];
+  }
   [root recalculateAggregateSize];
   [root sortChildrenByMetric:_sortMetric retiring:_retiredArrays];
   [session setRootNode:root];

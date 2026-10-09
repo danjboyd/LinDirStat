@@ -1,6 +1,7 @@
 #import "LDTreemapLayout.h"
 #import "LDExtensionStats.h"
 #import "LDTreemapItem.h"
+#import "LDHardLinks.h"
 
 #include <float.h>
 #include <math.h>
@@ -536,6 +537,9 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
 
 + (LDRGBColor)colorForNode:(LDFileNode *)node colorIndexes:(NSDictionary *)colorIndexes
 {
+  if (LDIsHardLinkItem(node)) {
+    return [LDHardLinks treemapColor];
+  }
   LDFileNodeKind kind = [node kind];
   // CItem::GetGraphColor.
   if (kind == LDFileNodeKindUnknown) {
@@ -633,6 +637,8 @@ typedef struct {
           [colorCache setObject:cached forKey:key];
         }
         color = [cached unsignedIntValue];
+      } else if (LDIsHardLinkItem(cell->node)) {
+        color = [LDHardLinks treemapColor];
       }
       double brightness = LDResolveColorFlags(&color, _options.brightness);
       if (cushions) {

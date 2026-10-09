@@ -8,6 +8,12 @@
 - (void)listViewOpenSelection:(NSTableView *)view;
 - (void)listView:(NSTableView *)view deleteSelectionPermanently:(BOOL)permanently;
 - (NSMenu *)contextMenuForListView:(NSTableView *)view;
+@optional
+// Cells that act as links (WinDirStat's hard-link sizes): the pointer turns
+// into a hand over them, and a single click follows them after the click has
+// selected the row.
+- (BOOL)listView:(NSTableView *)view hasLinkAtRow:(NSInteger)row column:(NSInteger)column;
+- (void)listView:(NSTableView *)view followLinkAtRow:(NSInteger)row column:(NSInteger)column;
 @end
 
 @interface LDOutlineView : NSOutlineView

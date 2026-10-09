@@ -12,7 +12,8 @@ typedef enum {
 
 // What a scan includes (WinDirStat's Filtering page and the exclusions on
 // its Advanced page). The defaults match WinDirStat's: no filters, symlinks
-// and mount points excluded, hidden entries included, 4 threads.
+// and mount points excluded, hidden entries included, hard links processed,
+// 4 threads.
 @interface LDScanOptions : NSObject <NSCopying>
 {
   NSArray *_excludedFolderPatterns;
@@ -22,6 +23,7 @@ typedef enum {
   BOOL _excludeHidden;
   BOOL _excludeSymbolicLinks;
   BOOL _excludeMountPoints;
+  BOOL _processHardLinks;
   NSUInteger _threadCount;
   BOOL _findsDuplicates;
 }
@@ -57,6 +59,11 @@ typedef enum {
 // mount-point leaves and not entered.
 - (BOOL)excludeMountPoints;
 - (void)setExcludeMountPoints:(BOOL)flag;
+// WinDirStat's "Scan drives and display hardlink information" (default
+// YES): files with several links are shown under "<Hardlinks>" (see
+// LDHardLinks.h). Either way they are counted once.
+- (BOOL)processHardLinks;
+- (void)setProcessHardLinks:(BOOL)flag;
 - (NSUInteger)threadCount;
 - (void)setThreadCount:(NSUInteger)count;
 // WinDirStat's ScanForDuplicates: the scan also finds duplicate files while

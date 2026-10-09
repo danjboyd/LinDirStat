@@ -784,7 +784,9 @@ static NSString *const LDTabWatcher = @"watcher";
 - (void)loadResultsFromCSVFile:(NSString *)path
 {
   NSError *error = nil;
-  LDFileNode *root = [LDCSV readTreeFromPath:path error:&error];
+  LDFileNode *root = [LDCSV readTreeFromPath:path
+                            processHardLinks:[[LDPreferences sharedPreferences] processHardLinks]
+                                       error:&error];
   if (!root) {
     [LDDialogs showFailures:@[[error localizedDescription] ?: @"Unknown error"] title:@"Loading the results failed"];
     return;
