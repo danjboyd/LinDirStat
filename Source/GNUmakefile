@@ -38,7 +38,9 @@ LinDirStat_OBJC_FILES = \
   LDFilterPatterns.m \
   LDOptionsWindowController.m \
   LDScanOptions.m \
-  LDVolumes.m
+  LDVolumes.m \
+  LDSelectTargetRules.m \
+  LDSelectTargetPanel.m
 
 LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist $(wildcard Resources/Icons/*.png)
 
