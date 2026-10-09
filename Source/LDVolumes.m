@@ -5,10 +5,10 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <sys/statvfs.h>
 #if defined(__APPLE__)
 #include <sys/mount.h>
-#include <sys/stat.h>
 #else
 #include <sys/sysmacros.h>
 #endif
@@ -324,16 +324,47 @@ static NSString *LDStringFromBytes(NSData *bytes)
 
 + (BOOL)queryUsageForVolume:(LDVolume *)volume
 {
-  NSMutableData *path = [[volume mountPointData] mutableCopy];
-  [path appendBytes:"\0" length:1];
-  struct statvfs info;
-  if (statvfs([path bytes], &info) != 0) {
+  unsigned long long totalBytes = 0;
+  unsigned long long freeBytes = 0;
+  if (![self getTotalBytes:&totalBytes freeBytes:&freeBytes forPathData:[volume mountPointData]]) {
     [volume markQueryFailed];
     return NO;
   }
-  [volume setTotalBytes:(unsigned long long)info.f_blocks * info.f_frsize
-              freeBytes:(unsigned long long)info.f_bavail * info.f_frsize];
+  [volume setTotalBytes:totalBytes freeBytes:freeBytes];
   return YES;
+}
+
++ (BOOL)getTotalBytes:(unsigned long long *)totalBytes
+            freeBytes:(unsigned long long *)freeBytes
+          forPathData:(NSData *)pathData
+{
+  NSMutableData *path = [pathData mutableCopy];
+  [path appendBytes:"\0" length:1];
+  struct statvfs info;
+  if ([pathData length] == 0 || statvfs([path bytes], &info) != 0) {
+    return NO;
+  }
+  *totalBytes = (unsigned long long)info.f_blocks * info.f_frsize;
+  *freeBytes = (unsigned long long)info.f_bavail * info.f_frsize;
+  return YES;
+}
+
++ (BOOL)isVolumeRootPathData:(NSData *)pathData
+{
+  if ([pathData length] == 0) {
+    return NO;
+  }
+  NSMutableData *path = [pathData mutableCopy];
+  [path appendBytes:"\0" length:1];
+  NSMutableData *parent = [pathData mutableCopy];
+  [parent appendBytes:"/..\0" length:4];
+  struct stat info;
+  struct stat parentInfo;
+  if (lstat([path bytes], &info) != 0 || !S_ISDIR(info.st_mode) || stat([parent bytes], &parentInfo) != 0) {
+    return NO;
+  }
+  // "/" is its own parent.
+  return info.st_dev != parentInfo.st_dev || info.st_ino == parentInfo.st_ino;
 }
 
 @end

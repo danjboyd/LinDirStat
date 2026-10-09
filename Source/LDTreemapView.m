@@ -1,5 +1,6 @@
 #import "LDTreemapView.h"
 #import "LDExtensionStats.h"
+#import "LDHardLinks.h"
 
 // WinDirStat's CTreeMapView::ZoomFrameWidth.
 static const int LDZoomFrameWidth = 4;
@@ -270,7 +271,10 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 
 - (void)drawSelection
 {
-  NSInteger index = [_treemap cellIndexForNode:_selectedNode];
+  // A hard link has no area of its own; WinDirStat highlights its Index
+  // folder under "<Hardlinks>" instead (TreeMapView.cpp).
+  LDFileNode *shown = [_selectedNode isHardLink] ? ([LDHardLinks indexNodeForLink:_selectedNode] ?: _selectedNode) : _selectedNode;
+  NSInteger index = [_treemap cellIndexForNode:shown];
   if (index < 0) {
     return;
   }
@@ -345,6 +349,9 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 - (LDFileNode *)zoomInTarget
 {
   LDFileNode *node = _selectedNode;
+  if ([node isSpaceItem]) {
+    return nil;
+  }
   if (node && [node isLeaf]) {
     node = [node parent];
   }

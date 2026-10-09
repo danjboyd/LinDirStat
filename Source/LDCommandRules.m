@@ -1,6 +1,7 @@
 #import "LDCommandRules.h"
 #import "LDSizeFormatter.h"
 #import "LDPreferences.h"
+#import "LDHardLinks.h"
 
 @implementation LDCommandRules
 
@@ -17,6 +18,17 @@
   return node == root || [node isMountPoint] || [self isComputerNode:[node parent]];
 }
 
+// The "<Hardlinks>" items are not on disk; no command acts on them.
++ (BOOL)containsPseudoItem:(NSArray *)nodes
+{
+  for (LDFileNode *node in nodes) {
+    if (LDIsHardLinkItem(node)) {
+      return YES;
+    }
+  }
+  return NO;
+}
+
 + (BOOL)allNodes:(NSArray *)nodes satisfy:(BOOL (^)(LDFileNode *node))predicate
 {
   for (LDFileNode *node in nodes) {
@@ -27,12 +39,24 @@
   return YES;
 }
 
++ (BOOL)anyIsSpaceItem:(NSArray *)nodes
+{
+  for (LDFileNode *node in nodes) {
+    if ([node isSpaceItem]) {
+      return YES;
+    }
+  }
+  return NO;
+}
+
 + (BOOL)isCommand:(LDCommand)command
   enabledForNodes:(NSArray *)nodes
          rootNode:(LDFileNode *)root
              busy:(BOOL)busy
 {
-  if ([nodes count] == 0) {
+  // Pseudo-items (<Free Space>, <Unknown>, <Hardlinks>) are none of
+  // WinDirStat's command types.
+  if ([nodes count] == 0 || [self anyIsSpaceItem:nodes] || [self containsPseudoItem:nodes]) {
     return NO;
   }
   BOOL (^notComputer)(LDFileNode *) = ^BOOL(LDFileNode *node) {
@@ -80,7 +104,8 @@
          rootNode:(LDFileNode *)root
              busy:(BOOL)busy
 {
-  if (busy || ![cleanup isEnabled] || [[cleanup commandLine] length] == 0 || [nodes count] == 0) {
+  if (busy || ![cleanup isEnabled] || [[cleanup commandLine] length] == 0 || [nodes count] == 0
+      || [self anyIsSpaceItem:nodes] || [self containsPseudoItem:nodes]) {
     return NO;
   }
   return [self allNodes:nodes satisfy:^BOOL(LDFileNode *node) {

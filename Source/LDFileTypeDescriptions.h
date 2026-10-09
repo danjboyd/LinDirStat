@@ -21,4 +21,8 @@
 // Lowercase extension key ("txt"); nil when unknown or "<none>".
 - (NSString *)descriptionForExtensionKey:(NSString *)extensionKey;
 
+// The shared-mime-info type for a lowercase extension key ("txt" ->
+// "text/plain"); nil when unknown or without a MIME database (macOS).
+- (NSString *)mimeTypeForExtensionKey:(NSString *)extensionKey;
+
 @end

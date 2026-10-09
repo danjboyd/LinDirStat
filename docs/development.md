@@ -59,11 +59,15 @@ pwsh ~/git/gnustep/gnustep-packager/scripts/gnustep-packager.ps1 -Manifest packa
 pwsh ~/git/gnustep/gnustep-packager/scripts/gnustep-packager.ps1 -Manifest package.manifest.json -Command validate
 ```
 
-Linux distribution should use the AppImage backend once the staged runtime is complete:
+Linux distribution uses the AppImage backend:
 
 ```sh
 pwsh ~/git/gnustep/gnustep-packager/scripts/gnustep-packager.ps1 -Manifest package.manifest.json -Command package -Backend appimage
+pwsh ~/git/gnustep/gnustep-packager/scripts/gnustep-packager.ps1 -Manifest package.manifest.json -Command validate -Backend appimage -RunSmoke
 ```
+
+The staged payload, its inputs, the smoke-test display, and the theme default
+are described in `docs/packaging.md`.
 
 macOS packaging is intentionally not enabled yet. `gnustep-packager` needs a native DMG-style backend first; see `docs/packaging.md`.
 
@@ -95,14 +99,24 @@ change your LinDirStat settings:
 
 ```sh
 Xvfb :77 -screen 0 1600x1000x24 &
-mkdir -p /tmp/ld-defaults && cp ~/GNUstep/Defaults/NSGlobalDomain.plist /tmp/ld-defaults/
-. ~/.local/share/gnustep-cli/System/Library/Makefiles/GNUstep.sh
-GNUSTEP_USER_DEFAULTS_DIR=/tmp/ld-defaults DISPLAY=:77 XDG_DATA_HOME=/tmp/ld-data \
-  LINDIRSTAT_SCAN_PATH=/usr/share/doc openapp Source/LinDirStat.app &
+DISPLAY=:77 DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent XDG_DATA_HOME=/tmp/ld-data \
+  LINDIRSTAT_SCAN_PATH=/usr/share/doc scripts/run-isolated.sh /tmp/ld-gnustep-home &
 DISPLAY=:77 import -window root /tmp/ld-review.png
 ```
 
+- `scripts/run-isolated.sh` gives the app its own GNUstep home (defaults),
+  seeded with your global domain and linked to your `~/GNUstep/Library` for
+  the theme. Neither `$HOME` nor `GNUSTEP_USER_DEFAULTS_DIR` isolates
+  gnustep-base (it takes the home from the user database and ignores that
+  variable), and `openapp`'s `GNUstep.sh` unsets `GNUSTEP_HOME`, so the script
+  sets it again in a wrapper just before the app runs. For processes started
+  directly (xctest, the command-line binary, `defaults`), export
+  `GNUSTEP_HOME` after sourcing `GNUstep.sh`; `scripts/run-tests.sh` and
+  `scripts/test-command-line.sh` do. Check that the mtimes of
+  `~/GNUstep/Defaults/*.plist` do not change across a run.
 - `XDG_DATA_HOME` gives trash tests their own trash folder.
+- The dead D-Bus address keeps the file chooser portal and the file manager
+  from opening on your desktop.
 - There is no window manager: find windows with `xwininfo -root -tree`, not
   `xdotool search --pid`.
 - Drive clicks with `xdotool mousedown`, a short sleep, then `mouseup`;

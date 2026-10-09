@@ -68,6 +68,17 @@
 // Fills in the volume's sizes with statvfs. Blocking; returns NO on failure.
 + (BOOL)queryUsageForVolume:(LDVolume *)volume;
 
+// Size and free space of the filesystem holding path (exact bytes), from
+// statvfs: total is f_blocks * f_frsize and free is f_bavail * f_frsize,
+// what an unprivileged user can still write. On APFS this is the free space
+// of the whole container, which is what Finder reports too.
++ (BOOL)getTotalBytes:(unsigned long long *)totalBytes
+            freeBytes:(unsigned long long *)freeBytes
+          forPathData:(NSData *)pathData;
+// YES when path is the root of a mounted filesystem: "/", or a directory on
+// a different device from its parent (WinDirStat's drive items).
++ (BOOL)isVolumeRootPathData:(NSData *)pathData;
+
 // Decodes mountinfo's octal escapes ("\040" is a space).
 + (NSData *)decodeMountInfoField:(NSData *)field;
 

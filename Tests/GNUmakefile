@@ -20,18 +20,26 @@ LinDirStatTests_OBJC_FILES = \
   LDCommandRulesTests.m \
   LDCustomCleanupRunnerTests.m \
   LDCSVTests.m \
+  LDCommandLineTests.m \
   LDHasherTests.m \
   LDLargestFilesTests.m \
   LDDuplicateFinderTests.m \
+  LDDuplicateCollectorTests.m \
   LDSearchTests.m \
   LDFilterPatternsTests.m \
   LDScanOptionsTests.m \
   LDVolumesTests.m \
+  LDSpaceItemsTests.m \
   LDSelectTargetRulesTests.m \
   LDScanClockTests.m \
   LDScanProgressTests.m \
   LDTabCycleTests.m \
   LDTreemapPreviewTests.m \
+  LDPrivacyAccessTests.m \
+  LDFileWatcherTests.m \
+  LDDesktopEntryTests.m \
+  LDOpenWithTests.m \
+  LDHardLinksTests.m \
   ../Source/LDFileNode.m \
   ../Source/LDExtensionStats.m \
   ../Source/LDSizeFormatter.m \
@@ -49,7 +57,9 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDCustomCleanupRunner.m \
   ../Source/LDFileAttributes.m \
   ../Source/LDCSV.m \
+  ../Source/LDCommandLine.m \
   ../Source/LDNodeRanking.m \
+  ../Source/LDHardLinks.m \
   ../Source/LDHasher.m \
   ../Source/LDLargestFiles.m \
   ../Source/LDDuplicateFinder.m \
@@ -61,7 +71,16 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDScanClock.m \
   ../Source/LDScanProgress.m \
   ../Source/LDTabCycle.m \
-  ../Source/LDTreemapPreview.m
+  ../Source/LDTreemapPreview.m \
+  ../Source/LDPrivacyAccess.m \
+  ../Source/LDSpaceItems.m \
+  ../Source/LDFileWatcher.m \
+  ../Source/LDFileWatcherLinux.m \
+  ../Source/LDFileWatcherApple.m \
+  ../Source/LDDesktopEntry.m \
+  ../Source/LDMimeApps.m \
+  ../Source/LDOpenWith.m \
+  ../Source/LDOpenWithLinux.m
 
 LinDirStatTests_INCLUDE_DIRS = -I../Source -I.
 ifneq ($(TOOLS_XCTEST_ROOT),)

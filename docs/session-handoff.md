@@ -19,8 +19,12 @@ Step D:
 - Clean Up menu and context menus with WinDirStat's enablement table (`LDCommandRules`): Open, Show in Files, Open Terminal Here, Copy Path, Refresh Selected, Properties, Move to Trash, Delete Permanently, Empty Trash, Empty Folder, Move To, ten custom cleanups (`LDCustomCleanupRunner`).
 - `LDFileOperations`: freedesktop.org trash, permanent delete that never follows symlinks or crosses filesystems, move that never replaces. `LDDesktop` launches with byte-exact arguments.
 - Refresh engine (`AppController+Cleanup.m`): after any change on disk the affected entries are rescanned (`-[LDScanner scanEntryAtPathData:]`) or removed, and totals and order are updated upward. Detached subtrees are kept until the next scan because parent pointers do not retain.
-- File tabs (`AppController+FileLists.m`): Largest Files, Duplicate Files (`LDDuplicateFinder`), Search Results (`LDSearch`). Also CSV save/load (`LDCSV`), Compute Hash (`LDHasher`, nettle), filters and exclusions (`LDScanOptions`), suspend/resume, "This Computer" multi-volume scans (`LDComputerNode`), volumes (`LDVolumes`), the Select Target dialog, the Preferences window (`LDOptionsWindowController`) backed by `LDPreferences`, and Options › Show File Types/Show Treemap.
+- File tabs (`AppController+FileLists.m`): Largest Files, Duplicate Files (`LDDuplicateCollector` during the scan, fed by the scanner workers when `LDScanOptions` `findsDuplicates`; `LDDuplicateFinder` for trees loaded from CSV), Search Results (`LDSearch`).
+- Command line (`LDCommandLine`): folders to scan, `--savetocsv`/`--savedupestocsv` (run from `main.m` without NSApplication, so no display) and `--loadfromcsv`; `scripts/test-command-line.sh` runs the built app end to end and is part of `./scripts/run-tests.sh`. Also CSV save/load (`LDCSV`), Compute Hash (`LDHasher`, nettle), filters and exclusions (`LDScanOptions`), suspend/resume, "This Computer" multi-volume scans (`LDComputerNode`), volumes (`LDVolumes`), the Select Target dialog, the Preferences window (`LDOptionsWindowController`) backed by `LDPreferences`, and Options › Show File Types/Show Treemap.
 - Dark mode follows GNOME's style through the theme; checked on a private display.
+- Options › Show Free Space / Show Unknown (F6/F7): `<Free Space>` and `<Unknown>` are leaf nodes of kind `LDFileNodeKindFreeSpace`/`LDFileNodeKindUnknown` (`-isSpaceItem`) under each volume root, maintained by `LDSpaceItems` after every scan, refresh and toggle (`-[AppController updateSpaceItems]`). Disk usage comes from `+[LDVolumes getTotalBytes:freeBytes:forPathData:]` and `+isVolumeRootPathData:` (portable `statvfs`/`stat`). `LDTreemap` honours WinDirStat's `COLORFLAG_DARKER/LIGHTER` (`LDRGBColorFlag…`).
+
+Parity plan L8/L9: File Watcher tab (Tools › Start File Watcher, `LDFileWatcher`, inotify in `LDFileWatcherLinux.m`) and the Open With submenu (`LDOpenWith`, `LDDesktopEntry`, `LDMimeApps`). Their Apple backends are stubs.
 
 macOS: LinDirStat also builds natively against Apple's AppKit (`make -C macos`); platform differences live in small modules. See `docs/macos.md`.
 
@@ -39,7 +43,6 @@ Run GUI checks on a private display (`docs/development.md`, "GUI review on a pri
 The remaining parity work is split between the Linux and macOS sessions in `docs/parity-plan.md`.
 
 
-- Show Free Space / Show Unknown (WinDirStat's F6/F7) for volume roots: needs pseudo-nodes and WinDirStat's lighter/darker colour flags in `LDTreemap`.
 - A `.desktop` file action ("Open with LinDirStat") in place of WinDirStat's Explorer menu entry.
 - Full-window parity gate (roadmap 12J).
 
@@ -49,7 +52,6 @@ The remaining parity work is split between the Linux and macOS sessions in `docs
 - The Adwaita header bar draws toolbar icons at 16 px whatever the toolbar's size mode, so Large Toolbar Icons has no visible effect under the theme.
 
 - Theme/libs-gui issues reported to the Adwaita theme session rather than worked around: NSSplitView gives half-pixel frames with thin dividers; `-[NSTableView setColumnAutoresizingStyle:]` is not implemented, so GNUstep resizes a table's last column (the app keeps it at its natural width while fitting its flexible column); NSAlert has no accessory view or suppression button (the delete warning is a custom panel of standard controls); disabled pop-up buttons do not look disabled; pop-up buttons size too narrow for the theme's arrow; NSTabView does not scroll tabs that do not fit.
-- Refreshing a subtree counts hard links inside it again if their other links are outside it (the hard-link set covers one scan).
-- CSV Index is always 0 (inode numbers are not kept).
+- Hard links (`LDHardLinks`, parity item L2): the scan's hard-link table lives with the root (`+[LDHardLinkTable tableForRoot:]`) and is handed to Refresh Selected; links carry `-[LDFileNode isHardLink]` (a bit in the existing flags byte, no per-node memory). The `<Hardlinks>` pseudo-items are recognised with `LDIsHardLinkItem`.
 - Show in Files is allowed on scan roots and mount points (WinDirStat allows folders and files only); on Linux the file manager handles them fine.
 - Adwaita theme #66/#67 (pop-up width, combo list padding) verified with theme main 8f75da8; the unit pop-up no longer needs a minimum width.

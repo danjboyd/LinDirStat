@@ -29,9 +29,12 @@ LinDirStat_OBJC_FILES = \
   LDListViews.m \
   AppController+Cleanup.m \
   AppController+FileLists.m \
+  AppController+HardLinks.m \
   LDFileAttributes.m \
   LDCSV.m \
+  LDCommandLine.m \
   LDNodeRanking.m \
+  LDHardLinks.m \
   LDHasher.m \
   LDLargestFiles.m \
   LDDuplicateFinder.m \
@@ -40,6 +43,7 @@ LinDirStat_OBJC_FILES = \
   LDOptionsWindowController.m \
   LDScanOptions.m \
   LDVolumes.m \
+  LDSpaceItems.m \
   LDSelectTargetRules.m \
   LDSelectTargetPanel.m \
   LDPlatformUI.m \
@@ -47,7 +51,15 @@ LinDirStat_OBJC_FILES = \
   LDScanProgress.m \
   LDTabCycle.m \
   LDTreemapPreview.m \
-  LDMainWindow.m
+  LDMainWindow.m \
+  LDPrivacyAccess.m \
+  LDFileWatcher.m \
+  LDFileWatcherLinux.m \
+  LDFileWatcherApple.m \
+  LDDesktopEntry.m \
+  LDMimeApps.m \
+  LDOpenWith.m \
+  LDOpenWithLinux.m
 
 LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist $(wildcard Resources/Icons/*.png)
 

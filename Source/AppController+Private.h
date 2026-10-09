@@ -17,6 +17,9 @@
 - (void)finishBusyWork;
 // The tree was edited: rebuild the extension list and treemap.
 - (void)didChangeTree;
+// Brings <Free Space> and <Unknown> in line with the Options menu, with
+// fresh sizes. Call before -didChangeTree after a scan or refresh.
+- (void)updateSpaceItems;
 // node was replaced (or removed when replacement is nil).
 - (void)forgetNode:(LDFileNode *)node replacement:(LDFileNode *)replacement;
 - (void)configureScanSession:(LDScanSession *)session;
@@ -30,6 +33,7 @@
 - (void)setSortPrototypeForColumn:(NSTableColumn *)column ascending:(BOOL)ascending;
 - (NSScrollView *)scrollViewWithDocumentView:(NSView *)view;
 - (NSString *)describeNode:(LDFileNode *)node;
+- (void)revealNodeInTree:(LDFileNode *)node;
 - (void)showSummaryStatus;
 - (void)updateSelectionField;
 - (void)fitFlexibleColumns;
@@ -49,12 +53,21 @@
 - (void)updateLargestFiles;
 - (void)fileListsDidChangeTree;
 - (void)resetFileListsForScan;
+// After _scanSession has started: follows its duplicate collector, if any.
+- (void)fileListsDidStartScan;
+// Duplicate detection can go on after the scan; Stop stops it too.
+- (BOOL)isFindingDuplicates;
+- (void)stopDuplicateDetection;
 - (void)fileListsDidFinishScan;
 - (void)search:(id)sender;
 - (void)saveResultsToCSV:(id)sender;
 - (void)saveDuplicatesToCSV:(id)sender;
 - (void)loadResultsFromCSV:(id)sender;
+- (void)loadResultsFromCSVFile:(NSString *)path;
 - (void)computeHash:(id)sender;
+// Tools › Start/Stop File Watcher.
+- (void)toggleFileWatcher:(id)sender;
+- (BOOL)isFileWatcherOn;
 @end
 
 @class LDSearchOptions;
@@ -70,6 +83,18 @@
 }
 // Returns the options to search with, or nil if cancelled.
 + (LDSearchOptions *)runSearchPanel;
+@end
+
+@class LDHardLinkTable;
+
+@interface AppController (HardLinks)
+- (LDHardLinkTable *)hardLinkTable;
+- (NSString *)physicalSizeStringForNode:(LDFileNode *)node;
+- (NSString *)logicalSizeStringForNode:(LDFileNode *)node;
+- (BOOL)listView:(NSTableView *)view hasLinkAtRow:(NSInteger)row column:(NSInteger)column;
+- (void)listView:(NSTableView *)view followLinkAtRow:(NSInteger)row column:(NSInteger)column;
+- (void)prepareRefreshSession:(LDScanSession *)session ofNode:(LDFileNode *)node;
+- (void)updateHardLinksAfterReplacing:(LDFileNode *)node withNode:(LDFileNode *)replacement canceled:(BOOL)canceled;
 @end
 
 @interface AppController (Cleanup)
@@ -89,4 +114,7 @@
 - (void)refreshSelected:(id)sender;
 - (void)refreshNodes:(NSArray *)nodes;
 - (LDFileNode *)nodeForPathData:(NSData *)pathData;
+// The Open With submenu: the applications for nodes, or none.
+- (void)fillOpenWithMenu:(NSMenu *)menu forNodes:(NSArray *)nodes;
+- (void)openWithApplication:(id)sender;
 @end

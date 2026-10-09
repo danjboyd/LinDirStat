@@ -130,6 +130,33 @@
           }
         ]
       }
+    },
+    {
+      "name": "volume-free-and-unknown",
+      "tree": {
+        "name": "volume",
+        "children": [
+          { "name": "<Free Space>", "space": "free", "size": 61000000000 },
+          { "name": "<Unknown>", "space": "unknown", "size": 9500000000 },
+          {
+            "name": "home",
+            "children": [
+              { "name": "movie.mkv", "size": 14000000000 },
+              { "name": "photos.tar", "size": 6200000000 },
+              { "name": "notes.txt", "size": 4000000 }
+            ]
+          },
+          {
+            "name": "usr",
+            "children": [
+              { "name": "libfoo.so", "size": 2400000000 },
+              { "name": "libbar.so", "size": 1300000000 },
+              { "name": "README", "size": 90000000 }
+            ]
+          },
+          { "name": "swapfile", "size": 4000000000 }
+        ]
+      }
     }
   ],
   "sizes": [

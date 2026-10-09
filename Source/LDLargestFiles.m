@@ -6,7 +6,7 @@
 + (BOOL)isRankableFile:(LDFileNode *)node
 {
   LDFileNodeKind kind = [node kind];
-  if (kind == LDFileNodeKindDirectory || kind == LDFileNodeKindSpecial) {
+  if (kind == LDFileNodeKindDirectory || kind == LDFileNodeKindSpecial || [node isSpaceItem]) {
     return NO;
   }
   return [node error] == LDFileNodeErrorNone;

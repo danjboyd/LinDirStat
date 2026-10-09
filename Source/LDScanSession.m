@@ -2,6 +2,7 @@
 #import "LDFileNode.h"
 #import "LDScanner.h"
 #import "LDScanOptions.h"
+#import "LDDuplicateFinder.h"
 
 #include <dispatch/dispatch.h>
 
@@ -155,6 +156,25 @@
   __atomic_store_n(&_canceled, YES, __ATOMIC_RELEASE);
   [_suspendCondition broadcast];
   [_suspendCondition unlock];
+  [[self duplicateCollector] cancel];
+}
+
+- (LDDuplicateCollector *)duplicateCollector
+{
+  [_lock lock];
+  LDDuplicateCollector *collector = _duplicateCollector;
+  [_lock unlock];
+  return collector;
+}
+
+- (void)setDuplicateCollector:(LDDuplicateCollector *)collector
+{
+  [_lock lock];
+  _duplicateCollector = collector;
+  [_lock unlock];
+  if ([self isCanceled]) {
+    [collector cancel];
+  }
 }
 
 - (BOOL)isSuspended { return __atomic_load_n(&_suspended, __ATOMIC_ACQUIRE); }
@@ -199,6 +219,12 @@
   [_suspendCondition unlock];
 }
 
+- (void)setHardLinkTable:(LDHardLinkTable *)table replacing:(LDFileNode *)node
+{
+  _hardLinkTable = table;
+  _replacedNode = node;
+}
+
 - (void)startAsyncScanPath:(NSString *)path
 {
   [self startAsyncScanPath:path completion:nil];
@@ -207,6 +233,7 @@
 - (void)startAsyncScanPath:(NSString *)path completion:(void (^)(void))completion
 {
   NSString *scanPath = [path copy];
+  [self prepareDuplicateCollector];
   [self startAsyncScanWithBlock:^(LDScanner *scanner) {
     [scanner scanPath:scanPath session:self];
   } completion:completion];
@@ -215,6 +242,7 @@
 - (void)startAsyncScanPaths:(NSArray *)paths completion:(void (^)(void))completion
 {
   NSArray *scanPaths = [paths copy];
+  [self prepareDuplicateCollector];
   [self startAsyncScanWithBlock:^(LDScanner *scanner) {
     [scanner scanPaths:scanPaths session:self];
   } completion:completion];
@@ -236,12 +264,21 @@
 {
   NSString *rootPath = [path copy];
   [self startAsyncScanWithBlock:^(LDScanner *scanner) {
+    [scanner setFindsDuplicates:NO];
     [scanner scanPath:rootPath session:self];
   } completion:^{
     if (completion) {
       completion([self rootNode]);
     }
   }];
+}
+
+// Made before the scan starts, so the caller can watch it right away.
+- (void)prepareDuplicateCollector
+{
+  if ([_scanOptions findsDuplicates] && ![self duplicateCollector]) {
+    [self setDuplicateCollector:[[LDDuplicateCollector alloc] init]];
+  }
 }
 
 - (void)startAsyncScanWithBlock:(void (^)(LDScanner *scanner))scan completion:(void (^)(void))completion
@@ -257,6 +294,9 @@
       }
       [scanner setSortMetric:_sortMetric];
       [scanner setThreadCount:_threadCount];
+      if (_hardLinkTable) {
+        [scanner setHardLinkTable:_hardLinkTable replacing:_replacedNode];
+      }
       scan(scanner);
       retired = [scanner takeRetiredArrays];
     }

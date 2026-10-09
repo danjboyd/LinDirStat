@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Writer
+Exec=true %F
+MimeType=text/plain;

@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Missing Program
+Exec=ldtest-not-installed %f
+MimeType=text/plain;

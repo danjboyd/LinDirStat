@@ -1,4 +1,5 @@
 #import "LDNodeRanking.h"
+#import "LDHardLinks.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -124,10 +125,14 @@ void LDVisitNodes(LDFileNode *root, void (^visitor)(LDFileNode *node))
   if (!root) {
     return;
   }
-  visitor(root);
   if ([root kind] != LDFileNodeKindDirectory) {
+    visitor(root);
     return;
   }
+  if (LDIsHardLinkItem(root)) {
+    return;
+  }
+  visitor(root);
   for (LDFileNode *child in [root children]) {
     LDVisitNodes(child, visitor);
   }

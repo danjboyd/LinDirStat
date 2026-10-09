@@ -188,6 +188,8 @@ typedef enum {
 - (void)setExcludeSymbolicLinks:(BOOL)flag;
 - (BOOL)excludeHiddenEntries;            // dot-names; default NO
 - (void)setExcludeHiddenEntries:(BOOL)flag;
+- (BOOL)processHardLinks;                // "<Hardlinks>" and ⧉ markers; default YES
+- (void)setProcessHardLinks:(BOOL)flag;
 - (NSUInteger)scanningThreads;           // 1..16, default 4
 - (void)setScanningThreads:(NSUInteger)count;
 - (NSUInteger)largeFileCount;            // 0..10000, default 50
@@ -237,6 +239,11 @@ typedef enum {
 - (void)setShowStatusBar:(BOOL)flag;
 - (BOOL)largeToolBar;
 - (void)setLargeToolBar:(BOOL)flag;
+// Options menu: <Free Space> and <Unknown> under volume roots (off by default).
+- (BOOL)showFreeSpace;
+- (void)setShowFreeSpace:(BOOL)flag;
+- (BOOL)showUnknown;
+- (void)setShowUnknown:(BOOL)flag;
 
 // Options dialog page last shown.
 - (NSInteger)lastOptionsPage;

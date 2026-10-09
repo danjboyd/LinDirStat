@@ -23,6 +23,11 @@
 - (void)sortOwnChildrenByMetric:(LDSizeMetric)metric;
 @end
 
+enum {
+  LDFileNodeFlagOwnsName = 1 << 0,
+  LDFileNodeFlagHardLink = 1 << 1
+};
+
 static Class LDClassForKind(LDFileNodeKind kind)
 {
   return kind == LDFileNodeKindDirectory ? [LDDirectoryNode class] : [LDFileNode class];
@@ -58,10 +63,19 @@ static Class LDClassForKind(LDFileNodeKind kind)
                    size:(unsigned long long)size
           allocatedSize:(unsigned long long)allocatedSize
 {
-  LDFileNode *node = [[LDClassForKind(kind) alloc] initWithNodeKind:kind];
+  // Subclasses other than LDDirectoryNode (pseudo-items) keep their class.
+  Class nodeClass = (self == [LDFileNode class] || self == [LDDirectoryNode class]) ? LDClassForKind(kind) : self;
+  LDFileNode *node = [[nodeClass alloc] initWithNodeKind:kind];
   [node setNameBytes:bytes length:length arena:arena];
   [node setSize:size allocatedSize:allocatedSize];
   return node;
+}
+
++ (LDFileNode *)spaceItemWithKind:(LDFileNodeKind)kind allocatedSize:(unsigned long long)allocatedSize
+{
+  // Names as WinDirStat's IDS_FREESPACE_ITEM and IDS_UNKNOWN_ITEM.
+  NSString *name = kind == LDFileNodeKindFreeSpace ? @"<Free Space>" : @"<Unknown>";
+  return [self nodeWithName:name kind:kind size:0 allocatedSize:allocatedSize];
 }
 
 - (id)initWithNodeKind:(LDFileNodeKind)kind
@@ -75,7 +89,7 @@ static Class LDClassForKind(LDFileNodeKind kind)
 
 - (void)dealloc
 {
-  if (_ownsName) {
+  if (_flags & LDFileNodeFlagOwnsName) {
     free((void *)_name);
   }
 }
@@ -84,13 +98,13 @@ static Class LDClassForKind(LDFileNodeKind kind)
 {
   if (arena) {
     _name = [arena copyBytes:bytes length:length];
-    _ownsName = NO;
+    _flags &= ~LDFileNodeFlagOwnsName;
   } else {
     char *copy = malloc(length + 1);
     memcpy(copy, bytes, length);
     copy[length] = '\0';
     _name = copy;
-    _ownsName = YES;
+    _flags |= LDFileNodeFlagOwnsName;
   }
 }
 
@@ -154,11 +168,12 @@ static Class LDClassForKind(LDFileNodeKind kind)
 - (LDFileNodeKind)kind { return (LDFileNodeKind)_kind; }
 - (BOOL)isLeaf { return YES; }
 - (BOOL)isComputer { return NO; }
+- (BOOL)isSpaceItem { return _kind == LDFileNodeKindFreeSpace || _kind == LDFileNodeKindUnknown; }
 - (unsigned long long)size { return _size; }
 - (unsigned long long)allocatedSize { return _allocatedSize; }
-- (unsigned long long)aggregateSize { return _size; }
-- (unsigned long long)aggregateAllocatedSize { return _allocatedSize; }
-- (NSUInteger)fileCount { return 1; }
+- (unsigned long long)aggregateSize { return (_flags & LDFileNodeFlagHardLink) ? 0 : _size; }
+- (unsigned long long)aggregateAllocatedSize { return (_flags & LDFileNodeFlagHardLink) ? 0 : _allocatedSize; }
+- (NSUInteger)fileCount { return [self isSpaceItem] ? 0 : 1; }
 - (NSUInteger)directoryCount { return 0; }
 - (NSTimeInterval)modificationTime { return (NSTimeInterval)_modificationTime; }
 - (NSTimeInterval)aggregateModificationTime { return (NSTimeInterval)_modificationTime; }
@@ -214,6 +229,11 @@ static Class LDClassForKind(LDFileNodeKind kind)
   _errorNumber = (uint8_t)errorNumber;
 }
 
+- (int)errorNumber
+{
+  return _errorNumber;
+}
+
 - (NSString *)errorCode
 {
   switch ((LDFileNodeError)_error) {
@@ -230,6 +250,16 @@ static Class LDClassForKind(LDFileNodeKind kind)
 
 - (BOOL)isHardLinkDuplicate { return _error == LDFileNodeErrorHardLinkDuplicate; }
 - (BOOL)isMountPoint { return _error == LDFileNodeErrorMountPoint; }
+- (BOOL)isHardLink { return (_flags & LDFileNodeFlagHardLink) != 0; }
+
+- (void)setHardLink:(BOOL)flag
+{
+  if (flag) {
+    _flags |= LDFileNodeFlagHardLink;
+  } else {
+    _flags &= ~LDFileNodeFlagHardLink;
+  }
+}
 
 - (void)addChild:(LDFileNode *)child
 {
@@ -372,6 +402,7 @@ static NSComparisonResult LDCompareNodesBySize(id left, id right, void *context)
 - (void)setStoredPath:(NSString *)path { _storedPath = [path copy]; }
 - (NSString *)storedPath { return _storedPath; }
 - (void)setOwnedStorage:(id)storage { _ownedStorage = storage; }
+- (id)ownedStorage { return _ownedStorage; }
 - (BOOL)isScanPending { return __atomic_load_n(&_pendingScans, __ATOMIC_RELAXED) > 0; }
 - (NSUInteger)pendingScanCount { return __atomic_load_n(&_pendingScans, __ATOMIC_RELAXED); }
 

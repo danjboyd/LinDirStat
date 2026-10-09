@@ -22,7 +22,8 @@ typedef enum {
 
 @interface LDCommandRules : NSObject
 
-// busy is YES while a scan or refresh runs. root is the tree's root.
+// busy is YES while a scan or refresh runs. root is the tree's root. No
+// command applies to the "<Hardlinks>" pseudo-items.
 + (BOOL)isCommand:(LDCommand)command
   enabledForNodes:(NSArray *)nodes
          rootNode:(LDFileNode *)root

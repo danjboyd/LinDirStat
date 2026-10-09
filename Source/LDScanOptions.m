@@ -21,7 +21,9 @@ static const NSUInteger LDDefaultScanOptionThreads = 4;
   [options setExcludeHidden:[preferences excludeHiddenEntries]];
   [options setExcludeSymbolicLinks:[preferences excludeSymbolicLinks]];
   [options setExcludeMountPoints:[preferences excludeMountPoints]];
+  [options setProcessHardLinks:[preferences processHardLinks]];
   [options setThreadCount:[preferences scanningThreads]];
+  [options setFindsDuplicates:[preferences scanForDuplicates]];
   return options;
 }
 
@@ -55,6 +57,7 @@ static NSString *LDTrimmingTrailing(NSString *text, unichar character)
     _excludedFilePatterns = [NSArray array];
     _excludeSymbolicLinks = YES;
     _excludeMountPoints = YES;
+    _processHardLinks = YES;
     _threadCount = LDDefaultScanOptionThreads;
   }
   return self;
@@ -70,7 +73,9 @@ static NSString *LDTrimmingTrailing(NSString *text, unichar character)
   [copy setExcludeHidden:_excludeHidden];
   [copy setExcludeSymbolicLinks:_excludeSymbolicLinks];
   [copy setExcludeMountPoints:_excludeMountPoints];
+  [copy setProcessHardLinks:_processHardLinks];
   [copy setThreadCount:_threadCount];
+  [copy setFindsDuplicates:_findsDuplicates];
   return copy;
 }
 
@@ -84,12 +89,16 @@ static NSString *LDTrimmingTrailing(NSString *text, unichar character)
 - (void)setMinimumFileSize:(unsigned long long)bytes { _minimumFileSize = bytes; }
 - (BOOL)excludeHidden { return _excludeHidden; }
 - (void)setExcludeHidden:(BOOL)flag { _excludeHidden = flag; }
+- (BOOL)processHardLinks { return _processHardLinks; }
+- (void)setProcessHardLinks:(BOOL)flag { _processHardLinks = flag; }
 - (BOOL)excludeSymbolicLinks { return _excludeSymbolicLinks; }
 - (void)setExcludeSymbolicLinks:(BOOL)flag { _excludeSymbolicLinks = flag; }
 - (BOOL)excludeMountPoints { return _excludeMountPoints; }
 - (void)setExcludeMountPoints:(BOOL)flag { _excludeMountPoints = flag; }
 - (NSUInteger)threadCount { return _threadCount; }
 - (void)setThreadCount:(NSUInteger)count { _threadCount = MAX((NSUInteger)1, count); }
+- (BOOL)findsDuplicates { return _findsDuplicates; }
+- (void)setFindsDuplicates:(BOOL)flag { _findsDuplicates = flag; }
 
 - (BOOL)validateWithError:(NSError **)error
 {

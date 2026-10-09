@@ -246,7 +246,7 @@ static BOOL LDIsValidUTF8(const unsigned char *bytes)
   }
   LDTopNodeCollector *collector = [[LDTopNodeCollector alloc] initWithLimit:maxResults == 0 ? NSUIntegerMax : maxResults];
   LDVisitNodes(root, ^(LDFileNode *node) {
-    if ([node kind] != LDFileNodeKindDirectory && [matcher matchesName:[node nameBytes]]) {
+    if ([node kind] != LDFileNodeKindDirectory && ![node isSpaceItem] && [matcher matchesName:[node nameBytes]]) {
       [collector offerNode:node size:[node size]];
     }
   });

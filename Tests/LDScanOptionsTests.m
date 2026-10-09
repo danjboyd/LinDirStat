@@ -26,6 +26,7 @@
   XCTAssertFalse([options excludeHidden]);
   XCTAssertTrue([options excludeSymbolicLinks]);
   XCTAssertTrue([options excludeMountPoints]);
+  XCTAssertTrue([options processHardLinks]);
   XCTAssertEqual((NSUInteger)4, [options threadCount]);
   XCTAssertTrue([options validateWithError:NULL]);
 }
@@ -52,6 +53,8 @@
   [preferences setExcludeSymbolicLinks:NO];
   [preferences setExcludeMountPoints:NO];
   [preferences setScanningThreads:7];
+  XCTAssertTrue([preferences processHardLinks]);
+  [preferences setProcessHardLinks:NO];
 
   LDScanOptions *options = [LDScanOptions optionsFromPreferences:preferences];
   [preferences resetAll];
@@ -63,6 +66,8 @@
   XCTAssertTrue([options excludeHidden]);
   XCTAssertFalse([options excludeSymbolicLinks]);
   XCTAssertFalse([options excludeMountPoints]);
+  XCTAssertFalse([options processHardLinks]);
+  XCTAssertFalse([[options copy] processHardLinks]);
   XCTAssertEqual((NSUInteger)7, [options threadCount]);
 }
 

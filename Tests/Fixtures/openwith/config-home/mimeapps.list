@@ -1,0 +1,9 @@
+# The user's associations
+[Default Applications]
+text/plain=not-installed.desktop;viewer.desktop;
+
+[Added Associations]
+text/plain=user-tool.desktop;
+
+[Removed Associations]
+text/plain=writer.desktop;

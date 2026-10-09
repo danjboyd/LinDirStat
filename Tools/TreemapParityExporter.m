@@ -72,6 +72,13 @@ static LDFileNode *NodeFromSpec(NSDictionary *spec, NSString *parentPath)
   NSArray *children = [spec objectForKey:@"children"];
   LDFileNodeKind kind = ([children count] > 0) ? LDFileNodeKindDirectory : LDFileNodeKindFile;
   unsigned long long size = (kind == LDFileNodeKindDirectory) ? 0 : NodeSizeFromSpec(spec);
+  // "space": "free" or "unknown" makes a <Free Space> or <Unknown> item.
+  NSString *space = [spec objectForKey:@"space"];
+  if ([space isEqualToString:@"free"]) {
+    kind = LDFileNodeKindFreeSpace;
+  } else if ([space isEqualToString:@"unknown"]) {
+    kind = LDFileNodeKindUnknown;
+  }
   LDFileNode *node = [LDFileNode nodeWithPath:path kind:kind size:size];
 
   NSEnumerator *enumerator = [children objectEnumerator];
