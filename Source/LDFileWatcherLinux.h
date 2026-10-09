@@ -13,6 +13,7 @@
   NSMutableArray *_watchesToRemove;
   NSMutableArray *_messages;
   NSArray *_roots;
+  NSMutableDictionary *_pendingMovedFrom;
 }
 
 - (id)initWithRootPaths:(NSArray *)roots;
@@ -23,10 +24,18 @@
 // Watches of path and everything below it.
 - (NSArray *)watchesAtOrBelowPath:(NSData *)path;
 
-// Translates one read() of an inotify descriptor. A rename whose other half
-// is not in the buffer was a move out of (Deleted) or into (Created) the
-// watched trees.
+// Translates one read() of an inotify descriptor. The two halves of a
+// rename can arrive in separate reads, so a moved-from event is held back
+// until its moved-to arrives (a rename) or -flushPendingMovesBefore: gives
+// up on it (a move out of the watched trees: Deleted). A moved-to without
+// a held moved-from was a move into the trees: Created.
 - (NSArray *)eventsForBuffer:(const void *)buffer length:(size_t)length time:(NSTimeInterval)time;
+
+// Moved-from events still waiting for their other half.
+- (BOOL)hasPendingMoves;
+// Turns held moved-from events older than time into deletions, dropping
+// the watches of folders that left; -watchesToRemove reports those.
+- (NSArray *)flushPendingMovesBefore:(NSTimeInterval)time;
 
 // Results of the last call: folders to watch, recursively (created ones have
 // their contents reported as created, since they may have filled before the

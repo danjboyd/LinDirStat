@@ -60,6 +60,7 @@ static unsigned long long LDLogicalSizeOfPath(NSData *path)
   if (self) {
     _roots = [roots copy];
     _paths = [[NSMutableDictionary alloc] init];
+    _pendingMovedFrom = [[NSMutableDictionary alloc] init];
   }
   return self;
 }
@@ -133,8 +134,9 @@ static unsigned long long LDLogicalSizeOfPath(NSData *path)
   _watchesToRemove = [NSMutableArray array];
   _messages = [NSMutableArray array];
   NSMutableArray *events = [NSMutableArray array];
-  // Unpaired halves of renames, by cookie: the event's index and path.
-  NSMutableDictionary *movedFrom = [NSMutableDictionary dictionary];
+  // Moved-from halves of renames, by cookie: the event and its path. They
+  // stay held across reads until their moved-to arrives or they are flushed.
+  NSMutableDictionary *movedFrom = _pendingMovedFrom;
 
   const char *bytes = buffer;
   size_t offset = 0;
@@ -184,9 +186,8 @@ static unsigned long long LDLogicalSizeOfPath(NSData *path)
         [events addObject:[self eventForPath:path action:LDFileWatcherActionModified directory:NO time:time]];
       }
     } else if (header.mask & IN_MOVED_FROM) {
-      [movedFrom setObject:@[[NSNumber numberWithUnsignedInteger:[events count]], path]
+      [movedFrom setObject:@[[self eventForPath:path action:LDFileWatcherActionRenamedOld directory:isDirectory time:time], path]
                     forKey:[NSNumber numberWithUnsignedInt:header.cookie]];
-      [events addObject:[self eventForPath:path action:LDFileWatcherActionRenamedOld directory:isDirectory time:time]];
     } else if (header.mask & IN_MOVED_TO) {
       NSNumber *cookie = [NSNumber numberWithUnsignedInt:header.cookie];
       NSArray *from = [movedFrom objectForKey:cookie];
@@ -195,6 +196,7 @@ static unsigned long long LDLogicalSizeOfPath(NSData *path)
         if (isDirectory) {
           [self renameWatchedPath:[from objectAtIndex:1] to:path];
         }
+        [events addObject:[from objectAtIndex:0]];
         [events addObject:[self eventForPath:path action:LDFileWatcherActionRenamedNew directory:isDirectory time:time]];
       } else {
         [events addObject:[self eventForPath:path action:LDFileWatcherActionCreated directory:isDirectory time:time]];
@@ -205,16 +207,30 @@ static unsigned long long LDLogicalSizeOfPath(NSData *path)
     }
   }
 
-  // Moved out of the watched trees: gone as far as the scan is concerned.
-  for (NSArray *from in [movedFrom allValues]) {
-    NSUInteger index = [[from objectAtIndex:0] unsignedIntegerValue];
-    LDFileWatcherEvent *renamed = [events objectAtIndex:index];
-    [events replaceObjectAtIndex:index
-                      withObject:[LDFileWatcherEvent eventWithPathData:[renamed pathData]
-                                                                action:LDFileWatcherActionDeleted
-                                                                  time:[renamed time]
-                                                           logicalSize:0
-                                                           isDirectory:[renamed isDirectory]]];
+  return events;
+}
+
+- (BOOL)hasPendingMoves
+{
+  return [_pendingMovedFrom count] > 0;
+}
+
+- (NSArray *)flushPendingMovesBefore:(NSTimeInterval)time
+{
+  _watchesToRemove = [NSMutableArray array];
+  NSMutableArray *events = [NSMutableArray array];
+  for (NSNumber *cookie in [_pendingMovedFrom allKeys]) {
+    LDFileWatcherEvent *renamed = [[_pendingMovedFrom objectForKey:cookie] objectAtIndex:0];
+    if ([renamed time] >= time) {
+      continue;
+    }
+    [_pendingMovedFrom removeObjectForKey:cookie];
+    // Moved out of the watched trees: gone as far as the scan is concerned.
+    [events addObject:[LDFileWatcherEvent eventWithPathData:[renamed pathData]
+                                                    action:LDFileWatcherActionDeleted
+                                                      time:[renamed time]
+                                               logicalSize:0
+                                               isDirectory:[renamed isDirectory]]];
     if ([renamed isDirectory]) {
       NSArray *watches = [self watchesAtOrBelowPath:[renamed pathData]];
       [_watchesToRemove addObjectsFromArray:watches];
@@ -243,6 +259,7 @@ static unsigned long long LDLogicalSizeOfPath(NSData *path)
   BOOL _limitReported;
   BOOL _limitReached;
   volatile BOOL _stopped;
+  BOOL _moveFlushScheduled;
 }
 @end
 
@@ -369,6 +386,40 @@ static unsigned long long LDLogicalSizeOfPath(NSData *path)
       [self watchTreeAtPath:directory reportContents:YES];
     }
   }
+  if ([_translator hasPendingMoves]) {
+    [self scheduleMoveFlush];
+  }
+}
+
+// A moved-from event whose moved-to has not arrived after a short wait was
+// a move out of the watched trees.
+static const NSTimeInterval LDMovePairingWait = 0.1;
+
+- (void)scheduleMoveFlush
+{
+  if (_moveFlushScheduled) {
+    return;
+  }
+  _moveFlushScheduled = YES;
+  __weak LDInotifyBackend *weakSelf = self;
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(LDMovePairingWait * NSEC_PER_SEC)), [_sink queue], ^{
+    LDInotifyBackend *backend = weakSelf;
+    if (!backend || backend->_stopped) {
+      return;
+    }
+    backend->_moveFlushScheduled = NO;
+    NSTimeInterval cutoff = [[NSDate date] timeIntervalSince1970] - LDMovePairingWait;
+    NSArray *events = [backend->_translator flushPendingMovesBefore:cutoff];
+    for (NSNumber *watch in [backend->_translator watchesToRemove]) {
+      inotify_rm_watch(backend->_fd, [watch intValue]);
+    }
+    for (LDFileWatcherEvent *event in events) {
+      [backend->_sink addEvent:event];
+    }
+    if ([backend->_translator hasPendingMoves]) {
+      [backend scheduleMoveFlush];
+    }
+  });
 }
 
 @end

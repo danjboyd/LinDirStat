@@ -134,14 +134,36 @@ static NSData *LDBytes(NSString *path)
   [self append:buffer watch:1 mask:IN_MOVED_FROM | IN_ISDIR cookie:3 name:"sub"];
   [self append:buffer watch:1 mask:IN_MOVED_TO | IN_ISDIR cookie:4 name:"incoming"];
   NSArray *events = [translator eventsForBuffer:[buffer bytes] length:[buffer length] time:1];
-  NSArray *expected = @[@"Deleted /w/sub", @"Created /w/incoming"];
-  XCTAssertEqualObjects(expected, [self describe:events]);
-  // The folder that left keeps no watches; the one that arrived gets them.
+  // The moved-from half is held until its moved-to arrives or time runs out.
+  XCTAssertEqualObjects(@[@"Created /w/incoming"], [self describe:events]);
+  XCTAssertEqualObjects(@[LDBytes(@"/w/incoming")], [translator directoriesMovedIn]);
+  XCTAssertEqual(0U, [[translator directoriesCreated] count]);
+  XCTAssertTrue([translator hasPendingMoves]);
+  XCTAssertEqual(0U, [[translator flushPendingMovesBefore:1] count]);
+
+  NSArray *flushed = [translator flushPendingMovesBefore:2];
+  XCTAssertEqualObjects(@[@"Deleted /w/sub"], [self describe:flushed]);
+  XCTAssertFalse([translator hasPendingMoves]);
+  // The folder that left keeps no watches.
   NSArray *removed = [[translator watchesToRemove] sortedArrayUsingSelector:@selector(compare:)];
   XCTAssertEqualObjects((@[@2, @3]), removed);
   XCTAssertNil([translator pathForWatch:2]);
-  XCTAssertEqualObjects(@[LDBytes(@"/w/incoming")], [translator directoriesMovedIn]);
-  XCTAssertEqual(0U, [[translator directoriesCreated] count]);
+}
+
+- (void)testRenameSplitAcrossReadsIsStillARename
+{
+  LDInotifyTranslator *translator = [self translator];
+  NSMutableData *first = [NSMutableData data];
+  [self append:first watch:1 mask:IN_MOVED_FROM | IN_ISDIR cookie:7 name:"sub"];
+  NSMutableData *second = [NSMutableData data];
+  [self append:second watch:1 mask:IN_MOVED_TO | IN_ISDIR cookie:7 name:"renamed"];
+
+  XCTAssertEqual(0U, [[translator eventsForBuffer:[first bytes] length:[first length] time:1] count]);
+  NSArray *events = [translator eventsForBuffer:[second bytes] length:[second length] time:1];
+  NSArray *expected = @[@"Renamed (Old) /w/sub", @"Renamed (New) /w/renamed"];
+  XCTAssertEqualObjects(expected, [self describe:events]);
+  XCTAssertFalse([translator hasPendingMoves]);
+  XCTAssertEqualObjects(LDBytes(@"/w/renamed"), [translator pathForWatch:2]);
 }
 
 - (void)testNewFoldersOverflowAndRemovedRoot
