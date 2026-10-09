@@ -29,6 +29,11 @@ ICONS = [
     "text-x-generic-symbolic",
     "insert-link-symbolic",
     "drive-harddisk-symbolic",
+    "computer-symbolic",
+    "system-search-symbolic",
+    "user-trash-symbolic",
+    "media-playback-pause-symbolic",
+    "media-playback-start-symbolic",
 ]
 
 

@@ -24,6 +24,9 @@
 static NSString *const LDToolbarSelectTarget = @"SelectTarget";
 static NSString *const LDToolbarRefresh = @"Refresh";
 static NSString *const LDToolbarStop = @"Stop";
+static NSString *const LDToolbarSuspend = @"Suspend";
+static NSString *const LDToolbarSearch = @"Search";
+static NSString *const LDToolbarTrash = @"Trash";
 static NSString *const LDToolbarSelectParent = @"SelectParent";
 static NSString *const LDToolbarZoomIn = @"ZoomIn";
 static NSString *const LDToolbarZoomOut = @"ZoomOut";
@@ -162,7 +165,59 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [self addItemTo:treemapMenu title:@"Show Grid" action:@selector(toggleGrid:) key:nil target:self];
   [self addItemTo:treemapMenu title:@"SequoiaView Layout" action:@selector(toggleLayoutStyle:) key:nil target:self];
 
+  NSMenu *optionsMenu = [self addSubmenuTitled:@"Options" to:mainMenu];
+  [[self addItemTo:optionsMenu title:@"Show File Types" action:@selector(toggleFileTypes:) key:[self functionKey:NSF8FunctionKey] target:self]
+    setKeyEquivalentModifierMask:0];
+  [[self addItemTo:optionsMenu title:@"Show Treemap" action:@selector(toggleTreemap:) key:[self functionKey:NSF9FunctionKey] target:self]
+    setKeyEquivalentModifierMask:0];
+  [optionsMenu addItem:[NSMenuItem separatorItem]];
+  [self addItemTo:optionsMenu title:@"Preferences" action:@selector(showPreferences:) key:nil target:self];
+
   [NSApp setMainMenu:mainMenu];
+}
+
+- (void)toggleFileTypes:(id)sender
+{
+  (void)sender;
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setShowFileTypes:![preferences showFileTypes]];
+}
+
+- (void)toggleTreemap:(id)sender
+{
+  (void)sender;
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setShowTreemap:![preferences showTreemap]];
+}
+
+// Hidden panes leave their split view; showing them again restores
+// WinDirStat's proportions.
+- (void)applyPaneVisibility
+{
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  BOOL extensionsShown = [[_topSplit subviews] indexOfObjectIdenticalTo:_extensionScroll] != NSNotFound;
+  if ([preferences showFileTypes] != extensionsShown) {
+    if (extensionsShown) {
+      [_extensionScroll removeFromSuperview];
+      [_topSplit adjustSubviews];
+    } else {
+      [_topSplit addSubview:_extensionScroll];
+      [_topSplit adjustSubviews];
+      [_topSplit setPosition:floor([_topSplit bounds].size.width * 0.6) ofDividerAtIndex:0];
+    }
+  }
+  BOOL treemapShown = [[_mainSplit subviews] indexOfObjectIdenticalTo:_treemapView] != NSNotFound;
+  if ([preferences showTreemap] != treemapShown) {
+    if (treemapShown) {
+      [_treemapView removeFromSuperview];
+      [_mainSplit adjustSubviews];
+    } else {
+      [_mainSplit addSubview:_treemapView];
+      [_mainSplit adjustSubviews];
+      [_mainSplit setPosition:floor([_mainSplit bounds].size.height * 0.5) ofDividerAtIndex:0];
+    }
+  }
+  [self fitFlexibleColumns];
 }
 
 // The Clean Up menu, also used (with the treemap's commands) as the context
@@ -330,6 +385,12 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
                           rootNode:_rootNode
                               busy:[self isBusy]];
   }
+  if (action == @selector(toggleFileTypes:)) {
+    [item setState:[[LDPreferences sharedPreferences] showFileTypes] ? NSOnState : NSOffState];
+  }
+  if (action == @selector(toggleTreemap:)) {
+    [item setState:[[LDPreferences sharedPreferences] showTreemap] ? NSOnState : NSOffState];
+  }
   if (action == @selector(toggleLogicalSize:)) {
     [item setState:_sizeMetric == LDSizeMetricLogical ? NSOnState : NSOffState];
   } else if (action == @selector(toggleGrid:)) {
@@ -354,8 +415,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (NSArray *)toolbarDefaultItemIdentifiers:(NSToolbar *)toolbar
 {
   (void)toolbar;
-  return @[LDToolbarSelectTarget, LDToolbarRefresh, LDToolbarStop,
+  return @[LDToolbarSelectTarget, LDToolbarRefresh, LDToolbarSuspend, LDToolbarStop,
            NSToolbarFlexibleSpaceItemIdentifier,
+           LDToolbarSearch, LDToolbarTrash,
            LDToolbarSelectParent, LDToolbarZoomOut, LDToolbarZoomIn];
 }
 
@@ -372,6 +434,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     LDToolbarSelectTarget: @[@"Select Target", @"Scan a folder", @"document-open-symbolic", NSStringFromSelector(@selector(openPath:))],
     LDToolbarRefresh: @[@"Refresh", @"Scan the folder again", @"view-refresh-symbolic", NSStringFromSelector(@selector(rescan:))],
     LDToolbarStop: @[@"Stop", @"Stop scanning", @"process-stop-symbolic", NSStringFromSelector(@selector(stopScan:))],
+    LDToolbarSuspend: @[@"Suspend", @"Suspend or resume the scan", @"media-playback-pause-symbolic", NSStringFromSelector(@selector(toggleSuspend:))],
+    LDToolbarSearch: @[@"Search", @"Search for files by name", @"system-search-symbolic", NSStringFromSelector(@selector(search:))],
+    LDToolbarTrash: @[@"Move to Trash", @"Move the selection to the trash", @"user-trash-symbolic", NSStringFromSelector(@selector(moveToTrash:))],
     LDToolbarSelectParent: @[@"Select Parent", @"Select the parent folder", @"go-up-symbolic", NSStringFromSelector(@selector(selectParent:))],
     LDToolbarZoomOut: @[@"Zoom Out", @"Zoom the treemap out", @"zoom-out-symbolic", NSStringFromSelector(@selector(zoomOut:))],
     LDToolbarZoomIn: @[@"Zoom In", @"Zoom the treemap into the selection", @"zoom-in-symbolic", NSStringFromSelector(@selector(zoomIn:))],
@@ -392,6 +457,12 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (BOOL)validateToolbarItem:(NSToolbarItem *)item
 {
+  if ([item action] == @selector(toggleSuspend:)) {
+    BOOL suspended = [self isScanning] && [_scanSession isSuspended];
+    [item setImage:[NSImage imageNamed:suspended ? @"media-playback-start-symbolic" : @"media-playback-pause-symbolic"]];
+    [item setToolTip:suspended ? @"Resume the scan" : @"Suspend the scan"];
+    return [self isScanning];
+  }
   return [self validateAction:[item action]];
 }
 
@@ -552,6 +623,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     [table setNeedsDisplay:YES];
   }
   [self applyColumnVisibility];
+  if (_mainSplit) {
+    [self applyPaneVisibility];
+  }
 
   LDTreemapOptions options = [_treemapView options];
   options.style = [preferences treemapStyle] == 1 ? LDTreemapStyleSequoiaView : LDTreemapStyleKDirStat;
@@ -669,7 +743,8 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [_topSplit setDividerStyle:NSSplitViewDividerStyleThin];
   [_topSplit setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
   [_topSplit addSubview:[self buildFileTabs]];
-  [_topSplit addSubview:[self scrollViewWithDocumentView:_extensionTable]];
+  _extensionScroll = [self scrollViewWithDocumentView:_extensionTable];
+  [_topSplit addSubview:_extensionScroll];
   [_topSplit setDelegate:self];
 
   NSRect splitFrame = NSMakeRect(0, LDStatusBarHeight + 1, bounds.size.width, bounds.size.height - LDStatusBarHeight - 1);
@@ -721,12 +796,13 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (void)fitColumn:(NSString *)identifier ofTable:(NSTableView *)table
 {
   NSTableColumn *flexible = [table tableColumnWithIdentifier:identifier];
-  // GNUstep also stretches the last column whenever the pane grows
-  // (-setColumnAutoresizingStyle: is not implemented), which would starve
-  // the flexible column; the last column keeps its natural width.
+  // GNUstep also resizes the last column whenever the pane or its scroller
+  // changes (-setColumnAutoresizingStyle: is not implemented), which would
+  // starve the flexible column or the last one; the last column keeps its
+  // natural width.
   NSTableColumn *last = [[table tableColumns] lastObject];
   NSNumber *natural = [_naturalColumnWidths objectForKey:last];
-  if (last != flexible && natural && [last width] > [natural doubleValue]) {
+  if (last != flexible && natural && [last width] != [natural doubleValue]) {
     [last setWidth:[natural doubleValue]];
   }
   CGFloat spacing = [table intercellSpacing].width;
@@ -1040,6 +1116,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
                colorIndexes:[LDExtensionStats colorIndexMapForSortedStats:_extensionRows]];
   [_directoryTable reloadData];
   [_extensionTable reloadData];
+  [self fitFlexibleColumns];
 }
 
 // After refreshes and deletions: rebuild what is derived from the tree,
@@ -1118,6 +1195,15 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [_scanSession suspend];
   [self showStatus:@"Scan suspended"];
   [self refreshCommandState];
+}
+
+- (void)toggleSuspend:(id)sender
+{
+  if ([_scanSession isSuspended]) {
+    [self resumeScan:sender];
+  } else {
+    [self suspendScan:sender];
+  }
 }
 
 - (void)resumeScan:(id)sender
@@ -1533,7 +1619,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (NSImage *)iconForNode:(LDFileNode *)node
 {
-  if ([node isMountPoint]) {
+  if ([node isComputer]) {
+    return [self iconNamed:@"computer-symbolic"];
+  }
+  if ([node isMountPoint] || [[node parent] isComputer]) {
     return [self iconNamed:@"drive-harddisk-symbolic"];
   }
   switch ([node kind]) {
@@ -1634,7 +1723,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   LDFileNode *node = item;
   NSString *identifier = [tableColumn identifier];
   if ([identifier isEqualToString:@"name"]) {
-    return node == _rootNode ? [self displayPath:[node path]] : [node displayName];
+    return (node == _rootNode || [[node parent] isComputer]) ? [self displayPath:[node path]] : [node displayName];
   }
   if ([identifier isEqualToString:@"subtree"]) {
     return nil;

@@ -56,5 +56,6 @@
   id _duplicateFinder;
   NSString *_loadedFile;
   NSMapTable *_naturalColumnWidths;
+  NSScrollView *_extensionScroll;
 }
 @end

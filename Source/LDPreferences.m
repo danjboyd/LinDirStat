@@ -177,6 +177,8 @@ static const NSUInteger LDCustomCleanupSlots = 10;
     @"SelectDrivesFolder": @[],
     @"UserDefinedCleanups": @[],
     @"ConfigPage": @0,
+    @"ShowFileTypes": @YES,
+    @"ShowTreemap": @YES,
   };
 }
 
@@ -442,6 +444,11 @@ static NSInteger LDClamp(NSInteger value, NSInteger low, NSInteger high)
   [_defaults setObject:stored forKey:@"UserDefinedCleanups"];
   [self changed];
 }
+
+- (BOOL)showFileTypes { return [self boolForKey:@"ShowFileTypes"]; }
+- (void)setShowFileTypes:(BOOL)flag { [self setBool:flag forKey:@"ShowFileTypes"]; }
+- (BOOL)showTreemap { return [self boolForKey:@"ShowTreemap"]; }
+- (void)setShowTreemap:(BOOL)flag { [self setBool:flag forKey:@"ShowTreemap"]; }
 
 - (NSInteger)lastOptionsPage { return [self integerForKey:@"ConfigPage"]; }
 - (void)setLastOptionsPage:(NSInteger)page { [self setInteger:page forKey:@"ConfigPage"]; }

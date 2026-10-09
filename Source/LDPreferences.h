@@ -202,6 +202,12 @@ typedef enum {
 - (NSArray *)customCleanups;
 - (void)setCustomCleanups:(NSArray *)cleanups;
 
+// Options menu: the extension list and the treemap panes.
+- (BOOL)showFileTypes;
+- (void)setShowFileTypes:(BOOL)flag;
+- (BOOL)showTreemap;
+- (void)setShowTreemap:(BOOL)flag;
+
 // Options dialog page last shown.
 - (NSInteger)lastOptionsPage;
 - (void)setLastOptionsPage:(NSInteger)page;
