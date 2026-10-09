@@ -57,5 +57,6 @@
   NSString *_loadedFile;
   NSMapTable *_naturalColumnWidths;
   NSScrollView *_extensionScroll;
+  NSMutableArray *_detachedSubtrees;
 }
 @end

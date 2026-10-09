@@ -324,7 +324,12 @@ static NSString *const LDTabSearch = @"search";
 {
   [self updateLargestFiles];
   NSArray *selected = [self selectedNodesInFileList:_searchTable];
+  NSUInteger searchCount = [_searchRows count];
   _searchRows = [self nodesStillInTree:_searchRows];
+  if ([_searchRows count] != searchCount) {
+    [_searchTab setLabel:[NSString stringWithFormat:@"Search Results (%lu)", (unsigned long)[_searchRows count]]];
+    [_fileTabs setNeedsDisplay:YES];
+  }
   [_searchTable reloadData];
   [self reselectNodes:selected inTable:_searchTable rows:_searchRows];
   NSMutableArray *groups = [NSMutableArray array];

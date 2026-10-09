@@ -53,6 +53,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   _sizeMetric = [[LDPreferences sharedPreferences] useLogicalSize] ? LDSizeMetricLogical : LDSizeMetricPhysical;
   _treeSortKey = _sizeMetric == LDSizeMetricLogical ? LDTreeSortKeyLogicalSize : LDTreeSortKeyPhysicalSize;
   _ownerCache = [NSMapTable strongToStrongObjectsMapTable];
+  _detachedSubtrees = [[NSMutableArray alloc] init];
   _treeSortAscending = NO;
   _treeSortIsDefault = YES;
   _swatchCache = [[NSMutableDictionary alloc] init];
@@ -902,6 +903,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   _loadedFile = nil;
   [self clearResults];
   [self resetFileListsForScan];
+  [_detachedSubtrees removeAllObjects];
 
   LDScanSession *session = [[LDScanSession alloc] init];
   _scanSession = session;
@@ -1175,6 +1177,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   _scanSession = nil;
   [self clearResults];
   [self resetFileListsForScan];
+  [_detachedSubtrees removeAllObjects];
   _loadedFile = [path copy];
   _currentScanPath = [[root path] copy];
   if (_sizeMetric != LDSizeMetricPhysical) {

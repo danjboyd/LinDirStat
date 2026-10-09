@@ -527,6 +527,10 @@
   if (!parent || canceled) {
     return;
   }
+  // Parent pointers do not retain, and the file lists may still hold nodes
+  // below node until they are rebuilt, so the old subtree is kept until the
+  // next scan.
+  [_detachedSubtrees addObject:node];
   if (replacement) {
     [parent replaceChild:node withNode:replacement];
   } else {

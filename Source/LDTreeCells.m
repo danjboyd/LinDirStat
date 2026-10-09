@@ -157,6 +157,9 @@ static CGFloat LDBounce(double travelled, BOOL *rising)
 - (id)copyWithZone:(NSZone *)zone
 {
   LDIconTextCell *copy = [super copyWithZone:zone];
+  // NSCell copies ivars bit for bit, so the copy's _icon was never
+  // retained; clear it without a release before assigning.
+  *(void **)(void *)&copy->_icon = NULL;
   copy->_icon = _icon;
   return copy;
 }

@@ -86,3 +86,28 @@ The stock bundle was kept at
 `~/.local/share/gnustep-cli/Local/Library/libgnustep-back-032.stock-backup-20261008`.
 With the patched backend, window screenshots include the transparent shadow
 margin (the window grows by about 30px each way).
+
+## GUI review on a private display
+
+Run GUI checks on a private X server so synthetic input never reaches the
+desktop you are working on, and with private defaults so test runs do not
+change your LinDirStat settings:
+
+```sh
+Xvfb :77 -screen 0 1600x1000x24 &
+mkdir -p /tmp/ld-defaults && cp ~/GNUstep/Defaults/NSGlobalDomain.plist /tmp/ld-defaults/
+. ~/.local/share/gnustep-cli/System/Library/Makefiles/GNUstep.sh
+GNUSTEP_USER_DEFAULTS_DIR=/tmp/ld-defaults DISPLAY=:77 XDG_DATA_HOME=/tmp/ld-data \
+  LINDIRSTAT_SCAN_PATH=/usr/share/doc openapp Source/LinDirStat.app &
+DISPLAY=:77 import -window root /tmp/ld-review.png
+```
+
+- `XDG_DATA_HOME` gives trash tests their own trash folder.
+- There is no window manager: find windows with `xwininfo -root -tree`, not
+  `xdotool search --pid`.
+- Drive clicks with `xdotool mousedown`, a short sleep, then `mouseup`;
+  instant synthetic clicks are taken as range selections by GNUstep tables.
+- For the dark style, point GSettings at a private keyfile:
+  `GSETTINGS_BACKEND=keyfile XDG_CONFIG_HOME=/tmp/ld-config`, with
+  `/tmp/ld-config/glib-2.0/settings/keyfile` containing
+  `[org/gnome/desktop/interface]` and `color-scheme='prefer-dark'`.
