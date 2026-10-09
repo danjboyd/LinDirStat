@@ -1111,6 +1111,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [self showSummaryStatus];
   [self updateSelectionField];
   [self fileListsDidFinishScan];
+  if (!_loadedFile) {
+    [LDPlatformUI scanDidFinishWithRoot:root window:_window];
+  }
 }
 
 - (void)showSummaryStatus

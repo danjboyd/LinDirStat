@@ -1,5 +1,6 @@
 #import "LDPlatformUI.h"
 #import "LDFileNode.h"
+#import "LDPrivacyAccess.h"
 
 #if defined(__APPLE__)
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
@@ -126,6 +127,72 @@ static NSImage *LDSmallIcon(NSImage *icon)
   return YES;
 }
 
+static NSString *const LDSuppressFullDiskAccessKey = @"LDSuppressFullDiskAccessPrompt";
+static NSString *const LDFullDiskAccessSettingsURL =
+  @"x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles";
+
++ (NSString *)abbreviatedPath:(NSString *)path
+{
+  NSString *home = NSHomeDirectory();
+  if ([path hasPrefix:[home stringByAppendingString:@"/"]]) {
+    return [@"~" stringByAppendingString:[path substringFromIndex:[home length]]];
+  }
+  return path;
+}
+
++ (void)openFullDiskAccessSettings
+{
+  [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:LDFullDiskAccessSettingsURL]];
+}
+
++ (void)scanDidFinishWithRoot:(LDFileNode *)root window:(NSWindow *)window
+{
+  static BOOL askedThisLaunch = NO;
+  if (askedThisLaunch || [[NSUserDefaults standardUserDefaults] boolForKey:LDSuppressFullDiskAccessKey]) {
+    return;
+  }
+  NSArray *denied = [LDPrivacyAccess directoriesDeniedByPrivacyUnder:root limit:100];
+  // Some system folders refuse even with Full Disk Access; only ask when
+  // granting it would help.
+  if ([denied count] == 0 || [LDPrivacyAccess hasFullDiskAccess]) {
+    return;
+  }
+  askedThisLaunch = YES;
+  NSString *count = [denied count] == 1 ? @"1 folder" :
+    [NSString stringWithFormat:@"%@%lu folders", [denied count] == 100 ? @"over " : @"", (unsigned long)[denied count]];
+  NSAlert *alert = [[NSAlert alloc] init];
+  [alert setMessageText:@"Some folders are protected by macOS"];
+  [alert setInformativeText:[NSString stringWithFormat:
+    @"LinDirStat couldn't read %@, such as %@, because it doesn't have Full Disk Access. "
+    @"Their sizes aren't included in the results.\n\n"
+    @"To scan everything, turn on LinDirStat in System Settings › Privacy & Security › Full Disk Access, "
+    @"then refresh.",
+    count, [self abbreviatedPath:[[denied objectAtIndex:0] path]]]];
+  [alert addButtonWithTitle:@"Open Privacy Settings"];
+  [alert addButtonWithTitle:@"Not Now"];
+  [alert setShowsSuppressionButton:YES];
+  [[alert suppressionButton] setTitle:@"Don't ask again"];
+  void (^handler)(NSModalResponse) = ^(NSModalResponse response) {
+    if ([[alert suppressionButton] state] == NSControlStateValueOn) {
+      [[NSUserDefaults standardUserDefaults] setBool:YES forKey:LDSuppressFullDiskAccessKey];
+    }
+    if (response == NSAlertFirstButtonReturn) {
+      [self openFullDiskAccessSettings];
+    }
+  };
+  if (window) {
+    [alert beginSheetModalForWindow:window completionHandler:handler];
+  } else {
+    handler([alert runModal]);
+  }
+}
+
++ (void)showFullDiskAccessHelp:(id)sender
+{
+  (void)sender;
+  [self openFullDiskAccessSettings];
+}
+
 + (NSString *)showInFileManagerTitle
 {
   return @"Show in Finder";
@@ -231,9 +298,11 @@ static NSImage *LDSmallIcon(NSImage *icon)
   [window addItemWithTitle:@"Bring All to Front" action:@selector(arrangeInFront:) keyEquivalent:@""];
   [NSApp setWindowsMenu:window];
 
-  // An empty Help menu still gets the system's menu search.
   NSMenu *help = [[NSMenu alloc] initWithTitle:@"Help"];
   [[mainMenu addItemWithTitle:@"Help" action:NULL keyEquivalent:@""] setSubmenu:help];
+  NSMenuItem *access = [help addItemWithTitle:@"Full Disk Access Settings…"
+                                       action:@selector(showFullDiskAccessHelp:) keyEquivalent:@""];
+  [access setTarget:self];
   [NSApp setHelpMenu:help];
 }
 
@@ -259,6 +328,12 @@ static NSImage *LDSmallIcon(NSImage *icon)
 + (BOOL)tablesAutoresizeColumns
 {
   return NO;
+}
+
++ (void)scanDidFinishWithRoot:(LDFileNode *)root window:(NSWindow *)window
+{
+  (void)root;
+  (void)window;
 }
 
 + (NSString *)showInFileManagerTitle

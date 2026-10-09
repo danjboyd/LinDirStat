@@ -29,6 +29,11 @@
 // column can be left to the table instead of being fitted by hand.
 + (BOOL)tablesAutoresizeColumns;
 
+// After a scan of the disk (not a CSV load): on macOS, if folders were
+// hidden by privacy protection and the app lacks Full Disk Access, explains
+// how to grant it (once per launch, unless the user said not to ask again).
++ (void)scanDidFinishWithRoot:(LDFileNode *)root window:(NSWindow *)window;
+
 // Finishes the main menu for the platform: on macOS the application menu
 // (About, Settings, Services, Hide, Quit), a Window menu and a Help menu.
 // preferencesTarget receives -showPreferences:.

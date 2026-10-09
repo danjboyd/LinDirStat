@@ -213,6 +213,11 @@ static Class LDClassForKind(LDFileNodeKind kind)
   _errorNumber = (uint8_t)errorNumber;
 }
 
+- (int)errorNumber
+{
+  return _errorNumber;
+}
+
 - (NSString *)errorCode
 {
   switch ((LDFileNodeError)_error) {

@@ -28,6 +28,7 @@ LinDirStatTests_OBJC_FILES = \
   LDScanOptionsTests.m \
   LDVolumesTests.m \
   LDSelectTargetRulesTests.m \
+  LDPrivacyAccessTests.m \
   ../Source/LDFileNode.m \
   ../Source/LDExtensionStats.m \
   ../Source/LDSizeFormatter.m \
@@ -53,7 +54,8 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDFilterPatterns.m \
   ../Source/LDScanOptions.m \
   ../Source/LDVolumes.m \
-  ../Source/LDSelectTargetRules.m
+  ../Source/LDSelectTargetRules.m \
+  ../Source/LDPrivacyAccess.m
 
 LinDirStatTests_INCLUDE_DIRS = -I../Source -I.
 ifneq ($(TOOLS_XCTEST_ROOT),)
