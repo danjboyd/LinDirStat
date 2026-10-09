@@ -27,7 +27,9 @@ LinDirStat_OBJC_FILES = \
   LDCustomCleanupRunner.m \
   LDDialogs.m \
   LDListViews.m \
-  AppController+Cleanup.m
+  AppController+Cleanup.m \
+  LDFileAttributes.m \
+  LDCSV.m
 
 LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist $(wildcard Resources/Icons/*.png)
 

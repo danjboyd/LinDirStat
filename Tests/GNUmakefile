@@ -19,6 +19,7 @@ LinDirStatTests_OBJC_FILES = \
   LDPreferencesTests.m \
   LDCommandRulesTests.m \
   LDCustomCleanupRunnerTests.m \
+  LDCSVTests.m \
   ../Source/LDFileNode.m \
   ../Source/LDExtensionStats.m \
   ../Source/LDSizeFormatter.m \
@@ -33,7 +34,9 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDDesktop.m \
   ../Source/LDPreferences.m \
   ../Source/LDCommandRules.m \
-  ../Source/LDCustomCleanupRunner.m
+  ../Source/LDCustomCleanupRunner.m \
+  ../Source/LDFileAttributes.m \
+  ../Source/LDCSV.m
 
 LinDirStatTests_INCLUDE_DIRS = -I../Source -I.
 ifneq ($(TOOLS_XCTEST_ROOT),)
