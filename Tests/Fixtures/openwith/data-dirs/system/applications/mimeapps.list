@@ -1,0 +1,3 @@
+[Default Applications]
+text/plain=text-editor.desktop
+inode/directory=kde-files.desktop

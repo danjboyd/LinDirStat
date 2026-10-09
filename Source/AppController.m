@@ -1,5 +1,6 @@
 #import "AppController.h"
 #import "AppController+Private.h"
+#import "LDCommandLine.h"
 #import "LDCommandRules.h"
 #import "LDPreferences.h"
 #import "LDFileAttributes.h"
@@ -12,9 +13,12 @@
 #import "LDExtensionStats.h"
 #import "LDFileNode.h"
 #import "LDFileTypeDescriptions.h"
+#import "LDFileWatcher.h"
+#import "LDHardLinks.h"
 #import "LDPlatformUI.h"
 #import "LDScanSession.h"
 #import "LDSizeFormatter.h"
+#import "LDSpaceItems.h"
 #import "LDSystemInfo.h"
 #import "LDTreeCells.h"
 #import "LDTreemapLayout.h"
@@ -98,7 +102,26 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
                                                 userInfo:nil
                                                  repeats:YES];
   [self updateMemoryField:nil];
-  [self beginScanPath:[self initialScanPath]];
+  LDCommandLine *commandLine = [LDCommandLine processCommandLine];
+  if ([commandLine loadFromCSVPath]) {
+    [self loadResultsFromCSVFile:[commandLine loadFromCSVPath]];
+  } else {
+    [self beginScanPaths:[self initialScanPaths:commandLine]];
+  }
+}
+
+// GNUstep also hands the command line's folders to the delegate as files to
+// open while launching; LDCommandLine has already taken them. Folders opened
+// later (from the desktop) are scanned.
+- (void)application:(NSApplication *)application openFiles:(NSArray *)files
+{
+  if (_window && ![self isBusy]) {
+    NSArray *arguments = [@[@"LinDirStat"] arrayByAddingObjectsFromArray:files];
+    NSString *currentDirectory = [[NSFileManager defaultManager] currentDirectoryPath];
+    NSArray *folders = [[LDCommandLine commandLineWithArguments:arguments currentDirectory:currentDirectory] scanPaths];
+    [self beginScanPaths:folders];
+  }
+  [application replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
 }
 
 #pragma mark - Menus
@@ -172,7 +195,15 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [self addItemTo:treemapMenu title:@"Show Grid" action:@selector(toggleGrid:) key:nil target:self];
   [self addItemTo:treemapMenu title:@"SequoiaView Layout" action:@selector(toggleLayoutStyle:) key:nil target:self];
 
+  NSMenu *toolsMenu = [self addSubmenuTitled:@"Tools" to:mainMenu];
+  [self addItemTo:toolsMenu title:@"Start File Watcher" action:@selector(toggleFileWatcher:) key:nil target:self];
+
   NSMenu *optionsMenu = [self addSubmenuTitled:@"Options" to:mainMenu];
+  [[self addItemTo:optionsMenu title:@"Show Free Space" action:@selector(toggleFreeSpace:) key:[self functionKey:NSF6FunctionKey] target:self]
+    setKeyEquivalentModifierMask:0];
+  [[self addItemTo:optionsMenu title:@"Show Unknown" action:@selector(toggleUnknown:) key:[self functionKey:NSF7FunctionKey] target:self]
+    setKeyEquivalentModifierMask:0];
+  [optionsMenu addItem:[NSMenuItem separatorItem]];
   [[self addItemTo:optionsMenu title:@"Show File Types" action:@selector(toggleFileTypes:) key:[self functionKey:NSF8FunctionKey] target:self]
     setKeyEquivalentModifierMask:0];
   [[self addItemTo:optionsMenu title:@"Show Treemap" action:@selector(toggleTreemap:) key:[self functionKey:NSF9FunctionKey] target:self]
@@ -182,6 +213,51 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
   [LDPlatformUI completeMainMenu:mainMenu applicationMenu:appMenu preferencesTarget:self];
   [NSApp setMainMenu:mainMenu];
+}
+
+// WinDirStat recalculates without rescanning; so does LinDirStat. While a
+// scan or refresh runs the setting is applied when it finishes.
+- (void)toggleFreeSpace:(id)sender
+{
+  (void)sender;
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  NSArray *selected = [self selectedNodes];
+  [preferences setShowFreeSpace:![preferences showFreeSpace]];
+  [self applySpaceItemsSelecting:selected];
+}
+
+- (void)toggleUnknown:(id)sender
+{
+  (void)sender;
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  NSArray *selected = [self selectedNodes];
+  [preferences setShowUnknown:![preferences showUnknown]];
+  [self applySpaceItemsSelecting:selected];
+}
+
+// Changing a preference reloads the display settings, which drops the tree
+// selection, so the toggles hand over the selection they started with.
+- (void)applySpaceItemsSelecting:(NSArray *)selected
+{
+  if (_rootNode && ![self isBusy]) {
+    [self selectTreeNodes:selected];
+    [self updateSpaceItems];
+    [self didChangeTree];
+    [self showSummaryStatus];
+  }
+}
+
+// Adds, removes or recomputes <Free Space> and <Unknown> under each volume
+// root for the Options menu settings.
+- (void)updateSpaceItems
+{
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  NSArray *removed = [LDSpaceItems updateVolumes:[LDSpaceItems volumeNodesOfRoot:_rootNode]
+                                   showFreeSpace:[preferences showFreeSpace]
+                                     showUnknown:[preferences showUnknown]
+                                           usage:[LDSpaceItems diskUsageQuery]
+                                          metric:_sizeMetric];
+  [_detachedSubtrees addObjectsFromArray:removed];
 }
 
 - (void)toggleFileTypes:(id)sender
@@ -264,6 +340,18 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [menu addItem:[NSMenuItem separatorItem]];
   NSMenuItem *custom = (NSMenuItem *)[menu addItemWithTitle:@"Custom Cleanup" action:NULL keyEquivalent:@""];
   [custom setSubmenu:[self customCleanupMenu]];
+  // WinDirStat's "Windows Explorer Menu" (windirstat.rc): the applications
+  // that open the selection. The main menu fills it each time it opens;
+  // context menus are built for the selection they appear on.
+  [menu addItem:[NSMenuItem separatorItem]];
+  NSMenuItem *openWith = (NSMenuItem *)[menu addItemWithTitle:@"Open With" action:NULL keyEquivalent:@""];
+  NSMenu *openWithMenu = [[NSMenu alloc] initWithTitle:@"Open With"];
+  [openWith setSubmenu:openWithMenu];
+  if (isMainMenu) {
+    [menu setDelegate:(id<NSMenuDelegate>)self];
+  } else {
+    [self fillOpenWithMenu:openWithMenu forNodes:[self selectedNodes]];
+  }
   if (isMainMenu) {
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(preferencesDidChange:)
@@ -283,6 +371,24 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   (void)notification;
   [self rebuildCustomCleanupMenus];
   [self applyDisplayPreferences];
+}
+
+// The Clean Up menu is about to show: fill Open With for the selection.
+- (void)menuNeedsUpdate:(NSMenu *)menu
+{
+  if (menu != _cleanupMenu) {
+    return;
+  }
+  NSArray *nodes = [self selectedNodes];
+  BOOL unchanged = [nodes count] == [_openWithNodes count];
+  for (NSUInteger i = 0; unchanged && i < [nodes count]; i++) {
+    unchanged = [nodes objectAtIndex:i] == [_openWithNodes objectAtIndex:i];
+  }
+  if (unchanged) {
+    return;
+  }
+  _openWithNodes = nodes;
+  [self fillOpenWithMenu:[[_cleanupMenu itemWithTitle:@"Open With"] submenu] forNodes:nodes];
 }
 
 - (NSMenu *)contextMenuForListView:(NSTableView *)view
@@ -334,6 +440,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     NSStringFromSelector(@selector(deletePermanently:)): @(LDCommandDeletePermanently),
     NSStringFromSelector(@selector(emptyFolder:)): @(LDCommandEmptyFolder),
     NSStringFromSelector(@selector(moveItemsTo:)): @(LDCommandMoveTo),
+    NSStringFromSelector(@selector(openWithApplication:)): @(LDCommandOpen),
   };
   NSNumber *command = [commands objectForKey:NSStringFromSelector(action)];
   if (command) {
@@ -355,7 +462,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     return [_treemapView canReselectChild];
   }
   if (action == @selector(stopScan:)) {
-    return [self isBusy];
+    return [self isBusy] || [self isFindingDuplicates];
   }
   if (action == @selector(suspendScan:)) {
     return [self isScanning] && ![_scanSession isSuspended];
@@ -374,6 +481,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   }
   if (action == @selector(loadResultsFromCSV:)) {
     return ![self isBusy];
+  }
+  if (action == @selector(toggleFileWatcher:)) {
+    return [self isFileWatcherOn] || (_rootNode != nil && [LDFileWatcher isSupported]);
   }
   if (action == @selector(toggleLogicalSize:) || action == @selector(openPath:) || action == @selector(rescan:)
       || action == @selector(emptyTrash:)) {
@@ -394,11 +504,20 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
                           rootNode:_rootNode
                               busy:[self isBusy]];
   }
+  if (action == @selector(toggleFreeSpace:)) {
+    [item setState:[[LDPreferences sharedPreferences] showFreeSpace] ? NSOnState : NSOffState];
+  }
+  if (action == @selector(toggleUnknown:)) {
+    [item setState:[[LDPreferences sharedPreferences] showUnknown] ? NSOnState : NSOffState];
+  }
   if (action == @selector(toggleFileTypes:)) {
     [item setState:[[LDPreferences sharedPreferences] showFileTypes] ? NSOnState : NSOffState];
   }
   if (action == @selector(toggleTreemap:)) {
     [item setState:[[LDPreferences sharedPreferences] showTreemap] ? NSOnState : NSOffState];
+  }
+  if (action == @selector(toggleFileWatcher:)) {
+    [item setTitle:[self isFileWatcherOn] ? @"Stop File Watcher" : @"Start File Watcher"];
   }
   if (action == @selector(toggleLogicalSize:)) {
     [item setState:_sizeMetric == LDSizeMetricLogical ? NSOnState : NSOffState];
@@ -845,7 +964,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 {
   [self fitColumn:@"name" ofTable:_directoryTable];
   if (_fileTabs) {
-    for (NSTableView *list in @[_largestTable, _searchTable, _duplicatesTable]) {
+    for (NSTableView *list in @[_largestTable, _searchTable, _duplicatesTable, _watcherTable]) {
       [self fitColumn:@"path" ofTable:list];
     }
   }
@@ -884,24 +1003,16 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   return NSHomeDirectory();
 }
 
-- (NSString *)initialScanPath
+- (NSArray *)initialScanPaths:(LDCommandLine *)commandLine
 {
-  NSArray *arguments = [[NSProcessInfo processInfo] arguments];
-  NSUInteger i = 1;
-  while (i < [arguments count]) {
-    NSString *argument = [arguments objectAtIndex:i];
-    if (![argument hasPrefix:@"-"]) {
-      return argument;
-    }
-    i += 2; // Skip a GNUstep "-Key value" default.
+  if ([[commandLine scanPaths] count] > 0) {
+    return [commandLine scanPaths];
   }
-
   NSString *environmentPath = [[[NSProcessInfo processInfo] environment] objectForKey:@"LINDIRSTAT_SCAN_PATH"];
   if ([environmentPath length] > 0) {
-    return environmentPath;
+    return @[environmentPath];
   }
-
-  return [self defaultFixturePath];
+  return @[[self defaultFixturePath]];
 }
 
 - (NSString *)displayPath:(NSString *)path
@@ -949,6 +1060,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
       [self finishAsyncScan];
     }
   }];
+  [self fileListsDidStartScan];
 
   [_window setTitle:[scanPaths count] > 1 ? @"This Computer" : [self displayPath:scanPath]];
   _lastLiveReload = 0.0;
@@ -1104,6 +1216,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
   BOOL sameRoot = (root == _rootNode);
   _rootNode = root;
+  [self updateSpaceItems];
   [self reloadResults];
   if (!sameRoot) {
     [_directoryTable expandItem:root];
@@ -1174,9 +1287,21 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   if (zoom && [_rootNode isAncestorOf:zoom]) {
     [_treemapView setZoomNode:zoom];
   }
+  [self selectTreeNodes:selected];
+  if (treemapSelection && [_rootNode isAncestorOf:treemapSelection]) {
+    [_treemapView setSelectedNode:treemapSelection];
+  }
+  [self fileListsDidChangeTree];
+  [self updateSelectionField];
+  [self refreshCommandState];
+}
+
+// Selects the rows of those nodes that are still in the tree.
+- (void)selectTreeNodes:(NSArray *)nodes
+{
   _syncingSelection = YES;
   NSMutableIndexSet *rows = [NSMutableIndexSet indexSet];
-  for (LDFileNode *node in selected) {
+  for (LDFileNode *node in nodes) {
     NSInteger row = [_rootNode isAncestorOf:node] ? [_directoryTable rowForItem:node] : -1;
     if (row >= 0) {
       [rows addIndex:(NSUInteger)row];
@@ -1184,12 +1309,6 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   }
   [_directoryTable selectRowIndexes:rows byExtendingSelection:NO];
   _syncingSelection = NO;
-  if (treemapSelection && [_rootNode isAncestorOf:treemapSelection]) {
-    [_treemapView setSelectedNode:treemapSelection];
-  }
-  [self fileListsDidChangeTree];
-  [self updateSelectionField];
-  [self refreshCommandState];
 }
 
 - (void)forgetNode:(LDFileNode *)node replacement:(LDFileNode *)replacement
@@ -1275,7 +1394,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [_scanSession cancel];
   [_refreshSession cancel];
   [_refreshQueue removeAllObjects];
-  [_statusField setStringValue:@"Stopping…"];
+  [self stopDuplicateDetection];
+  if ([self isBusy]) {
+    [_statusField setStringValue:@"Stopping…"];
+  }
 }
 
 - (void)openPath:(id)sender
@@ -1343,7 +1465,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   }
   NSMutableArray *nodes = [NSMutableArray array];
   NSIndexSet *rows = [_directoryTable selectedRowIndexes];
-  NSUInteger row = [rows firstIndex];
+  // A nil set would give 0, not NSNotFound, and loop forever: toolbar
+  // validation can run from -setToolbar: before the table exists.
+  NSUInteger row = rows ? [rows firstIndex] : NSNotFound;
   while (row != NSNotFound) {
     id item = [_directoryTable itemAtRow:(NSInteger)row];
     if (item) {
@@ -1679,6 +1803,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (NSImage *)iconForNode:(LDFileNode *)node
 {
+  LDHardLinkItemType hardLinkItem = LDHardLinkItemTypeOfNode(node);
+  if (hardLinkItem != LDHardLinkItemNone && hardLinkItem != LDHardLinkItemReference) {
+    return [self iconNamed:@"edit-copy-symbolic"];
+  }
   NSImage *native = [LDPlatformUI fileIconForNode:node];
   if (native) {
     return native;
@@ -1688,6 +1816,12 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   }
   if ([node isMountPoint] || [[node parent] isComputer]) {
     return [self iconNamed:@"drive-harddisk-symbolic"];
+  }
+  if ([node kind] == LDFileNodeKindFreeSpace) {
+    return [self iconNamed:@"radio-symbolic"];
+  }
+  if ([node kind] == LDFileNodeKindUnknown) {
+    return [self iconNamed:@"dialog-question-symbolic"];
   }
   switch ([node kind]) {
     case LDFileNodeKindDirectory: return [self iconNamed:@"folder-symbolic"];
@@ -1801,23 +1935,25 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     return [self percentStringForFraction:[self fractionOfParentForNode:node]];
   }
   if ([identifier isEqualToString:LDColumnPhysicalSize]) {
-    return [LDSizeFormatter stringForBytes:[node aggregateAllocatedSize]];
+    return [self physicalSizeStringForNode:node];
   }
   if ([identifier isEqualToString:LDColumnLogicalSize]) {
-    return [LDSizeFormatter stringForBytes:[node aggregateSize]];
+    return [self logicalSizeStringForNode:node];
   }
+  BOOL pseudo = LDIsHardLinkItem(node);
   if ([identifier isEqualToString:LDColumnLastChange]) {
     NSTimeInterval time = [node aggregateModificationTime];
     return time > 0 ? [_dateFormatter stringFromDate:[NSDate dateWithTimeIntervalSince1970:time]] : @"";
   }
   if ([identifier isEqualToString:LDColumnAttributes]) {
-    return [LDFileAttributes attributeStringForNode:node];
+    return pseudo ? @"" : [LDFileAttributes attributeStringForNode:node];
   }
   if ([identifier isEqualToString:LDColumnOwner]) {
-    return [self ownerOfNode:node];
+    return pseudo ? @"" : [self ownerOfNode:node];
   }
-  // Items, Files and Folders are blank for files, as in WinDirStat.
-  if ([node kind] != LDFileNodeKindDirectory) {
+  // Items, Files and Folders are blank for files and pseudo-items, as in
+  // WinDirStat.
+  if ([node kind] != LDFileNodeKindDirectory || pseudo) {
     return @"";
   }
   NSUInteger folders = [node directoryCount] > 0 ? [node directoryCount] - 1 : 0;
@@ -1864,6 +2000,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 // Looked up on demand (the scan does not store owners) and cached per node.
 - (NSString *)ownerOfNode:(LDFileNode *)node
 {
+  if ([node isSpaceItem]) {
+    return @"";
+  }
   NSString *owner = [_ownerCache objectForKey:node];
   if (!owner) {
     owner = [LDFileAttributes ownerOfPath:[node pathData]] ?: @"";

@@ -2,6 +2,7 @@
 #import "LDDuplicateFinder.h"
 #import "LDFileAttributes.h"
 #import "LDFileNode.h"
+#import "LDHardLinks.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -20,6 +21,8 @@ enum {
   LDCSVTypeDrive = 0x2,
   LDCSVTypeDirectory = 0x4,
   LDCSVTypeFile = 0x8,
+  LDCSVTypeFreeSpace = 0x10,
+  LDCSVTypeUnknown = 0x20,
   LDCSVTypeRoot = 0x10000000,
   LDCSVTypeDone = 0x20000000
 };
@@ -136,12 +139,83 @@ static NSComparisonResult LDCompareNamesCaseInsensitively(id left, id right, voi
   return order < 0 ? NSOrderedAscending : (order > 0 ? NSOrderedDescending : NSOrderedSame);
 }
 
-static void LDWriteRow(FILE *file, LDFileNode *node, NSData *path, BOOL isRoot, BOOL includeOwner)
+// What a row's sizes differ from the tree's: WinDirStat undoes its hard-link
+// de-duplication in the CSV (CsvLoader.cpp:284-315), so every link carries
+// the file's sizes and every folder those of all the links below it, while
+// the "<Hardlinks>" folders (which are not written) no longer count.
+typedef struct {
+  long long logical;
+  long long physical;
+} LDCSVSizeDelta;
+
+typedef struct {
+  __unsafe_unretained LDHardLinkTable *hardLinks;
+  __unsafe_unretained NSMapTable *folderDeltas;
+  BOOL includeOwner;
+} LDCSVWriteContext;
+
+static void LDAddDeltaUpward(NSMapTable *deltas, LDFileNode *node, LDFileNode *root, long long logical, long long physical)
+{
+  for (LDFileNode *cursor = node; cursor; cursor = [cursor parent]) {
+    LDCSVSizeDelta delta = {0, 0};
+    NSData *stored = [deltas objectForKey:cursor];
+    if (stored) {
+      memcpy(&delta, [stored bytes], sizeof(delta));
+    }
+    delta.logical += logical;
+    delta.physical += physical;
+    [deltas setObject:[NSData dataWithBytes:&delta length:sizeof(delta)] forKey:cursor];
+    if (cursor == root) {
+      break;
+    }
+  }
+}
+
+static NSMapTable *LDFolderDeltasForTree(LDFileNode *root, LDHardLinkTable *hardLinks)
+{
+  NSMapTable *deltas = [NSMapTable mapTableWithKeyOptions:NSPointerFunctionsOpaqueMemory | NSPointerFunctionsOpaquePersonality
+                                             valueOptions:NSPointerFunctionsStrongMemory];
+  for (LDHardLinkSet *set in [hardLinks sets]) {
+    for (LDFileNode *link in [set members]) {
+      if (link != root && [root isAncestorOf:link]) {
+        LDAddDeltaUpward(deltas, [link parent], root,
+                         (long long)[set size] - (long long)[link aggregateSize],
+                         (long long)[set allocatedSize] - (long long)[link aggregateAllocatedSize]);
+      }
+    }
+  }
+  NSArray *scanRoots = [root isComputer] ? [root children] : @[root];
+  for (LDFileNode *scanRoot in scanRoots) {
+    LDFileNode *container = [LDHardLinks containerForNode:scanRoot];
+    if (container && [container parent] == scanRoot) {
+      LDAddDeltaUpward(deltas, scanRoot, root, -(long long)[container aggregateSize], -(long long)[container aggregateAllocatedSize]);
+    }
+  }
+  return deltas;
+}
+
+// Index is WinDirStat's file ID: the inode, looked up when writing so the
+// tree does not have to keep it.
+static unsigned long long LDIndexForPath(NSData *path)
+{
+  if ([path length] == 0) {
+    return 0;
+  }
+  NSMutableData *terminated = [path mutableCopy];
+  [terminated appendBytes:"" length:1];
+  struct stat info;
+  return lstat([terminated bytes], &info) == 0 ? (unsigned long long)info.st_ino : 0;
+}
+
+static void LDWriteRow(FILE *file, LDFileNode *node, NSData *path, BOOL isRoot, LDCSVWriteContext *context)
 {
   BOOL isDirectory = [node kind] == LDFileNodeKindDirectory;
+  BOOL includeOwner = context->includeOwner;
 
   fputs("\r\n", file);
-  if (LDIsValidUTF8([path bytes], [path length])) {
+  if ([node isComputer]) {
+    LDWriteQuotedString(file, [node path]);
+  } else if (LDIsValidUTF8([path bytes], [path length])) {
     LDWriteQuoted(file, [path bytes], [path length]);
   } else {
     // CSV text is UTF-8, so a path that is not falls back to -path, which
@@ -157,11 +231,25 @@ static void LDWriteRow(FILE *file, LDFileNode *node, NSData *path, BOOL isRoot, 
     files = (unsigned long)[node fileCount];
     folders = [node directoryCount] > 0 ? (unsigned long)[node directoryCount] - 1 : 0;
   }
-  // Hard-link duplicates are written with the physical size LinDirStat keeps
-  // for them (0). WinDirStat undoes its de-duplication here; LinDirStat does
-  // not keep the duplicate's own size, so it cannot.
-  fprintf(file, ",%lu,%lu,%llu,%llu,", files, folders,
-          [node aggregateSize], [node aggregateAllocatedSize]);
+  unsigned long long logical = [node aggregateSize];
+  unsigned long long physical = [node aggregateAllocatedSize];
+  unsigned long long index = 0;
+  LDHardLinkSet *set = isDirectory ? nil : [context->hardLinks setForNode:node];
+  if (set) {
+    logical = [set size];
+    physical = [set allocatedSize];
+    index = [set inode];
+  } else {
+    NSData *stored = isDirectory ? [context->folderDeltas objectForKey:node] : nil;
+    if (stored) {
+      LDCSVSizeDelta delta;
+      memcpy(&delta, [stored bytes], sizeof(delta));
+      logical = (unsigned long long)((long long)logical + delta.logical);
+      physical = (unsigned long long)((long long)physical + delta.physical);
+    }
+    index = [node isComputer] ? 0 : LDIndexForPath(path);
+  }
+  fprintf(file, ",%lu,%lu,%llu,%llu,", files, folders, logical, physical);
   LDWriteQuotedString(file, [LDFileAttributes attributeStringForNode:node]);
 
   time_t seconds = (time_t)[node aggregateModificationTime];
@@ -170,27 +258,38 @@ static void LDWriteRow(FILE *file, LDFileNode *node, NSData *path, BOOL isRoot, 
   gmtime_r(&seconds, &utc);
   // Symlinks and special files are written as files.
   unsigned int type = isDirectory ? LDCSVTypeDirectory : LDCSVTypeFile;
+  if ([node kind] == LDFileNodeKindFreeSpace) {
+    type = LDCSVTypeFreeSpace;
+  } else if ([node kind] == LDFileNodeKindUnknown) {
+    type = LDCSVTypeUnknown;
+  } else if ([node isComputer]) {
+    type = LDCSVTypeMyComputer;
+  } else if (isDirectory && [[node parent] isComputer]) {
+    // The roots of a multi-root scan are WinDirStat's drives.
+    type = LDCSVTypeDrive;
+  }
   if (isRoot) {
     type |= LDCSVTypeRoot;
   }
   if (![node isScanPending]) {
     type |= LDCSVTypeDone;
   }
-  // Index is WinDirStat's file ID (the inode on Linux). LinDirStat does not
-  // keep inode numbers in the tree, so it is always 0.
   fprintf(file, ",%04d-%02d-%02dT%02d:%02d:%02dZ,0x%08X,0x%016llX",
           utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday,
-          utc.tm_hour, utc.tm_min, utc.tm_sec, type, 0ULL);
+          utc.tm_hour, utc.tm_min, utc.tm_sec, type, index);
 
   if (includeOwner) {
     fputc(',', file);
-    LDWriteQuotedString(file, [LDFileAttributes ownerOfPath:path]);
+    LDWriteQuotedString(file, [node isSpaceItem] ? @"" : [LDFileAttributes ownerOfPath:path]);
   }
 }
 
-static void LDWriteSubtree(FILE *file, LDFileNode *node, NSMutableData *path, BOOL isRoot, BOOL includeOwner)
+static void LDWriteSubtree(FILE *file, LDFileNode *node, NSMutableData *path, BOOL isRoot, LDCSVWriteContext *context)
 {
-  LDWriteRow(file, node, path, isRoot, includeOwner);
+  if (LDIsHardLinkItem(node)) {
+    return;
+  }
+  LDWriteRow(file, node, path, isRoot, context);
   NSArray *children = [node children];
   if ([children count] == 0) {
     return;
@@ -199,12 +298,17 @@ static void LDWriteSubtree(FILE *file, LDFileNode *node, NSMutableData *path, BO
   NSUInteger parentLength = [path length];
   BOOL needsSeparator = parentLength == 0 || ((const char *)[path bytes])[parentLength - 1] != '/';
   for (LDFileNode *child in children) {
+    if ([node isComputer]) {
+      // Its children are full-path roots.
+      LDWriteSubtree(file, child, [[child pathData] mutableCopy], NO, context);
+      continue;
+    }
     if (needsSeparator) {
       [path appendBytes:"/" length:1];
     }
     const char *name = [child nameBytes];
     [path appendBytes:name length:strlen(name)];
-    LDWriteSubtree(file, child, path, NO, includeOwner);
+    LDWriteSubtree(file, child, path, NO, context);
     [path setLength:parentLength];
   }
 }
@@ -373,7 +477,7 @@ static NSString *LDRowDescription(NSUInteger row)
 }
 
 @interface LDCSV ()
-+ (LDFileNode *)readTreeWithParser:(LDCSVParser *)parser error:(NSError **)error;
++ (LDFileNode *)readTreeWithParser:(LDCSVParser *)parser processHardLinks:(BOOL)processHardLinks error:(NSError **)error;
 @end
 
 @implementation LDCSV
@@ -408,8 +512,14 @@ static NSString *LDRowDescription(NSUInteger row)
   }
 
   @autoreleasepool {
+    // The context does not retain these, and ARC may release a local after
+    // its last use (it does at -O2 with Apple's clang), so keep them alive
+    // until the end of the scope.
+    __attribute__((objc_precise_lifetime)) LDHardLinkTable *hardLinks = [LDHardLinkTable tableForRoot:root];
+    __attribute__((objc_precise_lifetime)) NSMapTable *folderDeltas = hardLinks ? LDFolderDeltasForTree(root, hardLinks) : nil;
+    LDCSVWriteContext context = {hardLinks, folderDeltas, includeOwner};
     NSMutableData *rootPath = [[root pathData] mutableCopy];
-    LDWriteSubtree(file, root, rootPath, YES, includeOwner);
+    LDWriteSubtree(file, root, rootPath, YES, &context);
   }
 
   BOOL failed = ferror(file) != 0;
@@ -482,6 +592,11 @@ static NSString *LDRowDescription(NSUInteger row)
 
 + (LDFileNode *)readTreeFromPath:(NSString *)path error:(NSError **)error
 {
+  return [self readTreeFromPath:path processHardLinks:YES error:error];
+}
+
++ (LDFileNode *)readTreeFromPath:(NSString *)path processHardLinks:(BOOL)processHardLinks error:(NSError **)error
+{
   NSError *readError = nil;
   NSData *data = [NSData dataWithContentsOfFile:path options:NSDataReadingMappedIfSafe error:&readError];
   if (!data) {
@@ -505,7 +620,7 @@ static NSString *LDRowDescription(NSUInteger row)
   NSError *failure = nil;
   LDFileNode *root = nil;
   @autoreleasepool {
-    root = [self readTreeWithParser:&parser error:&failure];
+    root = [self readTreeWithParser:&parser processHardLinks:processHardLinks error:&failure];
   }
   if (!root && error) {
     *error = failure;
@@ -513,7 +628,7 @@ static NSString *LDRowDescription(NSUInteger row)
   return root;
 }
 
-+ (LDFileNode *)readTreeWithParser:(LDCSVParser *)parser error:(NSError **)error
++ (LDFileNode *)readTreeWithParser:(LDCSVParser *)parser processHardLinks:(BOOL)processHardLinks error:(NSError **)error
 {
   // Header: columns are matched by name, in any order.
   int status = LDParserNextRecord(parser);
@@ -553,6 +668,11 @@ static NSString *LDRowDescription(NSUInteger row)
   char separator = '/';
   NSMutableDictionary *parents = [NSMutableDictionary dictionary];
   LDNameArena *arena = [[LDNameArena alloc] init];
+  // Files that share an Index are links to one file: counted once, as when
+  // scanning. Files written without an Index (0) are taken as they are.
+  LDHardLinkTable *hardLinks = [[LDHardLinkTable alloc] init];
+  [hardLinks setShowsHardLinks:processHardLinks];
+  [hardLinks setMatchesInodesOnly:YES];
   NSUInteger row = 1;
 
   while ((status = LDParserNextRecord(parser)) > 0) {
@@ -573,9 +693,15 @@ static NSString *LDRowDescription(NSUInteger row)
     const char *timeText = LDParserField(parser, columnIndex[LDCSVColumnLastChange], &timeLength);
     int64_t modificationTime = LDParseTime(timeText, timeLength);
     const char *attributes = LDParserField(parser, columnIndex[LDCSVColumnAttributes], NULL);
+    unsigned long long index = strtoull(LDParserField(parser, columnIndex[LDCSVColumnIndex], NULL), NULL, 16);
 
     BOOL isDirectory = (type & (LDCSVTypeMyComputer | LDCSVTypeDrive | LDCSVTypeDirectory)) != 0;
     LDFileNodeKind kind = isDirectory ? LDFileNodeKindDirectory : LDFileNodeKindFile;
+    if (type & LDCSVTypeFreeSpace) {
+      kind = LDFileNodeKindFreeSpace;
+    } else if (type & LDCSVTypeUnknown) {
+      kind = LDFileNodeKindUnknown;
+    }
     // Folders' sizes come from their children.
     unsigned long long ownLogical = isDirectory ? 0 : logical;
     unsigned long long ownPhysical = isDirectory ? 0 : physical;
@@ -587,8 +713,12 @@ static NSString *LDRowDescription(NSUInteger row)
       if (memchr(name, '\\', nameLength) && !memchr(name, '/', nameLength)) {
         separator = '\\';
       }
-      node = [LDFileNode nodeWithPath:LDStringFromBytes(name, nameLength) kind:kind size:0];
-      [node setSize:ownLogical allocatedSize:ownPhysical];
+      if (type & LDCSVTypeMyComputer) {
+        node = [LDComputerNode computerNode];
+      } else {
+        node = [LDFileNode nodeWithPath:LDStringFromBytes(name, nameLength) kind:kind size:0];
+        [node setSize:ownLogical allocatedSize:ownPhysical];
+      }
       root = node;
     } else {
       if (type & LDCSVTypeRoot) {
@@ -623,12 +753,21 @@ static NSString *LDRowDescription(NSUInteger row)
           return nil;
         }
       }
-      node = [LDFileNode nodeWithNameBytes:leaf length:leafLength arena:arena kind:kind size:ownLogical allocatedSize:ownPhysical];
+      if (parent == root && [root isComputer]) {
+        // A root of a LinDirStat multi-root scan keeps its full path.
+        node = [LDFileNode nodeWithPath:LDStringFromBytes(name, nameLength) kind:kind size:0];
+        [node setSize:ownLogical allocatedSize:ownPhysical];
+      } else {
+        node = [LDFileNode nodeWithNameBytes:leaf length:leafLength arena:arena kind:kind size:ownLogical allocatedSize:ownPhysical];
+      }
       [parent addChild:node];
     }
 
     [node setModificationTime:(NSTimeInterval)modificationTime];
     [node setMode:LDModeForRow(isDirectory, attributes)];
+    if (!isDirectory && index != 0) {
+      [hardLinks addLink:node device:0 inode:index size:ownLogical allocatedSize:ownPhysical ignoringLinksUnder:nil];
+    }
     if (isDirectory) {
       LDRegisterParent(parents, node, name, nameLength, separator);
     }
@@ -645,7 +784,8 @@ static NSString *LDRowDescription(NSUInteger row)
   }
 
   if ([root isKindOfClass:[LDDirectoryNode class]]) {
-    [(LDDirectoryNode *)root setOwnedStorage:arena];
+    [(LDDirectoryNode *)root setOwnedStorage:@[arena, hardLinks]];
+    [LDHardLinks updateTree:root table:hardLinks metric:LDSizeMetricPhysical retiring:nil];
   }
   [root recalculateAggregateSize];
   [root sortChildrenByMetric:LDSizeMetricPhysical];

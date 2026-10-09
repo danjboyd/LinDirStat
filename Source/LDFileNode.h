@@ -4,7 +4,12 @@ typedef enum {
   LDFileNodeKindFile = 0,
   LDFileNodeKindDirectory = 1,
   LDFileNodeKindSymlink = 2,
-  LDFileNodeKindSpecial = 3
+  LDFileNodeKindSpecial = 3,
+  // WinDirStat's "<Free Space>" and "<Unknown>" pseudo-files under a volume
+  // (Options › Show Free Space / Show Unknown). They have a physical size
+  // only and are not files: see -isSpaceItem.
+  LDFileNodeKindFreeSpace = 4,
+  LDFileNodeKindUnknown = 5
 } LDFileNodeKind;
 
 // WinDirStat defaults to physical (allocated) sizes and offers logical sizes
@@ -44,7 +49,7 @@ typedef enum {
   uint32_t _mode;
   uint8_t _kind;
   uint8_t _error;
-  uint8_t _ownsName;
+  uint8_t _flags;
   uint8_t _errorNumber;
 }
 
@@ -77,6 +82,11 @@ typedef enum {
 - (BOOL)isLeaf;
 // YES only for the synthetic root of a multi-root scan (LDComputerNode).
 - (BOOL)isComputer;
+// YES for the <Free Space> and <Unknown> pseudo-files. They have no path on
+// disk, count as no file, and no command, file list or statistic uses them.
+- (BOOL)isSpaceItem;
+// A detached <Free Space> or <Unknown> node of the given physical size.
++ (LDFileNode *)spaceItemWithKind:(LDFileNodeKind)kind allocatedSize:(unsigned long long)allocatedSize;
 
 // Logical size (st_size) of this node alone.
 - (unsigned long long)size;
@@ -117,6 +127,12 @@ typedef enum {
 - (NSString *)errorCode;
 - (BOOL)isHardLinkDuplicate;
 - (BOOL)isMountPoint;
+// WinDirStat's ITF_HARDLINK: a link of a file with several links in the
+// tree, counted under "<Hardlinks>" (see LDHardLinks.h). Its aggregate sizes
+// are 0, so it adds nothing to its folders; -size and -allocatedSize keep
+// what the scan gave it.
+- (BOOL)isHardLink;
+- (void)setHardLink:(BOOL)flag;
 
 - (LDFileNode *)parent;
 - (NSArray *)children;
@@ -161,8 +177,10 @@ typedef enum {
   uint32_t _pendingScans;
 }
 
-// Keeps storage the subtree depends on (the scan's name arenas) alive.
+// Keeps storage the subtree depends on (the scan's name arenas and hard-link
+// table) alive.
 - (void)setOwnedStorage:(id)storage;
+- (id)ownedStorage;
 
 // Live scans. A directory's children are published once, as a complete
 // array that is never mutated, so the main thread can read the tree while

@@ -5,6 +5,7 @@
 #import "LDDesktop.h"
 #import "LDDialogs.h"
 #import "LDFileOperations.h"
+#import "LDOpenWith.h"
 #import "LDPreferences.h"
 #import "LDScanSession.h"
 #import "LDSizeFormatter.h"
@@ -54,6 +55,49 @@
         [self showStatus:[NSString stringWithFormat:@"No application could open %@", [self displayPath:path]]];
       }
     }];
+  }
+}
+
+- (NSArray *)pathDataOfNodes:(NSArray *)nodes
+{
+  NSMutableArray *paths = [NSMutableArray array];
+  for (LDFileNode *node in nodes) {
+    [paths addObject:[node pathData]];
+  }
+  return paths;
+}
+
+// The default application first, set apart from the others. Empty when
+// Open does not apply, which disables the submenu.
+- (void)fillOpenWithMenu:(NSMenu *)menu forNodes:(NSArray *)nodes
+{
+  [menu removeAllItems];
+  if (![LDCommandRules isCommand:LDCommandOpen enabledForNodes:nodes rootNode:_rootNode busy:[self isBusy]]) {
+    return;
+  }
+  NSArray *applications = [[LDOpenWith sharedOpenWith] applicationsForPaths:[self pathDataOfNodes:nodes]];
+  for (LDOpenWithApplication *application in applications) {
+    if ([menu numberOfItems] == 1 && [[[menu itemAtIndex:0] representedObject] isDefault]) {
+      [menu addItem:[NSMenuItem separatorItem]];
+    }
+    NSMenuItem *item = (NSMenuItem *)[menu addItemWithTitle:[application name] action:@selector(openWithApplication:) keyEquivalent:@""];
+    [item setTarget:self];
+    [item setRepresentedObject:application];
+    if ([application icon]) {
+      [item setImage:[application icon]];
+    }
+  }
+}
+
+- (void)openWithApplication:(id)sender
+{
+  LDOpenWithApplication *application = [sender representedObject];
+  NSArray *nodes = [self selectedNodes];
+  if (![application isKindOfClass:[LDOpenWithApplication class]] || ![self selectionAllows:LDCommandOpen]) {
+    return;
+  }
+  if (![[LDOpenWith sharedOpenWith] openPaths:[self pathDataOfNodes:nodes] withApplication:application]) {
+    [self showStatus:[NSString stringWithFormat:@"%@ could not be started", [application name]]];
   }
 }
 
@@ -479,6 +523,9 @@
       }
       LDFileNode *next = nil;
       for (LDFileNode *child in [cursor children]) {
+        if ([child isSpaceItem]) {
+          continue;
+        }
         const char *name = [child nameBytes];
         if (strlen(name) == end - position && memcmp(name, bytes + position, end - position) == 0) {
           next = child;
@@ -523,6 +570,7 @@
   if (!node) {
     _refreshQueue = nil;
     _refreshSession = nil;
+    [self updateSpaceItems];
     [self didChangeTree];
     [self finishBusyWork];
     return;
@@ -539,12 +587,13 @@
   [self showStatus:[NSString stringWithFormat:@"Refreshing %@…", [self displayPath:[node path]]]];
   LDScanSession *session = [[LDScanSession alloc] init];
   [self configureScanSession:session];
+  [self prepareRefreshSession:session ofNode:node];
   _refreshSession = session;
   void (^finished)(LDFileNode *) = ^(LDFileNode *replacement) {
     if (session != _refreshSession) {
       return;
     }
-    [self replaceNode:node withNode:[session isCanceled] ? nil : replacement keepIfCanceled:[session isCanceled]];
+    [self replaceNode:node withNode:replacement keepIfCanceled:[session isCanceled]];
     [self refreshNextNode];
   };
   if ([[node parent] isComputer]) {
@@ -561,6 +610,7 @@
     [(LDDirectoryNode *)node clearPendingScans];
   }
   if (!parent || canceled) {
+    [self updateHardLinksAfterReplacing:node withNode:replacement canceled:YES];
     return;
   }
   // Parent pointers do not retain, and the file lists may still hold nodes
@@ -573,6 +623,7 @@
     [parent removeChild:node];
   }
   [parent updateTotalsUpwardSortedByMetric:_sizeMetric];
+  [self updateHardLinksAfterReplacing:node withNode:replacement canceled:NO];
   [self forgetNode:node replacement:replacement];
 }
 

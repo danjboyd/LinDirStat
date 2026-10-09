@@ -101,7 +101,8 @@ typedef struct {
 // the final palette entry.
 - (NSData *)renderRGBAWithColorIndexes:(NSDictionary *)colorIndexes;
 
-// Color used to paint a leaf node (before shading).
+// Color used to paint a leaf node (before shading). <Free Space> and
+// <Unknown> carry an LDRGBColorFlag, as in WinDirStat.
 + (LDRGBColor)colorForNode:(LDFileNode *)node colorIndexes:(NSDictionary *)colorIndexes;
 
 // Port of CTreeMap::DrawColorPreview: a single cushion for legend swatches.

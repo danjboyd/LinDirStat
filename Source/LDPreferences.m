@@ -162,6 +162,7 @@ static const NSUInteger LDCustomCleanupSlots = 10;
     @"ExcludeVolumeMountPoints": @YES,
     @"ExcludeSymbolicLinks": @YES,
     @"ExcludeHidden": @NO,
+    @"ProcessHardlinks": @YES,
     @"ScanningThreads": @4,
     @"LargeFileCount": @50,
     @"FolderHistoryCount": @10,
@@ -179,6 +180,8 @@ static const NSUInteger LDCustomCleanupSlots = 10;
     @"ConfigPage": @0,
     @"ShowFileTypes": @YES,
     @"ShowTreemap": @YES,
+    @"ShowFreeSpace": @NO,
+    @"ShowUnknown": @NO,
   };
 }
 
@@ -339,6 +342,8 @@ static NSInteger LDClamp(NSInteger value, NSInteger low, NSInteger high)
 - (void)setExcludeSymbolicLinks:(BOOL)flag { [self setBool:flag forKey:@"ExcludeSymbolicLinks"]; }
 - (BOOL)excludeHiddenEntries { return [self boolForKey:@"ExcludeHidden"]; }
 - (void)setExcludeHiddenEntries:(BOOL)flag { [self setBool:flag forKey:@"ExcludeHidden"]; }
+- (BOOL)processHardLinks { return [self boolForKey:@"ProcessHardlinks"]; }
+- (void)setProcessHardLinks:(BOOL)flag { [self setBool:flag forKey:@"ProcessHardlinks"]; }
 - (NSUInteger)scanningThreads { return (NSUInteger)LDClamp([self integerForKey:@"ScanningThreads"], 1, 16); }
 - (void)setScanningThreads:(NSUInteger)count { [self setInteger:LDClamp((NSInteger)count, 1, 16) forKey:@"ScanningThreads"]; }
 - (NSUInteger)largeFileCount { return (NSUInteger)LDClamp([self integerForKey:@"LargeFileCount"], 0, 10000); }
@@ -449,6 +454,10 @@ static NSInteger LDClamp(NSInteger value, NSInteger low, NSInteger high)
 - (void)setShowFileTypes:(BOOL)flag { [self setBool:flag forKey:@"ShowFileTypes"]; }
 - (BOOL)showTreemap { return [self boolForKey:@"ShowTreemap"]; }
 - (void)setShowTreemap:(BOOL)flag { [self setBool:flag forKey:@"ShowTreemap"]; }
+- (BOOL)showFreeSpace { return [self boolForKey:@"ShowFreeSpace"]; }
+- (void)setShowFreeSpace:(BOOL)flag { [self setBool:flag forKey:@"ShowFreeSpace"]; }
+- (BOOL)showUnknown { return [self boolForKey:@"ShowUnknown"]; }
+- (void)setShowUnknown:(BOOL)flag { [self setBool:flag forKey:@"ShowUnknown"]; }
 
 - (NSInteger)lastOptionsPage { return [self integerForKey:@"ConfigPage"]; }
 - (void)setLastOptionsPage:(NSInteger)page { [self setInteger:page forKey:@"ConfigPage"]; }

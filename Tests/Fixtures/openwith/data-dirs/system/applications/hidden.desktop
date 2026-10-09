@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Hidden
+Exec=true %f
+MimeType=text/plain;
+Hidden=true

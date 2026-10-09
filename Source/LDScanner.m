@@ -3,6 +3,8 @@
 #import "LDScanSession.h"
 #import "LDExtensionStats.h"
 #import "LDScanOptions.h"
+#import "LDDuplicateFinder.h"
+#import "LDHardLinks.h"
 
 #include <dirent.h>
 #include <dispatch/dispatch.h>
@@ -100,6 +102,24 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   [options setExcludeMountPoints:!crossesFilesystems];
   _options = options;
 }
+
+- (BOOL)findsDuplicates { return [_options findsDuplicates]; }
+
+- (void)setFindsDuplicates:(BOOL)findsDuplicates
+{
+  LDScanOptions *options = [_options copy];
+  [options setFindsDuplicates:findsDuplicates];
+  _options = options;
+}
+
+- (void)setHardLinkTable:(LDHardLinkTable *)table replacing:(LDFileNode *)node
+{
+  _hardLinks = table;
+  _replacedNode = node;
+  _usesGivenHardLinks = (table != nil);
+}
+
+- (LDHardLinkTable *)hardLinkTable { return _hardLinks; }
 
 - (LDSizeMetric)sortMetric { return _sortMetric; }
 - (void)setSortMetric:(LDSizeMetric)sortMetric { _sortMetric = sortMetric; }
@@ -199,10 +219,14 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 - (void)applyStat:(const struct stat *)info toNode:(LDFileNode *)node session:(LDScanSession *)session cache:(NSMutableDictionary *)cache
 {
   LDFileNodeKind kind = [node kind];
-  // When links are followed, a file can also be reached through a link, so
-  // every file is counted once by identity, not only multiply linked ones.
-  BOOL deduplicate = info->st_nlink > 1 || ![_options excludeSymbolicLinks];
-  if (kind == LDFileNodeKindFile && deduplicate) {
+  if (kind == LDFileNodeKindFile && info->st_nlink > 1) {
+    if (![_hardLinks addLink:node device:info->st_dev inode:(unsigned long long)info->st_ino
+                        size:[node size] allocatedSize:[node allocatedSize] ignoringLinksUnder:_replacedNode]) {
+      [session incrementSkippedCount];
+    }
+  } else if (kind == LDFileNodeKindFile && ![_options excludeSymbolicLinks]) {
+    // When links are followed, a file can also be reached through a link, so
+    // every file is counted once by identity, not only multiply linked ones.
     if (![self insertKey:[self identityKeyForStat:info] intoSet:_visitedHardLinks]) {
       [node setSize:0 allocatedSize:0];
       [node setError:LDFileNodeErrorHardLinkDuplicate errorNumber:0];
@@ -265,10 +289,16 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 - (void)resetForScan
 {
   [_visitedHardLinks removeAllObjects];
+  if (!_usesGivenHardLinks) {
+    _hardLinks = [[LDHardLinkTable alloc] init];
+    [_hardLinks setShowsHardLinks:[_options processHardLinks]];
+  }
+  _attachesHardLinks = NO;
   [_visitedDirectories removeAllObjects];
   [_pendingDirectories removeAllObjects];
   [_arenas removeAllObjects];
   _retiredArrays = [[NSMutableArray alloc] init];
+  _duplicateCollector = nil;
   _activeWorkers = 0;
   _folderFilter = [self compiledFilterForPatterns:[_options excludedFolderPatterns]];
   _fileFilter = [self compiledFilterForPatterns:[_options excludedFilePatterns]];
@@ -304,6 +334,8 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 - (LDFileNode *)scanPath:(NSString *)path session:(LDScanSession *)session
 {
   [self resetForScan];
+  [self beginDuplicateCollectionForSession:session];
+  _attachesHardLinks = !_usesGivenHardLinks;
   [session markScanning];
   [session setCurrentPath:path];
 
@@ -311,12 +343,32 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   LDFileNode *root = [self nodeForRootPath:path stat:&info session:session];
   if ([root error] == LDFileNodeErrorStatFailed) {
     [session setRootNode:root];
-    [session markComplete];
-    return root;
+  } else {
+    [self scanEntry:root stat:&info pathBytes:[self pathBytesForPath:path] rootDevice:info.st_dev session:session];
   }
-  [self scanEntry:root stat:&info pathBytes:[self pathBytesForPath:path] rootDevice:info.st_dev session:session];
+  [self finishDuplicateCollection];
   [session markComplete];
   return root;
+}
+
+- (void)beginDuplicateCollectionForSession:(LDScanSession *)session
+{
+  _duplicateCollector = nil;
+  if (![_options findsDuplicates]) {
+    return;
+  }
+  LDDuplicateCollector *collector = [session duplicateCollector];
+  if (!collector) {
+    collector = [[LDDuplicateCollector alloc] init];
+    [session setDuplicateCollector:collector];
+  }
+  _duplicateCollector = collector;
+}
+
+- (void)finishDuplicateCollection
+{
+  [_duplicateCollector finishAdding];
+  _duplicateCollector = nil;
 }
 
 - (LDFileNode *)scanPaths:(NSArray *)paths session:(LDScanSession *)session
@@ -325,6 +377,8 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
     return [self scanPath:[paths objectAtIndex:0] session:session];
   }
   [self resetForScan];
+  [self beginDuplicateCollectionForSession:session];
+  _attachesHardLinks = !_usesGivenHardLinks;
   [session markScanning];
   [session setCurrentPath:[paths firstObject]];
 
@@ -343,6 +397,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   // Each queued root holds one pending read on the computer node, so it
   // stays pending until the last root is done.
   [computer publishChildren:roots];
+  [_duplicateCollector addNodes:roots];
   [computer beginPendingScans:queued];
   [session setRootNode:computer];
   if (queued > 0) {
@@ -350,6 +405,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   }
   [self giveArenasToDirectory:computer];
   [self finishTree:computer session:session];
+  [self finishDuplicateCollection];
   [session markComplete];
   return computer;
 }
@@ -437,12 +493,15 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 
 - (void)giveArenasToDirectory:(LDDirectoryNode *)directory
 {
-  [directory setOwnedStorage:[_arenas copy]];
+  [directory setOwnedStorage:_attachesHardLinks ? [_arenas arrayByAddingObject:_hardLinks] : [_arenas copy]];
   [_arenas removeAllObjects];
 }
 
 - (void)finishTree:(LDFileNode *)root session:(LDScanSession *)session
 {
+  if (_attachesHardLinks) {
+    [LDHardLinks updateTree:root table:_hardLinks metric:_sortMetric retiring:_retiredArrays];
+  }
   [root recalculateAggregateSize];
   [root sortChildrenByMetric:_sortMetric retiring:_retiredArrays];
   [session setRootNode:root];
@@ -643,6 +702,9 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   // Publish before queueing the subdirectories, which are read as children
   // of this node. Each queued subdirectory holds one pending read here.
   [directoryNode publishChildren:children];
+  if (_duplicateCollector) {
+    [_duplicateCollector addNodes:children];
+  }
   [directoryNode addLiveFiles:files directories:directories size:logicalBytes allocatedSize:bytes modificationTime:newest];
   for (LDScanJob *subdirectory in subdirectories) {
     [subdirectory->_node beginPendingScans:1];

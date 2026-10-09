@@ -130,6 +130,14 @@
 #endif
 }
 
+- (NSString *)mimeTypeForExtensionKey:(NSString *)extensionKey
+{
+  if ([extensionKey length] == 0 || !_mimeDirectory) {
+    return nil;
+  }
+  return [[self mimeTypesByExtension] objectForKey:extensionKey];
+}
+
 - (NSString *)descriptionForExtensionKey:(NSString *)extensionKey
 {
   if ([extensionKey length] == 0 || [extensionKey isEqualToString:@"<none>"]) {
