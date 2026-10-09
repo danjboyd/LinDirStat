@@ -26,6 +26,7 @@
   NSTimer *_memoryTimer;
   LDFileNode *_rootNode;
   NSString *_currentScanPath;
+  NSArray *_currentScanPaths;
   NSDateFormatter *_dateFormatter;
   LDSizeMetric _sizeMetric;
   LDTreeSortKey _treeSortKey;

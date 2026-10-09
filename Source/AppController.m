@@ -7,6 +7,7 @@
 #import "LDScanOptions.h"
 #import "LDDialogs.h"
 #import "LDOptionsWindowController.h"
+#import "LDSelectTargetPanel.h"
 #import "LDExtensionColor.h"
 #import "LDExtensionStats.h"
 #import "LDFileNode.h"
@@ -892,9 +893,20 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (void)beginScanPath:(NSString *)scanPath
 {
-  if (!scanPath || ![self scanOptionsAreValid]) {
+  if (scanPath) {
+    [self beginScanPaths:@[scanPath]];
+  }
+}
+
+// One path scans that folder; several (volumes from Select Target) scan
+// under a "This Computer" root.
+- (void)beginScanPaths:(NSArray *)scanPaths
+{
+  if ([scanPaths count] == 0 || ![self scanOptionsAreValid]) {
     return;
   }
+  NSString *scanPath = [scanPaths objectAtIndex:0];
+  _currentScanPaths = [scanPaths copy];
 
   [_refreshSession cancel];
   _refreshSession = nil;
@@ -908,14 +920,14 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   LDScanSession *session = [[LDScanSession alloc] init];
   _scanSession = session;
   [self configureScanSession:session];
-  [session startAsyncScanPath:scanPath completion:^{
+  [session startAsyncScanPaths:scanPaths completion:^{
     // Ignore a scan that was replaced before it finished.
     if (session == _scanSession) {
       [self finishAsyncScan];
     }
   }];
 
-  [_window setTitle:[self displayPath:scanPath]];
+  [_window setTitle:[scanPaths count] > 1 ? @"This Computer" : [self displayPath:scanPath]];
   _lastLiveReload = 0.0;
   [self startBusyIndicator];
   [self updateScanStatus];
@@ -995,6 +1007,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (void)updateScanStatus
 {
+  if ([_scanSession isCanceled]) {
+    [_statusField setStringValue:@"Stopping…"];
+    return;
+  }
   NSString *currentPath = [_scanSession currentPath];
   [_statusField setStringValue:[NSString stringWithFormat:@"Scanning %@  ·  %lu files, %lu folders, %@",
                                 [self displayPath:currentPath ? currentPath : _currentScanPath],
@@ -1180,6 +1196,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [_detachedSubtrees removeAllObjects];
   _loadedFile = [path copy];
   _currentScanPath = [[root path] copy];
+  _currentScanPaths = [root isComputer] ? nil : @[_currentScanPath];
   if (_sizeMetric != LDSizeMetricPhysical) {
     [root sortChildrenByMetric:_sizeMetric];
   }
@@ -1219,7 +1236,11 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (void)rescan:(id)sender
 {
   (void)sender;
-  [self beginScanPath:_currentScanPath ? _currentScanPath : [self defaultFixturePath]];
+  if ([_currentScanPaths count] > 0) {
+    [self beginScanPaths:_currentScanPaths];
+  } else {
+    [self beginScanPath:[self defaultFixturePath]];
+  }
 }
 
 - (void)stopScan:(id)sender
@@ -1234,13 +1255,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (void)openPath:(id)sender
 {
   (void)sender;
-  NSOpenPanel *panel = [NSOpenPanel openPanel];
-  [panel setCanChooseFiles:NO];
-  [panel setCanChooseDirectories:YES];
-  [panel setAllowsMultipleSelection:NO];
-  NSInteger result = [panel runModalForDirectory:_currentScanPath file:nil types:nil];
-  if (result == NSFileHandlingPanelOKButton || result == NSOKButton) {
-    [self beginScanPath:[self selectedDirectoryPathFromOpenPanel:panel]];
+  NSString *folder = [_currentScanPaths count] == 1 ? [_currentScanPaths objectAtIndex:0] : nil;
+  NSArray *paths = [LDSelectTargetPanel runWithInitialFolder:folder];
+  if (paths) {
+    [self beginScanPaths:paths];
   }
 }
 
