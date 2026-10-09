@@ -49,7 +49,7 @@ static NSString *const LDLanguageKey = @"Language";
   if ([name length] == 0) {
     return code;
   }
-  return [[[name substringToIndex:1] uppercaseStringWithLocale:locale] stringByAppendingString:[name substringFromIndex:1]];
+  return [[[name substringToIndex:1] uppercaseString] stringByAppendingString:[name substringFromIndex:1]];
 }
 
 @end
