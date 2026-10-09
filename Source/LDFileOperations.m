@@ -121,6 +121,10 @@ static NSData *LDJoinString(NSData *directory, const char *name)
 + (BOOL)moveToTrash:(NSData *)path error:(NSError **)error
 {
   NSMutableData *terminated = LDTerminated(path);
+  struct stat info;
+  if (lstat([terminated bytes], &info) != 0) {
+    return LDFail(error, errno, @"Reading the item");
+  }
   NSURL *url = [NSURL fileURLWithFileSystemRepresentation:[terminated bytes] isDirectory:NO relativeToURL:nil];
   return [[NSFileManager defaultManager] trashItemAtURL:url resultingItemURL:NULL error:error];
 }

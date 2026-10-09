@@ -266,6 +266,8 @@
   XCTAssertEqual((NSUInteger)21, [root fileCount]);
 }
 
+#if !defined(__APPLE__)
+// APFS and HFS+ refuse names that are not UTF-8 (EILSEQ).
 - (void)testNamesThatAreNotUTF8AreScannedAndDescended
 {
   // "caf\xe9" is Latin-1, not valid UTF-8; Linux allows any bytes in names.
@@ -293,6 +295,7 @@
   XCTAssertEqualObjects(@"txt", [[[directory children] objectAtIndex:0] extensionKey]);
   XCTAssertEqual((NSUInteger)0, [session errorCount]);
 }
+#endif
 
 - (void)testScannedNamesLiveInTheRootsArenas
 {
@@ -456,6 +459,8 @@
   XCTAssertEqual((unsigned long long)200, [scanned aggregateSize]);
 }
 
+#if !defined(__APPLE__)
+// APFS and HFS+ refuse names that are not UTF-8 (EILSEQ).
 - (void)testFiltersMatchNamesThatAreNotUTF8
 {
   NSString *root = [self makeDirectory:@"root"];
@@ -479,6 +484,7 @@
   XCTAssertEqual((NSUInteger)1, [[scanned children] count]);
   XCTAssertEqualObjects(@"kept.bin", [[[scanned children] objectAtIndex:0] displayName]);
 }
+#endif
 
 - (void)testMinimumFileSizeUsesTheLogicalSize
 {

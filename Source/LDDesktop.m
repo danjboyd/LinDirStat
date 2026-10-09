@@ -167,9 +167,22 @@ static pid_t LDSpawn(NSString *program, NSArray *command, NSData *directory)
   if (directory) {
     directoryBytes = [directory mutableCopy];
     [directoryBytes appendBytes:"\0" length:1];
-#if defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 29))
-    posix_spawn_file_actions_addchdir_np(&actions, [directoryBytes bytes]);
+    // A command meant for one folder must never run anywhere else.
+#if defined(__APPLE__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    int chdirResult = posix_spawn_file_actions_addchdir_np(&actions, [directoryBytes bytes]);
+#pragma clang diagnostic pop
+#elif defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 29))
+    int chdirResult = posix_spawn_file_actions_addchdir_np(&actions, [directoryBytes bytes]);
+#else
+    int chdirResult = ENOSYS;
 #endif
+    if (chdirResult != 0) {
+      posix_spawn_file_actions_destroy(&actions);
+      free(argv);
+      return -1;
+    }
   }
   // Children get their own process group so they outlive us cleanly.
   posix_spawnattr_t attributes;
