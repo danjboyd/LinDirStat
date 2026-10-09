@@ -1,9 +1,25 @@
 #import "LDSizeFormatter.h"
 
+static BOOL LDHumanReadable = YES;
+
 @implementation LDSizeFormatter
+
++ (void)setHumanReadable:(BOOL)humanReadable
+{
+  LDHumanReadable = humanReadable;
+}
 
 + (NSString *)stringForBytes:(unsigned long long)bytes
 {
+  if (!LDHumanReadable) {
+    static NSNumberFormatter *grouped = nil;
+    if (!grouped) {
+      grouped = [[NSNumberFormatter alloc] init];
+      [grouped setNumberStyle:NSNumberFormatterDecimalStyle];
+      [grouped setUsesGroupingSeparator:YES];
+    }
+    return [NSString stringWithFormat:@"%@ bytes", [grouped stringFromNumber:[NSNumber numberWithUnsignedLongLong:bytes]]];
+  }
   double value = (double)bytes;
   NSArray *units = [NSArray arrayWithObjects:@"B", @"KB", @"MB", @"GB", @"TB", nil];
   NSUInteger unitIndex = 0;

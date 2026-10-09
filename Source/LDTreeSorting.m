@@ -35,6 +35,9 @@ static NSComparisonResult LDCompareNodes(id leftObject, id rightObject, void *co
     case LDTreeSortKeyFolders:
       result = LDCompareValues([left directoryCount], [right directoryCount]);
       break;
+    case LDTreeSortKeyItems:
+      result = LDCompareValues([left fileCount] + [left directoryCount], [right fileCount] + [right directoryCount]);
+      break;
     case LDTreeSortKeyLastChange:
       result = LDCompareValues((unsigned long long)[left aggregateModificationTime],
                                (unsigned long long)[right aggregateModificationTime]);

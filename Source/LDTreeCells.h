@@ -14,12 +14,16 @@
   NSUInteger _depth;
   BOOL _showsPacman;
   NSTimeInterval _pacmanTime;
+  NSUInteger _readJobs;
 }
 
 - (void)setFraction:(double)fraction depth:(NSUInteger)depth;
 // time is seconds since the scan started; it sets the pacman's position and
 // mouth. NO shows the bar.
 - (void)setShowsPacman:(BOOL)showsPacman time:(NSTimeInterval)time;
+// With the pacman animation off, WinDirStat writes "[N Read Jobs]" instead.
+// 0 shows the bar.
+- (void)setReadJobs:(NSUInteger)readJobs;
 + (NSColor *)colorForDepth:(NSUInteger)depth;
 // Position (0 left ... 1 right), mouth aperture (0...1) and direction after
 // elapsed seconds in a cell of the given width, as WinDirStat animates them.

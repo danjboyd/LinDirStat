@@ -136,6 +136,8 @@ typedef enum {
 
 // YES while this directory or something below it is still being read.
 - (BOOL)isScanPending;
+// Directory reads still to finish in this subtree (WinDirStat's read jobs).
+- (NSUInteger)pendingScanCount;
 
 - (NSComparisonResult)compareByAggregateSizeThenName:(LDFileNode *)other;
 - (NSDictionary *)snapshotDictionary;

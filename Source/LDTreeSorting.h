@@ -10,7 +10,8 @@ typedef enum {
   LDTreeSortKeyLogicalSize,
   LDTreeSortKeyFiles,
   LDTreeSortKeyFolders,
-  LDTreeSortKeyLastChange
+  LDTreeSortKeyLastChange,
+  LDTreeSortKeyItems
 } LDTreeSortKey;
 
 @interface LDTreeSorting : NSObject

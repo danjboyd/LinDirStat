@@ -278,6 +278,11 @@ static Class LDClassForKind(LDFileNodeKind kind)
   return NO;
 }
 
+- (NSUInteger)pendingScanCount
+{
+  return 0;
+}
+
 - (void)updateTotalsUpwardSortedByMetric:(LDSizeMetric)metric
 {
   LDFileNode *cursor = self;
@@ -354,6 +359,7 @@ static NSComparisonResult LDCompareNodesBySize(id left, id right, void *context)
 - (NSString *)storedPath { return _storedPath; }
 - (void)setOwnedStorage:(id)storage { _ownedStorage = storage; }
 - (BOOL)isScanPending { return __atomic_load_n(&_pendingScans, __ATOMIC_RELAXED) > 0; }
+- (NSUInteger)pendingScanCount { return __atomic_load_n(&_pendingScans, __ATOMIC_RELAXED); }
 
 - (BOOL)isLeaf { return [_children count] == 0; }
 - (NSArray *)children { return _children ? _children : [NSArray array]; }

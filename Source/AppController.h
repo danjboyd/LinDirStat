@@ -40,5 +40,7 @@
   LDScanSession *_refreshSession;
   BOOL _fileOperationRunning;
   NSMenu *_cleanupMenu;
+  NSMutableDictionary *_optionalColumns;
+  NSMapTable *_ownerCache;
 }
 @end

@@ -32,6 +32,11 @@ static const NSUInteger LDMaxIndentLevels = 8;
   _depth = depth;
 }
 
+- (void)setReadJobs:(NSUInteger)readJobs
+{
+  _readJobs = readJobs;
+}
+
 - (void)setShowsPacman:(BOOL)showsPacman time:(NSTimeInterval)time
 {
   _showsPacman = showsPacman;
@@ -107,6 +112,16 @@ static CGFloat LDBounce(double travelled, BOOL *rising)
 {
   if (_showsPacman) {
     [self drawPacmanInFrame:cellFrame flipped:[controlView isFlipped]];
+    return;
+  }
+  if (_readJobs > 0) {
+    NSString *text = _readJobs == 1 ? @"[1 Read Job]" : [NSString stringWithFormat:@"[%lu Read Jobs]", (unsigned long)_readJobs];
+    NSDictionary *attributes = @{NSFontAttributeName: [NSFont systemFontOfSize:[NSFont smallSystemFontSize]],
+                                 NSForegroundColorAttributeName: [NSColor controlTextColor]};
+    NSSize size = [text sizeWithAttributes:attributes];
+    [text drawAtPoint:NSMakePoint(NSMaxX(cellFrame) - size.width - LDBarHorizontalInset,
+                                  floor(NSMidY(cellFrame) - size.height / 2.0))
+       withAttributes:attributes];
     return;
   }
   NSRect track = NSInsetRect(cellFrame, LDBarHorizontalInset, 0.0);

@@ -2,6 +2,8 @@
 #import "AppController+Private.h"
 #import "LDCommandRules.h"
 #import "LDPreferences.h"
+#import "LDFileAttributes.h"
+#import "LDOptionsWindowController.h"
 #import "LDExtensionColor.h"
 #import "LDExtensionStats.h"
 #import "LDFileNode.h"
@@ -42,8 +44,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 {
   (void)notification;
 
-  _sizeMetric = LDSizeMetricPhysical;
-  _treeSortKey = LDTreeSortKeyPhysicalSize;
+  _sizeMetric = [[LDPreferences sharedPreferences] useLogicalSize] ? LDSizeMetricLogical : LDSizeMetricPhysical;
+  _treeSortKey = _sizeMetric == LDSizeMetricLogical ? LDTreeSortKeyLogicalSize : LDTreeSortKeyPhysicalSize;
+  _ownerCache = [NSMapTable strongToStrongObjectsMapTable];
   _treeSortAscending = NO;
   _treeSortIsDefault = YES;
   _swatchCache = [[NSMutableDictionary alloc] init];
@@ -65,6 +68,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
   [self buildToolbar];
   [self buildWindowContents];
+  [self applyDisplayPreferences];
   [[NSNotificationCenter defaultCenter] addObserver:self
                                            selector:@selector(systemColorsDidChange:)
                                                name:NSSystemColorsDidChangeNotification
@@ -110,6 +114,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   NSMenu *mainMenu = [[NSMenu alloc] initWithTitle:@"LinDirStat"];
 
   NSMenu *appMenu = [self addSubmenuTitled:@"LinDirStat" to:mainMenu];
+  [self addItemTo:appMenu title:@"Preferences" action:@selector(showPreferences:) key:@"," target:self];
   [self addItemTo:appMenu title:@"About LinDirStat" action:@selector(orderFrontStandardAboutPanel:) key:nil target:NSApp];
   [appMenu addItem:[NSMenuItem separatorItem]];
   [self addItemTo:appMenu title:@"Quit" action:@selector(terminate:) key:@"q" target:NSApp];
@@ -199,6 +204,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 {
   (void)notification;
   [self rebuildCustomCleanupMenus];
+  [self applyDisplayPreferences];
 }
 
 - (NSMenu *)contextMenuForListView:(NSTableView *)view
@@ -425,34 +431,115 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   NSTableColumn *subtree = [self addColumn:@"subtree" title:@"Subtree Percentage" width:130 right:NO toTable:_directoryTable];
   [subtree setDataCell:[[LDPercentageBarCell alloc] init]];
   [self setSortPrototypeForColumn:subtree ascending:NO];
+  NSTableColumn *percent = [self addColumn:@"percent" title:@"Percentage" width:90 right:YES toTable:_directoryTable];
+  [self setSortPrototypeForColumn:percent ascending:NO];
 
-  // One Size column that follows Use Logical Size: at GNOME's metrics
-  // WinDirStat's separate physical and logical columns do not fit beside the
-  // extension list.
-  NSArray *numeric = @[@[@"percent", @"Percentage", @90],
-                       @[@"size", @"Size", @90],
-                       @[@"files", @"Files", @80]];
-  for (NSArray *spec in numeric) {
-    NSTableColumn *column = [self addColumn:[spec objectAtIndex:0]
-                                      title:[spec objectAtIndex:1]
-                                      width:[[spec objectAtIndex:2] doubleValue]
-                                      right:YES
+  // WinDirStat's optional columns, shown per Preferences > Folder List.
+  NSDictionary *specs = @{
+    LDColumnPhysicalSize: @[@"Physical Size", @90, @YES],
+    LDColumnLogicalSize: @[@"Logical Size", @90, @YES],
+    LDColumnItems: @[@"Items", @70, @YES],
+    LDColumnFiles: @[@"Files", @70, @YES],
+    LDColumnFolders: @[@"Folders", @70, @YES],
+    LDColumnLastChange: @[@"Last Change", @140, @NO],
+    LDColumnAttributes: @[@"Attributes", @80, @NO],
+    LDColumnOwner: @[@"Owner", @110, @NO],
+  };
+  _optionalColumns = [[NSMutableDictionary alloc] init];
+  for (NSString *identifier in [LDPreferences optionalColumns]) {
+    NSArray *spec = [specs objectForKey:identifier];
+    NSTableColumn *column = [self addColumn:identifier
+                                      title:[spec objectAtIndex:0]
+                                      width:[[spec objectAtIndex:1] doubleValue]
+                                      right:[[spec objectAtIndex:2] boolValue]
                                     toTable:_directoryTable];
-    [self setSortPrototypeForColumn:column ascending:NO];
+    if (![identifier isEqualToString:LDColumnAttributes] && ![identifier isEqualToString:LDColumnOwner]) {
+      [self setSortPrototypeForColumn:column ascending:[identifier isEqualToString:LDColumnLastChange]];
+    }
+    [_optionalColumns setObject:column forKey:identifier];
   }
-  NSTableColumn *lastChange = [self addColumn:@"lastChange" title:@"Last Change" width:140 right:NO toTable:_directoryTable];
-  [self setSortPrototypeForColumn:lastChange ascending:NO];
 
   [name setMinWidth:160.0];
   [_directoryTable setColumnAutoresizingStyle:NSTableViewNoColumnAutoresizing];
   [_directoryTable setAllowsMultipleSelection:YES];
   // Header clicks sort; GTK never selects (and tints) a whole column.
   [_directoryTable setAllowsColumnSelection:NO];
-  [_directoryTable setAutosaveName:@"LinDirStatDirectoryTree2"];
+  [_directoryTable setAutosaveName:@"LinDirStatDirectoryTree3"];
   [_directoryTable setAutosaveTableColumns:YES];
   [_directoryTable setDataSource:self];
   [_directoryTable setDelegate:self];
-  [_directoryTable setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"size" ascending:NO]]];
+  [_directoryTable setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"percent" ascending:NO]]];
+  [self applyColumnVisibility];
+}
+
+// WinDirStat's CreateColumns: the optional columns that are on, in their
+// fixed order after Percentage.
+- (void)applyColumnVisibility
+{
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  BOOL changed = NO;
+  for (NSString *identifier in [LDPreferences optionalColumns]) {
+    NSTableColumn *column = [_optionalColumns objectForKey:identifier];
+    BOOL shown = [preferences isColumnShown:identifier];
+    BOOL present = [[_directoryTable tableColumns] indexOfObjectIdenticalTo:column] != NSNotFound;
+    if (shown != present) {
+      changed = YES;
+    }
+  }
+  if (!changed) {
+    return;
+  }
+  for (NSString *identifier in [LDPreferences optionalColumns]) {
+    NSTableColumn *column = [_optionalColumns objectForKey:identifier];
+    if ([[_directoryTable tableColumns] indexOfObjectIdenticalTo:column] != NSNotFound) {
+      [_directoryTable removeTableColumn:column];
+    }
+  }
+  for (NSString *identifier in [LDPreferences optionalColumns]) {
+    if ([preferences isColumnShown:identifier]) {
+      [_directoryTable addTableColumn:[_optionalColumns objectForKey:identifier]];
+    }
+  }
+  [self fitFlexibleColumns];
+  [_directoryTable reloadData];
+}
+
+// Applies settings that change how things look (Preferences window).
+- (void)applyDisplayPreferences
+{
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [LDSizeFormatter setHumanReadable:[preferences humanFormat]];
+  for (NSTableView *table in @[_directoryTable, _extensionTable]) {
+    [table setUsesAlternatingRowBackgroundColors:[preferences listStripes]];
+    [table setGridStyleMask:[preferences listGrid] ? (NSTableViewSolidVerticalGridLineMask | NSTableViewSolidHorizontalGridLineMask) : NSTableViewGridNone];
+    [table setNeedsDisplay:YES];
+  }
+  [self applyColumnVisibility];
+
+  LDTreemapOptions options = [_treemapView options];
+  options.style = [preferences treemapStyle] == 1 ? LDTreemapStyleSequoiaView : LDTreemapStyleKDirStat;
+  options.grid = [preferences treemapGrid];
+  options.brightness = [preferences treemapBrightness] / 100.0;
+  options.ambientLight = [preferences treemapCushionShading] / 100.0;
+  options.height = [preferences treemapHeight] / 100.0;
+  options.scaleFactor = [preferences treemapScaleFactor] / 100.0;
+  options.lightSourceX = [preferences treemapLightSourceX] / 100.0;
+  options.lightSourceY = [preferences treemapLightSourceY] / 100.0;
+  LDTreemapOptions current = [_treemapView options];
+  if (memcmp(&options, &current, sizeof(options)) != 0) {
+    [_treemapView setOptions:options];
+    [_swatchCache removeAllObjects];
+    [_extensionTable setNeedsDisplay:YES];
+  }
+  [_directoryTable reloadData];
+  [_extensionTable reloadData];
+  [self updateSelectionField];
+}
+
+- (void)showPreferences:(id)sender
+{
+  (void)sender;
+  [[LDOptionsWindowController sharedController] showWindow:nil];
 }
 
 - (void)buildExtensionTable
@@ -864,6 +951,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (void)reloadResults
 {
   [_sortedChildrenCache removeAllObjects];
+  [_ownerCache removeAllObjects];
   _extensionRows = [self sortedExtensionRows:[LDExtensionStats sortedStatsForRootNode:_rootNode metric:_sizeMetric]];
   _syncingSelection = YES;
   [_directoryTable deselectAll:nil];
@@ -1010,6 +1098,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 {
   (void)sender;
   _sizeMetric = (_sizeMetric == LDSizeMetricLogical) ? LDSizeMetricPhysical : LDSizeMetricLogical;
+  [[LDPreferences sharedPreferences] setUseLogicalSize:_sizeMetric == LDSizeMetricLogical];
   if (!_rootNode) {
     return;
   }
@@ -1029,17 +1118,15 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (void)toggleGrid:(id)sender
 {
   (void)sender;
-  LDTreemapOptions options = [_treemapView options];
-  options.grid = !options.grid;
-  [_treemapView setOptions:options];
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setTreemapGrid:![preferences treemapGrid]];
 }
 
 - (void)toggleLayoutStyle:(id)sender
 {
   (void)sender;
-  LDTreemapOptions options = [_treemapView options];
-  options.style = (options.style == LDTreemapStyleKDirStat) ? LDTreemapStyleSequoiaView : LDTreemapStyleKDirStat;
-  [_treemapView setOptions:options];
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setTreemapStyle:[preferences treemapStyle] == 1 ? 0 : 1];
 }
 
 #pragma mark - Selection coordination
@@ -1170,11 +1257,23 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   if ([identifier isEqualToString:@"name"]) {
     return LDTreeSortKeyName;
   }
-  if ([identifier isEqualToString:@"files"]) {
+  if ([identifier isEqualToString:LDColumnFiles]) {
     return LDTreeSortKeyFiles;
   }
-  if ([identifier isEqualToString:@"lastChange"]) {
+  if ([identifier isEqualToString:LDColumnFolders]) {
+    return LDTreeSortKeyFolders;
+  }
+  if ([identifier isEqualToString:LDColumnItems]) {
+    return LDTreeSortKeyItems;
+  }
+  if ([identifier isEqualToString:LDColumnLastChange]) {
     return LDTreeSortKeyLastChange;
+  }
+  if ([identifier isEqualToString:LDColumnPhysicalSize]) {
+    return LDTreeSortKeyPhysicalSize;
+  }
+  if ([identifier isEqualToString:LDColumnLogicalSize]) {
+    return LDTreeSortKeyLogicalSize;
   }
   // Size, Subtree Percentage and Percentage sort by the size the treemap uses.
   return _sizeMetric == LDSizeMetricLogical ? LDTreeSortKeyLogicalSize : LDTreeSortKeyPhysicalSize;
@@ -1394,17 +1493,42 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     return nil;
   }
   if ([identifier isEqualToString:@"percent"]) {
+    // WinDirStat shows the time spent on the root while scanning.
+    if (node == _rootNode && [self isScanning] && [[LDPreferences sharedPreferences] showTimeSpent]) {
+      NSInteger seconds = (NSInteger)[_scanSession elapsedTime];
+      return [NSString stringWithFormat:@"[%ld:%02ld]", (long)(seconds / 60), (long)(seconds % 60)];
+    }
     return [self percentStringForFraction:[self fractionOfParentForNode:node]];
   }
-  if ([identifier isEqualToString:@"size"]) {
-    return [LDSizeFormatter stringForBytes:[node aggregateSizeForMetric:_sizeMetric]];
+  if ([identifier isEqualToString:LDColumnPhysicalSize]) {
+    return [LDSizeFormatter stringForBytes:[node aggregateAllocatedSize]];
   }
-  if ([identifier isEqualToString:@"files"]) {
-    return [NSString stringWithFormat:@"%lu", (unsigned long)[node fileCount]];
+  if ([identifier isEqualToString:LDColumnLogicalSize]) {
+    return [LDSizeFormatter stringForBytes:[node aggregateSize]];
   }
-  if ([identifier isEqualToString:@"lastChange"]) {
+  if ([identifier isEqualToString:LDColumnLastChange]) {
     NSTimeInterval time = [node aggregateModificationTime];
     return time > 0 ? [_dateFormatter stringFromDate:[NSDate dateWithTimeIntervalSince1970:time]] : @"";
+  }
+  if ([identifier isEqualToString:LDColumnAttributes]) {
+    return [LDFileAttributes attributeStringForNode:node];
+  }
+  if ([identifier isEqualToString:LDColumnOwner]) {
+    return [self ownerOfNode:node];
+  }
+  // Items, Files and Folders are blank for files, as in WinDirStat.
+  if ([node kind] != LDFileNodeKindDirectory) {
+    return @"";
+  }
+  NSUInteger folders = [node directoryCount] > 0 ? [node directoryCount] - 1 : 0;
+  if ([identifier isEqualToString:LDColumnFiles]) {
+    return [NSString stringWithFormat:@"%lu", (unsigned long)[node fileCount]];
+  }
+  if ([identifier isEqualToString:LDColumnFolders]) {
+    return [NSString stringWithFormat:@"%lu", (unsigned long)folders];
+  }
+  if ([identifier isEqualToString:LDColumnItems]) {
+    return [NSString stringWithFormat:@"%lu", (unsigned long)([node fileCount] + folders)];
   }
   return @"";
 }
@@ -1417,7 +1541,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   if ([identifier isEqualToString:@"subtree"]) {
     LDPercentageBarCell *bar = cell;
     [bar setFraction:[self fractionOfParentForNode:node] depth:[node depth]];
-    [bar setShowsPacman:[node isScanPending] time:[self pacmanTime]];
+    BOOL pending = [node isScanPending];
+    BOOL animate = [[LDPreferences sharedPreferences] pacmanAnimation];
+    [bar setShowsPacman:pending && animate time:[self pacmanTime]];
+    [bar setReadJobs:(pending && !animate) ? [node pendingScanCount] : 0];
     return;
   }
   if ([identifier isEqualToString:@"name"]) {
@@ -1430,6 +1557,17 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   if ([cell respondsToSelector:@selector(setTextColor:)]) {
     [cell setTextColor:dimmed ? [NSColor disabledControlTextColor] : [NSColor controlTextColor]];
   }
+}
+
+// Looked up on demand (the scan does not store owners) and cached per node.
+- (NSString *)ownerOfNode:(LDFileNode *)node
+{
+  NSString *owner = [_ownerCache objectForKey:node];
+  if (!owner) {
+    owner = [LDFileAttributes ownerOfPath:[node pathData]] ?: @"";
+    [_ownerCache setObject:owner forKey:node];
+  }
+  return owner;
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender
