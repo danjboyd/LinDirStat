@@ -5,5 +5,8 @@
 	<!-- Not sandboxed: a disk usage viewer must read the whole filesystem. -->
 	<key>com.apple.security.app-sandbox</key>
 	<false/>
+	<!-- Empty Trash asks Finder over Apple Events. -->
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
 </dict>
 </plist>

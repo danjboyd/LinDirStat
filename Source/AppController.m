@@ -12,6 +12,7 @@
 #import "LDExtensionStats.h"
 #import "LDFileNode.h"
 #import "LDFileTypeDescriptions.h"
+#import "LDPlatformUI.h"
 #import "LDScanSession.h"
 #import "LDSizeFormatter.h"
 #import "LDSystemInfo.h"
@@ -179,6 +180,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [optionsMenu addItem:[NSMenuItem separatorItem]];
   [self addItemTo:optionsMenu title:@"Preferences" action:@selector(showPreferences:) key:nil target:self];
 
+  [LDPlatformUI completeMainMenu:mainMenu applicationMenu:appMenu preferencesTarget:self];
   [NSApp setMainMenu:mainMenu];
 }
 
@@ -238,13 +240,13 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     [self addItemTo:menu title:@"Select Parent" action:@selector(selectParent:) key:nil target:self];
     [menu addItem:[NSMenuItem separatorItem]];
     [self addItemTo:menu title:@"Copy Path" action:@selector(copyPath:) key:nil target:self];
-    [self addItemTo:menu title:@"Show in Files" action:@selector(revealItem:) key:nil target:self];
+    [self addItemTo:menu title:[LDPlatformUI showInFileManagerTitle] action:@selector(revealItem:) key:nil target:self];
     [self addItemTo:menu title:@"Open Terminal Here" action:@selector(openTerminal:) key:nil target:self];
     return;
   }
   BOOL isMainMenu = ([menu supermenu] != nil);
   [self addItemTo:menu title:@"Open" action:@selector(openItem:) key:nil target:self];
-  [self addItemTo:menu title:@"Show in Files" action:@selector(revealItem:) key:isMainMenu ? @"e" : nil target:self];
+  [self addItemTo:menu title:[LDPlatformUI showInFileManagerTitle] action:@selector(revealItem:) key:isMainMenu ? @"e" : nil target:self];
   [self addItemTo:menu title:@"Open Terminal Here" action:@selector(openTerminal:) key:isMainMenu ? @"t" : nil target:self];
   if (!isMainMenu) {
     [self addItemTo:menu title:@"Copy Path" action:@selector(copyPath:) key:nil target:self];
@@ -324,6 +326,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     NSStringFromSelector(@selector(openItem:)): @(LDCommandOpen),
     NSStringFromSelector(@selector(showProperties:)): @(LDCommandProperties),
     NSStringFromSelector(@selector(copyPath:)): @(LDCommandCopyPath),
+    NSStringFromSelector(@selector(copy:)): @(LDCommandCopyPath),
     NSStringFromSelector(@selector(revealItem:)): @(LDCommandReveal),
     NSStringFromSelector(@selector(openTerminal:)): @(LDCommandTerminal),
     NSStringFromSelector(@selector(refreshSelected:)): @(LDCommandRefreshSelected),
@@ -455,7 +458,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [item setLabel:[spec objectAtIndex:0]];
   [item setPaletteLabel:[spec objectAtIndex:0]];
   [item setToolTip:[spec objectAtIndex:1]];
-  [item setImage:[NSImage imageNamed:[spec objectAtIndex:2]]];
+  [item setImage:[LDPlatformUI toolbarImageNamed:[spec objectAtIndex:2] label:[spec objectAtIndex:0]]];
   [item setTarget:self];
   [item setAction:NSSelectorFromString([spec objectAtIndex:3])];
   return item;
@@ -465,7 +468,8 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 {
   if ([item action] == @selector(toggleSuspend:)) {
     BOOL suspended = [self isScanning] && [_scanSession isSuspended];
-    [item setImage:[NSImage imageNamed:suspended ? @"media-playback-start-symbolic" : @"media-playback-pause-symbolic"]];
+    [item setImage:[LDPlatformUI toolbarImageNamed:suspended ? @"media-playback-start-symbolic" : @"media-playback-pause-symbolic"
+                                             label:suspended ? @"Resume" : @"Suspend"]];
     [item setToolTip:suspended ? @"Resume the scan" : @"Suspend the scan"];
     return [self isScanning];
   }
@@ -802,6 +806,21 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (void)fitColumn:(NSString *)identifier ofTable:(NSTableView *)table
 {
   NSTableColumn *flexible = [table tableColumnWithIdentifier:identifier];
+  if ([LDPlatformUI tablesAutoresizeColumns]) {
+    // Only the flexible column takes up (or gives back) the pane's width.
+    if ([table columnAutoresizingStyle] != NSTableViewUniformColumnAutoresizingStyle) {
+      for (NSTableColumn *column in [table tableColumns]) {
+        [column setResizingMask:column == flexible ? (NSTableColumnAutoresizingMask | NSTableColumnUserResizingMask)
+                                                   : NSTableColumnUserResizingMask];
+      }
+      // A narrow pane scrolls sideways rather than squeezing the name away.
+      [flexible setMinWidth:MAX([flexible minWidth], 140.0)];
+      [table setColumnAutoresizingStyle:NSTableViewUniformColumnAutoresizingStyle];
+      [table setFocusRingType:NSFocusRingTypeNone];
+      [table sizeToFit];
+    }
+    return;
+  }
   // GNUstep also resizes the last column whenever the pane or its scroller
   // changes (-setColumnAutoresizingStyle: is not implemented), which would
   // starve the flexible column or the last one; the last column keeps its
@@ -1657,6 +1676,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (NSImage *)iconForNode:(LDFileNode *)node
 {
+  NSImage *native = [LDPlatformUI fileIconForNode:node];
+  if (native) {
+    return native;
+  }
   if ([node isComputer]) {
     return [self iconNamed:@"computer-symbolic"];
   }

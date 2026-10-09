@@ -14,7 +14,8 @@ BUILD     := $(ROOT)/macos/build
 APP       := $(BUILD)/LinDirStat.app
 OBJDIR    := $(BUILD)/obj
 
-VERSION   ?= $(shell git -C $(ROOT) describe --tags --always 2>/dev/null | sed 's/^v//' || echo 0.0)
+# The version is the packaging manifest's; the build number counts commits.
+VERSION   ?= $(shell sed -n 's/.*"version": *"\([0-9.]*\)".*/\1/p' $(ROOT)/package.manifest.json | head -1)
 BUILDNUM  ?= $(shell git -C $(ROOT) rev-list --count HEAD 2>/dev/null || echo 1)
 MIN_MACOS ?= 13.0
 ARCHS     ?= arm64 x86_64
@@ -56,16 +57,27 @@ $(APP)/Contents/MacOS/LinDirStat: $(OBJECTS)
 	mkdir -p $(dir $@)
 	$(CC) $(LDFLAGS) $^ -o $@
 
-$(APP)/Contents/Info.plist: $(ROOT)/macos/Info.plist
+$(APP)/Contents/Info.plist: $(ROOT)/macos/Info.plist $(ROOT)/package.manifest.json $(wildcard $(ROOT)/.git/HEAD)
 	mkdir -p $(dir $@)
 	sed -e 's/@VERSION@/$(VERSION)/' -e 's/@BUILD@/$(BUILDNUM)/' -e 's/@MIN_MACOS@/$(MIN_MACOS)/' $< > $@
 	printf 'APPL????' > $(APP)/Contents/PkgInfo
 
+ICNS := $(BUILD)/LinDirStat.icns
+
 .PHONY: resources
-resources:
+resources: $(ICNS)
 	mkdir -p $(APP)/Contents/Resources
-	cp $(ICONS) $(APP)/Contents/Resources/
-	if [ -f $(ROOT)/macos/LinDirStat.icns ]; then cp $(ROOT)/macos/LinDirStat.icns $(APP)/Contents/Resources/; fi
+	cp $(ICONS) $(ICNS) $(APP)/Contents/Resources/
+
+# The app icon is drawn by macos/icon/make-icon.swift.
+$(ICNS): $(ROOT)/macos/icon/make-icon.swift
+	rm -rf $(BUILD)/LinDirStat.iconset && mkdir -p $(BUILD)/LinDirStat.iconset
+	xcrun swift $< $(BUILD)/icon_1024.png
+	cd $(BUILD)/LinDirStat.iconset && for s in 16 32 128 256 512; do \
+	  sips -z $$s $$s ../icon_1024.png --out icon_$${s}x$${s}.png >/dev/null; \
+	  d=$$((s * 2)); sips -z $$d $$d ../icon_1024.png --out icon_$${s}x$${s}@2x.png >/dev/null; \
+	done
+	iconutil -c icns $(BUILD)/LinDirStat.iconset -o $@
 
 run: app
 	open $(APP)

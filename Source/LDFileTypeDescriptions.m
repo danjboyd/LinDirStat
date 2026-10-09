@@ -1,12 +1,20 @@
 #import "LDFileTypeDescriptions.h"
 
+#if defined(__APPLE__)
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+#endif
+
 @implementation LDFileTypeDescriptions
 
 + (LDFileTypeDescriptions *)sharedDescriptions
 {
   static LDFileTypeDescriptions *shared = nil;
   if (!shared) {
+#if defined(__APPLE__)
+    shared = [[LDFileTypeDescriptions alloc] initWithMimeDirectory:nil];
+#else
     shared = [[LDFileTypeDescriptions alloc] initWithMimeDirectory:@"/usr/share/mime"];
+#endif
   }
   return shared;
 }
@@ -17,6 +25,7 @@
   if (self) {
     _mimeDirectory = [directory copy];
     _descriptionsByMimeType = [[NSMutableDictionary alloc] init];
+    _descriptionsByExtension = [[NSMutableDictionary alloc] init];
   }
   return self;
 }
@@ -103,10 +112,31 @@
   return description;
 }
 
+- (NSString *)systemDescriptionForExtensionKey:(NSString *)extensionKey
+{
+#if defined(__APPLE__)
+  id cached = [_descriptionsByExtension objectForKey:extensionKey];
+  if (cached) {
+    return cached == [NSNull null] ? nil : cached;
+  }
+  // Extensions no app declares get a dynamic type with no useful name.
+  UTType *type = [UTType typeWithFilenameExtension:extensionKey];
+  NSString *description = (type && ![type isDynamic]) ? [type localizedDescription] : nil;
+  [_descriptionsByExtension setObject:description ? (id)description : (id)[NSNull null] forKey:extensionKey];
+  return description;
+#else
+  (void)extensionKey;
+  return nil;
+#endif
+}
+
 - (NSString *)descriptionForExtensionKey:(NSString *)extensionKey
 {
   if ([extensionKey length] == 0 || [extensionKey isEqualToString:@"<none>"]) {
     return nil;
+  }
+  if (!_mimeDirectory) {
+    return [self systemDescriptionForExtensionKey:extensionKey];
   }
   NSString *mimeType = [[self mimeTypesByExtension] objectForKey:extensionKey];
   return mimeType ? [self descriptionForMimeType:mimeType] : nil;

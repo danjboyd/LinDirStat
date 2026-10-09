@@ -518,6 +518,39 @@ static int LDRemoveTree(int directoryFD, const char *name, dev_t device)
 #endif
 }
 
++ (NSData *)systemTrashPath
+{
+#if defined(__APPLE__)
+  const char *trash = [[NSHomeDirectory() stringByAppendingPathComponent:@".Trash"] fileSystemRepresentation];
+  return [NSData dataWithBytes:trash length:strlen(trash)];
+#else
+  return nil;
+#endif
+}
+
++ (BOOL)emptySystemTrash:(NSError **)error
+{
+#if defined(__APPLE__)
+  __block BOOL emptied = NO;
+  dispatch_semaphore_t done = dispatch_semaphore_create(0);
+  NSArray *command = @[@"osascript", @"-e", @"tell application \"Finder\" to empty trash"];
+  [LDDesktop runFirstSuccessfulCommand:@[command] inDirectory:nil queue:nil completion:^(BOOL succeeded) {
+    emptied = succeeded;
+    dispatch_semaphore_signal(done);
+  }];
+  dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
+  if (!emptied && error) {
+    NSString *reason = @"Finder did not empty the Trash. If LinDirStat is not allowed to control Finder, "
+      @"turn it on in System Settings › Privacy & Security › Automation.";
+    *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:EPERM
+                             userInfo:@{NSLocalizedDescriptionKey: reason}];
+  }
+  return emptied;
+#else
+  return LDFail(error, ENOTSUP, @"Emptying the system trash");
+#endif
+}
+
 + (BOOL)emptyTrashDirectories:(NSArray *)trashDirectories error:(NSError **)error
 {
   BOOL emptied = YES;

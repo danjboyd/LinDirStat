@@ -34,6 +34,14 @@
 // info/ folders. Returns NO and the first error if anything was left.
 + (BOOL)emptyTrashDirectories:(NSArray *)trashDirectories error:(NSError **)error;
 
+// macOS keeps its own trash, which Finder empties: the user's Trash folder
+// (refreshed after trashing and emptying), or nil where the freedesktop.org
+// trash is used.
++ (NSData *)systemTrashPath;
+// Asks Finder to empty the Trash (every volume's). Blocking; the first time
+// macOS asks the user to let LinDirStat control Finder.
++ (BOOL)emptySystemTrash:(NSError **)error;
+
 // The trash directory (containing files/ and info/) the item would be moved
 // into, creating it if needed; nil if the item has no usable trash. Exposed
 // for tests.

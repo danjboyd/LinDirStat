@@ -39,4 +39,14 @@
   XCTAssertNil([descriptions descriptionForExtensionKey:@"tar.gz"]);
 }
 
+#if defined(__APPLE__)
+- (void)testSystemDescriptionsComeFromUniformTypes
+{
+  LDFileTypeDescriptions *system = [[LDFileTypeDescriptions alloc] initWithMimeDirectory:nil];
+  XCTAssertTrue([[[system descriptionForExtensionKey:@"pdf"] uppercaseString] rangeOfString:@"PDF"].location != NSNotFound);
+  XCTAssertNil([system descriptionForExtensionKey:@"lindirstatnosuchtype"]);
+  XCTAssertNil([system descriptionForExtensionKey:@"<none>"]);
+}
+#endif
+
 @end

@@ -94,6 +94,13 @@
   }
 }
 
+// The standard Copy command, when no text has the focus, copies the
+// selected entries' paths.
+- (void)copy:(id)sender
+{
+  [self copyPath:sender];
+}
+
 - (void)copyPath:(id)sender
 {
   (void)sender;
@@ -176,7 +183,7 @@
   NSMutableArray *refresh = [nodes mutableCopy];
   if (!permanently) {
     // Like WinDirStat's recycler folders: a trash inside the tree grows.
-    for (NSData *trash in [LDFileOperations existingTrashDirectories]) {
+    for (NSData *trash in [self trashDirectoriesToRefresh]) {
       LDFileNode *trashNode = [self nodeForPathData:trash];
       if (trashNode) {
         [refresh addObject:trashNode];
@@ -273,9 +280,34 @@
               thenRefreshing:refresh];
 }
 
+// Trash folders that grow when items are trashed and shrink when emptied.
+- (NSArray *)trashDirectoriesToRefresh
+{
+  NSData *systemTrash = [LDFileOperations systemTrashPath];
+  NSArray *trashes = [LDFileOperations existingTrashDirectories];
+  return systemTrash ? [trashes arrayByAddingObject:systemTrash] : trashes;
+}
+
 - (void)emptyTrash:(id)sender
 {
   (void)sender;
+  NSData *systemTrash = [LDFileOperations systemTrashPath];
+  if (systemTrash) {
+    if (![self confirmAction:@"Empty Trash"
+                     message:@"Finder will permanently delete everything in the Trash."
+                       paths:@[[self stringForPathData:systemTrash]]]) {
+      return;
+    }
+    LDFileNode *trashNode = [self nodeForPathData:systemTrash];
+    [self performFileOperation:@"Emptying the trash"
+                         paths:@[systemTrash]
+                     operation:^BOOL(NSData *trash, NSError **error) {
+      (void)trash;
+      return [LDFileOperations emptySystemTrash:error];
+    }
+                thenRefreshing:trashNode ? @[trashNode] : @[]];
+    return;
+  }
   NSArray *trashes = [LDFileOperations existingTrashDirectories];
   if ([trashes count] == 0) {
     [self showStatus:@"The trash is already empty"];

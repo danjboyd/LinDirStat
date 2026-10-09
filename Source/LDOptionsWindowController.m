@@ -1,4 +1,5 @@
 #import "LDOptionsWindowController.h"
+#import "LDPlatformUI.h"
 #import "LDFilterPatterns.h"
 #import "LDPreferences.h"
 
@@ -114,7 +115,7 @@ static const CGFloat LDOptionsControlSpacing = 6.0;
                                                  styleMask:NSTitledWindowMask | NSClosableWindowMask
                                                    backing:NSBackingStoreBuffered
                                                      defer:YES];
-  [window setTitle:@"Preferences"];
+  [window setTitle:[LDPlatformUI settingsTitle]];
   [window setReleasedWhenClosed:NO];
   self = [super initWithWindow:window];
   if (self) {
