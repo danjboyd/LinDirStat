@@ -17,7 +17,13 @@ cd "$repo_root"
 
 python3 "$HOME/git/gnustep/gnustep-cli-new/scripts/internal/build.py" --execute .
 TOOLS_XCTEST_ROOT="$xctest_root" make -C Tests
-LD_LIBRARY_PATH="$xctest_root/XCTest/obj:${LD_LIBRARY_PATH:-}" "$xctest_root/obj/xctest" Tests/LinDirStatTests.bundle
+# A private GNUstep home keeps the tests' defaults out of the user's (GNUstep.sh
+# unsets GNUSTEP_HOME, so it is set here).
+test_home="$(mktemp -d "${TMPDIR:-/tmp}/lindirstat-gate-home.XXXXXX")"
+trap 'rm -rf "$test_home"' EXIT
+GNUSTEP_HOME="$test_home" LD_LIBRARY_PATH="$xctest_root/XCTest/obj:${LD_LIBRARY_PATH:-}" "$xctest_root/obj/xctest" Tests/LinDirStatTests.bundle
+scripts/test-command-line.sh
+scripts/run-ui-tests.sh
 
 ./scripts/windirstat-parity-gate.sh
 ./scripts/gui-parity-gate.sh

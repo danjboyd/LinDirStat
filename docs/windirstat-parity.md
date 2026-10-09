@@ -63,7 +63,7 @@ Status values:
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Unit/regression tests | partial | `tools-xctest` covers model, scan, layout, formatting, and action planning. More UI coordination tests remain. |
+| Unit/regression tests | done | `tools-xctest` covers model, scan, layout, formatting, and action planning. `Tests/UI` (`scripts/run-ui-tests.sh`, private Xvfb) drives the real `AppController` and window: selection sync between the tree, treemap, extension list and every file tab; multi-selection sizes; Refresh Selected (totals, expansion, selection, "This Computer" volumes); Move to Trash and Delete Permanently (tree, extensions, treemap, lists); detached nodes; command enablement (idle/busy, roots, volumes, mount points, `<Free Space>`/`<Unknown>`/`<Hardlinks>`); Options toggles. Linux only. |
 | GUI screenshot review | partial | Window-only capture script exists; screenshots must be reviewed for GUI-affecting changes. |
 | Full-window GUI parity (Linux) | done | `scripts/gui-parity-gate.sh`: headless on a private Xvfb, light and dark, seven states; pane proportions, WinDirStat columns and menus, toolbar, status bar, overlaps, clipped titles, treemap density and pixels vs. the Phase 11 renderer. Strict; part of `scripts/regression-gate.sh`. |
 | Full-window GUI parity (macOS) | todo | M11: reuse the layout dump and checks with `screencapture`. |

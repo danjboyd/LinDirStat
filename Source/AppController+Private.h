@@ -2,6 +2,7 @@
 #import "LDListViews.h"
 
 @class LDScanSession;
+@class LDSearchOptions;
 
 // Shared between AppController's files.
 @interface AppController (Private)
@@ -60,6 +61,8 @@
 - (void)stopDuplicateDetection;
 - (void)fileListsDidFinishScan;
 - (void)search:(id)sender;
+// Search's results tab for options (the Search dialog's answer).
+- (void)showSearchResultsForOptions:(LDSearchOptions *)options;
 - (void)saveResultsToCSV:(id)sender;
 - (void)saveDuplicatesToCSV:(id)sender;
 - (void)loadResultsFromCSV:(id)sender;
@@ -69,8 +72,6 @@
 - (void)toggleFileWatcher:(id)sender;
 - (BOOL)isFileWatcherOn;
 @end
-
-@class LDSearchOptions;
 
 @interface LDSearchPanel : NSObject
 {
