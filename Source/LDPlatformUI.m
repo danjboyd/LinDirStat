@@ -43,6 +43,8 @@
       @"folder-symbolic": @"folder",
       @"insert-link-symbolic": @"link",
       @"text-x-generic-symbolic": @"doc",
+      @"radio-symbolic": @"circle.dotted",
+      @"dialog-question-symbolic": @"questionmark.circle",
     };
   });
   return names;
@@ -53,6 +55,18 @@
   NSString *symbol = [[self symbolNames] objectForKey:name];
   NSImage *image = symbol ? [NSImage imageWithSystemSymbolName:symbol accessibilityDescription:label] : nil;
   return image ? image : [NSImage imageNamed:name];
+}
+
++ (NSImage *)symbolicImageNamed:(NSString *)name
+{
+  NSImage *image = [self toolbarImageNamed:name label:nil];
+  if (image && [[self symbolNames] objectForKey:name]) {
+    // Symbols are drawn at the tree's icon size, not their text size.
+    NSImage *sized = [image imageWithSymbolConfiguration:
+                      [NSImageSymbolConfiguration configurationWithPointSize:13.0 weight:NSFontWeightRegular]];
+    return sized ? sized : image;
+  }
+  return image;
 }
 
 static NSImage *LDSmallIcon(NSImage *icon)
@@ -89,8 +103,11 @@ static NSImage *LDSmallIcon(NSImage *icon)
   // Finder for those by path. Everything else is shared by type.
   BOOL byPath = [node isMountPoint] || [[node parent] isComputer];
   UTType *type = nil;
-  if (!byPath && kind == LDFileNodeKindDirectory && hasExtension) {
-    type = [UTType typeWithFilenameExtension:extension];
+  if (!byPath && kind == LDFileNodeKindDirectory) {
+    // Folders have no extension key; a package's is in its name.
+    NSString *folderExtension = [[[node displayName] pathExtension] lowercaseString];
+    type = [folderExtension length] > 0
+      ? [UTType typeWithFilenameExtension:folderExtension conformingToType:UTTypeDirectory] : nil;
     byPath = type && [type conformsToType:UTTypePackage];
   }
   NSString *key = nil;
@@ -99,7 +116,9 @@ static NSImage *LDSmallIcon(NSImage *icon)
   } else if (kind == LDFileNodeKindDirectory) {
     key = @"folder";
   } else if (kind == LDFileNodeKindSymlink) {
-    key = @"symlink";
+    // Finder shows a link as its target's icon with the alias arrow.
+    key = [@"path:" stringByAppendingString:[node path]];
+    byPath = YES;
   } else {
     key = [@"ext:" stringByAppendingString:hasExtension ? extension : @""];
   }
@@ -332,6 +351,11 @@ static NSString *const LDFullDiskAccessSettingsURL =
 + (NSImage *)toolbarImageNamed:(NSString *)name label:(NSString *)label
 {
   (void)label;
+  return [NSImage imageNamed:name];
+}
+
++ (NSImage *)symbolicImageNamed:(NSString *)name
+{
   return [NSImage imageNamed:name];
 }
 

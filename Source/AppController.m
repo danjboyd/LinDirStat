@@ -2133,7 +2133,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 {
   NSImage *icon = [_tintedIcons objectForKey:name];
   if (!icon) {
-    NSImage *source = [NSImage imageNamed:name];
+    NSImage *source = [LDPlatformUI symbolicImageNamed:name];
     icon = source ? [LDIconTextCell image:source tintedWithColor:[NSColor controlTextColor]] : nil;
     if (icon) {
       [_tintedIcons setObject:icon forKey:name];

@@ -14,6 +14,10 @@
 // The toolbar image for a freedesktop symbolic icon name
 // ("view-refresh-symbolic"); label is its accessibility description.
 + (NSImage *)toolbarImageNamed:(NSString *)name label:(NSString *)label;
+// The same image for small symbolic icons elsewhere (the tree's fallback
+// icons, which the app tints): an SF Symbol on macOS, the bundled PNG under
+// GNUstep.
++ (NSImage *)symbolicImageNamed:(NSString *)name;
 
 // The file manager's icon for node at 16 points, or nil to use the app's
 // own symbolic icons.
