@@ -51,7 +51,7 @@ checks every PR on its own platform before it is merged.
 | L11 | Full-window parity gate (roadmap 12J) on Linux: pane proportions, columns, chrome, overlap checks against the reference catalog | Linux | done (#14) |
 | M11 | The same full-window review on macOS | macOS | in progress |
 | L12 | Automated UI coordination tests (selection sync, refresh, deletion, tab lists) | Linux | done (#13, #14) |
-| L13 | Performance: profile and fix stop/finalize time on million-file scans and duplicate detection memory | Linux | PR |
+| L13 | Performance: profile and fix stop/finalize time on million-file scans and duplicate detection memory | Linux | done (#15) |
 | M13 | macOS validation matrix (macOS 13–26, Intel and Apple Silicon where available) | macOS | todo |
 
 ## Intentional differences (not gaps)
