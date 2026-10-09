@@ -18,6 +18,10 @@ LinDirStatTests_OBJC_FILES = \
   LDScanSessionTests.m \
   LDFileOperationsTests.m \
   LDPreferencesTests.m \
+  LDHasherTests.m \
+  LDLargestFilesTests.m \
+  LDDuplicateFinderTests.m \
+  LDSearchTests.m \
   ../Source/LDFileNode.m \
   ../Source/LDExtensionStats.m \
   ../Source/LDSizeFormatter.m \
@@ -32,14 +36,19 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDTreeSorting.m \
   ../Source/LDFileOperations.m \
   ../Source/LDDesktop.m \
-  ../Source/LDPreferences.m
+  ../Source/LDPreferences.m \
+  ../Source/LDNodeRanking.m \
+  ../Source/LDHasher.m \
+  ../Source/LDLargestFiles.m \
+  ../Source/LDDuplicateFinder.m \
+  ../Source/LDSearch.m
 
 LinDirStatTests_INCLUDE_DIRS = -I../Source -I.
 ifneq ($(TOOLS_XCTEST_ROOT),)
 LinDirStatTests_INCLUDE_DIRS += -I$(TOOLS_XCTEST_ROOT)
 LinDirStatTests_LIB_DIRS += -L$(TOOLS_XCTEST_ROOT)/XCTest/obj
 endif
-LinDirStatTests_BUNDLE_LIBS += -lXCTest -ldispatch
+LinDirStatTests_BUNDLE_LIBS += -lXCTest -ldispatch -lnettle
 LinDirStatTests_RESOURCE_FILES =
 
 include $(GNUSTEP_MAKEFILES)/bundle.make
