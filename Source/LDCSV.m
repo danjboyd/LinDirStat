@@ -143,7 +143,9 @@ static void LDWriteRow(FILE *file, LDFileNode *node, NSData *path, BOOL isRoot, 
   BOOL isDirectory = [node kind] == LDFileNodeKindDirectory;
 
   fputs("\r\n", file);
-  if (LDIsValidUTF8([path bytes], [path length])) {
+  if ([node isComputer]) {
+    LDWriteQuotedString(file, [node path]);
+  } else if (LDIsValidUTF8([path bytes], [path length])) {
     LDWriteQuoted(file, [path bytes], [path length]);
   } else {
     // CSV text is UTF-8, so a path that is not falls back to -path, which
@@ -176,6 +178,11 @@ static void LDWriteRow(FILE *file, LDFileNode *node, NSData *path, BOOL isRoot, 
     type = LDCSVTypeFreeSpace;
   } else if ([node kind] == LDFileNodeKindUnknown) {
     type = LDCSVTypeUnknown;
+  } else if ([node isComputer]) {
+    type = LDCSVTypeMyComputer;
+  } else if (isDirectory && [[node parent] isComputer]) {
+    // The roots of a multi-root scan are WinDirStat's drives.
+    type = LDCSVTypeDrive;
   }
   if (isRoot) {
     type |= LDCSVTypeRoot;
@@ -206,6 +213,11 @@ static void LDWriteSubtree(FILE *file, LDFileNode *node, NSMutableData *path, BO
   NSUInteger parentLength = [path length];
   BOOL needsSeparator = parentLength == 0 || ((const char *)[path bytes])[parentLength - 1] != '/';
   for (LDFileNode *child in children) {
+    if ([node isComputer]) {
+      // Its children are full-path roots.
+      LDWriteSubtree(file, child, [[child pathData] mutableCopy], NO, includeOwner);
+      continue;
+    }
     if (needsSeparator) {
       [path appendBytes:"/" length:1];
     }
@@ -599,8 +611,12 @@ static NSString *LDRowDescription(NSUInteger row)
       if (memchr(name, '\\', nameLength) && !memchr(name, '/', nameLength)) {
         separator = '\\';
       }
-      node = [LDFileNode nodeWithPath:LDStringFromBytes(name, nameLength) kind:kind size:0];
-      [node setSize:ownLogical allocatedSize:ownPhysical];
+      if (type & LDCSVTypeMyComputer) {
+        node = [LDComputerNode computerNode];
+      } else {
+        node = [LDFileNode nodeWithPath:LDStringFromBytes(name, nameLength) kind:kind size:0];
+        [node setSize:ownLogical allocatedSize:ownPhysical];
+      }
       root = node;
     } else {
       if (type & LDCSVTypeRoot) {
@@ -635,7 +651,13 @@ static NSString *LDRowDescription(NSUInteger row)
           return nil;
         }
       }
-      node = [LDFileNode nodeWithNameBytes:leaf length:leafLength arena:arena kind:kind size:ownLogical allocatedSize:ownPhysical];
+      if (parent == root && [root isComputer]) {
+        // A root of a LinDirStat multi-root scan keeps its full path.
+        node = [LDFileNode nodeWithPath:LDStringFromBytes(name, nameLength) kind:kind size:0];
+        [node setSize:ownLogical allocatedSize:ownPhysical];
+      } else {
+        node = [LDFileNode nodeWithNameBytes:leaf length:leafLength arena:arena kind:kind size:ownLogical allocatedSize:ownPhysical];
+      }
       [parent addChild:node];
     }
 

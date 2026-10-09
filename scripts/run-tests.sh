@@ -15,3 +15,7 @@ cd "$repo_root"
 make -C Tests >/dev/null
 LD_LIBRARY_PATH="$TOOLS_XCTEST_ROOT/XCTest/obj:${LD_LIBRARY_PATH:-}" \
   "$TOOLS_XCTEST_ROOT/obj/xctest" Tests/LinDirStatTests.bundle
+
+# The command line end to end, against the app build.
+make -C Source >/dev/null
+scripts/test-command-line.sh

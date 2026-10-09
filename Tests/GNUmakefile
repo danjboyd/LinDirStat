@@ -20,9 +20,11 @@ LinDirStatTests_OBJC_FILES = \
   LDCommandRulesTests.m \
   LDCustomCleanupRunnerTests.m \
   LDCSVTests.m \
+  LDCommandLineTests.m \
   LDHasherTests.m \
   LDLargestFilesTests.m \
   LDDuplicateFinderTests.m \
+  LDDuplicateCollectorTests.m \
   LDSearchTests.m \
   LDFilterPatternsTests.m \
   LDScanOptionsTests.m \
@@ -50,6 +52,7 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDCustomCleanupRunner.m \
   ../Source/LDFileAttributes.m \
   ../Source/LDCSV.m \
+  ../Source/LDCommandLine.m \
   ../Source/LDNodeRanking.m \
   ../Source/LDHasher.m \
   ../Source/LDLargestFiles.m \

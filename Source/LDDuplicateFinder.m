@@ -8,10 +8,12 @@
 
 static const unsigned long long LDTierLimits[] = { 4096ULL, 1024ULL * 1024ULL, ULLONG_MAX };
 static const NSUInteger LDTierCount = sizeof(LDTierLimits) / sizeof(LDTierLimits[0]);
+enum { LDDuplicateDigestLength = 16 };
 static const NSUInteger LDExtensionsLabelLimit = 128;
 static const NSTimeInterval LDProgressInterval = 0.1;
 
-// What the background queue needs of a node, read on the calling thread.
+// What hashing needs of a node, read on the thread that found it. Digests
+// are kept per tier so a bucket that grows during a scan is not hashed again.
 @interface LDDuplicateCandidate : NSObject
 {
 @public
@@ -19,11 +21,24 @@ static const NSTimeInterval LDProgressInterval = 0.1;
   NSData *_pathData;
   unsigned long long _size;
   unsigned long long _allocatedSize;
+  uint8_t _digests[3][LDDuplicateDigestLength];
+  uint8_t _hashedTiers;
+  uint8_t _readableTiers;
 }
 @end
 
 @implementation LDDuplicateCandidate
 @end
+
+static LDDuplicateCandidate *LDMakeCandidate(LDFileNode *node, NSData *pathData)
+{
+  LDDuplicateCandidate *candidate = [[LDDuplicateCandidate alloc] init];
+  candidate->_node = node;
+  candidate->_pathData = pathData;
+  candidate->_size = [node size];
+  candidate->_allocatedSize = [node allocatedSize];
+  return candidate;
+}
 
 static NSComparisonResult LDComparePathData(NSData *left, NSData *right)
 {
@@ -133,6 +148,110 @@ typedef struct {
 
 @end
 
+static BOOL LDIsCancelled(const int *cancelled)
+{
+  return cancelled && __atomic_load_n(cancelled, __ATOMIC_RELAXED) != 0;
+}
+
+// The candidate's digest for a tier, hashed once and then remembered. nil if
+// the file cannot be read, or once cancelled (then nothing is remembered).
+static NSData *LDCandidateDigest(LDDuplicateCandidate *candidate, NSUInteger tier, const int *cancelled)
+{
+  uint8_t bit = (uint8_t)(1u << tier);
+  if (!(candidate->_hashedTiers & bit)) {
+    NSData *digest = [LDHasher duplicateDigestForFileAtPath:candidate->_pathData
+                                                  byteLimit:LDTierLimits[tier]
+                                                  cancelled:cancelled
+                                                      error:NULL];
+    if (LDIsCancelled(cancelled)) {
+      return nil;
+    }
+    candidate->_hashedTiers |= bit;
+    if ([digest length] == LDDuplicateDigestLength) {
+      memcpy(candidate->_digests[tier], [digest bytes], LDDuplicateDigestLength);
+      candidate->_readableTiers |= bit;
+    }
+  }
+  if (!(candidate->_readableTiers & bit)) {
+    return nil;
+  }
+  return [NSData dataWithBytes:candidate->_digests[tier] length:LDDuplicateDigestLength];
+}
+
+// Splits each set by its files' digests at tier, keeping sets of two or
+// more. Unreadable files are dropped. nil once cancelled.
+static NSArray *LDSplitSets(NSArray *sets, NSUInteger tier, const int *cancelled)
+{
+  NSMutableArray *result = [NSMutableArray array];
+  for (NSArray *set in sets) {
+    NSMutableDictionary *byDigest = [NSMutableDictionary dictionary];
+    for (LDDuplicateCandidate *candidate in set) {
+      NSData *digest = LDCandidateDigest(candidate, tier, cancelled);
+      if (LDIsCancelled(cancelled)) {
+        return nil;
+      }
+      if (!digest) {
+        continue;
+      }
+      NSMutableArray *matches = [byDigest objectForKey:digest];
+      if (!matches) {
+        matches = [NSMutableArray array];
+        [byDigest setObject:matches forKey:digest];
+      }
+      [matches addObject:candidate];
+    }
+    for (NSArray *matches in [byDigest objectEnumerator]) {
+      if ([matches count] >= 2) {
+        [result addObject:matches];
+      }
+    }
+  }
+  return result;
+}
+
+static LDDuplicateGroup *LDGroupWithCandidates(NSArray *candidates, NSUInteger tier)
+{
+  NSArray *sorted = [candidates sortedArrayUsingComparator:^NSComparisonResult(id left, id right) {
+    return LDComparePathData(((LDDuplicateCandidate *)left)->_pathData, ((LDDuplicateCandidate *)right)->_pathData);
+  }];
+  NSMutableArray *nodes = [NSMutableArray arrayWithCapacity:[sorted count]];
+  unsigned long long physical = 0;
+  for (LDDuplicateCandidate *candidate in sorted) {
+    [nodes addObject:candidate->_node];
+    physical += candidate->_allocatedSize;
+  }
+  LDDuplicateCandidate *first = [sorted objectAtIndex:0];
+  NSData *digest = [NSData dataWithBytes:first->_digests[tier] length:LDDuplicateDigestLength];
+  return [[LDDuplicateGroup alloc] initWithHashString:[LDHasher hexStringForData:digest]
+                                          logicalSize:first->_size
+                                                nodes:nodes
+                                    totalPhysicalSize:physical];
+}
+
+// WinDirStat's tiers (FileDupeControl.cpp): a bucket of equal-sized files is
+// split by the digest of each tier up to the one that covers the whole file.
+// Returns the bucket's groups, or nil once cancelled.
+static NSArray *LDGroupsForBucket(NSArray *bucket, const int *cancelled)
+{
+  unsigned long long size = ((LDDuplicateCandidate *)[bucket objectAtIndex:0])->_size;
+  NSArray *sets = [NSArray arrayWithObject:bucket];
+  NSUInteger tier = 0;
+  for (; tier < LDTierCount; tier++) {
+    sets = LDSplitSets(sets, tier, cancelled);
+    if (!sets) {
+      return nil;
+    }
+    if ([sets count] == 0 || size <= LDTierLimits[tier]) {
+      break;
+    }
+  }
+  NSMutableArray *groups = [NSMutableArray arrayWithCapacity:[sets count]];
+  for (NSArray *set in sets) {
+    [groups addObject:LDGroupWithCandidates(set, tier)];
+  }
+  return groups;
+}
+
 @implementation LDDuplicateFinder
 
 - (id)initWithRootNode:(LDFileNode *)root
@@ -197,12 +316,8 @@ typedef struct {
       table.bucketIndexes[slot] = (NSInteger)[buckets count];
       [buckets addObject:[NSMutableArray arrayWithCapacity:table.counts[slot]]];
     }
-    LDDuplicateCandidate *candidate = [[LDDuplicateCandidate alloc] init];
     LDFileNode *node = files[index].node;
-    candidate->_node = node;
-    candidate->_pathData = [node pathData];
-    candidate->_size = files[index].size;
-    candidate->_allocatedSize = [node allocatedSize];
+    LDDuplicateCandidate *candidate = LDMakeCandidate(node, [node pathData]);
     [[buckets objectAtIndex:(NSUInteger)table.bucketIndexes[slot]] addObject:candidate];
   }
   LDSizeTableFree(&table);
@@ -219,82 +334,10 @@ typedef struct {
   return count;
 }
 
-// Splits each set by the digest of its files' first limit bytes, keeping
-// sets of two or more. Unreadable files are dropped. nil once cancelled.
-- (NSArray *)splitSets:(NSArray *)sets byteLimit:(unsigned long long)limit digests:(NSMutableDictionary *)digests
-{
-  NSMutableArray *result = [NSMutableArray array];
-  for (NSArray *set in sets) {
-    NSMutableDictionary *byDigest = [NSMutableDictionary dictionary];
-    for (LDDuplicateCandidate *candidate in set) {
-      NSData *digest = [LDHasher duplicateDigestForFileAtPath:candidate->_pathData
-                                                    byteLimit:limit
-                                                    cancelled:&_cancelled
-                                                        error:NULL];
-      if ([self isCancelled]) {
-        return nil;
-      }
-      if (!digest) {
-        continue;
-      }
-      NSMutableArray *matches = [byDigest objectForKey:digest];
-      if (!matches) {
-        matches = [NSMutableArray array];
-        [byDigest setObject:matches forKey:digest];
-      }
-      [matches addObject:candidate];
-    }
-    for (NSData *digest in byDigest) {
-      NSArray *matches = [byDigest objectForKey:digest];
-      if ([matches count] >= 2) {
-        [result addObject:matches];
-        [digests setObject:digest forKey:[NSValue valueWithNonretainedObject:matches]];
-      }
-    }
-  }
-  return result;
-}
-
-+ (LDDuplicateGroup *)groupWithCandidates:(NSArray *)candidates digest:(NSData *)digest
-{
-  NSArray *sorted = [candidates sortedArrayUsingComparator:^NSComparisonResult(id left, id right) {
-    return LDComparePathData(((LDDuplicateCandidate *)left)->_pathData, ((LDDuplicateCandidate *)right)->_pathData);
-  }];
-  NSMutableArray *nodes = [NSMutableArray arrayWithCapacity:[sorted count]];
-  unsigned long long physical = 0;
-  for (LDDuplicateCandidate *candidate in sorted) {
-    [nodes addObject:candidate->_node];
-    physical += candidate->_allocatedSize;
-  }
-  LDDuplicateCandidate *first = [sorted objectAtIndex:0];
-  return [[LDDuplicateGroup alloc] initWithHashString:[LDHasher hexStringForData:digest]
-                                          logicalSize:first->_size
-                                                nodes:nodes
-                                    totalPhysicalSize:physical];
-}
-
 // Groups for one bucket of equal-sized files, or nil once cancelled.
 - (NSArray *)groupsForBucket:(NSArray *)bucket
 {
-  unsigned long long size = ((LDDuplicateCandidate *)[bucket objectAtIndex:0])->_size;
-  NSArray *sets = [NSArray arrayWithObject:bucket];
-  NSMutableDictionary *digests = nil;
-  for (NSUInteger tier = 0; tier < LDTierCount && [sets count] > 0; tier++) {
-    digests = [NSMutableDictionary dictionary];
-    sets = [self splitSets:sets byteLimit:LDTierLimits[tier] digests:digests];
-    if (!sets) {
-      return nil;
-    }
-    if (size <= LDTierLimits[tier]) {
-      break;
-    }
-  }
-  NSMutableArray *groups = [NSMutableArray arrayWithCapacity:[sets count]];
-  for (NSArray *set in sets) {
-    NSData *digest = [digests objectForKey:[NSValue valueWithNonretainedObject:set]];
-    [groups addObject:[LDDuplicateFinder groupWithCandidates:set digest:digest]];
-  }
-  return groups;
+  return LDGroupsForBucket(bucket, &_cancelled);
 }
 
 + (NSArray *)sortedGroups:(NSArray *)groups
@@ -401,6 +444,355 @@ typedef struct {
     }
   }
   return [self sortedGroups:result];
+}
+
+@end
+
+// One size seen during a scan: the first file while it is alone, then the
+// index of its bucket.
+struct LDSizeSlot {
+  unsigned long long size;
+  void *first;
+  NSInteger bucket;
+};
+
+static const NSTimeInterval LDCollectorUpdateInterval = 0.5;
+
+@interface LDDuplicateBucket : NSObject
+{
+@public
+  NSMutableArray *_members;
+  NSArray *_groups;
+  BOOL _dirty;
+}
+@end
+
+@implementation LDDuplicateBucket
+@end
+
+typedef struct {
+  __unsafe_unretained LDFileNode *node;
+  NSInteger bucket;
+} LDBucketAddition;
+
+@implementation LDDuplicateCollector
+
+- (id)init
+{
+  self = [super init];
+  if (self) {
+    pthread_mutex_init(&_lock, NULL);
+    pthread_cond_init(&_finishedCondition, NULL);
+    _buckets = [[NSMutableArray alloc] init];
+    _dirtyBuckets = [[NSMutableArray alloc] init];
+    [self allocateSlots:1024];
+  }
+  return self;
+}
+
+- (void)dealloc
+{
+  free(_slots);
+  pthread_cond_destroy(&_finishedCondition);
+  pthread_mutex_destroy(&_lock);
+}
+
+- (void)allocateSlots:(NSUInteger)capacity
+{
+  _slots = malloc(capacity * sizeof(struct LDSizeSlot));
+  for (NSUInteger index = 0; index < capacity; index++) {
+    _slots[index].first = NULL;
+    _slots[index].bucket = -1;
+  }
+  _slotMask = capacity - 1;
+}
+
+static BOOL LDSlotIsEmpty(const struct LDSizeSlot *slot)
+{
+  return slot->first == NULL && slot->bucket < 0;
+}
+
+- (struct LDSizeSlot *)slotForSize:(unsigned long long)size
+{
+  NSUInteger index = (NSUInteger)((size * 0x9E3779B97F4A7C15ULL) >> 20) & _slotMask;
+  while (!LDSlotIsEmpty(&_slots[index]) && _slots[index].size != size) {
+    index = (index + 1) & _slotMask;
+  }
+  return &_slots[index];
+}
+
+// Keeps the table at most half full.
+- (void)growSlotsIfNeeded
+{
+  if ((_slotsUsed + 1) * 2 <= _slotMask + 1) {
+    return;
+  }
+  struct LDSizeSlot *old = _slots;
+  NSUInteger oldCapacity = _slotMask + 1;
+  [self allocateSlots:oldCapacity * 2];
+  for (NSUInteger index = 0; index < oldCapacity; index++) {
+    if (!LDSlotIsEmpty(&old[index])) {
+      *[self slotForSize:old[index].size] = old[index];
+    }
+  }
+  free(old);
+}
+
+- (BOOL)isCancelled
+{
+  return __atomic_load_n(&_cancelled, __ATOMIC_RELAXED) != 0;
+}
+
+- (BOOL)isFinished
+{
+  pthread_mutex_lock(&_lock);
+  BOOL finished = _finished;
+  pthread_mutex_unlock(&_lock);
+  return finished;
+}
+
+#pragma mark - Adding (scanner workers)
+
+- (void)addNodes:(NSArray *)nodes
+{
+  if ([self isCancelled]) {
+    return;
+  }
+  // Under the lock, sizes are counted and the files that join a bucket are
+  // noted; their paths are built outside it.
+  LDBucketAddition *additions = NULL;
+  NSUInteger additionCount = 0;
+  pthread_mutex_lock(&_lock);
+  if (_finished || _addingFinished) {
+    pthread_mutex_unlock(&_lock);
+    return;
+  }
+  for (LDFileNode *node in nodes) {
+    if (![LDDuplicateFinder isCandidate:node]) {
+      continue;
+    }
+    [self growSlotsIfNeeded];
+    struct LDSizeSlot *slot = [self slotForSize:[node size]];
+    if (LDSlotIsEmpty(slot)) {
+      slot->size = [node size];
+      slot->first = (__bridge void *)node;
+      _slotsUsed++;
+      continue;
+    }
+    if (!additions) {
+      // A file can bring the first file of its size along.
+      additions = malloc(2 * [nodes count] * sizeof(LDBucketAddition));
+    }
+    if (slot->bucket < 0) {
+      slot->bucket = (NSInteger)[_buckets count];
+      LDDuplicateBucket *bucket = [[LDDuplicateBucket alloc] init];
+      bucket->_members = [[NSMutableArray alloc] initWithCapacity:2];
+      [_buckets addObject:bucket];
+      additions[additionCount].node = (__bridge LDFileNode *)slot->first;
+      additions[additionCount++].bucket = slot->bucket;
+      slot->first = NULL;
+    }
+    additions[additionCount].node = node;
+    additions[additionCount++].bucket = slot->bucket;
+  }
+  pthread_mutex_unlock(&_lock);
+  if (additionCount == 0) {
+    free(additions);
+    return;
+  }
+
+  NSMutableArray *candidates = [NSMutableArray arrayWithCapacity:additionCount];
+  for (NSUInteger index = 0; index < additionCount; index++) {
+    [candidates addObject:LDMakeCandidate(additions[index].node, [additions[index].node pathData])];
+  }
+
+  BOOL startDraining = NO;
+  pthread_mutex_lock(&_lock);
+  if (!_finished) {
+    for (NSUInteger index = 0; index < additionCount; index++) {
+      LDDuplicateBucket *bucket = [_buckets objectAtIndex:(NSUInteger)additions[index].bucket];
+      [bucket->_members addObject:[candidates objectAtIndex:index]];
+      if (!bucket->_dirty) {
+        bucket->_dirty = YES;
+        [_dirtyBuckets addObject:bucket];
+      }
+    }
+    startDraining = !_draining;
+    _draining = YES;
+  }
+  pthread_mutex_unlock(&_lock);
+  free(additions);
+  if (startDraining) {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
+      [self drain];
+    });
+  }
+}
+
+- (void)finishAdding
+{
+  pthread_mutex_lock(&_lock);
+  _addingFinished = YES;
+  // Sizes are only needed while files are added; the first-file pointers
+  // must not be used once the scan is over.
+  free(_slots);
+  _slots = NULL;
+  _slotMask = 0;
+  BOOL finished = [self finishIfIdleLocked];
+  pthread_mutex_unlock(&_lock);
+  if (finished) {
+    [self didFinish];
+  }
+}
+
+- (void)cancel
+{
+  __atomic_store_n(&_cancelled, 1, __ATOMIC_RELAXED);
+  pthread_mutex_lock(&_lock);
+  BOOL finished = [self finishIfIdleLocked];
+  pthread_mutex_unlock(&_lock);
+  if (finished) {
+    [self didFinish];
+  }
+}
+
+#pragma mark - Hashing (low-priority queue)
+
+// Hashes dirty buckets until none are left. Only one drain runs at a time,
+// so candidates' digest caches have a single writer.
+- (void)drain
+{
+  while (YES) {
+    pthread_mutex_lock(&_lock);
+    NSArray *batch = _dirtyBuckets;
+    if ([batch count] == 0 || [self isCancelled]) {
+      _draining = NO;
+      BOOL finished = [self finishIfIdleLocked];
+      pthread_mutex_unlock(&_lock);
+      if (finished) {
+        [self didFinish];
+      }
+      return;
+    }
+    _dirtyBuckets = [[NSMutableArray alloc] init];
+    pthread_mutex_unlock(&_lock);
+
+    for (LDDuplicateBucket *bucket in batch) {
+      @autoreleasepool {
+        pthread_mutex_lock(&_lock);
+        bucket->_dirty = NO;
+        NSArray *members = [bucket->_members copy];
+        pthread_mutex_unlock(&_lock);
+        NSArray *groups = LDGroupsForBucket(members, &_cancelled);
+        if (!groups) {
+          break;
+        }
+        pthread_mutex_lock(&_lock);
+        bucket->_groups = groups;
+        pthread_mutex_unlock(&_lock);
+      }
+      [self scheduleUpdate];
+    }
+  }
+}
+
+// YES the first time the collector is done: nothing more will be added (or
+// it was cancelled) and no drain is running.
+- (BOOL)finishIfIdleLocked
+{
+  if (_finished || _draining || !(_addingFinished || [self isCancelled])) {
+    return NO;
+  }
+  _finished = YES;
+  return YES;
+}
+
+- (NSArray *)unsortedGroupsLocked
+{
+  NSMutableArray *groups = [NSMutableArray array];
+  for (LDDuplicateBucket *bucket in _buckets) {
+    if (bucket->_groups) {
+      [groups addObjectsFromArray:bucket->_groups];
+    }
+  }
+  return groups;
+}
+
+// Keeps only the groups; the candidates and their paths are released.
+- (void)didFinish
+{
+  pthread_mutex_lock(&_lock);
+  NSArray *groups = [self unsortedGroupsLocked];
+  pthread_mutex_unlock(&_lock);
+  NSArray *sorted = [LDDuplicateFinder sortedGroups:groups];
+  pthread_mutex_lock(&_lock);
+  _finalGroups = sorted;
+  _buckets = nil;
+  _dirtyBuckets = nil;
+  free(_slots);
+  _slots = NULL;
+  pthread_cond_broadcast(&_finishedCondition);
+  pthread_mutex_unlock(&_lock);
+  [self scheduleUpdate];
+}
+
+- (void)waitUntilFinished
+{
+  pthread_mutex_lock(&_lock);
+  while (!_finalGroups) {
+    pthread_cond_wait(&_finishedCondition, &_lock);
+  }
+  pthread_mutex_unlock(&_lock);
+}
+
+- (NSArray *)groups
+{
+  pthread_mutex_lock(&_lock);
+  NSArray *final = _finalGroups;
+  NSArray *groups = final ? nil : [self unsortedGroupsLocked];
+  pthread_mutex_unlock(&_lock);
+  return final ?: [LDDuplicateFinder sortedGroups:groups];
+}
+
+#pragma mark - Updates (main queue)
+
+- (void)setUpdateHandler:(void (^)(NSArray *groups, BOOL finished))handler
+{
+  pthread_mutex_lock(&_lock);
+  _updateHandler = [handler copy];
+  pthread_mutex_unlock(&_lock);
+  [self scheduleUpdate];
+}
+
+- (void)scheduleUpdate
+{
+  pthread_mutex_lock(&_lock);
+  BOOL schedule = _updateHandler && !_notificationScheduled;
+  _notificationScheduled = _notificationScheduled || schedule;
+  NSTimeInterval delay = _finalGroups ? 0.0 : LDCollectorUpdateInterval;
+  pthread_mutex_unlock(&_lock);
+  if (!schedule) {
+    return;
+  }
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    [self deliverUpdate];
+  });
+}
+
+- (void)deliverUpdate
+{
+  pthread_mutex_lock(&_lock);
+  _notificationScheduled = NO;
+  void (^handler)(NSArray *, BOOL) = _updateHandler;
+  BOOL finished = _finalGroups != nil;
+  if (finished) {
+    // The handler usually references whoever holds the collector.
+    _updateHandler = nil;
+  }
+  pthread_mutex_unlock(&_lock);
+  if (handler) {
+    handler([self groups], finished);
+  }
 }
 
 @end

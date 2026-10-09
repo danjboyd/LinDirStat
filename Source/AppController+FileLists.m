@@ -259,8 +259,48 @@ static NSString *const LDTabWatcher = @"watcher";
 
 #pragma mark - Duplicates
 
+- (void)setDuplicatesSearching:(BOOL)searching
+{
+  [_duplicatesTab setLabel:searching ? @"Duplicate Files (searching…)" : @"Duplicate Files"];
+  [_fileTabs setNeedsDisplay:YES];
+}
+
+// WinDirStat hashes while it scans, so the Duplicates tab fills live. The
+// scan's collector reports its groups a couple of times a second, and goes
+// on hashing after the scan is complete.
+- (void)fileListsDidStartScan
+{
+  LDDuplicateCollector *collector = [_scanSession duplicateCollector];
+  [self setTab:_duplicatesTab shown:collector != nil];
+  if (!collector) {
+    return;
+  }
+  _duplicateFinder = collector;
+  [self setDuplicatesSearching:YES];
+  [collector setUpdateHandler:^(NSArray *groups, BOOL finished) {
+    if (collector != _duplicateFinder) {
+      return;
+    }
+    if (finished) {
+      _duplicateFinder = nil;
+      [self setDuplicatesSearching:NO];
+    }
+    [self showDuplicateGroupsKeepingSelection:groups];
+  }];
+}
+
+// A scan with duplicate detection fills the tab as it goes. A tree that was
+// not scanned that way (a loaded CSV) is hashed after the fact.
 - (void)startDuplicateDetection
 {
+  LDDuplicateCollector *collector = [_scanSession duplicateCollector];
+  if (collector) {
+    if (_duplicateFinder != collector) {
+      // The collector finished before the scan's completion arrived.
+      [self showDuplicateGroupsKeepingSelection:[collector groups]];
+    }
+    return;
+  }
   [_duplicateFinder cancel];
   _duplicateFinder = nil;
   _duplicateGroups = @[];
@@ -272,7 +312,7 @@ static NSString *const LDTabWatcher = @"watcher";
   }
   LDDuplicateFinder *finder = [[LDDuplicateFinder alloc] initWithRootNode:_rootNode];
   _duplicateFinder = finder;
-  [_duplicatesTab setLabel:@"Duplicate Files (searching…)"];
+  [self setDuplicatesSearching:YES];
   [finder startWithProgress:^(NSUInteger hashedFiles, NSUInteger candidateFiles) {
     if (finder == _duplicateFinder) {
       [_duplicatesTab setLabel:[NSString stringWithFormat:@"Duplicate Files (%lu%%)",
@@ -284,12 +324,50 @@ static NSString *const LDTabWatcher = @"watcher";
       return;
     }
     _duplicateFinder = nil;
-    [_duplicatesTab setLabel:@"Duplicate Files"];
-    [_fileTabs setNeedsDisplay:YES];
-    // The tree may have changed while hashing; drop what left it.
-    _duplicateGroups = groups;
-    [self fileListsDidChangeTree];
+    [self setDuplicatesSearching:NO];
+    [self showDuplicateGroupsKeepingSelection:groups];
   }];
+}
+
+- (BOOL)isFindingDuplicates
+{
+  return _duplicateFinder != nil;
+}
+
+// A collector reports its groups so far once it has stopped; a finder run
+// on a loaded tree reports nothing after it is cancelled.
+- (void)stopDuplicateDetection
+{
+  if (!_duplicateFinder) {
+    return;
+  }
+  [_duplicateFinder cancel];
+  if ([_duplicateFinder isKindOfClass:[LDDuplicateFinder class]]) {
+    _duplicateFinder = nil;
+    [self setDuplicatesSearching:NO];
+  }
+  [self refreshCommandState];
+}
+
+// The tree may have changed while hashing; what left it is dropped.
+- (void)showDuplicateGroupsKeepingSelection:(NSArray *)groups
+{
+  NSMutableArray *selected = [NSMutableArray array];
+  NSIndexSet *rows = [_duplicatesTable selectedRowIndexes];
+  for (NSUInteger row = [rows firstIndex]; row != NSNotFound; row = [rows indexGreaterThanIndex:row]) {
+    [selected addObject:[_duplicatesTable itemAtRow:(NSInteger)row]];
+  }
+  [self setDuplicateGroups:[self duplicateGroupsStillInTree:groups]];
+  NSMutableIndexSet *indexes = [NSMutableIndexSet indexSet];
+  for (id item in selected) {
+    NSInteger row = [_duplicatesTable rowForItem:item];
+    if (row >= 0) {
+      [indexes addIndex:(NSUInteger)row];
+    }
+  }
+  _syncingSelection = YES;
+  [_duplicatesTable selectRowIndexes:indexes byExtendingSelection:NO];
+  _syncingSelection = NO;
 }
 
 - (void)setDuplicateGroups:(NSArray *)groups
@@ -507,8 +585,13 @@ static NSString *const LDTabWatcher = @"watcher";
   }
   [_searchTable reloadData];
   [self reselectNodes:selected inTable:_searchTable rows:_searchRows];
+  [self setDuplicateGroups:[self duplicateGroupsStillInTree:_duplicateGroups]];
+}
+
+- (NSArray *)duplicateGroupsStillInTree:(NSArray *)duplicateGroups
+{
   NSMutableArray *groups = [NSMutableArray array];
-  for (LDDuplicateGroup *group in _duplicateGroups) {
+  for (LDDuplicateGroup *group in duplicateGroups) {
     NSArray *kept = [self nodesStillInTree:[group nodes]];
     if ([kept count] == [[group nodes] count]) {
       [groups addObject:group];
@@ -523,7 +606,7 @@ static NSString *const LDTabWatcher = @"watcher";
                                                    totalPhysicalSize:physical]];
     }
   }
-  [self setDuplicateGroups:groups];
+  return groups;
 }
 
 // A new scan starts with All Files and no search results. The File Watcher
@@ -695,7 +778,11 @@ static NSString *const LDTabWatcher = @"watcher";
   if (result != NSFileHandlingPanelOKButton && result != NSOKButton) {
     return;
   }
-  NSString *path = [[panel filenames] firstObject] ?: [panel filename];
+  [self loadResultsFromCSVFile:[[panel filenames] firstObject] ?: [panel filename]];
+}
+
+- (void)loadResultsFromCSVFile:(NSString *)path
+{
   NSError *error = nil;
   LDFileNode *root = [LDCSV readTreeFromPath:path error:&error];
   if (!root) {

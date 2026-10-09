@@ -2,6 +2,7 @@
 #import "LDFileNode.h"
 
 @class LDScanOptions;
+@class LDDuplicateCollector;
 
 typedef enum {
   LDScanSessionStateIdle = 0,
@@ -35,6 +36,7 @@ typedef enum {
   LDSizeMetric _sortMetric;
   NSUInteger _threadCount;
   LDScanOptions *_scanOptions;
+  LDDuplicateCollector *_duplicateCollector;
 }
 
 - (LDScanSessionState)state;
@@ -63,6 +65,13 @@ typedef enum {
 // Metric used to sort the finished tree on the scanning thread.
 - (LDSizeMetric)sortMetric;
 - (void)setSortMetric:(LDSizeMetric)sortMetric;
+
+// Finds duplicates while the scan runs when the scan options ask for it
+// (scans of whole paths only, not refreshes). Created when such a scan
+// starts; it keeps hashing after the scan is complete, and -cancel cancels
+// it too.
+- (LDDuplicateCollector *)duplicateCollector;
+- (void)setDuplicateCollector:(LDDuplicateCollector *)collector;
 
 - (void)markScanning;
 - (void)markComplete;

@@ -1,5 +1,6 @@
 #import "AppController.h"
 #import "AppController+Private.h"
+#import "LDCommandLine.h"
 #import "LDCommandRules.h"
 #import "LDPreferences.h"
 #import "LDFileAttributes.h"
@@ -100,7 +101,26 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
                                                 userInfo:nil
                                                  repeats:YES];
   [self updateMemoryField:nil];
-  [self beginScanPath:[self initialScanPath]];
+  LDCommandLine *commandLine = [LDCommandLine processCommandLine];
+  if ([commandLine loadFromCSVPath]) {
+    [self loadResultsFromCSVFile:[commandLine loadFromCSVPath]];
+  } else {
+    [self beginScanPaths:[self initialScanPaths:commandLine]];
+  }
+}
+
+// GNUstep also hands the command line's folders to the delegate as files to
+// open while launching; LDCommandLine has already taken them. Folders opened
+// later (from the desktop) are scanned.
+- (void)application:(NSApplication *)application openFiles:(NSArray *)files
+{
+  if (_window && ![self isBusy]) {
+    NSArray *arguments = [@[@"LinDirStat"] arrayByAddingObjectsFromArray:files];
+    NSString *currentDirectory = [[NSFileManager defaultManager] currentDirectoryPath];
+    NSArray *folders = [[LDCommandLine commandLineWithArguments:arguments currentDirectory:currentDirectory] scanPaths];
+    [self beginScanPaths:folders];
+  }
+  [application replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
 }
 
 #pragma mark - Menus
@@ -441,7 +461,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     return [_treemapView canReselectChild];
   }
   if (action == @selector(stopScan:)) {
-    return [self isBusy];
+    return [self isBusy] || [self isFindingDuplicates];
   }
   if (action == @selector(suspendScan:)) {
     return [self isScanning] && ![_scanSession isSuspended];
@@ -982,24 +1002,16 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   return NSHomeDirectory();
 }
 
-- (NSString *)initialScanPath
+- (NSArray *)initialScanPaths:(LDCommandLine *)commandLine
 {
-  NSArray *arguments = [[NSProcessInfo processInfo] arguments];
-  NSUInteger i = 1;
-  while (i < [arguments count]) {
-    NSString *argument = [arguments objectAtIndex:i];
-    if (![argument hasPrefix:@"-"]) {
-      return argument;
-    }
-    i += 2; // Skip a GNUstep "-Key value" default.
+  if ([[commandLine scanPaths] count] > 0) {
+    return [commandLine scanPaths];
   }
-
   NSString *environmentPath = [[[NSProcessInfo processInfo] environment] objectForKey:@"LINDIRSTAT_SCAN_PATH"];
   if ([environmentPath length] > 0) {
-    return environmentPath;
+    return @[environmentPath];
   }
-
-  return [self defaultFixturePath];
+  return @[[self defaultFixturePath]];
 }
 
 - (NSString *)displayPath:(NSString *)path
@@ -1047,6 +1059,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
       [self finishAsyncScan];
     }
   }];
+  [self fileListsDidStartScan];
 
   [_window setTitle:[scanPaths count] > 1 ? @"This Computer" : [self displayPath:scanPath]];
   _lastLiveReload = 0.0;
@@ -1380,7 +1393,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [_scanSession cancel];
   [_refreshSession cancel];
   [_refreshQueue removeAllObjects];
-  [_statusField setStringValue:@"Stopping…"];
+  [self stopDuplicateDetection];
+  if ([self isBusy]) {
+    [_statusField setStringValue:@"Stopping…"];
+  }
 }
 
 - (void)openPath:(id)sender
