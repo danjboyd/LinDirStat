@@ -200,4 +200,57 @@
 
 #endif
 
+#if defined(__APPLE__)
+
+- (NSData *)fileNamed:(NSString *)name contents:(NSString *)text
+{
+  NSString *directory = [NSTemporaryDirectory() stringByAppendingPathComponent:
+                         [NSString stringWithFormat:@"lindirstat-openwith-%d", getpid()]];
+  [[NSFileManager defaultManager] createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:NULL];
+  NSString *path = [directory stringByAppendingPathComponent:name];
+  [text writeToFile:path atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  const char *bytes = [path fileSystemRepresentation];
+  return [NSData dataWithBytes:bytes length:strlen(bytes)];
+}
+
+- (void)testLaunchServicesOffersTextEditForText
+{
+  NSArray *applications = [[LDOpenWith sharedOpenWith] applicationsForPaths:@[[self fileNamed:@"notes.txt" contents:@"hi"]]];
+  XCTAssertTrue([applications count] > 0);
+  NSArray *identifiers = [applications valueForKey:@"identifier"];
+  XCTAssertTrue([identifiers containsObject:@"com.apple.TextEdit"], @"%@", identifiers);
+  // At most one default, and it comes first.
+  NSUInteger defaults = 0;
+  for (NSUInteger i = 0; i < [applications count]; i++) {
+    if ([[applications objectAtIndex:i] isDefault]) {
+      defaults++;
+      XCTAssertEqual((NSUInteger)0, i);
+    }
+    XCTAssertTrue([[[applications objectAtIndex:i] platformObject] isKindOfClass:[NSURL class]]);
+  }
+  XCTAssertTrue(defaults <= 1);
+}
+
+- (void)testMixedSelectionOffersOnlyCommonApplications
+{
+  NSData *text = [self fileNamed:@"a.txt" contents:@"a"];
+  NSData *html = [self fileNamed:@"b.html" contents:@"<p>b</p>"];
+  NSSet *forText = [NSSet setWithArray:[[[LDOpenWith sharedOpenWith] applicationsForPaths:@[text]] valueForKey:@"identifier"]];
+  NSSet *forHTML = [NSSet setWithArray:[[[LDOpenWith sharedOpenWith] applicationsForPaths:@[html]] valueForKey:@"identifier"]];
+  NSArray *both = [[[LDOpenWith sharedOpenWith] applicationsForPaths:@[text, html]] valueForKey:@"identifier"];
+  for (NSString *identifier in both) {
+    XCTAssertTrue([forText containsObject:identifier] && [forHTML containsObject:identifier], @"%@", identifier);
+  }
+  XCTAssertEqual((NSUInteger)0, [[[LDOpenWith sharedOpenWith] applicationsForPaths:@[]] count]);
+}
+
+- (void)testOpeningNeedsAnApplicationURL
+{
+  LDOpenWithApplication *bogus = [LDOpenWithApplication applicationWithIdentifier:@"x" name:@"X" icon:nil
+                                                                        isDefault:NO platformObject:@"not a URL"];
+  XCTAssertFalse([[LDOpenWith sharedOpenWith] openPaths:@[[self fileNamed:@"c.txt" contents:@"c"]] withApplication:bogus]);
+}
+
+#endif
+
 @end
