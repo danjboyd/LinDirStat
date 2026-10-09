@@ -199,6 +199,12 @@
   [_suspendCondition unlock];
 }
 
+- (void)setHardLinkTable:(LDHardLinkTable *)table replacing:(LDFileNode *)node
+{
+  _hardLinkTable = table;
+  _replacedNode = node;
+}
+
 - (void)startAsyncScanPath:(NSString *)path
 {
   [self startAsyncScanPath:path completion:nil];
@@ -257,6 +263,9 @@
       }
       [scanner setSortMetric:_sortMetric];
       [scanner setThreadCount:_threadCount];
+      if (_hardLinkTable) {
+        [scanner setHardLinkTable:_hardLinkTable replacing:_replacedNode];
+      }
       scan(scanner);
       retired = [scanner takeRetiredArrays];
     }

@@ -8,6 +8,13 @@ typedef uint32_t LDRGBColor;
 #define LDRGBGreen(c) (((c) >> 8) & 0xFF)
 #define LDRGBBlue(c) ((c) & 0xFF)
 
+// WinDirStat's CTreeMap::COLORFLAG_DARKER / COLORFLAG_LIGHTER: pseudo-items
+// are drawn with the colour made palette-bright and the brightness scaled
+// (x0.66 darker, x1.2 capped at 1 lighter).
+#define LDTreemapColorFlagDarker 0x01000000u
+#define LDTreemapColorFlagLighter 0x02000000u
+#define LDTreemapColorFlagMask 0x03000000u
+
 // WinDirStat's treemap palette and color math (references/WinDirStat
 // windirstat/Controls/TreeMap.h).
 @interface LDExtensionColor : NSObject

@@ -1,6 +1,7 @@
 #import "LDExtensionStats.h"
 #import "LDExtensionColor.h"
 #import "LDFileNode.h"
+#import "LDHardLinks.h"
 
 @implementation LDExtensionStats
 
@@ -31,6 +32,10 @@
       [stats setObject:entry forKey:key];
     }
     [entry addBytes:[node size] allocatedBytes:[node allocatedSize]];
+    return;
+  }
+  // The "<Hardlinks>" pseudo-folders repeat files counted where they are.
+  if (LDIsHardLinkItem(node)) {
     return;
   }
 

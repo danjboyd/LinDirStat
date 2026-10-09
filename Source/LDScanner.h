@@ -7,6 +7,7 @@
 @class LDScanSession;
 @class LDScanOptions;
 @class LDPathFilter;
+@class LDHardLinkTable;
 
 // Scans a directory tree. Directories are read by a pool of worker threads
 // (WinDirStat uses several threads per drive); each directory is read by one
@@ -27,6 +28,10 @@
   LDSizeMetric _sortMetric;
   NSUInteger _threadCount;
   NSMutableArray *_retiredArrays;
+  LDHardLinkTable *_hardLinks;
+  LDFileNode *_replacedNode;
+  BOOL _usesGivenHardLinks;
+  BOOL _attachesHardLinks;
 }
 
 // Scans path (following a symlink at the root). The root is published to the
@@ -49,6 +54,16 @@
 // parent is not entered, so rescan a root of a multi-root scan with
 // -scanPath:session: instead.
 - (LDFileNode *)scanEntryAtPathData:(NSData *)pathData session:(LDScanSession *)session;
+
+// Files with several links are recorded in a hard-link table (see
+// LDHardLinks.h). A fresh scan makes one, attaches it to its root and, if
+// the options process hard links, builds the "<Hardlinks>" folders. A
+// refresh passes the tree's table instead, with the node it rescans: links
+// below that node do not count as already seen, and nothing is built (the
+// caller updates the tree once the result is in place).
+- (void)setHardLinkTable:(LDHardLinkTable *)table replacing:(LDFileNode *)node;
+// The table of the last scan.
+- (LDHardLinkTable *)hardLinkTable;
 
 // Children arrays the final sort replaced. Readers of a live tree may still
 // hold them, so they must be released on the main thread.

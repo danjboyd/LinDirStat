@@ -165,6 +165,8 @@ typedef enum {
 - (void)setExcludeSymbolicLinks:(BOOL)flag;
 - (BOOL)excludeHiddenEntries;            // dot-names; default NO
 - (void)setExcludeHiddenEntries:(BOOL)flag;
+- (BOOL)processHardLinks;                // "<Hardlinks>" and ⧉ markers; default YES
+- (void)setProcessHardLinks:(BOOL)flag;
 - (NSUInteger)scanningThreads;           // 1..16, default 4
 - (void)setScanningThreads:(NSUInteger)count;
 - (NSUInteger)largeFileCount;            // 0..10000, default 50

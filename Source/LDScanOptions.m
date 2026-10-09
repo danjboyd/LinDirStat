@@ -21,6 +21,7 @@ static const NSUInteger LDDefaultScanOptionThreads = 4;
   [options setExcludeHidden:[preferences excludeHiddenEntries]];
   [options setExcludeSymbolicLinks:[preferences excludeSymbolicLinks]];
   [options setExcludeMountPoints:[preferences excludeMountPoints]];
+  [options setProcessHardLinks:[preferences processHardLinks]];
   [options setThreadCount:[preferences scanningThreads]];
   return options;
 }
@@ -55,6 +56,7 @@ static NSString *LDTrimmingTrailing(NSString *text, unichar character)
     _excludedFilePatterns = [NSArray array];
     _excludeSymbolicLinks = YES;
     _excludeMountPoints = YES;
+    _processHardLinks = YES;
     _threadCount = LDDefaultScanOptionThreads;
   }
   return self;
@@ -70,6 +72,7 @@ static NSString *LDTrimmingTrailing(NSString *text, unichar character)
   [copy setExcludeHidden:_excludeHidden];
   [copy setExcludeSymbolicLinks:_excludeSymbolicLinks];
   [copy setExcludeMountPoints:_excludeMountPoints];
+  [copy setProcessHardLinks:_processHardLinks];
   [copy setThreadCount:_threadCount];
   return copy;
 }
@@ -84,6 +87,8 @@ static NSString *LDTrimmingTrailing(NSString *text, unichar character)
 - (void)setMinimumFileSize:(unsigned long long)bytes { _minimumFileSize = bytes; }
 - (BOOL)excludeHidden { return _excludeHidden; }
 - (void)setExcludeHidden:(BOOL)flag { _excludeHidden = flag; }
+- (BOOL)processHardLinks { return _processHardLinks; }
+- (void)setProcessHardLinks:(BOOL)flag { _processHardLinks = flag; }
 - (BOOL)excludeSymbolicLinks { return _excludeSymbolicLinks; }
 - (void)setExcludeSymbolicLinks:(BOOL)flag { _excludeSymbolicLinks = flag; }
 - (BOOL)excludeMountPoints { return _excludeMountPoints; }

@@ -89,6 +89,7 @@ static const CGFloat LDOptionsControlSpacing = 6.0;
   NSButton *_excludeMountPoints;
   NSButton *_excludeSymlinks;
   NSButton *_excludeHidden;
+  NSButton *_processHardLinks;
   NSButton *_scanDuplicates;
   NSPopUpButton *_threads;
   NSTextField *_largeFileCount;
@@ -621,6 +622,7 @@ static const CGFloat LDOptionsControlSpacing = 6.0;
                                    action:@selector(advancedChanged:)];
   _excludeSymlinks = [self addCheckbox:@"Exclude symbolic links" action:@selector(advancedChanged:)];
   _excludeHidden = [self addCheckbox:@"Exclude hidden files and folders" action:@selector(advancedChanged:)];
+  _processHardLinks = [self addCheckbox:@"Scan and display hard link information" action:@selector(advancedChanged:)];
   _scanDuplicates = [self addCheckbox:@"Scan for duplicate files" action:@selector(advancedChanged:)];
   NSMutableArray *counts = [NSMutableArray array];
   for (NSUInteger i = 1; i <= 16; i++) {
@@ -713,6 +715,7 @@ static NSInteger LDState(BOOL flag)
   [_excludeMountPoints setState:LDState([preferences excludeMountPoints])];
   [_excludeSymlinks setState:LDState([preferences excludeSymbolicLinks])];
   [_excludeHidden setState:LDState([preferences excludeHiddenEntries])];
+  [_processHardLinks setState:LDState([preferences processHardLinks])];
   [_scanDuplicates setState:LDState([preferences scanForDuplicates])];
   [_threads selectItemAtIndex:(NSInteger)[preferences scanningThreads] - 1];
   [self setString:[NSString stringWithFormat:@"%lu", (unsigned long)[preferences largeFileCount]] ofField:_largeFileCount];
@@ -782,6 +785,8 @@ static NSInteger LDState(BOOL flag)
       [preferences setExcludeSymbolicLinks:on];
     } else if (sender == self->_excludeHidden) {
       [preferences setExcludeHiddenEntries:on];
+    } else if (sender == self->_processHardLinks) {
+      [preferences setProcessHardLinks:on];
     } else if (sender == self->_scanDuplicates) {
       [preferences setScanForDuplicates:on];
     } else if (sender == self->_threads) {

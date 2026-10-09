@@ -29,9 +29,11 @@ LinDirStat_OBJC_FILES = \
   LDListViews.m \
   AppController+Cleanup.m \
   AppController+FileLists.m \
+  AppController+HardLinks.m \
   LDFileAttributes.m \
   LDCSV.m \
   LDNodeRanking.m \
+  LDHardLinks.m \
   LDHasher.m \
   LDLargestFiles.m \
   LDDuplicateFinder.m \

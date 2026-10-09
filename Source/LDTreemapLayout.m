@@ -1,6 +1,7 @@
 #import "LDTreemapLayout.h"
 #import "LDExtensionStats.h"
 #import "LDTreemapItem.h"
+#import "LDHardLinks.h"
 
 #include <float.h>
 #include <math.h>
@@ -536,6 +537,9 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
 
 + (LDRGBColor)colorForNode:(LDFileNode *)node colorIndexes:(NSDictionary *)colorIndexes
 {
+  if (LDIsHardLinkItem(node)) {
+    return [LDHardLinks treemapColor];
+  }
   LDFileNodeKind kind = [node kind];
   if (kind != LDFileNodeKindFile && kind != LDFileNodeKindSymlink) {
     return LDRGB(0, 0, 0);
@@ -609,11 +613,19 @@ typedef struct {
           [colorCache setObject:cached forKey:key];
         }
         color = [cached unsignedIntValue];
+      } else if (LDIsHardLinkItem(cell->node)) {
+        color = [LDHardLinks treemapColor];
+      }
+      // Port of CTreeMap::RenderRectangle's colour flags.
+      double brightness = _options.brightness;
+      if (color & LDTreemapColorFlagMask) {
+        brightness = (color & LDTreemapColorFlagDarker) ? brightness * 0.66 : MIN(brightness * 1.2, 1.0);
+        color = [LDExtensionColor makeBrightColor:color & ~LDTreemapColorFlagMask brightness:LDPaletteBrightness];
       }
       if (cushions) {
-        LDDrawCushion(bitmap, _width, rect, frame.surface, color, _options.brightness, _options);
+        LDDrawCushion(bitmap, _width, rect, frame.surface, color, brightness, _options);
       } else {
-        LDDrawSolidRect(bitmap, _width, rect, color, _options.brightness);
+        LDDrawSolidRect(bitmap, _width, rect, color, brightness);
       }
       continue;
     }

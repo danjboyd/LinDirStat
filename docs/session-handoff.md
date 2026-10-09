@@ -47,7 +47,6 @@ The remaining parity work is split between the Linux and macOS sessions in `docs
 ## Known Gaps and Theme Notes
 
 - Theme/libs-gui issues reported to the Adwaita theme session rather than worked around: NSSplitView gives half-pixel frames with thin dividers; `-[NSTableView setColumnAutoresizingStyle:]` is not implemented, so GNUstep resizes a table's last column (the app keeps it at its natural width while fitting its flexible column); NSAlert has no accessory view or suppression button (the delete warning is a custom panel of standard controls); disabled pop-up buttons do not look disabled; pop-up buttons size too narrow for the theme's arrow; NSTabView does not scroll tabs that do not fit.
-- Refreshing a subtree counts hard links inside it again if their other links are outside it (the hard-link set covers one scan).
-- CSV Index is always 0 (inode numbers are not kept).
+- Hard links (`LDHardLinks`, parity item L2): the scan's hard-link table lives with the root (`+[LDHardLinkTable tableForRoot:]`) and is handed to Refresh Selected; links carry `-[LDFileNode isHardLink]` (a bit in the existing flags byte, no per-node memory). The `<Hardlinks>` pseudo-items are recognised with `LDIsHardLinkItem`.
 - Show in Files is allowed on scan roots and mount points (WinDirStat allows folders and files only); on Linux the file manager handles them fine.
 - Adwaita theme #66/#67 (pop-up width, combo list padding) verified with theme main 8f75da8; the unit pop-up no longer needs a minimum width.

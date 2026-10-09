@@ -508,7 +508,9 @@ static NSString *const LDTabSearch = @"search";
   }
   NSString *path = [[panel filenames] firstObject] ?: [panel filename];
   NSError *error = nil;
-  LDFileNode *root = [LDCSV readTreeFromPath:path error:&error];
+  LDFileNode *root = [LDCSV readTreeFromPath:path
+                            processHardLinks:[[LDPreferences sharedPreferences] processHardLinks]
+                                       error:&error];
   if (!root) {
     [LDDialogs showFailures:@[[error localizedDescription] ?: @"Unknown error"] title:@"Loading the results failed"];
     return;

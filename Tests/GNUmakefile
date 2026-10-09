@@ -28,6 +28,7 @@ LinDirStatTests_OBJC_FILES = \
   LDScanOptionsTests.m \
   LDVolumesTests.m \
   LDSelectTargetRulesTests.m \
+  LDHardLinksTests.m \
   ../Source/LDFileNode.m \
   ../Source/LDExtensionStats.m \
   ../Source/LDSizeFormatter.m \
@@ -46,6 +47,7 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDFileAttributes.m \
   ../Source/LDCSV.m \
   ../Source/LDNodeRanking.m \
+  ../Source/LDHardLinks.m \
   ../Source/LDHasher.m \
   ../Source/LDLargestFiles.m \
   ../Source/LDDuplicateFinder.m \

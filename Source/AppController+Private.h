@@ -30,6 +30,7 @@
 - (void)setSortPrototypeForColumn:(NSTableColumn *)column ascending:(BOOL)ascending;
 - (NSScrollView *)scrollViewWithDocumentView:(NSView *)view;
 - (NSString *)describeNode:(LDFileNode *)node;
+- (void)revealNodeInTree:(LDFileNode *)node;
 - (void)showSummaryStatus;
 - (void)updateSelectionField;
 - (void)fitFlexibleColumns;
@@ -70,6 +71,18 @@
 }
 // Returns the options to search with, or nil if cancelled.
 + (LDSearchOptions *)runSearchPanel;
+@end
+
+@class LDHardLinkTable;
+
+@interface AppController (HardLinks)
+- (LDHardLinkTable *)hardLinkTable;
+- (NSString *)physicalSizeStringForNode:(LDFileNode *)node;
+- (NSString *)logicalSizeStringForNode:(LDFileNode *)node;
+- (BOOL)listView:(NSTableView *)view hasLinkAtRow:(NSInteger)row column:(NSInteger)column;
+- (void)listView:(NSTableView *)view followLinkAtRow:(NSInteger)row column:(NSInteger)column;
+- (void)prepareRefreshSession:(LDScanSession *)session ofNode:(LDFileNode *)node;
+- (void)updateHardLinksAfterReplacing:(LDFileNode *)node withNode:(LDFileNode *)replacement canceled:(BOOL)canceled;
 @end
 
 @interface AppController (Cleanup)
