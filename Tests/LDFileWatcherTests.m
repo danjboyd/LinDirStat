@@ -81,15 +81,6 @@ static NSData *LDBytes(NSString *path)
   [buffer appendData:nameBytes];
 }
 
-- (NSArray *)describe:(NSArray *)events
-{
-  NSMutableArray *lines = [NSMutableArray array];
-  for (LDFileWatcherEvent *event in events) {
-    [lines addObject:[event description]];
-  }
-  return lines;
-}
-
 - (LDInotifyTranslator *)translator
 {
   LDInotifyTranslator *translator = [[LDInotifyTranslator alloc] initWithRootPaths:@[LDBytes(@"/w")]];
@@ -192,7 +183,19 @@ static NSData *LDBytes(NSString *path)
   XCTAssertEqual(0U, [events count]);
 }
 
+#endif
+
 #pragma mark - Watching a folder
+
+- (NSArray *)describe:(NSArray *)events
+{
+  NSMutableArray *lines = [NSMutableArray array];
+  for (LDFileWatcherEvent *event in events) {
+    [lines addObject:[event description]];
+  }
+  return lines;
+}
+
 
 - (NSArray *)eventsWhileRunning:(void (^)(void))changes watcher:(LDFileWatcher *)watcher until:(BOOL (^)(NSArray *events))done
 {
@@ -309,11 +312,35 @@ static NSData *LDBytes(NSString *path)
   XCTAssertFalse([watcher isRunning]);
 }
 
-- (void)testIsSupportedOnLinux
+- (void)testMovesInAndOutOfTheRootAreCreationsAndDeletions
+{
+  NSFileManager *manager = [NSFileManager defaultManager];
+  NSString *watched = [_temporaryRoot stringByAppendingPathComponent:@"watched"];
+  NSString *outside = [_temporaryRoot stringByAppendingPathComponent:@"outside"];
+  [manager createDirectoryAtPath:watched withIntermediateDirectories:YES attributes:nil error:NULL];
+  [manager createDirectoryAtPath:outside withIntermediateDirectories:YES attributes:nil error:NULL];
+  [self write:@"in" to:@"outside/incoming.txt"];
+  [self write:@"out" to:@"watched/leaving.txt"];
+  LDFileWatcher *watcher = [[LDFileWatcher alloc] initWithRootPaths:@[LDBytes(watched)]];
+  NSString *incoming = [watched stringByAppendingPathComponent:@"incoming.txt"];
+  NSString *leaving = [watched stringByAppendingPathComponent:@"leaving.txt"];
+  NSArray *lines = [self eventsWhileRunning:^{
+    [manager moveItemAtPath:[outside stringByAppendingPathComponent:@"incoming.txt"] toPath:incoming error:NULL];
+    [manager moveItemAtPath:leaving toPath:[outside stringByAppendingPathComponent:@"leaving.txt"] error:NULL];
+  } watcher:watcher until:^BOOL(NSArray *events) {
+    return [events count] >= 2;
+  }];
+  XCTAssertTrue([lines containsObject:[@"Created " stringByAppendingString:incoming]], @"%@", lines);
+  XCTAssertTrue([lines containsObject:[@"Deleted " stringByAppendingString:leaving]], @"%@", lines);
+  // A move is not a creation of the item that left. (FSEvents may also
+  // report the write made just before watching began as Modified.)
+  XCTAssertFalse([lines containsObject:[@"Created " stringByAppendingString:leaving]], @"%@", lines);
+  XCTAssertFalse([lines containsObject:[@"Deleted " stringByAppendingString:incoming]], @"%@", lines);
+}
+
+- (void)testIsSupported
 {
   XCTAssertTrue([LDFileWatcher isSupported]);
 }
-
-#endif
 
 @end
