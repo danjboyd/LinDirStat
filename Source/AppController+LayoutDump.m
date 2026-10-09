@@ -10,6 +10,19 @@ static NSString *LDLayoutDumpPath = nil;
 static NSData *LDLayoutDumpLast = nil;
 static NSUInteger LDLayoutDumpSequence = 0;
 
+// The treemap's leaves only change with a new LDTreemap (every render makes
+// one), a moved or resized area, or a new render scale. Building and
+// serialising tens of thousands of them on every tick grew RSS past 1 GB and
+// kept a core busy, so they are serialised once per change and spliced into
+// the file in place of LDLayoutLeavesToken.
+static NSString *const LDLayoutLeavesToken = @"@@LDLayoutLeaves@@";
+static LDTreemap *LDLayoutLeavesTreemap = nil;
+static NSArray *LDLayoutLeavesArea = nil;
+static CGFloat LDLayoutLeavesScale = 0;
+static NSData *LDLayoutLeavesJSON = nil;
+static NSUInteger LDLayoutLeavesCount = 0;
+static NSUInteger LDLayoutLeavesGeneration = 0;
+
 // LINDIRSTAT_DUMP_LAYOUT=path: the full-window GUI parity gate
 // (scripts/gui-parity-gate.sh) reads the window's geometry, columns, tabs,
 // treemap cells and state from this file instead of guessing from pixels.
@@ -37,14 +50,22 @@ static NSUInteger LDLayoutDumpSequence = 0;
 - (void)layoutDumpTimerFired:(NSTimer *)timer
 {
   (void)timer;
-  NSMutableDictionary *layout = [self layoutDescription];
-  NSData *data = [NSJSONSerialization dataWithJSONObject:layout options:0 error:NULL];
-  if (!data || [data isEqualToData:LDLayoutDumpLast]) {
-    return;
+  @autoreleasepool {
+    NSMutableDictionary *layout = [self layoutDescription];
+    // The token stands for the leaves, so compare their generation too.
+    NSMutableDictionary *compared = [layout mutableCopy];
+    [compared setObject:@(LDLayoutLeavesGeneration) forKey:@"leavesGeneration"];
+    NSData *data = [NSJSONSerialization dataWithJSONObject:compared options:0 error:NULL];
+    if (!data || [data isEqualToData:LDLayoutDumpLast]) {
+      return;
+    }
+    LDLayoutDumpLast = data;
+    [layout setObject:@(++LDLayoutDumpSequence) forKey:@"sequence"];
+    [LDLayoutDump writeJSONObject:layout
+                           toPath:LDLayoutDumpPath
+                  replacingString:LDLayoutLeavesToken
+                         withJSON:LDLayoutLeavesJSON];
   }
-  LDLayoutDumpLast = data;
-  [layout setObject:@(++LDLayoutDumpSequence) forKey:@"sequence"];
-  [LDLayoutDump writeJSONObject:layout toPath:LDLayoutDumpPath];
 }
 
 - (NSMapTable *)layoutRoles
@@ -117,24 +138,44 @@ static NSUInteger LDLayoutDumpSequence = 0;
   return [LDLayoutDump rect:viewRect ofView:_treemapView] ?: @[];
 }
 
+// Serialises the leaves when they changed since the last call.
+- (void)updateLayoutLeavesOfTreemap:(LDTreemap *)treemap area:(NSRect)area
+{
+  NSArray *areaRect = [LDLayoutDump rect:area ofView:_treemapView] ?: @[];
+  CGFloat scale = [_treemapView renderScale];
+  if (LDLayoutLeavesJSON && treemap == LDLayoutLeavesTreemap && scale == LDLayoutLeavesScale &&
+      [areaRect isEqualToArray:LDLayoutLeavesArea]) {
+    return;
+  }
+  @autoreleasepool {
+    NSMutableArray *leaves = [NSMutableArray array];
+    [treemap enumerateRenderedCellsUsingBlock:^(NSUInteger index, NSUInteger depth) {
+      [leaves addObject:@{@"path": [[treemap nodeOfCell:index] path] ?: @"",
+                          @"depth": @(depth),
+                          @"rect": [self layoutRectOfCell:(NSInteger)index inTreemap:treemap area:area]}];
+    }];
+    LDLayoutLeavesJSON = [NSJSONSerialization dataWithJSONObject:leaves options:0 error:NULL] ?: [@"[]" dataUsingEncoding:NSUTF8StringEncoding];
+    LDLayoutLeavesCount = [leaves count];
+  }
+  LDLayoutLeavesTreemap = treemap;
+  LDLayoutLeavesArea = areaRect;
+  LDLayoutLeavesScale = scale;
+  LDLayoutLeavesGeneration++;
+}
+
 - (NSDictionary *)layoutTreemap
 {
   LDTreemap *treemap = [_treemapView treemap];
   NSRect area = [_treemapView treemapArea];
-  NSMutableArray *leaves = [NSMutableArray array];
-  [treemap enumerateRenderedCellsUsingBlock:^(NSUInteger index, NSUInteger depth) {
-    [leaves addObject:@{@"path": [[treemap nodeOfCell:index] path] ?: @"",
-                        @"depth": @(depth),
-                        @"rect": [self layoutRectOfCell:(NSInteger)index inTreemap:treemap area:area]}];
-  }];
+  [self updateLayoutLeavesOfTreemap:treemap area:area];
   NSMutableDictionary *description = [NSMutableDictionary dictionaryWithDictionary:@{
     @"rect": [LDLayoutDump rectOfView:_treemapView] ?: @[],
     @"area": [LDLayoutDump rect:area ofView:_treemapView] ?: @[],
     @"renderSize": treemap ? @[@([treemap width]), @([treemap height])] : @[],
     // Device pixels per point: renderSize is in these pixels, rects in points.
     @"scale": @([_treemapView renderScale]),
-    @"leafCount": @([leaves count]),
-    @"leaves": leaves,
+    @"leafCount": @(LDLayoutLeavesCount),
+    @"leaves": LDLayoutLeavesToken,
     @"zoomed": @([_treemapView isZoomed]),
     @"highlightedExtension": [_treemapView highlightedExtensionKey] ?: @"",
   }];

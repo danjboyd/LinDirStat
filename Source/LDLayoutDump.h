@@ -40,5 +40,11 @@
 
 // Writes object as JSON to path atomically. Returns NO on failure.
 + (BOOL)writeJSONObject:(id)object toPath:(NSString *)path;
+// The same, with the string value token replaced by json, already-serialised
+// JSON (for large parts that are serialised once and written many times).
++ (BOOL)writeJSONObject:(id)object
+                 toPath:(NSString *)path
+       replacingString:(NSString *)token
+               withJSON:(NSData *)json;
 
 @end
