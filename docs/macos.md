@@ -22,7 +22,10 @@ make -C macos CONFIG=debug
 
 The source list comes from `Source/GNUmakefile` and the test list from
 `Tests/GNUmakefile`, so a file added to the GNUstep build is also built on
-macOS. The version is `package.manifest.json`'s, and the build number is the
+macOS. The UI coordination tests (`Tests/UI`) are not part of the macOS
+build: they rely on Xvfb, the freedesktop.org trash under a private
+`XDG_DATA_HOME` and GNUstep's defaults location, none of which isolate a
+test run on macOS (it would use the user's real Trash). The version is `package.manifest.json`'s, and the build number is the
 commit count. The app icon is drawn by `macos/icon/make-icon.swift` at build
 time.
 

@@ -88,7 +88,19 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 - (void)applicationDidFinishLaunching:(NSNotification *)notification
 {
   (void)notification;
+  [self setUpMainWindow];
+  LDCommandLine *commandLine = [LDCommandLine processCommandLine];
+  if ([commandLine loadFromCSVPath]) {
+    [self loadResultsFromCSVFile:[commandLine loadFromCSVPath]];
+  } else {
+    [self beginScanPaths:[self initialScanPaths:commandLine]];
+  }
+}
 
+// The window and its state, without starting a scan (the UI tests start
+// their own).
+- (void)setUpMainWindow
+{
   _sizeMetric = [[LDPreferences sharedPreferences] useLogicalSize] ? LDSizeMetricLogical : LDSizeMetricPhysical;
   _treeSortKey = _sizeMetric == LDSizeMetricLogical ? LDTreeSortKeyLogicalSize : LDTreeSortKeyPhysicalSize;
   _ownerCache = [NSMapTable strongToStrongObjectsMapTable];
@@ -134,12 +146,6 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
                                                 userInfo:nil
                                                  repeats:YES];
   [self updateMemoryField:nil];
-  LDCommandLine *commandLine = [LDCommandLine processCommandLine];
-  if ([commandLine loadFromCSVPath]) {
-    [self loadResultsFromCSVFile:[commandLine loadFromCSVPath]];
-  } else {
-    [self beginScanPaths:[self initialScanPaths:commandLine]];
-  }
 }
 
 // GNUstep also hands the command line's folders to the delegate as files to
@@ -265,26 +271,21 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 {
   (void)sender;
   LDPreferences *preferences = [LDPreferences sharedPreferences];
-  NSArray *selected = [self selectedNodes];
   [preferences setShowFreeSpace:![preferences showFreeSpace]];
-  [self applySpaceItemsSelecting:selected];
+  [self applySpaceItems];
 }
 
 - (void)toggleUnknown:(id)sender
 {
   (void)sender;
   LDPreferences *preferences = [LDPreferences sharedPreferences];
-  NSArray *selected = [self selectedNodes];
   [preferences setShowUnknown:![preferences showUnknown]];
-  [self applySpaceItemsSelecting:selected];
+  [self applySpaceItems];
 }
 
-// Changing a preference reloads the display settings, which drops the tree
-// selection, so the toggles hand over the selection they started with.
-- (void)applySpaceItemsSelecting:(NSArray *)selected
+- (void)applySpaceItems
 {
   if (_rootNode && ![self isBusy]) {
-    [self selectTreeNodes:selected];
     [self updateSpaceItems];
     [self didChangeTree];
     [self showSummaryStatus];
@@ -986,12 +987,22 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     }
   }
   [self fitFlexibleColumns];
-  [_directoryTable reloadData];
+  [self reloadTreeKeepingSelection];
 }
 
-// Applies settings that change how things look (Preferences window).
+// Applies settings that change how things look (Preferences window). Any
+// preference change gets here; the lists keep their selection (GNUstep's
+// tables drop it when they reload, which some of the setters below do).
 - (void)applyDisplayPreferences
 {
+  NSArray *treeSelection = [self selectedTreeItems];
+  NSInteger extensionRow = [_extensionTable selectedRow];
+  id extensionSelection = extensionRow >= 0 && extensionRow < (NSInteger)[_extensionRows count]
+    ? [_extensionRows objectAtIndex:(NSUInteger)extensionRow] : nil;
+  // Selections dropped by reloads are not the user's: the treemap keeps its
+  // selection and highlight.
+  BOOL syncing = _syncingSelection;
+  _syncingSelection = YES;
   LDPreferences *preferences = [LDPreferences sharedPreferences];
   [LDSizeFormatter setHumanReadable:[preferences humanFormat]];
   for (NSTableView *table in @[_directoryTable, _extensionTable]) {
@@ -1015,6 +1026,14 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [_treemapView setHighlightColor:[preferences treemapHighlightColor]];
   [_directoryTable reloadData];
   [_extensionTable reloadData];
+  [self selectTreeNodes:treeSelection];
+  NSUInteger extensionIndex = extensionSelection ? [_extensionRows indexOfObjectIdenticalTo:extensionSelection] : NSNotFound;
+  if (extensionIndex != NSNotFound) {
+    [_extensionTable selectRowIndexes:[NSIndexSet indexSetWithIndex:extensionIndex] byExtendingSelection:NO];
+  } else {
+    [_extensionTable deselectAll:nil];
+  }
+  _syncingSelection = syncing;
   [self updateSelectionField];
 }
 
@@ -1513,21 +1532,31 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   }
 }
 
-// Re-sorts the visible tree for the latest sizes.
+// Re-sorts the visible tree (for the latest sizes, or other columns),
+// keeping the selected items selected.
 - (void)reloadTreeKeepingSelection
 {
-  NSInteger row = [_directoryTable selectedRow];
-  id selected = row >= 0 ? [_directoryTable itemAtRow:row] : nil;
-  [_sortedChildrenCache removeAllObjects];
+  NSArray *selected = [self selectedTreeItems];
+  BOOL syncing = _syncingSelection;
   _syncingSelection = YES;
+  [_sortedChildrenCache removeAllObjects];
   [_directoryTable reloadData];
-  NSInteger newRow = selected ? [_directoryTable rowForItem:selected] : -1;
-  if (newRow >= 0) {
-    [_directoryTable selectRow:newRow byExtendingSelection:NO];
-  } else {
-    [_directoryTable deselectAll:nil];
+  [self selectTreeNodes:selected];
+  _syncingSelection = syncing;
+}
+
+// The items of the tree's selected rows.
+- (NSArray *)selectedTreeItems
+{
+  NSMutableArray *items = [NSMutableArray array];
+  NSIndexSet *rows = [_directoryTable selectedRowIndexes];
+  for (NSUInteger row = rows ? [rows firstIndex] : NSNotFound; row != NSNotFound; row = [rows indexGreaterThanIndex:row]) {
+    id item = [_directoryTable itemAtRow:(NSInteger)row];
+    if (item) {
+      [items addObject:item];
+    }
   }
-  _syncingSelection = NO;
+  return items;
 }
 
 - (void)redrawSubtreeColumn
@@ -1634,6 +1663,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 // Selects the rows of those nodes that are still in the tree.
 - (void)selectTreeNodes:(NSArray *)nodes
 {
+  BOOL syncing = _syncingSelection;
   _syncingSelection = YES;
   NSMutableIndexSet *rows = [NSMutableIndexSet indexSet];
   for (LDFileNode *node in nodes) {
@@ -1643,28 +1673,82 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     }
   }
   [_directoryTable selectRowIndexes:rows byExtendingSelection:NO];
-  _syncingSelection = NO;
+  _syncingSelection = syncing;
 }
 
 - (void)forgetNode:(LDFileNode *)node replacement:(LDFileNode *)replacement
 {
+  // The outline view still shows node (it has left the tree already).
   BOOL wasExpanded = [_directoryTable isItemExpanded:node];
-  BOOL wasSelected = [[self selectedNodes] indexOfObjectIdenticalTo:node] != NSNotFound;
+  NSArray *expanded = wasExpanded ? [self expandedNamePathsBelow:node] : @[];
+  NSMutableArray *selected = [[self selectedTreeItems] mutableCopy];
+  BOOL wasSelected = [selected indexOfObjectIdenticalTo:node] != NSNotFound
+    || [[self listedSelectedNodes] indexOfObjectIdenticalTo:node] != NSNotFound;
+  BOOL syncing = _syncingSelection;
+  _syncingSelection = YES;
   [_directoryTable collapseItem:node collapseChildren:YES];
   [_sortedChildrenCache removeAllObjects];
   [_directoryTable reloadData];
+  // Like WinDirStat, which refreshes items in place: the folders that were
+  // open stay open.
   if (replacement && wasExpanded) {
     [_directoryTable expandItem:replacement];
+    for (NSArray *names in expanded) {
+      LDFileNode *folder = [self nodeBelow:replacement alongNames:names];
+      if (folder) {
+        [_directoryTable expandItem:folder];
+      }
+    }
   }
   if (replacement && wasSelected) {
-    NSInteger row = [_directoryTable rowForItem:replacement];
-    if (row >= 0) {
-      _syncingSelection = YES;
-      [_directoryTable selectRow:row byExtendingSelection:YES];
-      _syncingSelection = NO;
-    }
+    [selected addObject:replacement];
     [_treemapView setSelectedNode:replacement];
   }
+  [self selectTreeNodes:selected];
+  _syncingSelection = syncing;
+}
+
+// The name paths (relative to node) of the expanded folders below it.
+- (NSArray *)expandedNamePathsBelow:(LDFileNode *)node
+{
+  NSMutableArray *paths = [NSMutableArray array];
+  NSInteger count = [_directoryTable numberOfRows];
+  for (NSInteger row = [_directoryTable rowForItem:node] + 1; row > 0 && row < count; row++) {
+    LDFileNode *item = [_directoryTable itemAtRow:row];
+    if (![node isAncestorOf:item]) {
+      break;
+    }
+    if (![_directoryTable isItemExpanded:item]) {
+      continue;
+    }
+    NSMutableArray *names = [NSMutableArray array];
+    for (LDFileNode *cursor = item; cursor && cursor != node; cursor = [cursor parent]) {
+      const char *name = [cursor nameBytes];
+      [names insertObject:[NSData dataWithBytes:name length:strlen(name)] atIndex:0];
+    }
+    [paths addObject:names];
+  }
+  return paths;
+}
+
+- (LDFileNode *)nodeBelow:(LDFileNode *)node alongNames:(NSArray *)names
+{
+  LDFileNode *cursor = node;
+  for (NSData *name in names) {
+    LDFileNode *next = nil;
+    for (LDFileNode *child in [cursor children]) {
+      const char *bytes = [child nameBytes];
+      if (strlen(bytes) == [name length] && memcmp(bytes, [name bytes], [name length]) == 0) {
+        next = child;
+        break;
+      }
+    }
+    cursor = next;
+    if (!cursor) {
+      return nil;
+    }
+  }
+  return cursor;
 }
 
 - (void)showLoadedTree:(LDFileNode *)root fromFile:(NSString *)path

@@ -26,6 +26,8 @@ Step D:
 
 Parity plan L8/L9: File Watcher tab (Tools › Start File Watcher, `LDFileWatcher`, inotify in `LDFileWatcherLinux.m`) and the Open With submenu (`LDOpenWith`, `LDDesktopEntry`, `LDMimeApps`). Their Apple backends are stubs.
 
+Parity plan L12: UI coordination tests (`Tests/UI`, run by `scripts/run-ui-tests.sh` from `./scripts/run-tests.sh` on a private Xvfb) drive the real `AppController`. They found, and the fixes keep: a preference change no longer drops the tree selection, the treemap selection or the extension highlight (GNUstep's tables drop their selection on reload and posted the change); Refresh Selected keeps the refreshed folder selected and its open subfolders open.
+
 macOS: LinDirStat also builds natively against Apple's AppKit (`make -C macos`); platform differences live in small modules. See `docs/macos.md`.
 
 ## Verify

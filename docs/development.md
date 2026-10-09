@@ -34,6 +34,27 @@ LD_LIBRARY_PATH=~/git/Arlen/vendor/tools-xctest/XCTest/obj:${LD_LIBRARY_PATH:-} 
 
 The first fixture-backed scanner tests live under `Tests/Fixtures/basic-tree`.
 
+`./scripts/run-tests.sh` runs the unit tests, the command line end to end and
+then `scripts/run-ui-tests.sh`: the UI coordination tests in `Tests/UI`, a
+second bundle built from the app's sources (all but `main.m`) that drives the
+real `AppController` and its window. The script starts its own Xvfb (a free
+display from `-displayfd`, or `LINDIRSTAT_UI_DISPLAY`) and gives the run a
+private `GNUSTEP_HOME`, `XDG_DATA_HOME` (trash), `XDG_CONFIG_HOME` and
+`TMPDIR`; the tests refuse to run unless the defaults and trash really are
+private. Without Xvfb it prints SKIPPED and succeeds
+(`LINDIRSTAT_UI_TESTS_REQUIRED=1` makes that a failure). One test:
+`scripts/run-ui-tests.sh -XCTest LDAppControllerUITests/testName`; under gdb:
+`LINDIRSTAT_UI_TESTS_WRAPPER="gdb -batch -ex run -ex bt --args"`.
+
+Two quirks of the installed GNUstep the harness works around: the
+gnustep-cli libraries need `GNUSTEP_CONFIG_FILE` pointing at their own
+`GNUstep.conf` to find the GUI backend outside `openapp`, and libs-gui
+before "Fix: retain the default font names for the font roles" leaves the
+role font names dangling once the first autorelease pool drains, so the tests
+name the role fonts in the registration domain. Test controllers are never
+released (the app never releases its controller; releasing one that holds a
+scanned tree crashes).
+
 Phase 4-6 coverage currently includes:
 
 - deterministic treemap layout and point lookup
