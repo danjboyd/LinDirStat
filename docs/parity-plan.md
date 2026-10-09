@@ -32,7 +32,7 @@ checks every PR on its own platform before it is merged.
 | L8 | File Watcher tab (Tools › Start File Watcher): `LDFileWatcher` interface, inotify backend, tab UI | Linux | done (#7) |
 | M8 | File Watcher FSEvents backend for `LDFileWatcher` | macOS | in progress |
 | L9 | "Open With" submenu in place of WinDirStat's Explorer menu: `LDOpenWith` interface, Linux backend (desktop entries / `gio`), menu UI | Linux | done (#7) |
-| M9 | "Open With" Apple backend (`NSWorkspace` application URLs) | macOS | in progress |
+| M9 | "Open With" Apple backend (`NSWorkspace` application URLs) | macOS | in review |
 | M5 | Localization (WinDirStat's Language setting): `.lproj` string tables shared by both builds; done last because it touches every UI string | macOS | after L1–L9 |
 
 ## Platform work
