@@ -27,6 +27,7 @@ LinDirStatTests_OBJC_FILES = \
   LDFilterPatternsTests.m \
   LDScanOptionsTests.m \
   LDVolumesTests.m \
+  LDSpaceItemsTests.m \
   LDSelectTargetRulesTests.m \
   ../Source/LDFileNode.m \
   ../Source/LDExtensionStats.m \
@@ -53,6 +54,7 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDFilterPatterns.m \
   ../Source/LDScanOptions.m \
   ../Source/LDVolumes.m \
+  ../Source/LDSpaceItems.m \
   ../Source/LDSelectTargetRules.m
 
 LinDirStatTests_INCLUDE_DIRS = -I../Source -I.

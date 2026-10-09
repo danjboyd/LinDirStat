@@ -34,6 +34,8 @@ ICONS = [
     "user-trash-symbolic",
     "media-playback-pause-symbolic",
     "media-playback-start-symbolic",
+    "radio-symbolic",
+    "dialog-question-symbolic",
 ]
 
 

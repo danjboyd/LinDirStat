@@ -42,6 +42,17 @@ OPTIONS = {
 PALETTE_BRIGHTNESS = 0.6
 MIN_PROPORTION = 0.4
 
+# TreeMap.h COLORFLAG_DARKER / COLORFLAG_LIGHTER.
+COLORFLAG_DARKER = 0x01000000
+COLORFLAG_LIGHTER = 0x02000000
+COLORFLAG_MASK = 0x03000000
+
+# Item.Extended.cpp CItem::GetGraphColor for <Unknown> and <Free Space>.
+SPACE_COLORS = {
+    "unknown": ((255, 255, 0), COLORFLAG_LIGHTER),
+    "free": ((100, 100, 100), COLORFLAG_DARKER),
+}
+
 THRESHOLDS = {
     "exact_pixel_match_min": 0.999,
     "max_channel_delta_max": 2,
@@ -104,12 +115,13 @@ def prepare(spec, parent_path=None):
     path = f"{parent_path}/{spec['name']}" if parent_path else spec["name"]
     node = {"name": spec["name"], "path": path}
     children = [prepare(child, path) for child in spec.get("children", [])]
+    node["space"] = spec.get("space")
     if children:
         node["size"] = sum(child["size"] for child in children)
         node["is_file"] = False
     else:
         node["size"] = int(spec.get("size", 0))
-        node["is_file"] = True
+        node["is_file"] = node["space"] is None
     node["children"] = sorted(children, key=lambda c: (-c["size"], c["name"]))
     return node
 
@@ -224,10 +236,24 @@ def oracle_render(root, width, height):
     lx, ly, lz = lx / length, ly / length, lz / length
     ia = OPTIONS["ambient_light"]
     shading = 1.0 - ia
-    scale = OPTIONS["brightness"] / PALETTE_BRIGHTNESS
 
-    def draw_cushion(rect, surface, color):
+    def leaf_color(node):
+        """CTreeMap::RenderRectangle: flagged colors are equalized and drawn darker or lighter."""
+        if node["space"] is not None:
+            rgb, flags = SPACE_COLORS[node["space"]]
+            brightness = OPTIONS["brightness"]
+            if flags & COLORFLAG_DARKER:
+                brightness *= 0.66
+            else:
+                brightness = min(brightness * 1.2, 1.0)
+            return make_bright_color(rgb, PALETTE_BRIGHTNESS), brightness
+        if node["is_file"]:
+            return PALETTE[indexes.get(extension_key(node["name"]), len(PALETTE) - 1)], OPTIONS["brightness"]
+        return (0, 0, 0), OPTIONS["brightness"]
+
+    def draw_cushion(rect, surface, color, brightness):
         left, top, right, bottom = rect
+        scale = brightness / PALETTE_BRIGHTNESS
         col_r, col_g, col_b = (float(c) for c in color)
         for y in range(top, bottom):
             ny = -(2.0 * surface[1] * (y + 0.5) + surface[3])
@@ -257,10 +283,8 @@ def oracle_render(root, width, height):
         if not is_root:
             surface = add_ridge(rect, surface, h)
         if not node["children"]:
-            color = (0, 0, 0)
-            if node["is_file"]:
-                color = PALETTE[indexes.get(extension_key(node["name"]), len(PALETTE) - 1)]
-            draw_cushion(rect, surface, color)
+            color, brightness = leaf_color(node)
+            draw_cushion(rect, surface, color, brightness)
             leaves.append({
                 "path": node["path"],
                 "ext": extension_key(node["name"]),

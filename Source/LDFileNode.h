@@ -4,7 +4,12 @@ typedef enum {
   LDFileNodeKindFile = 0,
   LDFileNodeKindDirectory = 1,
   LDFileNodeKindSymlink = 2,
-  LDFileNodeKindSpecial = 3
+  LDFileNodeKindSpecial = 3,
+  // WinDirStat's "<Free Space>" and "<Unknown>" pseudo-files under a volume
+  // (Options › Show Free Space / Show Unknown). They have a physical size
+  // only and are not files: see -isSpaceItem.
+  LDFileNodeKindFreeSpace = 4,
+  LDFileNodeKindUnknown = 5
 } LDFileNodeKind;
 
 // WinDirStat defaults to physical (allocated) sizes and offers logical sizes
@@ -77,6 +82,11 @@ typedef enum {
 - (BOOL)isLeaf;
 // YES only for the synthetic root of a multi-root scan (LDComputerNode).
 - (BOOL)isComputer;
+// YES for the <Free Space> and <Unknown> pseudo-files. They have no path on
+// disk, count as no file, and no command, file list or statistic uses them.
+- (BOOL)isSpaceItem;
+// A detached <Free Space> or <Unknown> node of the given physical size.
++ (LDFileNode *)spaceItemWithKind:(LDFileNodeKind)kind allocatedSize:(unsigned long long)allocatedSize;
 
 // Logical size (st_size) of this node alone.
 - (unsigned long long)size;

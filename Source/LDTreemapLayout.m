@@ -537,6 +537,13 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
 + (LDRGBColor)colorForNode:(LDFileNode *)node colorIndexes:(NSDictionary *)colorIndexes
 {
   LDFileNodeKind kind = [node kind];
+  // CItem::GetGraphColor.
+  if (kind == LDFileNodeKindUnknown) {
+    return LDRGB(255, 255, 0) | LDRGBColorFlagLighter;
+  }
+  if (kind == LDFileNodeKindFreeSpace) {
+    return LDRGB(100, 100, 100) | LDRGBColorFlagDarker;
+  }
   if (kind != LDFileNodeKindFile && kind != LDFileNodeKindSymlink) {
     return LDRGB(0, 0, 0);
   }
@@ -544,6 +551,21 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
   NSNumber *index = [colorIndexes objectForKey:key];
   NSUInteger paletteIndex = index ? [index unsignedIntegerValue] : [LDExtensionColor paletteCount] - 1;
   return [LDExtensionColor paletteColorAtIndex:paletteIndex];
+}
+
+// The flag handling of CTreeMap::RenderRectangle: returns the brightness to
+// draw with and strips the flags from color.
+static double LDResolveColorFlags(LDRGBColor *color, double brightness)
+{
+  LDRGBColor flags = *color & LDRGBColorFlagMask;
+  if (flags == 0) {
+    return brightness;
+  }
+  *color = [LDExtensionColor makeBrightColor:*color & ~LDRGBColorFlagMask brightness:LDPaletteBrightness];
+  if (flags & LDRGBColorFlagDarker) {
+    return brightness * 0.66;
+  }
+  return MIN(brightness * 1.2, 1.0);
 }
 
 typedef struct {
@@ -601,7 +623,9 @@ typedef struct {
       }
       LDRGBColor color = LDRGB(0, 0, 0);
       LDFileNodeKind kind = [cell->node kind];
-      if (kind == LDFileNodeKindFile || kind == LDFileNodeKindSymlink) {
+      if ([cell->node isSpaceItem]) {
+        color = [LDTreemap colorForNode:cell->node colorIndexes:colorIndexes];
+      } else if (kind == LDFileNodeKindFile || kind == LDFileNodeKindSymlink) {
         NSString *key = [cell->node extensionKey];
         NSNumber *cached = [colorCache objectForKey:key];
         if (!cached) {
@@ -610,10 +634,11 @@ typedef struct {
         }
         color = [cached unsignedIntValue];
       }
+      double brightness = LDResolveColorFlags(&color, _options.brightness);
       if (cushions) {
-        LDDrawCushion(bitmap, _width, rect, frame.surface, color, _options.brightness, _options);
+        LDDrawCushion(bitmap, _width, rect, frame.surface, color, brightness, _options);
       } else {
-        LDDrawSolidRect(bitmap, _width, rect, color, _options.brightness);
+        LDDrawSolidRect(bitmap, _width, rect, color, brightness);
       }
       continue;
     }

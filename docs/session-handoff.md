@@ -21,6 +21,7 @@ Step D:
 - Refresh engine (`AppController+Cleanup.m`): after any change on disk the affected entries are rescanned (`-[LDScanner scanEntryAtPathData:]`) or removed, and totals and order are updated upward. Detached subtrees are kept until the next scan because parent pointers do not retain.
 - File tabs (`AppController+FileLists.m`): Largest Files, Duplicate Files (`LDDuplicateFinder`), Search Results (`LDSearch`). Also CSV save/load (`LDCSV`), Compute Hash (`LDHasher`, nettle), filters and exclusions (`LDScanOptions`), suspend/resume, "This Computer" multi-volume scans (`LDComputerNode`), volumes (`LDVolumes`), the Select Target dialog, the Preferences window (`LDOptionsWindowController`) backed by `LDPreferences`, and Options › Show File Types/Show Treemap.
 - Dark mode follows GNOME's style through the theme; checked on a private display.
+- Options › Show Free Space / Show Unknown (F6/F7): `<Free Space>` and `<Unknown>` are leaf nodes of kind `LDFileNodeKindFreeSpace`/`LDFileNodeKindUnknown` (`-isSpaceItem`) under each volume root, maintained by `LDSpaceItems` after every scan, refresh and toggle (`-[AppController updateSpaceItems]`). Disk usage comes from `+[LDVolumes getTotalBytes:freeBytes:forPathData:]` and `+isVolumeRootPathData:` (portable `statvfs`/`stat`). `LDTreemap` honours WinDirStat's `COLORFLAG_DARKER/LIGHTER` (`LDRGBColorFlag…`).
 
 macOS: LinDirStat also builds natively against Apple's AppKit (`make -C macos`); platform differences live in small modules. See `docs/macos.md`.
 
@@ -39,7 +40,6 @@ Run GUI checks on a private display (`docs/development.md`, "GUI review on a pri
 The remaining parity work is split between the Linux and macOS sessions in `docs/parity-plan.md`.
 
 
-- Show Free Space / Show Unknown (WinDirStat's F6/F7) for volume roots: needs pseudo-nodes and WinDirStat's lighter/darker colour flags in `LDTreemap`.
 - Treemap colour pickers (grid and highlight colours) and the treemap preview in Preferences.
 - A `.desktop` file action ("Open with LinDirStat") in place of WinDirStat's Explorer menu entry.
 - Full-window parity gate (roadmap 12J).

@@ -332,6 +332,9 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 - (LDFileNode *)zoomInTarget
 {
   LDFileNode *node = _selectedNode;
+  if ([node isSpaceItem]) {
+    return nil;
+  }
   if (node && [node isLeaf]) {
     node = [node parent];
   }

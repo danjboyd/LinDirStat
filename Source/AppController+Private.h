@@ -17,6 +17,9 @@
 - (void)finishBusyWork;
 // The tree was edited: rebuild the extension list and treemap.
 - (void)didChangeTree;
+// Brings <Free Space> and <Unknown> in line with the Options menu, with
+// fresh sizes. Call before -didChangeTree after a scan or refresh.
+- (void)updateSpaceItems;
 // node was replaced (or removed when replacement is nil).
 - (void)forgetNode:(LDFileNode *)node replacement:(LDFileNode *)replacement;
 - (void)configureScanSession:(LDScanSession *)session;

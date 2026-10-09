@@ -479,6 +479,9 @@
       }
       LDFileNode *next = nil;
       for (LDFileNode *child in [cursor children]) {
+        if ([child isSpaceItem]) {
+          continue;
+        }
         const char *name = [child nameBytes];
         if (strlen(name) == end - position && memcmp(name, bytes + position, end - position) == 0) {
           next = child;
@@ -523,6 +526,7 @@
   if (!node) {
     _refreshQueue = nil;
     _refreshSession = nil;
+    [self updateSpaceItems];
     [self didChangeTree];
     [self finishBusyWork];
     return;
