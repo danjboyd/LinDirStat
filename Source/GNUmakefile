@@ -31,6 +31,7 @@ LinDirStat_OBJC_FILES = \
   AppController+FileLists.m \
   LDFileAttributes.m \
   LDCSV.m \
+  LDCommandLine.m \
   LDNodeRanking.m \
   LDHasher.m \
   LDLargestFiles.m \

@@ -3,6 +3,7 @@
 #import "LDScanSession.h"
 #import "LDExtensionStats.h"
 #import "LDScanOptions.h"
+#import "LDDuplicateFinder.h"
 
 #include <dirent.h>
 #include <dispatch/dispatch.h>
@@ -98,6 +99,15 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 {
   LDScanOptions *options = [_options copy];
   [options setExcludeMountPoints:!crossesFilesystems];
+  _options = options;
+}
+
+- (BOOL)findsDuplicates { return [_options findsDuplicates]; }
+
+- (void)setFindsDuplicates:(BOOL)findsDuplicates
+{
+  LDScanOptions *options = [_options copy];
+  [options setFindsDuplicates:findsDuplicates];
   _options = options;
 }
 
@@ -269,6 +279,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   [_pendingDirectories removeAllObjects];
   [_arenas removeAllObjects];
   _retiredArrays = [[NSMutableArray alloc] init];
+  _duplicateCollector = nil;
   _activeWorkers = 0;
   _folderFilter = [self compiledFilterForPatterns:[_options excludedFolderPatterns]];
   _fileFilter = [self compiledFilterForPatterns:[_options excludedFilePatterns]];
@@ -304,6 +315,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 - (LDFileNode *)scanPath:(NSString *)path session:(LDScanSession *)session
 {
   [self resetForScan];
+  [self beginDuplicateCollectionForSession:session];
   [session markScanning];
   [session setCurrentPath:path];
 
@@ -311,12 +323,32 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   LDFileNode *root = [self nodeForRootPath:path stat:&info session:session];
   if ([root error] == LDFileNodeErrorStatFailed) {
     [session setRootNode:root];
-    [session markComplete];
-    return root;
+  } else {
+    [self scanEntry:root stat:&info pathBytes:[self pathBytesForPath:path] rootDevice:info.st_dev session:session];
   }
-  [self scanEntry:root stat:&info pathBytes:[self pathBytesForPath:path] rootDevice:info.st_dev session:session];
+  [self finishDuplicateCollection];
   [session markComplete];
   return root;
+}
+
+- (void)beginDuplicateCollectionForSession:(LDScanSession *)session
+{
+  _duplicateCollector = nil;
+  if (![_options findsDuplicates]) {
+    return;
+  }
+  LDDuplicateCollector *collector = [session duplicateCollector];
+  if (!collector) {
+    collector = [[LDDuplicateCollector alloc] init];
+    [session setDuplicateCollector:collector];
+  }
+  _duplicateCollector = collector;
+}
+
+- (void)finishDuplicateCollection
+{
+  [_duplicateCollector finishAdding];
+  _duplicateCollector = nil;
 }
 
 - (LDFileNode *)scanPaths:(NSArray *)paths session:(LDScanSession *)session
@@ -325,6 +357,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
     return [self scanPath:[paths objectAtIndex:0] session:session];
   }
   [self resetForScan];
+  [self beginDuplicateCollectionForSession:session];
   [session markScanning];
   [session setCurrentPath:[paths firstObject]];
 
@@ -343,6 +376,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   // Each queued root holds one pending read on the computer node, so it
   // stays pending until the last root is done.
   [computer publishChildren:roots];
+  [_duplicateCollector addNodes:roots];
   [computer beginPendingScans:queued];
   [session setRootNode:computer];
   if (queued > 0) {
@@ -350,6 +384,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   }
   [self giveArenasToDirectory:computer];
   [self finishTree:computer session:session];
+  [self finishDuplicateCollection];
   [session markComplete];
   return computer;
 }
@@ -643,6 +678,9 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   // Publish before queueing the subdirectories, which are read as children
   // of this node. Each queued subdirectory holds one pending read here.
   [directoryNode publishChildren:children];
+  if (_duplicateCollector) {
+    [_duplicateCollector addNodes:children];
+  }
   [directoryNode addLiveFiles:files directories:directories size:logicalBytes allocatedSize:bytes modificationTime:newest];
   for (LDScanJob *subdirectory in subdirectories) {
     [subdirectory->_node beginPendingScans:1];

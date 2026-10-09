@@ -22,6 +22,7 @@ static const NSUInteger LDDefaultScanOptionThreads = 4;
   [options setExcludeSymbolicLinks:[preferences excludeSymbolicLinks]];
   [options setExcludeMountPoints:[preferences excludeMountPoints]];
   [options setThreadCount:[preferences scanningThreads]];
+  [options setFindsDuplicates:[preferences scanForDuplicates]];
   return options;
 }
 
@@ -71,6 +72,7 @@ static NSString *LDTrimmingTrailing(NSString *text, unichar character)
   [copy setExcludeSymbolicLinks:_excludeSymbolicLinks];
   [copy setExcludeMountPoints:_excludeMountPoints];
   [copy setThreadCount:_threadCount];
+  [copy setFindsDuplicates:_findsDuplicates];
   return copy;
 }
 
@@ -90,6 +92,8 @@ static NSString *LDTrimmingTrailing(NSString *text, unichar character)
 - (void)setExcludeMountPoints:(BOOL)flag { _excludeMountPoints = flag; }
 - (NSUInteger)threadCount { return _threadCount; }
 - (void)setThreadCount:(NSUInteger)count { _threadCount = MAX((NSUInteger)1, count); }
+- (BOOL)findsDuplicates { return _findsDuplicates; }
+- (void)setFindsDuplicates:(BOOL)flag { _findsDuplicates = flag; }
 
 - (BOOL)validateWithError:(NSError **)error
 {

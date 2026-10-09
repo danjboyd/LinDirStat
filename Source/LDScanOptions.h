@@ -23,6 +23,7 @@ typedef enum {
   BOOL _excludeSymbolicLinks;
   BOOL _excludeMountPoints;
   NSUInteger _threadCount;
+  BOOL _findsDuplicates;
 }
 
 + (LDScanOptions *)optionsFromPreferences:(LDPreferences *)preferences;
@@ -58,6 +59,10 @@ typedef enum {
 - (void)setExcludeMountPoints:(BOOL)flag;
 - (NSUInteger)threadCount;
 - (void)setThreadCount:(NSUInteger)count;
+// WinDirStat's ScanForDuplicates: the scan also finds duplicate files while
+// it runs (see LDDuplicateCollector). Default NO.
+- (BOOL)findsDuplicates;
+- (void)setFindsDuplicates:(BOOL)flag;
 
 // YES if every pattern compiles. Otherwise error describes the first bad
 // pattern as "Invalid filter: <pattern>". Scans skip patterns that do not

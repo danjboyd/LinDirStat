@@ -7,6 +7,7 @@
 @class LDScanSession;
 @class LDScanOptions;
 @class LDPathFilter;
+@class LDDuplicateCollector;
 
 // Scans a directory tree. Directories are read by a pool of worker threads
 // (WinDirStat uses several threads per drive); each directory is read by one
@@ -27,6 +28,7 @@
   LDSizeMetric _sortMetric;
   NSUInteger _threadCount;
   NSMutableArray *_retiredArrays;
+  LDDuplicateCollector *_duplicateCollector;
 }
 
 // Scans path (following a symlink at the root). The root is published to the
@@ -65,6 +67,14 @@
 // /proc, /sys or network mounts.
 - (BOOL)crossesFilesystems;
 - (void)setCrossesFilesystems:(BOOL)crossesFilesystems;
+
+// The options' findsDuplicates. When YES, -scanPath:session: and
+// -scanPaths:session: feed every directory's files to the session's
+// duplicate collector (made if the session has none) and finish adding
+// when the scan is done; hashing goes on after they return. Entry rescans
+// never look for duplicates. When NO the scan does no duplicate work.
+- (BOOL)findsDuplicates;
+- (void)setFindsDuplicates:(BOOL)findsDuplicates;
 
 // Metric used to sort the finished tree (physical by default).
 - (LDSizeMetric)sortMetric;

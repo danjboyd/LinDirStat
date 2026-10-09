@@ -49,11 +49,17 @@
 - (void)updateLargestFiles;
 - (void)fileListsDidChangeTree;
 - (void)resetFileListsForScan;
+// After _scanSession has started: follows its duplicate collector, if any.
+- (void)fileListsDidStartScan;
+// Duplicate detection can go on after the scan; Stop stops it too.
+- (BOOL)isFindingDuplicates;
+- (void)stopDuplicateDetection;
 - (void)fileListsDidFinishScan;
 - (void)search:(id)sender;
 - (void)saveResultsToCSV:(id)sender;
 - (void)saveDuplicatesToCSV:(id)sender;
 - (void)loadResultsFromCSV:(id)sender;
+- (void)loadResultsFromCSVFile:(NSString *)path;
 - (void)computeHash:(id)sender;
 @end
 
