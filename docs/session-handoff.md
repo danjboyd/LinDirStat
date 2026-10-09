@@ -1,37 +1,26 @@
 # Session Handoff
 
-Last updated: 2026-10-08
+Last updated: 2026-10-09
 
 ## Current State
 
-Audit Steps A (scan correctness/performance) and B (WinDirStat treemap) are done.
+Audit steps A (scan), B (treemap), C (window chrome) and D (cleanup and
+WinDirStat's remaining workflow) are done. `docs/windirstat-parity.md` has
+the detail; `docs/windirstat-step-d-reference.md` is the behavioural
+reference taken from the WinDirStat source for step D.
 
-Step A:
+Step C:
 
-- `LDScanner` uses `fstatat`, stays on the root filesystem (mount points are recorded, not entered), counts hard links once, and records physical and logical sizes, mtime and mode. Nodes store names only; paths are derived from parents.
-- Children are sorted once on the scan thread (`-[LDFileNode sortChildrenByMetric:]`); the outline reads them directly.
-- `LDScanSession` is thread-safe (locked path/root, atomic counters) and exposes live progress.
-- Physical size is the default; Treemap > Use Logical Size switches all panes.
-- `/usr/share/doc` (45k files) now scans and displays in about 2 s; previously 15-20 s with a frozen window.
+- The tree is shown while scanning. Each directory's children are published once as a complete array (`-[LDDirectoryNode publishChildren:]`), totals grow by atomic upward adds, and the arrays replaced by the final sort are released on the main thread. Pending-read counts drive WinDirStat's pacman (or "[N Read Jobs]") in the Subtree Percentage column; the root's Percentage shows the elapsed time.
+- Optional columns (Physical/Logical Size, Items, Files, Folders, Last Change, Attributes, Owner) are chosen in Preferences › Folder List.
 
-Since then:
+Step D:
 
-- The project builds with ARC.
-- Scanning uses a libdispatch worker pool (`-[LDScanner threadCount]`, default 4) and the session reports completion on the main queue.
-- Memory follows WinDirStat's `CItem` layout: lean file nodes, directory-only state in `LDDirectoryNode`, names in per-worker `LDNameArena`s owned by the root, and 24-byte treemap cells. About 146 bytes per entry including the treemap (was ~335); `/usr` uses 166 MB in the app.
-- The Adwaita shadow and rounded corners need the theme's patched libs-back; see `docs/development.md`.
-
-Step C (window chrome):
-
-- `Info-gnustep.plist` declares GNOME metrics, the primary menu and the toolbar in the header bar; the theme draws all chrome.
-- Symbolic icons come from the Adwaita icon theme via `scripts/generate-symbolic-icons.py` (see `Source/Resources/Icons/README.md`).
-- `LDTreeCells` draws the percentage bars and icon+name cells; `LDTreeSorting`, `LDFileTypeDescriptions` and `LDSystemInfo` hold the model-side logic.
-
-Step B:
-
-- `LDTreemap` (in `LDTreemapLayout.m`) is a port of WinDirStat's `CTreeMap`: KDirStat and SequoiaView layouts, cushion shading with the real defaults, the equalized palette and rank-based colors.
-- `LDTreemapView` caches the rendered bitmap and adds WinDirStat's selection frame, extension highlighting, zoom (frame in the theme's selection color), hover, double-click zoom, middle-click reset, wheel select-parent, and dimming while scanning or resizing.
-- The parity gate compares production pixels with an independent Python port of `CTreeMap` and is strict by default; every fixture matches exactly.
+- Clean Up menu and context menus with WinDirStat's enablement table (`LDCommandRules`): Open, Show in Files, Open Terminal Here, Copy Path, Refresh Selected, Properties, Move to Trash, Delete Permanently, Empty Trash, Empty Folder, Move To, ten custom cleanups (`LDCustomCleanupRunner`).
+- `LDFileOperations`: freedesktop.org trash, permanent delete that never follows symlinks or crosses filesystems, move that never replaces. `LDDesktop` launches with byte-exact arguments.
+- Refresh engine (`AppController+Cleanup.m`): after any change on disk the affected entries are rescanned (`-[LDScanner scanEntryAtPathData:]`) or removed, and totals and order are updated upward. Detached subtrees are kept until the next scan because parent pointers do not retain.
+- File tabs (`AppController+FileLists.m`): Largest Files, Duplicate Files (`LDDuplicateFinder`), Search Results (`LDSearch`). Also CSV save/load (`LDCSV`), Compute Hash (`LDHasher`, nettle), filters and exclusions (`LDScanOptions`), suspend/resume, "This Computer" multi-volume scans (`LDComputerNode`), volumes (`LDVolumes`), the Select Target dialog, the Preferences window (`LDOptionsWindowController`) backed by `LDPreferences`, and Options › Show File Types/Show Treemap.
+- Dark mode follows GNOME's style through the theme; checked on a private display.
 
 ## Verify
 
@@ -41,13 +30,18 @@ Step B:
 make -C Source && LINDIRSTAT_SCAN_PATH=/usr/share/doc openapp Source/LinDirStat.app
 ```
 
+Run GUI checks on a private display (`docs/development.md`, "GUI review on a private display").
+
 ## Where To Resume
 
-- Step C leftovers: live tree updates and WinDirStat's pacman while scanning (needs the scanner to publish partial trees safely), column visibility options.
-- Step D onwards: clean-up actions (trash, open, reveal), refresh selected, drive picker, largest files, duplicates, search, CSV, filters, settings, dark mode.
+- Show Free Space / Show Unknown (WinDirStat's F6/F7) for volume roots: needs pseudo-nodes and WinDirStat's lighter/darker colour flags in `LDTreemap`.
+- Treemap colour pickers (grid and highlight colours) and the treemap preview in Preferences.
+- A `.desktop` file action ("Open with LinDirStat") in place of WinDirStat's Explorer menu entry.
+- macOS validation of the `__APPLE__` paths in `LDFileOperations` and `LDDesktop`.
+- Full-window parity gate (roadmap 12J).
 
-## Known Gaps
+## Known Gaps and Theme Notes
 
-- Clean Up and Options menus wait for Step D/E.
-- Theme notes for the Adwaita agent: GNUstep column autoresizing is worked around by fitting the Name and Description columns by hand; NSScrollView's header corner view is removed so overlay scrollbars do not hide the last column title.
-- File actions (step D) must open paths from `-[LDFileNode nameBytes]` chains rather than `-path`, which is lossy for names that are not valid UTF-8.
+- Theme/libs-gui issues reported to the Adwaita theme session rather than worked around: NSSplitView gives half-pixel frames with thin dividers; `-[NSTableView setColumnAutoresizingStyle:]` is not implemented, so GNUstep resizes a table's last column (the app keeps it at its natural width while fitting its flexible column); NSAlert has no accessory view or suppression button (the delete warning is a custom panel of standard controls); disabled pop-up buttons do not look disabled; pop-up buttons size too narrow for the theme's arrow; NSTabView does not scroll tabs that do not fit.
+- Refreshing a subtree counts hard links inside it again if their other links are outside it (the hard-link set covers one scan).
+- CSV Index is always 0 (inode numbers are not kept).

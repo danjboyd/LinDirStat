@@ -136,7 +136,7 @@ Initial execution status: implemented a first GNUstep three-pane application she
 
 ## Phase 6: File Actions And Safety
 
-Initial execution status: implemented non-destructive reveal/open action plans, confirmation-required trash plans, and disabled permanent-delete plans with `tools-xctest` coverage. Actual platform execution remains intentionally behind the safety planning boundary.
+Execution status: complete. Open, Show in Files (FileManager1.ShowItems), Open Terminal Here, Properties, freedesktop.org trash, permanent delete that never follows symlinks or crosses filesystems, Empty Folder, Move To, Empty Trash, custom cleanups and WinDirStat's refresh engine, behind WinDirStat's enablement table (`LDCommandRules`) and delete warning. See `docs/windirstat-parity.md` › File Actions.
 
 ### 6A. Reveal And Open
 
@@ -340,12 +340,16 @@ Execution status: initial implementation complete.
 
 ### 12E. Scan-Time Animation And Incremental Updates
 
+Execution status: complete. The tree is live while scanning with WinDirStat's per-row pacman, read-job counts and elapsed time; suspend/resume and stop.
+
 - Replicate WinDirStat's scan-time directory-tree animation, including a pacman-style indicator or read-job/progress display in the subtree percentage column.
 - Show current path, elapsed scan state, and responsive stop/cancel behavior while scanning.
 - Incrementally populate or update the directory tree during scan instead of showing only a final completed state.
 - Capture reference behavior from a Windows WinDirStat run if public screenshots are insufficient for frame timing and per-row animation details.
 
 ### 12F. Toolbar, Menus, And Command Chrome
+
+Execution status: complete. Header bar toolbar and the File, Edit, Clean Up, Treemap and Options menus with WinDirStat's commands, shortcuts and enablement; context menus on the lists and treemap.
 
 - Add the WinDirStat-style menu structure: File, Edit, Clean Up, Treemap, Report, Options, and Help.
 - Add compact toolbar icon buttons for open, rescan, stop, cleanup/reveal actions, treemap zoom, and navigation commands.
