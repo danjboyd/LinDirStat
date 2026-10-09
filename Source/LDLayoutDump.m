@@ -278,4 +278,23 @@ static NSMutableArray *LDTrackedMenus = nil;
   return data && [data writeToFile:path atomically:YES];
 }
 
++ (BOOL)writeJSONObject:(id)object
+                 toPath:(NSString *)path
+       replacingString:(NSString *)token
+               withJSON:(NSData *)json
+{
+  NSData *data = [NSJSONSerialization dataWithJSONObject:object options:NSJSONWritingPrettyPrinted error:NULL];
+  if (!data) {
+    return NO;
+  }
+  NSData *quoted = [[NSString stringWithFormat:@"\"%@\"", token] dataUsingEncoding:NSUTF8StringEncoding];
+  NSRange range = [data rangeOfData:quoted options:0 range:NSMakeRange(0, [data length])];
+  if (range.location == NSNotFound || !json) {
+    return [data writeToFile:path atomically:YES];
+  }
+  NSMutableData *spliced = [data mutableCopy];
+  [spliced replaceBytesInRange:range withBytes:[json bytes] length:[json length]];
+  return [spliced writeToFile:path atomically:YES];
+}
+
 @end

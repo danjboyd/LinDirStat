@@ -72,6 +72,21 @@
   [[NSFileManager defaultManager] removeItemAtPath:path error:NULL];
 }
 
+- (void)testWritesJSONWithSplicedPart
+{
+  NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:
+                    [NSString stringWithFormat:@"lindirstat-layout-spliced-%d.json", getpid()]];
+  NSDictionary *layout = @{@"treemap": @{@"leaves": @"@@leaves@@", @"leafCount": @2}, @"note": @"@@leaves"};
+  NSData *leaves = [@"[{\"path\":\"/a\"},{\"path\":\"/b\"}]" dataUsingEncoding:NSUTF8StringEncoding];
+  XCTAssertTrue([LDLayoutDump writeJSONObject:layout toPath:path replacingString:@"@@leaves@@" withJSON:leaves]);
+  NSDictionary *read = [NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:path] options:0 error:NULL];
+  NSArray *written = [[read objectForKey:@"treemap"] objectForKey:@"leaves"];
+  XCTAssertEqual((NSUInteger)2, [written count]);
+  XCTAssertEqualObjects(@"/b", [[written lastObject] objectForKey:@"path"]);
+  XCTAssertEqualObjects(@"@@leaves", [read objectForKey:@"note"]);
+  [[NSFileManager defaultManager] removeItemAtPath:path error:NULL];
+}
+
 // The treemap is blitted 1:1, so its area keeps to whole pixels when the
 // view sits on half pixels (as beside GNUstep's 1px split view dividers).
 - (void)testWholePixelRectStaysInside
