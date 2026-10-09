@@ -30,6 +30,8 @@ Parity plan L12: UI coordination tests (`Tests/UI`, run by `scripts/run-ui-tests
 
 macOS: LinDirStat also builds natively against Apple's AppKit (`make -C macos`); platform differences live in small modules. See `docs/macos.md`.
 
+Parity plan L13 (performance, `docs/performance.md`): a scan finishes its tree in one parallel pass (`-[LDFileNode finishTreeSortedByMetric:retiring:]`) and, given an `LDScanResultsRequest`, works out the extension list, Largest Files and the treemap on the scanning thread (`LDScanResults`), so `-finishAsyncScan` takes ~20 ms on a million files. Benchmarks: `scripts/bench-scan.sh`; app profiling: `LINDIRSTAT_PROFILE=1` (`LDProfiling`).
+
 ## Verify
 
 ```sh

@@ -14,11 +14,15 @@ static const NSTimeInterval LDProgressInterval = 0.1;
 
 // What hashing needs of a node, read on the thread that found it. Digests
 // are kept per tier so a bucket that grows during a scan is not hashed again.
+// A scan can make a million of these, so the path is kept as the folder's
+// path, shared by the candidates of one folder, plus a copy of the name
+// (_name is NULL when _directoryPath is the whole path).
 @interface LDDuplicateCandidate : NSObject
 {
 @public
   LDFileNode *_node;
-  NSData *_pathData;
+  NSData *_directoryPath;
+  const char *_name;
   unsigned long long _size;
   unsigned long long _allocatedSize;
   uint8_t _digests[3][LDDuplicateDigestLength];
@@ -30,14 +34,32 @@ static const NSTimeInterval LDProgressInterval = 0.1;
 @implementation LDDuplicateCandidate
 @end
 
-static LDDuplicateCandidate *LDMakeCandidate(LDFileNode *node, NSData *pathData)
+static LDDuplicateCandidate *LDMakeCandidate(LDFileNode *node, NSData *directoryPath, const char *name)
 {
   LDDuplicateCandidate *candidate = [[LDDuplicateCandidate alloc] init];
   candidate->_node = node;
-  candidate->_pathData = pathData;
+  candidate->_directoryPath = directoryPath;
+  candidate->_name = name;
   candidate->_size = [node size];
   candidate->_allocatedSize = [node allocatedSize];
   return candidate;
+}
+
+// The candidate's full path, as -[LDFileNode pathData] gave it when found.
+static NSData *LDCandidatePath(LDDuplicateCandidate *candidate)
+{
+  if (!candidate->_name) {
+    return candidate->_directoryPath;
+  }
+  NSUInteger length = [candidate->_directoryPath length];
+  size_t nameLength = strlen(candidate->_name);
+  NSMutableData *path = [NSMutableData dataWithCapacity:length + 1 + nameLength];
+  [path appendData:candidate->_directoryPath];
+  if (length == 0 || ((const char *)[candidate->_directoryPath bytes])[length - 1] != '/') {
+    [path appendBytes:"/" length:1];
+  }
+  [path appendBytes:candidate->_name length:nameLength];
+  return path;
 }
 
 static NSComparisonResult LDComparePathData(NSData *left, NSData *right)
@@ -159,7 +181,7 @@ static NSData *LDCandidateDigest(LDDuplicateCandidate *candidate, NSUInteger tie
 {
   uint8_t bit = (uint8_t)(1u << tier);
   if (!(candidate->_hashedTiers & bit)) {
-    NSData *digest = [LDHasher duplicateDigestForFileAtPath:candidate->_pathData
+    NSData *digest = [LDHasher duplicateDigestForFileAtPath:LDCandidatePath(candidate)
                                                   byteLimit:LDTierLimits[tier]
                                                   cancelled:cancelled
                                                       error:NULL];
@@ -211,8 +233,13 @@ static NSArray *LDSplitSets(NSArray *sets, NSUInteger tier, const int *cancelled
 
 static LDDuplicateGroup *LDGroupWithCandidates(NSArray *candidates, NSUInteger tier)
 {
+  NSMapTable *paths = [NSMapTable mapTableWithKeyOptions:NSPointerFunctionsObjectPointerPersonality
+                                            valueOptions:NSPointerFunctionsStrongMemory];
+  for (LDDuplicateCandidate *candidate in candidates) {
+    [paths setObject:LDCandidatePath(candidate) forKey:candidate];
+  }
   NSArray *sorted = [candidates sortedArrayUsingComparator:^NSComparisonResult(id left, id right) {
-    return LDComparePathData(((LDDuplicateCandidate *)left)->_pathData, ((LDDuplicateCandidate *)right)->_pathData);
+    return LDComparePathData([paths objectForKey:left], [paths objectForKey:right]);
   }];
   NSMutableArray *nodes = [NSMutableArray arrayWithCapacity:[sorted count]];
   unsigned long long physical = 0;
@@ -317,7 +344,7 @@ static NSArray *LDGroupsForBucket(NSArray *bucket, const int *cancelled)
       [buckets addObject:[NSMutableArray arrayWithCapacity:table.counts[slot]]];
     }
     LDFileNode *node = files[index].node;
-    LDDuplicateCandidate *candidate = LDMakeCandidate(node, [node pathData]);
+    LDDuplicateCandidate *candidate = LDMakeCandidate(node, [node pathData], NULL);
     [[buckets objectAtIndex:(NSUInteger)table.bucketIndexes[slot]] addObject:candidate];
   }
   LDSizeTableFree(&table);
@@ -475,6 +502,18 @@ typedef struct {
   NSInteger bucket;
 } LDBucketAddition;
 
+// Updates are prepared on one serial queue, so they reach the main queue in
+// order, and sorting tens of thousands of groups does not stall it.
+static dispatch_queue_t LDCollectorDeliveryQueue(void)
+{
+  static dispatch_queue_t queue;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    queue = dispatch_queue_create("LinDirStat.duplicates.updates", DISPATCH_QUEUE_SERIAL);
+  });
+  return queue;
+}
+
 @implementation LDDuplicateCollector
 
 - (id)init
@@ -485,6 +524,7 @@ typedef struct {
     pthread_cond_init(&_finishedCondition, NULL);
     _buckets = [[NSMutableArray alloc] init];
     _dirtyBuckets = [[NSMutableArray alloc] init];
+    _names = [[LDNameArena alloc] init];
     [self allocateSlots:1024];
   }
   return self;
@@ -601,9 +641,26 @@ static BOOL LDSlotIsEmpty(const struct LDSizeSlot *slot)
     return;
   }
 
+  // Usually all are children of one folder (a file that joins a bucket can
+  // bring the first file of its size along from another), so the folder's
+  // path is built once and shared.
   NSMutableArray *candidates = [NSMutableArray arrayWithCapacity:additionCount];
+  BOOL *named = malloc(additionCount * sizeof(BOOL));
+  LDFileNode *lastParent = nil;
+  NSData *lastParentPath = nil;
   for (NSUInteger index = 0; index < additionCount; index++) {
-    [candidates addObject:LDMakeCandidate(additions[index].node, [additions[index].node pathData])];
+    LDFileNode *node = additions[index].node;
+    LDFileNode *parent = [node parent];
+    named[index] = parent && ![parent isComputer];
+    if (!named[index]) {
+      [candidates addObject:LDMakeCandidate(node, [node pathData], NULL)];
+      continue;
+    }
+    if (parent != lastParent) {
+      lastParent = parent;
+      lastParentPath = [parent pathData];
+    }
+    [candidates addObject:LDMakeCandidate(node, lastParentPath, NULL)];
   }
 
   BOOL startDraining = NO;
@@ -611,7 +668,13 @@ static BOOL LDSlotIsEmpty(const struct LDSizeSlot *slot)
   if (!_finished) {
     for (NSUInteger index = 0; index < additionCount; index++) {
       LDDuplicateBucket *bucket = [_buckets objectAtIndex:(NSUInteger)additions[index].bucket];
-      [bucket->_members addObject:[candidates objectAtIndex:index]];
+      LDDuplicateCandidate *candidate = [candidates objectAtIndex:index];
+      if (named[index]) {
+        // The arena is the collector's, so names outlive the scanned tree.
+        const char *name = [candidate->_node nameBytes];
+        candidate->_name = [_names copyBytes:name length:strlen(name)];
+      }
+      [bucket->_members addObject:candidate];
       if (!bucket->_dirty) {
         bucket->_dirty = YES;
         [_dirtyBuckets addObject:bucket];
@@ -621,6 +684,7 @@ static BOOL LDSlotIsEmpty(const struct LDSizeSlot *slot)
     _draining = YES;
   }
   pthread_mutex_unlock(&_lock);
+  free(named);
   free(additions);
   if (startDraining) {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
@@ -645,6 +709,8 @@ static BOOL LDSlotIsEmpty(const struct LDSizeSlot *slot)
   }
 }
 
+// Usually called on the main thread (Stop), so the groups found so far are
+// sorted on the update queue.
 - (void)cancel
 {
   __atomic_store_n(&_cancelled, 1, __ATOMIC_RELAXED);
@@ -652,7 +718,9 @@ static BOOL LDSlotIsEmpty(const struct LDSizeSlot *slot)
   BOOL finished = [self finishIfIdleLocked];
   pthread_mutex_unlock(&_lock);
   if (finished) {
-    [self didFinish];
+    dispatch_async(LDCollectorDeliveryQueue(), ^{
+      [self didFinish];
+    });
   }
 }
 
@@ -729,6 +797,7 @@ static BOOL LDSlotIsEmpty(const struct LDSizeSlot *slot)
   _finalGroups = sorted;
   _buckets = nil;
   _dirtyBuckets = nil;
+  _names = nil;
   free(_slots);
   _slots = NULL;
   pthread_cond_broadcast(&_finishedCondition);
@@ -774,7 +843,7 @@ static BOOL LDSlotIsEmpty(const struct LDSizeSlot *slot)
   if (!schedule) {
     return;
   }
-  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), LDCollectorDeliveryQueue(), ^{
     [self deliverUpdate];
   });
 }
@@ -790,9 +859,13 @@ static BOOL LDSlotIsEmpty(const struct LDSizeSlot *slot)
     _updateHandler = nil;
   }
   pthread_mutex_unlock(&_lock);
-  if (handler) {
-    handler([self groups], finished);
+  if (!handler) {
+    return;
   }
+  NSArray *groups = [self groups];
+  dispatch_async(dispatch_get_main_queue(), ^{
+    handler(groups, finished);
+  });
 }
 
 @end

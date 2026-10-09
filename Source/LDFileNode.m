@@ -2,6 +2,8 @@
 #import "LDExtensionStats.h"
 #import "LDScanClock.h"
 
+#include <dispatch/dispatch.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -300,6 +302,12 @@ static Class LDClassForKind(LDFileNodeKind kind)
 }
 
 - (void)sortChildrenByMetric:(LDSizeMetric)metric retiring:(NSMutableArray *)retired
+{
+  (void)metric;
+  (void)retired;
+}
+
+- (void)finishTreeSortedByMetric:(LDSizeMetric)metric retiring:(NSMutableArray *)retired
 {
   (void)metric;
   (void)retired;
@@ -628,6 +636,137 @@ static void LDAtomicMax64(int64_t *target, int64_t value)
   NSUInteger i = 0;
   for (i = 0; i < count; i++) {
     [[_children objectAtIndex:i] sortChildrenByMetric:metric retiring:retired];
+  }
+}
+
+typedef struct {
+  unsigned long long size;
+  __unsafe_unretained LDFileNode *node;
+} LDSortEntry;
+
+// LDCompareNodesBySize on precomputed sizes.
+static int LDCompareSortEntries(const void *leftEntry, const void *rightEntry)
+{
+  const LDSortEntry *left = leftEntry;
+  const LDSortEntry *right = rightEntry;
+  if (left->size != right->size) {
+    return left->size > right->size ? -1 : 1;
+  }
+  return strcmp(left->node->_name, right->node->_name);
+}
+
+// One directory's part of -finishTreeSortedByMetric:retiring:, once its
+// subdirectories are finished: its totals from its children, then its
+// children sorted into an exact-size array. The replaced array is retired.
+- (void)finishOwnChildrenByMetric:(LDSizeMetric)metric retiring:(NSMutableArray *)retired
+{
+  NSArray *children = _children;
+  NSUInteger count = [children count];
+  if (children && retired) {
+    [retired addObject:children];
+  }
+  unsigned long long aggregate = 0;
+  unsigned long long aggregateAllocated = 0;
+  int64_t newest = _modificationTime;
+  NSUInteger files = 0;
+  NSUInteger directories = 1;
+  LDSortEntry inlineEntries[64];
+  LDSortEntry *entries = count <= 64 ? inlineEntries : malloc(count * sizeof(LDSortEntry));
+  NSUInteger index = 0;
+  for (LDFileNode *child in children) {
+    aggregate += [child aggregateSize];
+    aggregateAllocated += [child aggregateAllocatedSize];
+    files += [child fileCount];
+    directories += [child directoryCount];
+    int64_t childNewest = (int64_t)[child aggregateModificationTime];
+    if (childNewest > newest) {
+      newest = childNewest;
+    }
+    entries[index].size = metric == LDSizeMetricLogical ? [child aggregateSize] : [child aggregateAllocatedSize];
+    entries[index].node = child;
+    index++;
+  }
+  _aggregateSize = aggregate;
+  _aggregateAllocatedSize = aggregateAllocated;
+  _aggregateModificationTime = newest;
+  _fileCount = (uint32_t)files;
+  _directoryCount = (uint32_t)directories;
+  _pendingScans = 0;
+
+  if (count == 0) {
+    _children = nil;
+  } else {
+    qsort(entries, count, sizeof(LDSortEntry), LDCompareSortEntries);
+    __unsafe_unretained id *sorted = (__unsafe_unretained id *)malloc(count * sizeof(id));
+    for (index = 0; index < count; index++) {
+      sorted[index] = entries[index].node;
+    }
+    _children = [[NSArray alloc] initWithObjects:sorted count:count];
+    free(sorted);
+  }
+  if (entries != inlineEntries) {
+    free(entries);
+  }
+}
+
+// Finishes directory's subtree on the calling thread, children first.
+static void LDFinishSubtree(LDDirectoryNode *directory, LDSizeMetric metric, NSMutableArray *retired)
+{
+  Class directoryClass = [LDDirectoryNode class];
+  for (LDFileNode *child in directory->_children) {
+    if ([child isKindOfClass:directoryClass]) {
+      LDFinishSubtree((LDDirectoryNode *)child, metric, retired);
+    }
+  }
+  [directory finishOwnChildrenByMetric:metric retiring:retired];
+}
+
+// Enough independent subtrees to keep every core busy despite uneven sizes.
+static const NSUInteger LDFinishParallelUnits = 256;
+static const NSUInteger LDFinishMaximumSplitDepth = 6;
+
+- (void)finishTreeSortedByMetric:(LDSizeMetric)metric retiring:(NSMutableArray *)retired
+{
+  // Split the top of the tree level by level into subtrees finished in
+  // parallel; the directories above them are finished afterwards, deepest
+  // first.
+  Class directoryClass = [LDDirectoryNode class];
+  NSMutableArray *upper = [NSMutableArray array];
+  NSMutableArray *level = [NSMutableArray arrayWithObject:self];
+  NSUInteger depth = 0;
+  while ([level count] > 0 && [level count] < LDFinishParallelUnits && depth < LDFinishMaximumSplitDepth) {
+    NSMutableArray *next = [NSMutableArray array];
+    for (LDDirectoryNode *directory in level) {
+      for (LDFileNode *child in directory->_children) {
+        if ([child isKindOfClass:directoryClass]) {
+          [next addObject:child];
+        }
+      }
+    }
+    [upper addObjectsFromArray:level];
+    level = next;
+    depth++;
+  }
+
+  NSUInteger unitCount = [level count];
+  NSArray *units = level;
+  pthread_mutex_t retireLock = PTHREAD_MUTEX_INITIALIZER;
+  pthread_mutex_t *lock = &retireLock;
+  dispatch_apply(unitCount, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t index) {
+    @autoreleasepool {
+      NSMutableArray *local = retired ? [NSMutableArray array] : nil;
+      LDFinishSubtree([units objectAtIndex:index], metric, local);
+      if ([local count] > 0) {
+        pthread_mutex_lock(lock);
+        [retired addObjectsFromArray:local];
+        pthread_mutex_unlock(lock);
+      }
+    }
+  });
+  pthread_mutex_destroy(&retireLock);
+
+  for (LDDirectoryNode *directory in [upper reverseObjectEnumerator]) {
+    [directory finishOwnChildrenByMetric:metric retiring:retired];
   }
 }
 

@@ -202,18 +202,24 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
   return [node aggregateSizeForMetric:_metric];
 }
 
-// Children with a size, in their (descending) sorted order.
-- (NSArray *)sizedChildrenOfNode:(LDFileNode *)node
+// The leading children with a size (children are sorted by descending
+// size), their sizes stored in *sizes, which is grown as needed.
+- (NSUInteger)sizedChildren:(NSArray *)children sizes:(double **)sizes capacity:(NSUInteger *)capacity
 {
-  NSArray *children = [node children];
   NSUInteger count = [children count];
-  NSUInteger i = 0;
-  for (i = 0; i < count; i++) {
-    if ([self sizeOfNode:[children objectAtIndex:i]] == 0) {
-      return [children subarrayWithRange:NSMakeRange(0, i)];
-    }
+  if (count > *capacity) {
+    *capacity = MAX(count, *capacity * 2);
+    *sizes = realloc(*sizes, *capacity * sizeof(double));
   }
-  return children;
+  NSUInteger i = 0;
+  for (LDFileNode *child in children) {
+    unsigned long long size = [child aggregateSizeForMetric:_metric];
+    if (size == 0) {
+      break;
+    }
+    (*sizes)[i++] = (double)size;
+  }
+  return i;
 }
 
 // Port of the layout half of CTreeMap::DrawTreeMap. Cells are visited in
@@ -235,27 +241,31 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
     return;
   }
 
+  double *sizes = NULL;
+  NSUInteger sizesCapacity = 0;
   NSUInteger index = 0;
   for (index = 0; index < _cellCount; index++) {
+    LDFileNode *node = _cells[index].node;
+    if (![self cellIsLargeEnough:index] || [node isLeaf]) {
+      continue;
+    }
     @autoreleasepool {
-      LDFileNode *node = _cells[index].node;
-      if (![self cellIsLargeEnough:index] || [node isLeaf]) {
-        continue;
-      }
-      NSArray *children = [self sizedChildrenOfNode:node];
-      if ([children count] == 0) {
+      NSArray *children = [node children];
+      NSUInteger count = [self sizedChildren:children sizes:&sizes capacity:&sizesCapacity];
+      if (count == 0) {
         continue;
       }
       int32_t firstChild = (int32_t)_cellCount;
       if (_options.style == LDTreemapStyleSequoiaView) {
-        [self layoutSequoiaChildren:children ofCell:(NSInteger)index];
+        [self layoutSequoiaChildren:children sizes:sizes count:count ofCell:(NSInteger)index];
       } else {
-        [self layoutKDirStatChildren:children ofCell:(NSInteger)index];
+        [self layoutKDirStatChildren:children sizes:sizes count:count ofCell:(NSInteger)index];
       }
       _cells[index].firstChild = firstChild;
       _cells[index].childCount = (uint32_t)(_cellCount - (NSUInteger)firstChild);
     }
   }
+  free(sizes);
 }
 
 // Port of CTreeMap::KDirStat_CalculateNextRow.
@@ -287,21 +297,15 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
 }
 
 // Port of the KDirStat branch of CTreeMap::DrawTreeMap.
-- (void)layoutKDirStatChildren:(NSArray *)children ofCell:(NSInteger)index
+- (void)layoutKDirStatChildren:(NSArray *)children sizes:(const double *)sizes count:(NSUInteger)count ofCell:(NSInteger)index
 {
   LDTreemapRect parentRect = [self rectOfCell:(NSUInteger)index];
-  NSUInteger count = [children count];
   double parentSize = (double)[self sizeOfNode:_cells[index].node];
 
-  double *sizes = malloc(count * sizeof(double));
   double *childWidth = malloc(count * sizeof(double));
   double *rows = malloc(count * sizeof(double));
   NSUInteger *childrenPerRow = malloc(count * sizeof(NSUInteger));
   NSUInteger rowCount = 0;
-  NSUInteger i = 0;
-  for (i = 0; i < count; i++) {
-    sizes[i] = (double)[self sizeOfNode:[children objectAtIndex:i]];
-  }
 
   int parentWidth = LDTreemapRectWidth(parentRect);
   int parentHeight = LDTreemapRectHeight(parentRect);
@@ -362,17 +366,15 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
     top = fBottom;
   }
 
-  free(sizes);
   free(childWidth);
   free(rows);
   free(childrenPerRow);
 }
 
 // Port of the SequoiaView branch of CTreeMap::DrawTreeMap.
-- (void)layoutSequoiaChildren:(NSArray *)children ofCell:(NSInteger)index
+- (void)layoutSequoiaChildren:(NSArray *)children sizes:(const double *)sizes count:(NSUInteger)count ofCell:(NSInteger)index
 {
   LDTreemapRect remaining = [self rectOfCell:(NSUInteger)index];
-  NSUInteger count = [children count];
   double remainingSize = (double)[self sizeOfNode:_cells[index].node];
   double sizePerSquarePixel = remainingSize / LDTreemapRectWidth(remaining) / LDTreemapRectHeight(remaining);
   NSUInteger head = 0;
@@ -385,10 +387,10 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
     NSUInteger rowBegin = head;
     NSUInteger rowEnd = head;
     double worst = DBL_MAX;
-    double rmax = (double)[self sizeOfNode:[children objectAtIndex:rowBegin]];
+    double rmax = sizes[rowBegin];
     double sum = 0.0;
     while (rowEnd < count) {
-      double rmin = (double)[self sizeOfNode:[children objectAtIndex:rowEnd]];
+      double rmin = sizes[rowEnd];
       double ss = (sum + rmin) * (sum + rmin);
       double nextWorst = MAX(hh * rmax / ss, ss / hh / rmin);
       if (nextWorst > worst) {
@@ -414,7 +416,7 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
     double fBegin = horizontal ? rowRect.top : rowRect.left;
     NSUInteger i = 0;
     for (i = rowBegin; i < rowEnd; i++) {
-      double childSize = (double)[self sizeOfNode:[children objectAtIndex:i]];
+      double childSize = sizes[i];
       double fraction = childSize / sum;
       double fEnd = fBegin + fraction * (horizontal ? LDTreemapRectHeight(rowRect) : LDTreemapRectWidth(rowRect));
       int end = (int)fEnd;

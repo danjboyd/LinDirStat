@@ -81,6 +81,7 @@
   struct LDSizeSlot *_slots;
   NSUInteger _slotMask;
   NSUInteger _slotsUsed;
+  LDNameArena *_names;
   NSMutableArray *_buckets;
   NSMutableArray *_dirtyBuckets;
   NSArray *_finalGroups;

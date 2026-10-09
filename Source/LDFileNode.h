@@ -153,6 +153,10 @@ typedef enum {
 // being released, so a thread that read them during a live scan can finish
 // with them (see -[LDDirectoryNode publishChildren:]).
 - (void)sortChildrenByMetric:(LDSizeMetric)metric retiring:(NSMutableArray *)retired;
+// -recalculateAggregateSize then -sortChildrenByMetric:retiring: in one
+// bottom-up pass, with independent subtrees finished concurrently. Same
+// result; this is what a scan runs once its tree is complete.
+- (void)finishTreeSortedByMetric:(LDSizeMetric)metric retiring:(NSMutableArray *)retired;
 
 // YES while this directory or something below it is still being read.
 - (BOOL)isScanPending;

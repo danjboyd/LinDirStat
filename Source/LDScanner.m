@@ -301,6 +301,8 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   _retiredArrays = [[NSMutableArray alloc] init];
   _duplicateCollector = nil;
   _activeWorkers = 0;
+  _readDuration = 0;
+  _finishDuration = 0;
   _folderFilter = [self compiledFilterForPatterns:[_options excludedFolderPatterns]];
   _fileFilter = [self compiledFilterForPatterns:[_options excludedFilePatterns]];
 }
@@ -500,12 +502,13 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 
 - (void)finishTree:(LDFileNode *)root session:(LDScanSession *)session
 {
+  NSTimeInterval started = [NSDate timeIntervalSinceReferenceDate];
   if (_attachesHardLinks) {
     [LDHardLinks updateTree:root table:_hardLinks metric:_sortMetric retiring:_retiredArrays];
   }
-  [root recalculateAggregateSize];
-  [root sortChildrenByMetric:_sortMetric retiring:_retiredArrays];
+  [root finishTreeSortedByMetric:_sortMetric retiring:_retiredArrays];
   [session setRootNode:root];
+  _finishDuration = [NSDate timeIntervalSinceReferenceDate] - started;
 }
 
 // Reads root's subtree (if it is a directory), then totals and sorts it.
@@ -525,6 +528,9 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   [self finishTree:root session:session];
 }
 
+- (NSTimeInterval)readDuration { return _readDuration; }
+- (NSTimeInterval)finishDuration { return _finishDuration; }
+
 - (NSArray *)takeRetiredArrays
 {
   NSArray *retired = _retiredArrays;
@@ -538,6 +544,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 // session is suspended, workers block between directory reads.
 - (void)runWorkersWithSession:(LDScanSession *)session
 {
+  NSTimeInterval started = [NSDate timeIntervalSinceReferenceDate];
   dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
   dispatch_apply(_threadCount, queue, ^(size_t worker) {
     (void)worker;
@@ -575,6 +582,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
       [_workCondition unlock];
     }
   });
+  _readDuration = [NSDate timeIntervalSinceReferenceDate] - started;
 }
 
 // Reads one directory, adding its entries as children of the job's node.

@@ -7,6 +7,10 @@ static const int LDZoomFrameWidth = 4;
 // Delay before re-rendering after a resize; the stale bitmap is stretched meanwhile.
 static const NSTimeInterval LDResizeRenderDelay = 0.12;
 
+@interface LDTreemapView ()
+- (void)adoptTreemap:(LDTreemap *)treemap pixels:(NSData *)pixels;
+@end
+
 @implementation LDTreemapView
 
 - (id)initWithFrame:(NSRect)frame
@@ -64,8 +68,34 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
   _hoverNode = nil;
   _colorIndexes = colorIndexes;
   _metric = metric;
+  _treemap = nil;
   _bitmap = nil;
   [self invalidateRender];
+}
+
+- (void)setRootNode:(LDFileNode *)rootNode
+             metric:(LDSizeMetric)metric
+       colorIndexes:(NSDictionary *)colorIndexes
+            treemap:(LDTreemap *)treemap
+             pixels:(NSData *)pixels
+{
+  [self setRootNode:rootNode metric:metric colorIndexes:colorIndexes];
+  NSSize size = [self renderSize];
+  LDTreemapOptions options = [treemap options];
+  if (!treemap || [treemap rootNode] != rootNode || [treemap metric] != metric || _renderTimer
+      || [treemap width] != (int)size.width || [treemap height] != (int)size.height
+      || memcmp(&options, &_options, sizeof(options)) != 0
+      || [pixels length] != (NSUInteger)[treemap width] * (NSUInteger)[treemap height] * 4) {
+    return;
+  }
+  _needsRender = NO;
+  [self adoptTreemap:treemap pixels:pixels];
+}
+
+- (NSSize)renderSize
+{
+  NSRect bounds = [self bounds];
+  return NSMakeSize(MAX(0.0, floor(bounds.size.width) - 1.0), MAX(0.0, floor(bounds.size.height) - 1.0));
 }
 
 - (void)setOptions:(LDTreemapOptions)options
@@ -188,8 +218,15 @@ NSRect LDWholePixelRectInside(NSRect rect)
     return;
   }
 
-  _treemap = [[LDTreemap alloc] initWithRootNode:root metric:_metric width:width height:height options:_options];
-  NSData *pixels = [_treemap renderRGBAWithColorIndexes:_colorIndexes];
+  LDTreemap *treemap = [[LDTreemap alloc] initWithRootNode:root metric:_metric width:width height:height options:_options];
+  [self adoptTreemap:treemap pixels:[treemap renderRGBAWithColorIndexes:_colorIndexes]];
+}
+
+- (void)adoptTreemap:(LDTreemap *)treemap pixels:(NSData *)pixels
+{
+  int width = [treemap width];
+  int height = [treemap height];
+  _treemap = treemap;
   _bitmap = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
                                                     pixelsWide:width
                                                     pixelsHigh:height
