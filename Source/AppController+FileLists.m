@@ -148,7 +148,7 @@ static NSString *const LDTabWatcher = @"watcher";
 {
   NSMutableArray *nodes = [NSMutableArray array];
   NSIndexSet *rows = [table selectedRowIndexes];
-  NSUInteger row = [rows firstIndex];
+  NSUInteger row = rows ? [rows firstIndex] : NSNotFound;
   while (row != NSNotFound) {
     id item = nil;
     if (table == _duplicatesTable) {
