@@ -1,4 +1,5 @@
 #import "LDCSV.h"
+#import "LDDuplicateFinder.h"
 #import "LDFileAttributes.h"
 #import "LDFileNode.h"
 
@@ -424,6 +425,59 @@ static NSString *LDRowDescription(NSUInteger row)
     return NO;
   }
   return YES;
+}
+
+// WinDirStat's "Save Duplicates To CSV" (CsvLoader.cpp): one row per file,
+// each followed by "\r\n", by logical size (descending), hash, then path.
++ (BOOL)writeDuplicateGroups:(NSArray *)groups toPath:(NSString *)path error:(NSError **)error
+{
+  NSMutableArray *rows = [NSMutableArray array];
+  for (LDDuplicateGroup *group in groups) {
+    for (LDFileNode *node in [group nodes]) {
+      [rows addObject:@[group, node, [node path]]];
+    }
+  }
+  [rows sortUsingComparator:^NSComparisonResult(NSArray *left, NSArray *right) {
+    unsigned long long a = [[left objectAtIndex:0] logicalSize];
+    unsigned long long b = [[right objectAtIndex:0] logicalSize];
+    if (a != b) {
+      return a > b ? NSOrderedAscending : NSOrderedDescending;
+    }
+    NSComparisonResult result = [[[left objectAtIndex:0] hashString] compare:[[right objectAtIndex:0] hashString]];
+    return result != NSOrderedSame ? result : [[left objectAtIndex:2] caseInsensitiveCompare:[right objectAtIndex:2]];
+  }];
+
+  FILE *file = fopen([path fileSystemRepresentation], "wb");
+  if (!file) {
+    if (error) {
+      *error = LDCSVPOSIXError(errno, [NSString stringWithFormat:@"Could not create %@", path]);
+    }
+    return NO;
+  }
+  fputs("\"Hash Prefix\",\"Name\",\"Logical Size\",\"Physical Size\",\"Last Change\",\"Attributes\"\r\n", file);
+  for (NSArray *row in rows) {
+    LDDuplicateGroup *group = [row objectAtIndex:0];
+    LDFileNode *node = [row objectAtIndex:1];
+    LDWriteQuotedString(file, [group hashString]);
+    fputc(',', file);
+    LDWriteQuotedString(file, [row objectAtIndex:2]);
+    time_t seconds = (time_t)[node modificationTime];
+    struct tm utc;
+    memset(&utc, 0, sizeof(utc));
+    gmtime_r(&seconds, &utc);
+    fprintf(file, ",%llu,%llu,%04d-%02d-%02dT%02d:%02d:%02dZ,", [node size], [node allocatedSize],
+            utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min, utc.tm_sec);
+    LDWriteQuotedString(file, [LDFileAttributes attributeStringForNode:node]);
+    fputs("\r\n", file);
+  }
+  BOOL failed = ferror(file) != 0;
+  if (fclose(file) != 0) {
+    failed = YES;
+  }
+  if (failed && error) {
+    *error = LDCSVPOSIXError(errno ? errno : EIO, [NSString stringWithFormat:@"Could not write %@", path]);
+  }
+  return !failed;
 }
 
 + (LDFileNode *)readTreeFromPath:(NSString *)path error:(NSError **)error

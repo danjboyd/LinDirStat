@@ -6,7 +6,7 @@
 @class LDScanSession;
 @class LDTreemapView;
 
-@interface AppController : NSObject <NSApplicationDelegate>
+@interface AppController : NSObject <NSApplicationDelegate, LDListViewCommands, NSTabViewDelegate>
 {
   NSWindow *_window;
   NSSplitView *_mainSplit;
@@ -42,5 +42,19 @@
   NSMenu *_cleanupMenu;
   NSMutableDictionary *_optionalColumns;
   NSMapTable *_ownerCache;
+  NSTabView *_fileTabs;
+  NSTabViewItem *_allFilesTab;
+  NSTabViewItem *_largestTab;
+  NSTabViewItem *_duplicatesTab;
+  NSTabViewItem *_searchTab;
+  LDTableView *_largestTable;
+  LDTableView *_searchTable;
+  LDOutlineView *_duplicatesTable;
+  NSArray *_largestFiles;
+  NSArray *_duplicateGroups;
+  NSArray *_searchRows;
+  id _duplicateFinder;
+  NSString *_loadedFile;
+  NSMapTable *_naturalColumnWidths;
 }
 @end

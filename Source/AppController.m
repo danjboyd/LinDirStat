@@ -3,6 +3,9 @@
 #import "LDCommandRules.h"
 #import "LDPreferences.h"
 #import "LDFileAttributes.h"
+#import "LDDuplicateFinder.h"
+#import "LDScanOptions.h"
+#import "LDDialogs.h"
 #import "LDOptionsWindowController.h"
 #import "LDExtensionColor.h"
 #import "LDExtensionStats.h"
@@ -29,7 +32,7 @@ static const CGFloat LDStatusBarHeight = 30.0;
 static const NSTimeInterval LDPacmanFrameInterval = 1.0 / 25.0;
 static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
-@interface AppController (TableData) <NSTableViewDataSource, NSTableViewDelegate, NSOutlineViewDataSource, NSOutlineViewDelegate, NSToolbarDelegate, NSSplitViewDelegate, LDTreemapViewDelegate, LDListViewCommands>
+@interface AppController (TableData) <NSTableViewDataSource, NSTableViewDelegate, NSOutlineViewDataSource, NSOutlineViewDelegate, NSToolbarDelegate, NSSplitViewDelegate, LDTreemapViewDelegate>
 @end
 
 @implementation AppController
@@ -122,15 +125,27 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   NSMenu *fileMenu = [self addSubmenuTitled:@"File" to:mainMenu];
   [self addItemTo:fileMenu title:@"Select Target…" action:@selector(openPath:) key:@"o" target:self];
   [fileMenu addItem:[NSMenuItem separatorItem]];
+  NSMenuItem *loadCSV = (NSMenuItem *)[self addItemTo:fileMenu title:@"Load Results From CSV…" action:@selector(loadResultsFromCSV:) key:@"l" target:self];
+  [loadCSV setKeyEquivalentModifierMask:NSControlKeyMask | NSAlternateKeyMask];
+  NSMenuItem *saveCSV = (NSMenuItem *)[self addItemTo:fileMenu title:@"Save Results To CSV…" action:@selector(saveResultsToCSV:) key:@"s" target:self];
+  [saveCSV setKeyEquivalentModifierMask:NSControlKeyMask | NSAlternateKeyMask];
+  [self addItemTo:fileMenu title:@"Save Duplicates To CSV…" action:@selector(saveDuplicatesToCSV:) key:nil target:self];
+  [fileMenu addItem:[NSMenuItem separatorItem]];
   NSMenuItem *refreshAll = (NSMenuItem *)[self addItemTo:fileMenu title:@"Refresh All" action:@selector(rescan:) key:[self functionKey:NSF5FunctionKey] target:self];
   [refreshAll setKeyEquivalentModifierMask:NSShiftKeyMask];
   NSMenuItem *refreshSelected = (NSMenuItem *)[self addItemTo:fileMenu title:@"Refresh Selected" action:@selector(refreshSelected:) key:[self functionKey:NSF5FunctionKey] target:self];
   [refreshSelected setKeyEquivalentModifierMask:0];
   [fileMenu addItem:[NSMenuItem separatorItem]];
+  [self addItemTo:fileMenu title:@"Suspend Scan" action:@selector(suspendScan:) key:nil target:self];
+  [self addItemTo:fileMenu title:@"Resume Scan" action:@selector(resumeScan:) key:nil target:self];
   [self addItemTo:fileMenu title:@"Stop Scan" action:@selector(stopScan:) key:@"." target:self];
 
   NSMenu *editMenu = [self addSubmenuTitled:@"Edit" to:mainMenu];
   [self addItemTo:editMenu title:@"Copy Path" action:@selector(copyPath:) key:@"c" target:self];
+  [editMenu addItem:[NSMenuItem separatorItem]];
+  [self addItemTo:editMenu title:@"Search…" action:@selector(search:) key:@"f" target:self];
+  [editMenu addItem:[NSMenuItem separatorItem]];
+  [self addItemTo:editMenu title:@"Compute Hash" action:@selector(computeHash:) key:@"h" target:self];
 
   NSMenu *cleanupMenu = [self addSubmenuTitled:@"Clean Up" to:mainMenu];
   [self populateCleanupMenu:cleanupMenu forTreemap:NO];
@@ -278,6 +293,24 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   if (action == @selector(stopScan:)) {
     return [self isBusy];
   }
+  if (action == @selector(suspendScan:)) {
+    return [self isScanning] && ![_scanSession isSuspended];
+  }
+  if (action == @selector(resumeScan:)) {
+    return [self isScanning] && [_scanSession isSuspended];
+  }
+  if (action == @selector(computeHash:)) {
+    return [LDCommandRules isCommand:LDCommandComputeHash enabledForNodes:[self selectedNodes] rootNode:_rootNode busy:[self isBusy]];
+  }
+  if (action == @selector(search:) || action == @selector(saveResultsToCSV:)) {
+    return _rootNode != nil && ![self isBusy];
+  }
+  if (action == @selector(saveDuplicatesToCSV:)) {
+    return [_duplicateGroups count] > 0 && ![self isBusy];
+  }
+  if (action == @selector(loadResultsFromCSV:)) {
+    return ![self isBusy];
+  }
   if (action == @selector(toggleLogicalSize:) || action == @selector(openPath:) || action == @selector(rescan:)
       || action == @selector(emptyTrash:)) {
     return ![self isBusy];
@@ -374,6 +407,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [[column headerCell] setStringValue:title];
   [column setWidth:width];
   [column setMinWidth:40.0];
+  if (!_naturalColumnWidths) {
+    _naturalColumnWidths = [NSMapTable strongToStrongObjectsMapTable];
+  }
+  [_naturalColumnWidths setObject:@(width) forKey:column];
   [column setEditable:NO];
   if (rightAligned) {
     [[column dataCell] setAlignment:NSRightTextAlignment];
@@ -631,7 +668,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [_topSplit setVertical:YES];
   [_topSplit setDividerStyle:NSSplitViewDividerStyleThin];
   [_topSplit setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
-  [_topSplit addSubview:[self scrollViewWithDocumentView:_directoryTable]];
+  [_topSplit addSubview:[self buildFileTabs]];
   [_topSplit addSubview:[self scrollViewWithDocumentView:_extensionTable]];
   [_topSplit setDelegate:self];
 
@@ -684,6 +721,14 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (void)fitColumn:(NSString *)identifier ofTable:(NSTableView *)table
 {
   NSTableColumn *flexible = [table tableColumnWithIdentifier:identifier];
+  // GNUstep also stretches the last column whenever the pane grows
+  // (-setColumnAutoresizingStyle: is not implemented), which would starve
+  // the flexible column; the last column keeps its natural width.
+  NSTableColumn *last = [[table tableColumns] lastObject];
+  NSNumber *natural = [_naturalColumnWidths objectForKey:last];
+  if (last != flexible && natural && [last width] > [natural doubleValue]) {
+    [last setWidth:[natural doubleValue]];
+  }
   CGFloat spacing = [table intercellSpacing].width;
   CGFloat available = [[table enclosingScrollView] contentSize].width;
   CGFloat others = 0.0;
@@ -698,6 +743,11 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (void)fitFlexibleColumns
 {
   [self fitColumn:@"name" ofTable:_directoryTable];
+  if (_fileTabs) {
+    for (NSTableView *list in @[_largestTable, _searchTable, _duplicatesTable]) {
+      [self fitColumn:@"path" ofTable:list];
+    }
+  }
   [self fitColumn:@"description" ofTable:_extensionTable];
 }
 
@@ -765,7 +815,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (void)beginScanPath:(NSString *)scanPath
 {
-  if (!scanPath) {
+  if (!scanPath || ![self scanOptionsAreValid]) {
     return;
   }
 
@@ -773,7 +823,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   _refreshSession = nil;
   _refreshQueue = nil;
   _currentScanPath = [scanPath copy];
+  _loadedFile = nil;
   [self clearResults];
+  [self resetFileListsForScan];
 
   LDScanSession *session = [[LDScanSession alloc] init];
   _scanSession = session;
@@ -796,7 +848,20 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 {
   LDPreferences *preferences = [LDPreferences sharedPreferences];
   [session setSortMetric:_sizeMetric];
-  [session setThreadCount:[preferences scanningThreads]];
+  [session setScanOptions:[LDScanOptions optionsFromPreferences:preferences]];
+}
+
+// Filters with a bad pattern are reported before scanning, as WinDirStat
+// reports "Invalid filter" when they are entered.
+- (BOOL)scanOptionsAreValid
+{
+  NSError *error = nil;
+  if ([[LDScanOptions optionsFromPreferences:[LDPreferences sharedPreferences]] validateWithError:&error]) {
+    return YES;
+  }
+  [LDDialogs showFailures:@[[error localizedDescription] ?: @"Invalid filter"]
+                    title:@"Fix the filter in Preferences › Filtering before scanning"];
+  return NO;
 }
 
 // The timer animates the pacmen while anything runs. While scanning, it
@@ -877,6 +942,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     _lastLiveReload = elapsed;
     [self updateScanStatus];
     [self reloadTreeKeepingSelection];
+    if ([self activeFileList] == _largestTable) {
+      [self updateLargestFiles];
+    }
   } else {
     [self redrawSubtreeColumn];
   }
@@ -925,6 +993,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   }
   [self showSummaryStatus];
   [self updateSelectionField];
+  [self fileListsDidFinishScan];
 }
 
 - (void)showSummaryStatus
@@ -938,10 +1007,18 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   if ([_scanSession errorCount] > 0) {
     problems = [NSString stringWithFormat:@", %lu unreadable", (unsigned long)[_scanSession errorCount]];
   }
+  if (_loadedFile) {
+    [_statusField setStringValue:[NSString stringWithFormat:@"%lu files, %lu folders, %@  ·  loaded from %@",
+                                  (unsigned long)[_rootNode fileCount],
+                                  (unsigned long)MAX((NSUInteger)1, [_rootNode directoryCount]) - 1,
+                                  [LDSizeFormatter stringForBytes:[_rootNode aggregateSizeForMetric:_sizeMetric]],
+                                  [self displayPath:_loadedFile]]];
+    return;
+  }
   [_statusField setStringValue:[NSString stringWithFormat:@"%@%lu files, %lu folders, %@%@ in %.1f s",
                                 canceled,
                                 (unsigned long)[_rootNode fileCount],
-                                (unsigned long)[_rootNode directoryCount],
+                                (unsigned long)MAX((NSUInteger)1, [_rootNode directoryCount]) - 1,
                                 [LDSizeFormatter stringForBytes:[_rootNode aggregateSizeForMetric:_sizeMetric]],
                                 problems,
                                 [_scanSession elapsedTime]]];
@@ -989,6 +1066,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   if (treemapSelection && [_rootNode isAncestorOf:treemapSelection]) {
     [_treemapView setSelectedNode:treemapSelection];
   }
+  [self fileListsDidChangeTree];
   [self updateSelectionField];
   [self refreshCommandState];
 }
@@ -1012,6 +1090,41 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     }
     [_treemapView setSelectedNode:replacement];
   }
+}
+
+- (void)showLoadedTree:(LDFileNode *)root fromFile:(NSString *)path
+{
+  [_scanSession cancel];
+  _scanSession = nil;
+  [self clearResults];
+  [self resetFileListsForScan];
+  _loadedFile = [path copy];
+  _currentScanPath = [[root path] copy];
+  if (_sizeMetric != LDSizeMetricPhysical) {
+    [root sortChildrenByMetric:_sizeMetric];
+  }
+  _rootNode = root;
+  [self reloadResults];
+  [_directoryTable expandItem:root];
+  [_window setTitle:[NSString stringWithFormat:@"%@ (%@)", [self displayPath:[root path]], [path lastPathComponent]]];
+  [self showSummaryStatus];
+  [self refreshCommandState];
+  [self fileListsDidFinishScan];
+}
+
+- (void)suspendScan:(id)sender
+{
+  (void)sender;
+  [_scanSession suspend];
+  [self showStatus:@"Scan suspended"];
+  [self refreshCommandState];
+}
+
+- (void)resumeScan:(id)sender
+{
+  (void)sender;
+  [_scanSession resume];
+  [self refreshCommandState];
 }
 
 - (void)rescan:(id)sender
@@ -1077,6 +1190,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   if ([_window firstResponder] == _treemapView) {
     LDFileNode *node = [_treemapView selectedNode];
     return node ? @[node] : @[];
+  }
+  NSTableView *list = [self activeFileList];
+  if (list != _directoryTable) {
+    return [self selectedNodesInFileList:list];
   }
   NSMutableArray *nodes = [NSMutableArray array];
   NSIndexSet *rows = [_directoryTable selectedRowIndexes];
@@ -1202,8 +1319,11 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (void)outlineViewSelectionDidChange:(NSNotification *)notification
 {
-  (void)notification;
-  [self directorySelectionDidChange];
+  if ([notification object] == _directoryTable) {
+    [self directorySelectionDidChange];
+  } else if (!_syncingSelection) {
+    [self fileListSelectionDidChange:[notification object]];
+  }
 }
 
 - (void)directorySelectionDidChange
@@ -1231,6 +1351,12 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   // GNUstep's outline view reports through the table view method too.
   if ([notification object] == _directoryTable) {
     [self directorySelectionDidChange];
+    return;
+  }
+  if ([self isFileList:[notification object]]) {
+    if (!_syncingSelection) {
+      [self fileListSelectionDidChange:[notification object]];
+    }
     return;
   }
   if ([notification object] != _extensionTable || _syncingSelection) {
@@ -1282,6 +1408,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (void)outlineView:(NSOutlineView *)outlineView sortDescriptorsDidChange:(NSArray *)oldDescriptors
 {
   (void)oldDescriptors;
+  if (outlineView != _directoryTable) {
+    [self fileListSortDescriptorsDidChange:outlineView];
+    return;
+  }
   NSSortDescriptor *descriptor = [[outlineView sortDescriptors] firstObject];
   if (!descriptor) {
     return;
@@ -1340,6 +1470,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (void)tableView:(NSTableView *)tableView sortDescriptorsDidChange:(NSArray *)oldDescriptors
 {
   (void)oldDescriptors;
+  if ([self isFileList:tableView]) {
+    [self fileListSortDescriptorsDidChange:tableView];
+    return;
+  }
   if (tableView != _extensionTable) {
     return;
   }
@@ -1411,7 +1545,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (NSInteger)numberOfRowsInTableView:(NSTableView *)tableView
 {
-  return tableView == _extensionTable ? (NSInteger)[_extensionRows count] : 0;
+  if (tableView == _extensionTable) {
+    return (NSInteger)[_extensionRows count];
+  }
+  return [self isFileList:tableView] ? (NSInteger)[[self rowsOfFileList:tableView] count] : 0;
 }
 
 - (NSString *)percentStringForFraction:(double)fraction
@@ -1421,8 +1558,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (id)tableView:(NSTableView *)tableView objectValueForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
 {
-  (void)tableView;
   NSString *identifier = [tableColumn identifier];
+  if ([self isFileList:tableView]) {
+    return [self fileListValueForColumn:identifier item:[[self rowsOfFileList:tableView] objectAtIndex:(NSUInteger)row]];
+  }
   LDExtensionStats *stats = [_extensionRows objectAtIndex:row];
   if ([identifier isEqualToString:@"extension"]) {
     return [stats displayName];
@@ -1445,7 +1584,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (NSInteger)outlineView:(NSOutlineView *)outlineView numberOfChildrenOfItem:(id)item
 {
-  (void)outlineView;
+  if (outlineView == _duplicatesTable) {
+    return item ? (NSInteger)[[item nodes] count] : (NSInteger)[_duplicateGroups count];
+  }
   if (!_rootNode) {
     return 0;
   }
@@ -1457,7 +1598,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (id)outlineView:(NSOutlineView *)outlineView child:(NSInteger)index ofItem:(id)item
 {
-  (void)outlineView;
+  if (outlineView == _duplicatesTable) {
+    return item ? [[item nodes] objectAtIndex:(NSUInteger)index] : [_duplicateGroups objectAtIndex:(NSUInteger)index];
+  }
   if (!item) {
     return _rootNode;
   }
@@ -1466,7 +1609,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (BOOL)outlineView:(NSOutlineView *)outlineView isItemExpandable:(id)item
 {
-  (void)outlineView;
+  if (outlineView == _duplicatesTable) {
+    return [item isKindOfClass:[LDDuplicateGroup class]];
+  }
   return item && [[self displayChildrenOfNode:item] count] > 0;
 }
 
@@ -1483,7 +1628,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (id)outlineView:(NSOutlineView *)outlineView objectValueForTableColumn:(NSTableColumn *)tableColumn byItem:(id)item
 {
-  (void)outlineView;
+  if (outlineView == _duplicatesTable) {
+    return [self fileListValueForColumn:[tableColumn identifier] item:item];
+  }
   LDFileNode *node = item;
   NSString *identifier = [tableColumn identifier];
   if ([identifier isEqualToString:@"name"]) {
@@ -1535,7 +1682,9 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 - (void)outlineView:(NSOutlineView *)outlineView willDisplayCell:(id)cell forTableColumn:(NSTableColumn *)tableColumn item:(id)item
 {
-  (void)outlineView;
+  if (outlineView != _directoryTable) {
+    return;
+  }
   LDFileNode *node = item;
   NSString *identifier = [tableColumn identifier];
   if ([identifier isEqualToString:@"subtree"]) {

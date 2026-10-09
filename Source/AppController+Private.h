@@ -22,6 +22,54 @@
 - (void)configureScanSession:(LDScanSession *)session;
 - (void)rescan:(id)sender;
 - (NSString *)selectedDirectoryPathFromOpenPanel:(NSOpenPanel *)panel;
+- (NSTableColumn *)addColumn:(NSString *)identifier
+                       title:(NSString *)title
+                       width:(CGFloat)width
+                       right:(BOOL)rightAligned
+                     toTable:(NSTableView *)table;
+- (void)setSortPrototypeForColumn:(NSTableColumn *)column ascending:(BOOL)ascending;
+- (NSScrollView *)scrollViewWithDocumentView:(NSView *)view;
+- (NSString *)describeNode:(LDFileNode *)node;
+- (void)showSummaryStatus;
+- (void)updateSelectionField;
+- (void)fitFlexibleColumns;
+// Shows a tree that was not scanned (loaded from CSV).
+- (void)showLoadedTree:(LDFileNode *)root fromFile:(NSString *)path;
+@end
+
+@interface AppController (FileLists)
+- (NSView *)buildFileTabs;
+- (NSTableView *)activeFileList;
+- (BOOL)isFileList:(NSTableView *)table;
+- (NSArray *)rowsOfFileList:(NSTableView *)table;
+- (NSArray *)selectedNodesInFileList:(NSTableView *)table;
+- (void)fileListSelectionDidChange:(NSTableView *)table;
+- (id)fileListValueForColumn:(NSString *)identifier item:(id)item;
+- (void)fileListSortDescriptorsDidChange:(NSTableView *)table;
+- (void)updateLargestFiles;
+- (void)fileListsDidChangeTree;
+- (void)resetFileListsForScan;
+- (void)fileListsDidFinishScan;
+- (void)search:(id)sender;
+- (void)saveResultsToCSV:(id)sender;
+- (void)saveDuplicatesToCSV:(id)sender;
+- (void)loadResultsFromCSV:(id)sender;
+- (void)computeHash:(id)sender;
+@end
+
+@class LDSearchOptions;
+
+@interface LDSearchPanel : NSObject
+{
+  NSTextField *_termField;
+  NSTextField *_errorLabel;
+  NSButton *_regexBox;
+  NSButton *_caseBox;
+  NSButton *_wholeBox;
+  NSButton *_okButton;
+}
+// Returns the options to search with, or nil if cancelled.
++ (LDSearchOptions *)runSearchPanel;
 @end
 
 @interface AppController (Cleanup)

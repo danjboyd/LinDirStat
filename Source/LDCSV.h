@@ -31,4 +31,9 @@ typedef enum {
 // Only the CSV is read; nothing in the tree is looked up on disk.
 + (LDFileNode *)readTreeFromPath:(NSString *)path error:(NSError **)error;
 
+// WinDirStat's duplicates export: "Hash Prefix","Name","Logical Size",
+// "Physical Size","Last Change","Attributes", one row per file.
+// groups holds LDDuplicateGroup objects.
++ (BOOL)writeDuplicateGroups:(NSArray *)groups toPath:(NSString *)path error:(NSError **)error;
+
 @end
