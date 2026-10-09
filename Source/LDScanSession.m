@@ -3,6 +3,7 @@
 #import "LDScanner.h"
 #import "LDScanOptions.h"
 #import "LDDuplicateFinder.h"
+#import "LDScanResults.h"
 
 #include <dispatch/dispatch.h>
 
@@ -40,6 +41,20 @@
   if (_scanOptions) {
     _threadCount = [_scanOptions threadCount];
   }
+}
+
+- (LDScanResultsRequest *)resultsRequest { return _resultsRequest; }
+- (void)setResultsRequest:(LDScanResultsRequest *)request { _resultsRequest = [request copy]; }
+- (NSTimeInterval)readDuration { return _readDuration; }
+- (NSTimeInterval)finishDuration { return _finishDuration; }
+- (NSTimeInterval)resultsDuration { return _resultsDuration; }
+
+- (LDScanResults *)results
+{
+  [_lock lock];
+  LDScanResults *results = _results;
+  [_lock unlock];
+  return results;
 }
 
 - (void)incrementSkippedCount { __atomic_add_fetch(&_skippedCount, 1, __ATOMIC_RELAXED); }
@@ -236,6 +251,7 @@
   [self prepareDuplicateCollector];
   [self startAsyncScanWithBlock:^(LDScanner *scanner) {
     [scanner scanPath:scanPath session:self];
+    [self computeResults];
   } completion:completion];
 }
 
@@ -245,6 +261,7 @@
   [self prepareDuplicateCollector];
   [self startAsyncScanWithBlock:^(LDScanner *scanner) {
     [scanner scanPaths:scanPaths session:self];
+    [self computeResults];
   } completion:completion];
 }
 
@@ -273,6 +290,20 @@
   }];
 }
 
+// On the scanning thread, once the tree is final.
+- (void)computeResults
+{
+  if (!_resultsRequest) {
+    return;
+  }
+  NSTimeInterval started = [NSDate timeIntervalSinceReferenceDate];
+  LDScanResults *results = [LDScanResults resultsForRootNode:[self rootNode] request:_resultsRequest];
+  [_lock lock];
+  _results = results;
+  [_lock unlock];
+  _resultsDuration = [NSDate timeIntervalSinceReferenceDate] - started;
+}
+
 // Made before the scan starts, so the caller can watch it right away.
 - (void)prepareDuplicateCollector
 {
@@ -286,7 +317,7 @@
   __atomic_store_n(&_asyncFinished, NO, __ATOMIC_RELEASE);
   // The blocks keep the session alive until the scan and completion are done.
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-    NSArray *retired = nil;
+    __block NSArray *retired = nil;
     @autoreleasepool {
       LDScanner *scanner = [[LDScanner alloc] init];
       if (_scanOptions) {
@@ -298,16 +329,24 @@
         [scanner setHardLinkTable:_hardLinkTable replacing:_replacedNode];
       }
       scan(scanner);
+      _readDuration = [scanner readDuration];
+      _finishDuration = [scanner finishDuration];
       retired = [scanner takeRetiredArrays];
     }
     __atomic_store_n(&_asyncFinished, YES, __ATOMIC_RELEASE);
-    // The main thread may still be using children arrays the final sort
-    // replaced, so they are released there.
+    // The main thread may still be reading children arrays the final sort
+    // replaced. Once it has run a block it holds references to what it uses,
+    // so the arrays (millions of children on large scans) are then released
+    // on a background queue.
     dispatch_async(dispatch_get_main_queue(), ^{
-      (void)retired;
       if (completion) {
         completion();
       }
+      NSArray *arrays = retired;
+      retired = nil;
+      dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
+        (void)[arrays count];
+      });
     });
   });
 }

@@ -42,6 +42,17 @@ FOUNDATION_EXPORT NSRect LDWholePixelRectInside(NSRect rect);
 
 // Sets the scanned tree; resets zoom and selection.
 - (void)setRootNode:(LDFileNode *)rootNode metric:(LDSizeMetric)metric colorIndexes:(NSDictionary *)colorIndexes;
+// As above, adopting a treemap laid out and rendered ahead (see
+// LDScanResults) when it matches the root, metric, options and -renderSize;
+// otherwise the view renders it itself when drawn.
+- (void)setRootNode:(LDFileNode *)rootNode
+             metric:(LDSizeMetric)metric
+       colorIndexes:(NSDictionary *)colorIndexes
+            treemap:(LDTreemap *)treemap
+             pixels:(NSData *)pixels;
+// Width and height in pixels the treemap of the whole tree would be rendered
+// at now.
+- (NSSize)renderSize;
 - (LDFileNode *)rootNode;
 - (LDTreemapOptions)options;
 - (void)setOptions:(LDTreemapOptions)options;

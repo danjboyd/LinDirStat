@@ -196,7 +196,11 @@ static NSString *const LDTabWatcher = @"watcher";
 - (void)updateLargestFiles
 {
   NSUInteger count = [[LDPreferences sharedPreferences] largeFileCount];
-  NSArray *files = _rootNode ? [LDLargestFiles largestFilesUnderNode:_rootNode count:count] : @[];
+  [self showLargestFiles:_rootNode ? [LDLargestFiles largestFilesUnderNode:_rootNode count:count] : @[]];
+}
+
+- (void)showLargestFiles:(NSArray *)files
+{
   NSArray *selected = [self selectedNodesInFileList:_largestTable];
   _largestFiles = [self sortedFileListRows:files forTable:_largestTable];
   [_largestTable reloadData];
@@ -597,6 +601,12 @@ static NSString *const LDTabWatcher = @"watcher";
 
 - (NSArray *)duplicateGroupsStillInTree:(NSArray *)duplicateGroups
 {
+  // Nothing has left the tree since the scan (every node that leaves it is,
+  // or is below, a detached subtree): checking a million group members
+  // would only stall the main thread.
+  if ([_detachedSubtrees count] == 0) {
+    return duplicateGroups;
+  }
   NSMutableArray *groups = [NSMutableArray array];
   for (LDDuplicateGroup *group in duplicateGroups) {
     NSArray *kept = [self nodesStillInTree:[group nodes]];
@@ -639,9 +649,13 @@ static NSString *const LDTabWatcher = @"watcher";
   [_searchTable reloadData];
 }
 
-- (void)fileListsDidFinishScan
+- (void)fileListsDidFinishScanWithLargestFiles:(NSArray *)largestFiles
 {
-  [self updateLargestFiles];
+  if (largestFiles) {
+    [self showLargestFiles:largestFiles];
+  } else {
+    [self updateLargestFiles];
+  }
   [self startDuplicateDetection];
   if (_watcherWanted) {
     [self startFileWatcher];

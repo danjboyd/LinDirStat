@@ -4,6 +4,8 @@
 @class LDScanOptions;
 @class LDDuplicateCollector;
 @class LDHardLinkTable;
+@class LDScanResults;
+@class LDScanResultsRequest;
 
 typedef enum {
   LDScanSessionStateIdle = 0,
@@ -40,6 +42,11 @@ typedef enum {
   LDDuplicateCollector *_duplicateCollector;
   LDHardLinkTable *_hardLinkTable;
   LDFileNode *_replacedNode;
+  LDScanResultsRequest *_resultsRequest;
+  LDScanResults *_results;
+  NSTimeInterval _readDuration;
+  NSTimeInterval _finishDuration;
+  NSTimeInterval _resultsDuration;
 }
 
 - (LDScanSessionState)state;
@@ -75,6 +82,19 @@ typedef enum {
 // it too.
 - (LDDuplicateCollector *)duplicateCollector;
 - (void)setDuplicateCollector:(LDDuplicateCollector *)collector;
+
+// When set before a scan starts, the scanning thread works out the results
+// the views need once the tree is final (see LDScanResults.h); -results then
+// returns them in the completion block. Not used for entry rescans.
+- (LDScanResultsRequest *)resultsRequest;
+- (void)setResultsRequest:(LDScanResultsRequest *)request;
+- (LDScanResults *)results;
+
+// For profiling: seconds spent reading directories, totalling and sorting
+// the tree, and working out -results.
+- (NSTimeInterval)readDuration;
+- (NSTimeInterval)finishDuration;
+- (NSTimeInterval)resultsDuration;
 
 - (void)markScanning;
 - (void)markComplete;

@@ -34,6 +34,8 @@
   LDFileNode *_replacedNode;
   BOOL _usesGivenHardLinks;
   BOOL _attachesHardLinks;
+  NSTimeInterval _readDuration;
+  NSTimeInterval _finishDuration;
 }
 
 // Scans path (following a symlink at the root). The root is published to the
@@ -70,6 +72,11 @@
 // Children arrays the final sort replaced. Readers of a live tree may still
 // hold them, so they must be released on the main thread.
 - (NSArray *)takeRetiredArrays;
+
+// Seconds the last scan spent reading directories, and totalling and
+// sorting the tree afterwards (for profiling).
+- (NSTimeInterval)readDuration;
+- (NSTimeInterval)finishDuration;
 
 // Filters and exclusions (default: [[LDScanOptions alloc] init]). Setting
 // them also sets threadCount to theirs.

@@ -11,6 +11,8 @@ LinDirStat_OBJC_FILES = \
   LDExtensionStats.m \
   LDSizeFormatter.m \
   LDScanSession.m \
+  LDScanResults.m \
+  LDProfiling.m \
   LDScanner.m \
   LDTreemapItem.m \
   LDTreemapLayout.m \

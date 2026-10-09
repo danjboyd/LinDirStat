@@ -23,6 +23,7 @@ LinDirStatTests_OBJC_FILES = \
   LDCommandLineTests.m \
   LDHasherTests.m \
   LDLargestFilesTests.m \
+  LDScanResultsTests.m \
   LDDuplicateFinderTests.m \
   LDDuplicateCollectorTests.m \
   LDSearchTests.m \
@@ -45,6 +46,7 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDExtensionStats.m \
   ../Source/LDSizeFormatter.m \
   ../Source/LDScanSession.m \
+  ../Source/LDScanResults.m \
   ../Source/LDScanner.m \
   ../Source/LDTreemapItem.m \
   ../Source/LDTreemapLayout.m \

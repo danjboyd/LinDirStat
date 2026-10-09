@@ -2,6 +2,10 @@
 #import "LDExtensionColor.h"
 #import "LDFileNode.h"
 #import "LDHardLinks.h"
+#import "LDLargestFiles.h"
+#import "LDNodeRanking.h"
+
+#include <stdlib.h>
 
 @implementation LDExtensionStats
 
@@ -19,32 +23,6 @@
     return @"<none>";
   }
   return [[name substringFromIndex:dot.location + 1] lowercaseString];
-}
-
-+ (void)collectNode:(LDFileNode *)node intoStats:(NSMutableDictionary *)stats
-{
-  LDFileNodeKind kind = [node kind];
-  if (kind == LDFileNodeKindFile || kind == LDFileNodeKindSymlink) {
-    NSString *key = [node extensionKey];
-    LDExtensionStats *entry = [stats objectForKey:key];
-    if (!entry) {
-      entry = [[LDExtensionStats alloc] initWithExtensionKey:key];
-      [stats setObject:entry forKey:key];
-    }
-    [entry addBytes:[node size] allocatedBytes:[node allocatedSize]];
-    return;
-  }
-  // The "<Hardlinks>" pseudo-folders repeat files counted where they are.
-  if (LDIsHardLinkItem(node)) {
-    return;
-  }
-
-  NSArray *children = [node children];
-  NSUInteger count = [children count];
-  NSUInteger i = 0;
-  for (i = 0; i < count; i++) {
-    [self collectNode:[children objectAtIndex:i] intoStats:stats];
-  }
 }
 
 static NSComparisonResult LDCompareStatsByBytes(id left, id right, void *context)
@@ -68,15 +46,132 @@ static NSComparisonResult LDCompareStatsByBytes(id left, id right, void *context
 
 + (NSArray *)sortedStatsForRootNode:(id)rootNode metric:(LDSizeMetric)metric
 {
-  NSMutableDictionary *stats = [NSMutableDictionary dictionary];
-  if (rootNode) {
-    [self collectNode:rootNode intoStats:stats];
+  return [self sortedStatsForRootNode:rootNode metric:metric largestFiles:NULL count:0];
+}
+
+// Per-extension totals keyed by the extension key's pointer: the scanner
+// interns keys, so a scan of millions of files hashes no strings. A key not
+// seen by pointer is looked up by value (trees loaded from CSV do not share
+// key instances) and added to the entry of an equal key.
+typedef struct {
+  __unsafe_unretained NSString *key;
+  unsigned long long bytes;
+  unsigned long long allocatedBytes;
+  NSUInteger files;
+} LDExtensionTallyEntry;
+
+typedef struct {
+  LDExtensionTallyEntry *entries;
+  NSUInteger mask;
+  NSUInteger count;
+  __unsafe_unretained NSMutableDictionary *slotsByKey;
+  __unsafe_unretained LDTopNodeCollector *largest;
+} LDExtensionTally;
+
+static NSUInteger LDTallySlot(LDExtensionTally *tally, NSString *key)
+{
+  NSUInteger slot = (NSUInteger)(((uintptr_t)(__bridge void *)key >> 4) * 0x9E3779B97F4A7C15ULL) & tally->mask;
+  while (tally->entries[slot].key != nil && tally->entries[slot].key != key) {
+    slot = (slot + 1) & tally->mask;
   }
-  NSArray *sorted = [[stats allValues] sortedArrayUsingFunction:LDCompareStatsByBytes
-                                                        context:(void *)(intptr_t)metric];
+  return slot;
+}
+
+static void LDTallyGrow(LDExtensionTally *tally)
+{
+  LDExtensionTallyEntry *old = tally->entries;
+  NSUInteger oldCapacity = tally->mask + 1;
+  tally->mask = oldCapacity * 2 - 1;
+  tally->entries = calloc(oldCapacity * 2, sizeof(LDExtensionTallyEntry));
+  for (NSUInteger index = 0; index < oldCapacity; index++) {
+    if (old[index].key != nil) {
+      tally->entries[LDTallySlot(tally, old[index].key)] = old[index];
+    }
+  }
+  free(old);
+}
+
+static void LDTallyAdd(LDExtensionTally *tally, NSString *key, unsigned long long bytes, unsigned long long allocatedBytes)
+{
+  LDExtensionTallyEntry *entry = &tally->entries[LDTallySlot(tally, key)];
+  if (entry->key == nil) {
+    NSString *equalKey = [tally->slotsByKey objectForKey:key];
+    if (equalKey) {
+      entry = &tally->entries[LDTallySlot(tally, equalKey)];
+    } else {
+      if ((tally->count + 1) * 2 > tally->mask + 1) {
+        LDTallyGrow(tally);
+        entry = &tally->entries[LDTallySlot(tally, key)];
+      }
+      entry->key = key;
+      tally->count++;
+      [tally->slotsByKey setObject:key forKey:key];
+    }
+  }
+  entry->bytes += bytes;
+  entry->allocatedBytes += allocatedBytes;
+  entry->files++;
+}
+
+static void LDTallyNode(LDExtensionTally *tally, LDFileNode *node)
+{
+  LDFileNodeKind kind = [node kind];
+  if (kind == LDFileNodeKindFile || kind == LDFileNodeKindSymlink) {
+    unsigned long long size = [node size];
+    LDTallyAdd(tally, [node extensionKey], size, [node allocatedSize]);
+    if (tally->largest && [node error] == LDFileNodeErrorNone) {
+      [tally->largest offerNode:node size:size];
+    }
+    return;
+  }
+  if (kind != LDFileNodeKindDirectory || LDIsHardLinkItem(node)) {
+    return;
+  }
+  for (LDFileNode *child in [node children]) {
+    LDTallyNode(tally, child);
+  }
+}
+
++ (NSArray *)sortedStatsForRootNode:(id)rootNode
+                             metric:(LDSizeMetric)metric
+                       largestFiles:(NSArray **)largestFiles
+                              count:(NSUInteger)count
+{
+  LDExtensionTally tally;
+  tally.mask = 63;
+  tally.count = 0;
+  tally.entries = calloc(tally.mask + 1, sizeof(LDExtensionTallyEntry));
+  LDTopNodeCollector *largest = (largestFiles && count > 0) ? [[LDTopNodeCollector alloc] initWithLimit:count] : nil;
+  NSMutableDictionary *keys = [NSMutableDictionary dictionary];
+  tally.largest = largest;
+  tally.slotsByKey = keys;
+  if (rootNode) {
+    LDTallyNode(&tally, rootNode);
+  }
+  NSMutableArray *stats = [NSMutableArray arrayWithCapacity:tally.count];
+  for (NSUInteger index = 0; index <= tally.mask; index++) {
+    LDExtensionTallyEntry *entry = &tally.entries[index];
+    if (entry->key == nil) {
+      continue;
+    }
+    LDExtensionStats *stat = [[LDExtensionStats alloc] initWithExtensionKey:entry->key];
+    stat->_bytes = entry->bytes;
+    stat->_allocatedBytes = entry->allocatedBytes;
+    stat->_fileCount = entry->files;
+    [stats addObject:stat];
+  }
+  free(tally.entries);
+  if (largestFiles) {
+    *largestFiles = largest ? [largest sortedNodes] : [NSArray array];
+  }
+  return [self sortedStats:stats metric:metric];
+}
+
++ (NSArray *)sortedStats:(NSArray *)unsorted metric:(LDSizeMetric)metric
+{
+  NSArray *sorted = [unsorted sortedArrayUsingFunction:LDCompareStatsByBytes context:(void *)(intptr_t)metric];
   NSUInteger count = [sorted count];
-  NSUInteger i = 0;
-  for (i = 0; i < count; i++) {
+  for (NSUInteger i = 0; i < count; i++) {
     [[sorted objectAtIndex:i] setColorIndex:[LDExtensionColor paletteIndexForRank:i]];
   }
   return sorted;

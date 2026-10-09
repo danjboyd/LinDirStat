@@ -18,6 +18,12 @@
 // from its rank, matching WinDirStat's legend: the largest types get distinct
 // palette colors and the rest share the final (grey) palette entry.
 + (NSArray *)sortedStatsForRootNode:(id)rootNode metric:(LDSizeMetric)metric;
+// As above, also returning in largestFiles (if not NULL) what
+// +[LDLargestFiles largestFilesUnderNode:count:] would, from the same walk.
++ (NSArray *)sortedStatsForRootNode:(id)rootNode
+                             metric:(LDSizeMetric)metric
+                       largestFiles:(NSArray **)largestFiles
+                              count:(NSUInteger)count;
 // Maps extension key -> NSNumber palette index for the given sorted stats.
 + (NSDictionary *)colorIndexMapForSortedStats:(NSArray *)stats;
 

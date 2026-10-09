@@ -68,7 +68,7 @@ Status values:
 | Full-window GUI parity (Linux) | done | `scripts/gui-parity-gate.sh`: headless on a private Xvfb, light and dark, seven states; pane proportions, WinDirStat columns and menus, toolbar, status bar, overlaps, clipped titles, treemap density and pixels vs. the Phase 11 renderer. Strict; part of `scripts/regression-gate.sh`. |
 | Full-window GUI parity (macOS) | todo | M11: reuse the layout dump and checks with `screencapture`. |
 | Cross-platform validation | deferred | Linux local validation exists. macOS validation matrix remains. |
-| Performance profiling | deferred | Needed for large directory scans and large treemaps. |
+| Performance profiling | done | `scripts/bench-scan.sh` (headless) and `LINDIRSTAT_PROFILE=1` (app: completion steps, Stop-to-display, main-thread stalls). Finalize is parallel, the completion work (extension list, Largest Files, treemap) runs on the scanning thread, duplicate updates are prepared off the main thread, duplicate candidates share folder paths. 1.2M files: completion to display 1.6 s to ~0.1 s, Stop to display 2.2 s to 0.6 s, duplicate memory −40%. See `docs/performance.md`. |
 
 ## Automated Visual Parity
 

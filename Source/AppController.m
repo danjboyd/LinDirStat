@@ -17,6 +17,8 @@
 #import "LDHardLinks.h"
 #import "LDPlatformUI.h"
 #import "LDScanSession.h"
+#import "LDScanResults.h"
+#import "LDProfiling.h"
 #import "LDSizeFormatter.h"
 #import "LDSpaceItems.h"
 #import "LDSystemInfo.h"
@@ -74,7 +76,13 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   NSMenuItem *_emptyTrashItem;
   NSTimeInterval _trashMeasuredAt;
   BOOL _measuringTrash;
+  NSTimeInterval _profileStopPressedAt;
 }
+- (LDScanResultsRequest *)scanResultsRequest;
+- (void)releaseInBackground:(NSArray *)objects;
+- (void)startProfilingScan:(LDScanSession *)session;
+- (void)logProfileOfScanCompletion:(NSTimeInterval)started;
+- (void)reloadResultsWithScanResults:(LDScanResults *)results treemapIsCurrent:(BOOL)treemapIsCurrent;
 @end
 
 @implementation AppController
@@ -295,15 +303,17 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 // Adds, removes or recomputes <Free Space> and <Unknown> under each volume
 // root for the Options menu settings.
-- (void)updateSpaceItems
+- (BOOL)updateSpaceItems
 {
   LDPreferences *preferences = [LDPreferences sharedPreferences];
-  NSArray *removed = [LDSpaceItems updateVolumes:[LDSpaceItems volumeNodesOfRoot:_rootNode]
+  NSArray *volumes = [LDSpaceItems volumeNodesOfRoot:_rootNode];
+  NSArray *removed = [LDSpaceItems updateVolumes:volumes
                                    showFreeSpace:[preferences showFreeSpace]
                                      showUnknown:[preferences showUnknown]
                                            usage:[LDSpaceItems diskUsageQuery]
                                           metric:_sizeMetric];
   [_detachedSubtrees addObjectsFromArray:removed];
+  return [volumes count] > 0 && ([removed count] > 0 || [preferences showFreeSpace] || [preferences showUnknown]);
 }
 
 - (void)toggleFileTypes:(id)sender
@@ -1344,6 +1354,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   }
   NSString *scanPath = [scanPaths objectAtIndex:0];
   _currentScanPaths = [scanPaths copy];
+  // Freeing a tree of millions of nodes takes a while; the last references
+  // are dropped on a background queue (see -releaseInBackground:).
+  NSArray *previous = [NSArray arrayWithObjects:_rootNode ?: (id)[NSNull null], _scanSession ?: (id)[NSNull null], nil];
 
   [_refreshSession cancel];
   _refreshSession = nil;
@@ -1356,7 +1369,11 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
   LDScanSession *session = [[LDScanSession alloc] init];
   _scanSession = session;
+  [self releaseInBackground:previous];
+  previous = nil;
   [self configureScanSession:session];
+  [session setResultsRequest:[self scanResultsRequest]];
+  [self startProfilingScan:session];
   [session startAsyncScanPaths:scanPaths completion:^{
     // Ignore a scan that was replaced before it finished.
     if (session == _scanSession) {
@@ -1373,6 +1390,70 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [self updateScanProgress];
   [self updateScanStatus];
   [self refreshCommandState];
+}
+
+// What the scanning thread works out for -finishAsyncScan: the extension
+// list, Largest Files and, while the treemap is shown, the treemap at its
+// current size.
+- (LDScanResultsRequest *)scanResultsRequest
+{
+  LDScanResultsRequest *request = [LDScanResultsRequest requestWithMetric:_sizeMetric
+                                                         largestFileCount:[[LDPreferences sharedPreferences] largeFileCount]];
+  if ([_treemapView superview]) {
+    NSSize size = [_treemapView renderSize];
+    [request setTreemapWidth:(int)size.width height:(int)size.height options:[_treemapView options]];
+  }
+  return request;
+}
+
+// LINDIRSTAT_PROFILE (LDProfiling.h): stall monitor and an automatic Stop.
+- (void)startProfilingScan:(LDScanSession *)session
+{
+  _profileStopPressedAt = 0.0;
+  if (![LDProfiling isEnabled]) {
+    return;
+  }
+  [LDProfiling startStallMonitor];
+  [LDProfiling takeLongestStall:NULL];
+  [LDProfiling log:[NSString stringWithFormat:@"scan started (%lu threads)", (unsigned long)[session threadCount]]];
+  NSTimeInterval stopAfter = [LDProfiling stopAfter];
+  if (stopAfter > 0.0) {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(stopAfter * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+      if (session == _scanSession && [self isScanning]) {
+        [self stopScan:nil];
+      }
+    });
+  }
+}
+
+- (void)logProfileOfScanCompletion:(NSTimeInterval)started
+{
+  [LDProfiling logStep:@"main thread completion" since:started];
+  [LDProfiling log:[NSString stringWithFormat:@"scan read %.0f ms, finalize %.0f ms, results %.0f ms (background)",
+                    [_scanSession readDuration] * 1000.0, [_scanSession finishDuration] * 1000.0,
+                    [_scanSession resultsDuration] * 1000.0]];
+  NSTimeInterval stoppedAt = _profileStopPressedAt;
+  // The next pass of the run loop draws the results.
+  dispatch_async(dispatch_get_main_queue(), ^{
+    if (stoppedAt > 0.0) {
+      [LDProfiling logStep:@"stop to display" since:stoppedAt];
+    }
+    [LDProfiling logStep:@"completion to display" since:started];
+    NSUInteger stalls = 0;
+    NSTimeInterval longest = [LDProfiling takeLongestStall:&stalls];
+    [LDProfiling log:[NSString stringWithFormat:@"main thread stalls over 100 ms during scan: %lu, longest %.0f ms",
+                      (unsigned long)stalls, longest * 1000.0]];
+  });
+}
+
+// objects (a tree, a scan session) are released on a background queue, so
+// if these were the last references the main thread does not stall freeing
+// them.
+- (void)releaseInBackground:(NSArray *)objects
+{
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
+    (void)[objects count];
+  });
 }
 
 - (void)configureScanSession:(LDScanSession *)session
@@ -1571,6 +1652,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 - (void)finishAsyncScan
 {
+  NSTimeInterval started = [LDProfiling now];
   LDFileNode *root = [_scanSession rootNode];
   [self finishBusyWork];
   if (!root) {
@@ -1580,17 +1662,28 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
   BOOL sameRoot = (root == _rootNode);
   _rootNode = root;
-  [self updateSpaceItems];
-  [self reloadResults];
+  LDScanResults *results = [_scanSession results];
+  if ([results rootNode] != root || [[results request] metric] != _sizeMetric) {
+    results = nil;
+  }
+  BOOL changed = [self updateSpaceItems];
+  [LDProfiling logStep:@"space items" since:started];
+  [self reloadResultsWithScanResults:results treemapIsCurrent:!changed];
+  [LDProfiling logStep:results ? @"reload results (scan results)" : @"reload results" since:started];
   if (!sameRoot) {
     [_directoryTable expandItem:root];
   }
   [self showSummaryStatus];
   [self updateSelectionField];
-  [self fileListsDidFinishScan];
+  BOOL largestAreCurrent = [[results request] largestFileCount] == [[LDPreferences sharedPreferences] largeFileCount];
+  [self fileListsDidFinishScanWithLargestFiles:largestAreCurrent ? [results largestFiles] : nil];
+  [LDProfiling logStep:@"file lists" since:started];
   [self fitColumnsToContents];
   if (!_loadedFile) {
     [LDPlatformUI scanDidFinishWithRoot:root window:_window];
+  }
+  if ([LDProfiling isEnabled]) {
+    [self logProfileOfScanCompletion:started];
   }
 }
 
@@ -1625,9 +1718,17 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 // Rebuilds the extension list and treemap from _rootNode for the current metric.
 - (void)reloadResults
 {
+  [self reloadResultsWithScanResults:nil treemapIsCurrent:NO];
+}
+
+// As -reloadResults, taking what results (worked out by the scan for
+// _rootNode) has; its treemap only if the tree did not change since.
+- (void)reloadResultsWithScanResults:(LDScanResults *)results treemapIsCurrent:(BOOL)treemapIsCurrent
+{
   [_sortedChildrenCache removeAllObjects];
   [_ownerCache removeAllObjects];
-  _extensionRows = [self sortedExtensionRows:[LDExtensionStats sortedStatsForRootNode:_rootNode metric:_sizeMetric]];
+  NSArray *stats = results ? [results extensionStats] : [LDExtensionStats sortedStatsForRootNode:_rootNode metric:_sizeMetric];
+  _extensionRows = [self sortedExtensionRows:stats];
   _syncingSelection = YES;
   [_directoryTable deselectAll:nil];
   [_extensionTable deselectAll:nil];
@@ -1635,7 +1736,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [_treemapView setHighlightedExtensionKey:nil];
   [_treemapView setRootNode:_rootNode
                      metric:_sizeMetric
-               colorIndexes:[LDExtensionStats colorIndexMapForSortedStats:_extensionRows]];
+               colorIndexes:results ? [results colorIndexes] : [LDExtensionStats colorIndexMapForSortedStats:_extensionRows]
+                    treemap:treemapIsCurrent ? [results treemap] : nil
+                     pixels:[results treemapPixels]];
   [_directoryTable reloadData];
   [_extensionTable reloadData];
   [self fitFlexibleColumns];
@@ -1773,7 +1876,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [_window setTitle:_titleBase];
   [self showSummaryStatus];
   [self refreshCommandState];
-  [self fileListsDidFinishScan];
+  [self fileListsDidFinishScanWithLargestFiles:nil];
   [self fitColumnsToContents];
 }
 
@@ -1817,6 +1920,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 - (void)stopScan:(id)sender
 {
   (void)sender;
+  if ([self isScanning]) {
+    _profileStopPressedAt = [LDProfiling now];
+  }
   [_scanSession cancel];
   [_refreshSession cancel];
   [_refreshQueue removeAllObjects];
