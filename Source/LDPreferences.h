@@ -207,6 +207,11 @@ typedef enum {
 - (void)setShowFileTypes:(BOOL)flag;
 - (BOOL)showTreemap;
 - (void)setShowTreemap:(BOOL)flag;
+// Options menu: <Free Space> and <Unknown> under volume roots (off by default).
+- (BOOL)showFreeSpace;
+- (void)setShowFreeSpace:(BOOL)flag;
+- (BOOL)showUnknown;
+- (void)setShowUnknown:(BOOL)flag;
 
 // Options dialog page last shown.
 - (NSInteger)lastOptionsPage;

@@ -40,6 +40,7 @@ LinDirStat_OBJC_FILES = \
   LDOptionsWindowController.m \
   LDScanOptions.m \
   LDVolumes.m \
+  LDSpaceItems.m \
   LDSelectTargetRules.m \
   LDSelectTargetPanel.m \
   LDPlatformUI.m \

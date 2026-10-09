@@ -179,6 +179,8 @@ static const NSUInteger LDCustomCleanupSlots = 10;
     @"ConfigPage": @0,
     @"ShowFileTypes": @YES,
     @"ShowTreemap": @YES,
+    @"ShowFreeSpace": @NO,
+    @"ShowUnknown": @NO,
   };
 }
 
@@ -449,6 +451,10 @@ static NSInteger LDClamp(NSInteger value, NSInteger low, NSInteger high)
 - (void)setShowFileTypes:(BOOL)flag { [self setBool:flag forKey:@"ShowFileTypes"]; }
 - (BOOL)showTreemap { return [self boolForKey:@"ShowTreemap"]; }
 - (void)setShowTreemap:(BOOL)flag { [self setBool:flag forKey:@"ShowTreemap"]; }
+- (BOOL)showFreeSpace { return [self boolForKey:@"ShowFreeSpace"]; }
+- (void)setShowFreeSpace:(BOOL)flag { [self setBool:flag forKey:@"ShowFreeSpace"]; }
+- (BOOL)showUnknown { return [self boolForKey:@"ShowUnknown"]; }
+- (void)setShowUnknown:(BOOL)flag { [self setBool:flag forKey:@"ShowUnknown"]; }
 
 - (NSInteger)lastOptionsPage { return [self integerForKey:@"ConfigPage"]; }
 - (void)setLastOptionsPage:(NSInteger)page { [self setInteger:page forKey:@"ConfigPage"]; }

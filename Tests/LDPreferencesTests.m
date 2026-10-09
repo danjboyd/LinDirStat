@@ -37,6 +37,19 @@
   XCTAssertFalse([_preferences scanForDuplicates]);
   XCTAssertTrue([_preferences isColumnShown:LDColumnFiles]);
   XCTAssertFalse([_preferences isColumnShown:LDColumnOwner]);
+  XCTAssertFalse([_preferences showFreeSpace]);
+  XCTAssertFalse([_preferences showUnknown]);
+}
+
+- (void)testShowFreeSpaceAndUnknownPersist
+{
+  [_preferences setShowFreeSpace:YES];
+  [_preferences setShowUnknown:YES];
+  XCTAssertTrue([_defaults boolForKey:@"ShowFreeSpace"]);
+  XCTAssertTrue([_defaults boolForKey:@"ShowUnknown"]);
+  [_preferences setShowUnknown:NO];
+  XCTAssertFalse([_preferences showUnknown]);
+  XCTAssertTrue([_preferences showFreeSpace]);
 }
 
 - (void)testValuesAreClamped

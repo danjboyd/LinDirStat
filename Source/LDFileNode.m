@@ -63,6 +63,13 @@ static Class LDClassForKind(LDFileNodeKind kind)
   return node;
 }
 
++ (LDFileNode *)spaceItemWithKind:(LDFileNodeKind)kind allocatedSize:(unsigned long long)allocatedSize
+{
+  // Names as WinDirStat's IDS_FREESPACE_ITEM and IDS_UNKNOWN_ITEM.
+  NSString *name = kind == LDFileNodeKindFreeSpace ? @"<Free Space>" : @"<Unknown>";
+  return [self nodeWithName:name kind:kind size:0 allocatedSize:allocatedSize];
+}
+
 - (id)initWithNodeKind:(LDFileNodeKind)kind
 {
   self = [super init];
@@ -153,11 +160,12 @@ static Class LDClassForKind(LDFileNodeKind kind)
 - (LDFileNodeKind)kind { return (LDFileNodeKind)_kind; }
 - (BOOL)isLeaf { return YES; }
 - (BOOL)isComputer { return NO; }
+- (BOOL)isSpaceItem { return _kind == LDFileNodeKindFreeSpace || _kind == LDFileNodeKindUnknown; }
 - (unsigned long long)size { return _size; }
 - (unsigned long long)allocatedSize { return _allocatedSize; }
 - (unsigned long long)aggregateSize { return _size; }
 - (unsigned long long)aggregateAllocatedSize { return _allocatedSize; }
-- (NSUInteger)fileCount { return 1; }
+- (NSUInteger)fileCount { return [self isSpaceItem] ? 0 : 1; }
 - (NSUInteger)directoryCount { return 0; }
 - (NSTimeInterval)modificationTime { return (NSTimeInterval)_modificationTime; }
 - (NSTimeInterval)aggregateModificationTime { return (NSTimeInterval)_modificationTime; }

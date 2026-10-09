@@ -70,6 +70,9 @@ static NSImage *LDSmallIcon(NSImage *icon)
     cache = [[NSCache alloc] init];
   });
   NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
+  if ([node isSpaceItem]) {
+    return nil;
+  }
   if ([node isComputer]) {
     NSImage *icon = [cache objectForKey:@"computer"];
     if (!icon) {

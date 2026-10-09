@@ -26,12 +26,23 @@
   return YES;
 }
 
++ (BOOL)anyIsSpaceItem:(NSArray *)nodes
+{
+  for (LDFileNode *node in nodes) {
+    if ([node isSpaceItem]) {
+      return YES;
+    }
+  }
+  return NO;
+}
+
 + (BOOL)isCommand:(LDCommand)command
   enabledForNodes:(NSArray *)nodes
          rootNode:(LDFileNode *)root
              busy:(BOOL)busy
 {
-  if ([nodes count] == 0) {
+  // <Free Space> and <Unknown> are none of WinDirStat's command types.
+  if ([nodes count] == 0 || [self anyIsSpaceItem:nodes]) {
     return NO;
   }
   BOOL (^notComputer)(LDFileNode *) = ^BOOL(LDFileNode *node) {
@@ -79,7 +90,8 @@
          rootNode:(LDFileNode *)root
              busy:(BOOL)busy
 {
-  if (busy || ![cleanup isEnabled] || [[cleanup commandLine] length] == 0 || [nodes count] == 0) {
+  if (busy || ![cleanup isEnabled] || [[cleanup commandLine] length] == 0 || [nodes count] == 0
+      || [self anyIsSpaceItem:nodes]) {
     return NO;
   }
   return [self allNodes:nodes satisfy:^BOOL(LDFileNode *node) {

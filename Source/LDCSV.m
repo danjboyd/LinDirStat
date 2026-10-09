@@ -20,6 +20,8 @@ enum {
   LDCSVTypeDrive = 0x2,
   LDCSVTypeDirectory = 0x4,
   LDCSVTypeFile = 0x8,
+  LDCSVTypeFreeSpace = 0x10,
+  LDCSVTypeUnknown = 0x20,
   LDCSVTypeRoot = 0x10000000,
   LDCSVTypeDone = 0x20000000
 };
@@ -170,6 +172,11 @@ static void LDWriteRow(FILE *file, LDFileNode *node, NSData *path, BOOL isRoot, 
   gmtime_r(&seconds, &utc);
   // Symlinks and special files are written as files.
   unsigned int type = isDirectory ? LDCSVTypeDirectory : LDCSVTypeFile;
+  if ([node kind] == LDFileNodeKindFreeSpace) {
+    type = LDCSVTypeFreeSpace;
+  } else if ([node kind] == LDFileNodeKindUnknown) {
+    type = LDCSVTypeUnknown;
+  }
   if (isRoot) {
     type |= LDCSVTypeRoot;
   }
@@ -184,7 +191,7 @@ static void LDWriteRow(FILE *file, LDFileNode *node, NSData *path, BOOL isRoot, 
 
   if (includeOwner) {
     fputc(',', file);
-    LDWriteQuotedString(file, [LDFileAttributes ownerOfPath:path]);
+    LDWriteQuotedString(file, [node isSpaceItem] ? @"" : [LDFileAttributes ownerOfPath:path]);
   }
 }
 
@@ -576,6 +583,11 @@ static NSString *LDRowDescription(NSUInteger row)
 
     BOOL isDirectory = (type & (LDCSVTypeMyComputer | LDCSVTypeDrive | LDCSVTypeDirectory)) != 0;
     LDFileNodeKind kind = isDirectory ? LDFileNodeKindDirectory : LDFileNodeKindFile;
+    if (type & LDCSVTypeFreeSpace) {
+      kind = LDFileNodeKindFreeSpace;
+    } else if (type & LDCSVTypeUnknown) {
+      kind = LDFileNodeKindUnknown;
+    }
     // Folders' sizes come from their children.
     unsigned long long ownLogical = isDirectory ? 0 : logical;
     unsigned long long ownPhysical = isDirectory ? 0 : physical;
