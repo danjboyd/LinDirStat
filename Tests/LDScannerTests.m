@@ -301,4 +301,67 @@
   XCTAssertEqualObjects(@"a.txt", [[[root children] objectAtIndex:0] displayName]);
 }
 
+- (void)testFinishedScanHasNothingPendingAndNoRetiredArraysLeak
+{
+  [self writeFile:@"a.txt" bytes:10];
+  [[NSFileManager defaultManager] createDirectoryAtPath:[[self temporaryRoot] stringByAppendingPathComponent:@"sub/deeper"]
+                            withIntermediateDirectories:YES attributes:nil error:NULL];
+  [self writeFile:@"sub/deeper/b.txt" bytes:20];
+  LDScanner *scanner = [[LDScanner alloc] init];
+  LDScanSession *session = [[LDScanSession alloc] init];
+  LDFileNode *root = [scanner scanPath:[self temporaryRoot] session:session];
+
+  XCTAssertFalse([root isScanPending]);
+  XCTAssertFalse([[self childNamed:@"sub" of:root] isScanPending]);
+  XCTAssertEqual(root, [session rootNode]);
+  // The final sort replaced the published children arrays.
+  XCTAssertTrue([[scanner takeRetiredArrays] count] >= 3);
+  XCTAssertNil([scanner takeRetiredArrays]);
+}
+
+- (void)testCanceledScanLeavesNothingPending
+{
+  for (NSUInteger i = 0; i < 50; i++) {
+    NSString *directory = [NSString stringWithFormat:@"d%lu/e", (unsigned long)i];
+    [[NSFileManager defaultManager] createDirectoryAtPath:[[self temporaryRoot] stringByAppendingPathComponent:directory]
+                              withIntermediateDirectories:YES attributes:nil error:NULL];
+  }
+  LDScanSession *session = [[LDScanSession alloc] init];
+  [session cancel];
+  LDFileNode *root = [[[LDScanner alloc] init] scanPath:[self temporaryRoot] session:session];
+  XCTAssertFalse([root isScanPending]);
+}
+
+- (void)testEntryRescanReplacesSubtree
+{
+  [[NSFileManager defaultManager] createDirectoryAtPath:[[self temporaryRoot] stringByAppendingPathComponent:@"sub"]
+                            withIntermediateDirectories:YES attributes:nil error:NULL];
+  [self writeFile:@"sub/a.txt" bytes:5000];
+  LDFileNode *root = [[[LDScanner alloc] init] scanPath:[self temporaryRoot] session:[[LDScanSession alloc] init]];
+  LDFileNode *sub = [self childNamed:@"sub" of:root];
+  [self writeFile:@"sub/b.txt" bytes:7000];
+
+  LDScanSession *session = [[LDScanSession alloc] init];
+  LDFileNode *fresh = [[[LDScanner alloc] init] scanEntryAtPathData:[sub pathData] session:session];
+  XCTAssertEqualObjects(@"sub", [fresh displayName]);
+  XCTAssertEqual((NSUInteger)2, [fresh fileCount]);
+  XCTAssertEqual((unsigned long long)12000, [fresh aggregateSize]);
+
+  [(LDDirectoryNode *)root replaceChild:sub withNode:fresh];
+  [root updateTotalsUpwardSortedByMetric:LDSizeMetricPhysical];
+  XCTAssertEqual((unsigned long long)12000, [root aggregateSize]);
+  XCTAssertEqualObjects([[self temporaryRoot] stringByAppendingPathComponent:@"sub/b.txt"],
+                        [[self childNamed:@"b.txt" of:fresh] path]);
+}
+
+- (void)testEntryRescanOfMissingEntryReturnsNil
+{
+  [self writeFile:@"gone.txt" bytes:10];
+  LDFileNode *root = [[[LDScanner alloc] init] scanPath:[self temporaryRoot] session:[[LDScanSession alloc] init]];
+  LDFileNode *gone = [self childNamed:@"gone.txt" of:root];
+  [[NSFileManager defaultManager] removeItemAtPath:[gone path] error:NULL];
+
+  XCTAssertNil([[[LDScanner alloc] init] scanEntryAtPathData:[gone pathData] session:[[LDScanSession alloc] init]]);
+}
+
 @end

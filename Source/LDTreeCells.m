@@ -32,9 +32,83 @@ static const NSUInteger LDMaxIndentLevels = 8;
   _depth = depth;
 }
 
+- (void)setShowsPacman:(BOOL)showsPacman time:(NSTimeInterval)time
+{
+  _showsPacman = showsPacman;
+  _pacmanTime = time;
+}
+
+// WinDirStat's CPacman::UpdatePosition: a value that bounces between 0 and 1.
+static CGFloat LDBounce(double travelled, BOOL *rising)
+{
+  double phase = fmod(travelled, 2.0);
+  *rising = phase <= 1.0;
+  return (CGFloat)(*rising ? phase : 2.0 - phase);
+}
+
++ (void)pacmanStateAtTime:(NSTimeInterval)time
+                    width:(CGFloat)width
+                 position:(CGFloat *)position
+                 aperture:(CGFloat *)aperture
+               movesRight:(BOOL *)movesRight
+{
+  // PACMANSPEED is 0.09 px/ms across the cell, MOUTHSPEED 0.003 per ms.
+  double milliseconds = MAX(0.0, time) * 1000.0;
+  BOOL opening = YES;
+  *position = LDBounce(0.09 * milliseconds / MAX(width, 1.0), movesRight);
+  *aperture = LDBounce(0.003 * milliseconds, &opening);
+}
+
+- (void)drawPacmanInFrame:(NSRect)cellFrame flipped:(BOOL)flipped
+{
+  NSRect area = NSInsetRect(cellFrame, 5.0, 1.0);
+  CGFloat diameter = floor(MIN(area.size.height, 14.0));
+  if (area.size.width <= diameter) {
+    return;
+  }
+  CGFloat position = 0.0;
+  CGFloat aperture = 0.0;
+  BOOL movesRight = YES;
+  [LDPercentageBarCell pacmanStateAtTime:_pacmanTime
+                                   width:area.size.width
+                                position:&position
+                                aperture:&aperture
+                              movesRight:&movesRight];
+  NSRect body = NSMakeRect(floor(NSMinX(area) + position * (area.size.width - diameter)),
+                           floor(NSMidY(area) - diameter / 2.0),
+                           diameter,
+                           diameter);
+  // GDI+ angles run clockwise on screen; so do increasing angles in a
+  // flipped view.
+  CGFloat slice = aperture * 90.0;
+  CGFloat start = aperture * slice / 2.0;
+  if (!movesRight) {
+    start += 180.0;
+  }
+  CGFloat end = start + 360.0 - slice;
+  if (!flipped) {
+    CGFloat mirrored = -end;
+    end = -start;
+    start = mirrored;
+  }
+  NSPoint center = NSMakePoint(NSMidX(body), NSMidY(body));
+  NSBezierPath *pie = [NSBezierPath bezierPath];
+  [pie moveToPoint:center];
+  [pie appendBezierPathWithArcWithCenter:center radius:diameter / 2.0 startAngle:start endAngle:end clockwise:NO];
+  [pie closePath];
+  [[NSColor colorWithCalibratedRed:0xFC / 255.0 green:0xC9 / 255.0 blue:0x2F / 255.0 alpha:1.0] set];
+  [pie fill];
+  [[NSColor blackColor] set];
+  [pie setLineWidth:1.0];
+  [pie stroke];
+}
+
 - (void)drawInteriorWithFrame:(NSRect)cellFrame inView:(NSView *)controlView
 {
-  (void)controlView;
+  if (_showsPacman) {
+    [self drawPacmanInFrame:cellFrame flipped:[controlView isFlipped]];
+    return;
+  }
   NSRect track = NSInsetRect(cellFrame, LDBarHorizontalInset, 0.0);
   CGFloat indent = floor(track.size.width * MIN(_depth, LDMaxIndentLevels) / 10.0);
   track.origin.x += indent;

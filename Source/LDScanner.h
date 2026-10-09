@@ -23,9 +23,23 @@
   BOOL _crossesFilesystems;
   LDSizeMetric _sortMetric;
   NSUInteger _threadCount;
+  NSMutableArray *_retiredArrays;
 }
 
+// Scans path (following a symlink at the root). The root is published to the
+// session as soon as it exists, and directories' children as they are read,
+// so the tree can be displayed live; see -[LDDirectoryNode publishChildren:].
 - (LDFileNode *)scanPath:(NSString *)path session:(LDScanSession *)session;
+
+// Scans one entry of an existing tree again (Refresh Selected). pathData is
+// the entry's exact path; the result is a detached node with the same name,
+// or nil if the entry no longer exists. Like the entry's original scan, a
+// directory on another filesystem than its parent is not entered.
+- (LDFileNode *)scanEntryAtPathData:(NSData *)pathData session:(LDScanSession *)session;
+
+// Children arrays the final sort replaced. Readers of a live tree may still
+// hold them, so they must be released on the main thread.
+- (NSArray *)takeRetiredArrays;
 
 // When NO (the default) directories on another filesystem than the scan root
 // are recorded as mount points and not descended into, so scanning "/" does

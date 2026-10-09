@@ -71,6 +71,10 @@ typedef enum {
 // once the tree is complete (or the scan was canceled).
 - (void)startAsyncScanPath:(NSString *)path;
 - (void)startAsyncScanPath:(NSString *)path completion:(void (^)(void))completion;
+// Scans one entry of an existing tree again (see -[LDScanner
+// scanEntryAtPathData:session:]). completion runs on the main queue with the
+// detached replacement node, or nil if the entry is gone.
+- (void)startAsyncRefreshOfPathData:(NSData *)pathData completion:(void (^)(LDFileNode *node))completion;
 - (BOOL)waitUntilFinishedBeforeDate:(NSDate *)deadline;
 - (NSDictionary *)snapshotDictionary;
 

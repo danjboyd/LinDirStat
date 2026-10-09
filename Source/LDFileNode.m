@@ -18,6 +18,10 @@
 - (void)setStoredPath:(NSString *)path;
 @end
 
+@interface LDDirectoryNode ()
+- (void)sortOwnChildrenByMetric:(LDSizeMetric)metric;
+@end
+
 static Class LDClassForKind(LDFileNodeKind kind)
 {
   return kind == LDFileNodeKindDirectory ? [LDDirectoryNode class] : [LDFileNode class];
@@ -109,6 +113,30 @@ static Class LDClassForKind(LDFileNodeKind kind)
     return [[_parent path] stringByAppendingPathComponent:[self displayName]];
   }
   return [self displayName];
+}
+
+- (void)appendPathToData:(NSMutableData *)data
+{
+  NSString *stored = [self storedPath];
+  if (stored) {
+    const char *bytes = [stored fileSystemRepresentation];
+    [data appendBytes:bytes length:strlen(bytes)];
+    return;
+  }
+  if (_parent) {
+    [_parent appendPathToData:data];
+    if ([data length] == 0 || ((const char *)[data bytes])[[data length] - 1] != '/') {
+      [data appendBytes:"/" length:1];
+    }
+  }
+  [data appendBytes:_name length:strlen(_name)];
+}
+
+- (NSData *)pathData
+{
+  NSMutableData *data = [NSMutableData data];
+  [self appendPathToData:data];
+  return data;
 }
 
 - (NSString *)displayName
@@ -236,7 +264,31 @@ static Class LDClassForKind(LDFileNodeKind kind)
 
 - (void)sortChildrenByMetric:(LDSizeMetric)metric
 {
+  [self sortChildrenByMetric:metric retiring:nil];
+}
+
+- (void)sortChildrenByMetric:(LDSizeMetric)metric retiring:(NSMutableArray *)retired
+{
   (void)metric;
+  (void)retired;
+}
+
+- (BOOL)isScanPending
+{
+  return NO;
+}
+
+- (void)updateTotalsUpwardSortedByMetric:(LDSizeMetric)metric
+{
+  LDFileNode *cursor = self;
+  while (cursor) {
+    if ([cursor isKindOfClass:[LDDirectoryNode class]]) {
+      LDDirectoryNode *directory = (LDDirectoryNode *)cursor;
+      [directory recalculateOwnTotals];
+      [directory sortOwnChildrenByMetric:metric];
+    }
+    cursor = cursor->_parent;
+  }
 }
 
 static NSComparisonResult LDCompareNodesBySize(id left, id right, void *context)
@@ -301,6 +353,7 @@ static NSComparisonResult LDCompareNodesBySize(id left, id right, void *context)
 - (void)setStoredPath:(NSString *)path { _storedPath = [path copy]; }
 - (NSString *)storedPath { return _storedPath; }
 - (void)setOwnedStorage:(id)storage { _ownedStorage = storage; }
+- (BOOL)isScanPending { return __atomic_load_n(&_pendingScans, __ATOMIC_RELAXED) > 0; }
 
 - (BOOL)isLeaf { return [_children count] == 0; }
 - (NSArray *)children { return _children ? _children : [NSArray array]; }
@@ -326,6 +379,113 @@ static NSComparisonResult LDCompareNodesBySize(id left, id right, void *context)
   }
   child->_parent = self;
   [_children addObject:child];
+}
+
+- (void)publishChildren:(NSArray *)children
+{
+  for (LDFileNode *child in children) {
+    child->_parent = self;
+  }
+  // Parents and names must be visible before the array is.
+  __atomic_thread_fence(__ATOMIC_RELEASE);
+  _children = [children count] > 0 ? children : nil;
+}
+
+static void LDAtomicMax64(int64_t *target, int64_t value)
+{
+  int64_t current = __atomic_load_n(target, __ATOMIC_RELAXED);
+  while (value > current
+         && !__atomic_compare_exchange_n(target, &current, value, YES, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+  }
+}
+
+- (void)addLiveFiles:(NSUInteger)files
+         directories:(NSUInteger)directories
+                size:(unsigned long long)size
+       allocatedSize:(unsigned long long)allocatedSize
+    modificationTime:(int64_t)modificationTime
+{
+  LDFileNode *cursor = self;
+  while ([cursor isKindOfClass:[LDDirectoryNode class]]) {
+    LDDirectoryNode *directory = (LDDirectoryNode *)cursor;
+    __atomic_add_fetch(&directory->_aggregateSize, size, __ATOMIC_RELAXED);
+    __atomic_add_fetch(&directory->_aggregateAllocatedSize, allocatedSize, __ATOMIC_RELAXED);
+    __atomic_add_fetch(&directory->_fileCount, (uint32_t)files, __ATOMIC_RELAXED);
+    __atomic_add_fetch(&directory->_directoryCount, (uint32_t)directories, __ATOMIC_RELAXED);
+    LDAtomicMax64(&directory->_aggregateModificationTime, modificationTime);
+    cursor = cursor->_parent;
+  }
+}
+
+- (void)beginPendingScans:(NSUInteger)count
+{
+  __atomic_add_fetch(&_pendingScans, (uint32_t)count, __ATOMIC_RELAXED);
+}
+
+- (void)finishPendingScan
+{
+  if (__atomic_sub_fetch(&_pendingScans, 1, __ATOMIC_ACQ_REL) == 0
+      && [_parent isKindOfClass:[LDDirectoryNode class]]) {
+    [(LDDirectoryNode *)_parent finishPendingScan];
+  }
+}
+
+- (void)clearPendingScans
+{
+  __atomic_store_n(&_pendingScans, 0, __ATOMIC_RELAXED);
+}
+
+- (void)removeChild:(LDFileNode *)child
+{
+  NSMutableArray *children = [[self children] mutableCopy];
+  NSUInteger index = [children indexOfObjectIdenticalTo:child];
+  if (index == NSNotFound) {
+    return;
+  }
+  [children removeObjectAtIndex:index];
+  child->_parent = nil;
+  _children = [children count] > 0 ? [children copy] : nil;
+}
+
+- (void)replaceChild:(LDFileNode *)child withNode:(LDFileNode *)replacement
+{
+  NSMutableArray *children = [[self children] mutableCopy];
+  NSUInteger index = [children indexOfObjectIdenticalTo:child];
+  if (index == NSNotFound || !replacement) {
+    return;
+  }
+  [children replaceObjectAtIndex:index withObject:replacement];
+  child->_parent = nil;
+  replacement->_parent = self;
+  _children = [children copy];
+}
+
+- (void)recalculateOwnTotals
+{
+  unsigned long long aggregate = 0;
+  unsigned long long aggregateAllocated = 0;
+  int64_t newest = _modificationTime;
+  NSUInteger files = 0;
+  NSUInteger directories = 1;
+  for (LDFileNode *child in [self children]) {
+    aggregate += [child aggregateSize];
+    aggregateAllocated += [child aggregateAllocatedSize];
+    files += [child fileCount];
+    directories += [child directoryCount];
+    newest = MAX(newest, (int64_t)[child aggregateModificationTime]);
+  }
+  _aggregateSize = aggregate;
+  _aggregateAllocatedSize = aggregateAllocated;
+  _aggregateModificationTime = newest;
+  _fileCount = (uint32_t)files;
+  _directoryCount = (uint32_t)directories;
+}
+
+- (void)sortOwnChildrenByMetric:(LDSizeMetric)metric
+{
+  if ([_children count] > 1) {
+    _children = [_children sortedArrayUsingFunction:LDCompareNodesBySize context:(void *)(intptr_t)metric];
+  }
 }
 
 - (void)recalculateAggregateSize
@@ -356,10 +516,14 @@ static NSComparisonResult LDCompareNodesBySize(id left, id right, void *context)
   _aggregateModificationTime = newest;
   _fileCount = (uint32_t)files;
   _directoryCount = (uint32_t)directories;
+  _pendingScans = 0;
 }
 
-- (void)sortChildrenByMetric:(LDSizeMetric)metric
+- (void)sortChildrenByMetric:(LDSizeMetric)metric retiring:(NSMutableArray *)retired
 {
+  if (_children && retired) {
+    [retired addObject:_children];
+  }
   if ([_children count] == 0) {
     _children = nil;
     return;
@@ -370,7 +534,7 @@ static NSComparisonResult LDCompareNodesBySize(id left, id right, void *context)
   NSUInteger count = [_children count];
   NSUInteger i = 0;
   for (i = 0; i < count; i++) {
-    [[_children objectAtIndex:i] sortChildrenByMetric:metric];
+    [[_children objectAtIndex:i] sortChildrenByMetric:metric retiring:retired];
   }
 }
 

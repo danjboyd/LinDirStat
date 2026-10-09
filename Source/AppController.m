@@ -21,6 +21,8 @@ static NSString *const LDToolbarZoomIn = @"ZoomIn";
 static NSString *const LDToolbarZoomOut = @"ZoomOut";
 
 static const CGFloat LDStatusBarHeight = 30.0;
+static const NSTimeInterval LDPacmanFrameInterval = 1.0 / 25.0;
+static const NSTimeInterval LDLiveReloadInterval = 0.5;
 
 @interface AppController (TableData) <NSTableViewDataSource, NSTableViewDelegate, NSOutlineViewDataSource, NSOutlineViewDelegate, NSToolbarDelegate, NSSplitViewDelegate, LDTreemapViewDelegate>
 @end
@@ -44,6 +46,7 @@ static const CGFloat LDStatusBarHeight = 30.0;
   _swatchCache = [[NSMutableDictionary alloc] init];
   _tintedIcons = [[NSMutableDictionary alloc] init];
   _sortedChildrenCache = [NSMapTable strongToStrongObjectsMapTable];
+  _pacmanEpoch = [NSDate timeIntervalSinceReferenceDate];
   _dateFormatter = [[NSDateFormatter alloc] init];
   [_dateFormatter setDateFormat:@"yyyy-MM-dd HH:mm"];
   GSOpenSaveSetMode(GSOpenSaveModeAuto);
@@ -127,6 +130,11 @@ static const CGFloat LDStatusBarHeight = 30.0;
 - (BOOL)isScanning
 {
   return _scanSession && ![_scanSession isFinished];
+}
+
+- (NSTimeInterval)pacmanTime
+{
+  return [NSDate timeIntervalSinceReferenceDate] - _pacmanEpoch;
 }
 
 - (BOOL)validateAction:(SEL)action
@@ -545,6 +553,7 @@ static const CGFloat LDStatusBarHeight = 30.0;
   [_scanTimer invalidate];
   _scanTimer = nil;
   _currentScanPath = [scanPath copy];
+  [self clearResults];
 
   LDScanSession *session = [[LDScanSession alloc] init];
   _scanSession = session;
@@ -557,17 +566,37 @@ static const CGFloat LDStatusBarHeight = 30.0;
   }];
 
   [_window setTitle:[self displayPath:scanPath]];
-  [_treemapView setDimmed:YES];
   [_spinner startAnimation:nil];
   [self updateScanStatus];
   [self refreshCommandState];
 
-  // Progress only; completion arrives through the session's completion block.
-  _scanTimer = [NSTimer scheduledTimerWithTimeInterval:0.15
+  // The tree is shown while it grows: the timer animates the pacman, and
+  // re-sorts and reloads the tree a few times a second. Completion arrives
+  // through the session's completion block.
+  _lastLiveReload = 0.0;
+  _scanTimer = [NSTimer scheduledTimerWithTimeInterval:LDPacmanFrameInterval
                                                 target:self
                                               selector:@selector(scanTimerFired:)
                                               userInfo:nil
                                                repeats:YES];
+}
+
+// Forgets the previous results before a new scan.
+- (void)clearResults
+{
+  if (_rootNode) {
+    // The outline view keeps expanded items alive until they are collapsed.
+    [_directoryTable collapseItem:_rootNode collapseChildren:YES];
+  }
+  _rootNode = nil;
+  _extensionRows = @[];
+  [_sortedChildrenCache removeAllObjects];
+  [_treemapView setRootNode:nil metric:_sizeMetric colorIndexes:nil];
+  _syncingSelection = YES;
+  [_directoryTable reloadData];
+  [_extensionTable reloadData];
+  _syncingSelection = NO;
+  [self updateSelectionField];
 }
 
 - (void)updateScanStatus
@@ -583,7 +612,45 @@ static const CGFloat LDStatusBarHeight = 30.0;
 - (void)scanTimerFired:(NSTimer *)timer
 {
   (void)timer;
-  [self updateScanStatus];
+  NSTimeInterval elapsed = [_scanSession elapsedTime];
+  if (!_rootNode && [_scanSession rootNode]) {
+    _rootNode = [_scanSession rootNode];
+    [_directoryTable reloadData];
+    [_directoryTable expandItem:_rootNode];
+  }
+  if (elapsed - _lastLiveReload >= LDLiveReloadInterval) {
+    _lastLiveReload = elapsed;
+    [self updateScanStatus];
+    [self reloadTreeKeepingSelection];
+  } else {
+    [self redrawSubtreeColumn];
+  }
+}
+
+// Re-sorts the visible tree for the latest sizes.
+- (void)reloadTreeKeepingSelection
+{
+  NSInteger row = [_directoryTable selectedRow];
+  id selected = row >= 0 ? [_directoryTable itemAtRow:row] : nil;
+  [_sortedChildrenCache removeAllObjects];
+  _syncingSelection = YES;
+  [_directoryTable reloadData];
+  NSInteger newRow = selected ? [_directoryTable rowForItem:selected] : -1;
+  if (newRow >= 0) {
+    [_directoryTable selectRow:newRow byExtendingSelection:NO];
+  } else {
+    [_directoryTable deselectAll:nil];
+  }
+  _syncingSelection = NO;
+}
+
+- (void)redrawSubtreeColumn
+{
+  NSInteger column = [_directoryTable columnWithIdentifier:@"subtree"];
+  if (column >= 0) {
+    [_directoryTable setNeedsDisplayInRect:NSIntersectionRect([_directoryTable rectOfColumn:column],
+                                                              [_directoryTable visibleRect])];
+  }
 }
 
 - (void)finishAsyncScan
@@ -592,16 +659,18 @@ static const CGFloat LDStatusBarHeight = 30.0;
   _scanTimer = nil;
   [_spinner stopAnimation:nil];
   LDFileNode *root = [_scanSession rootNode];
-  [_treemapView setDimmed:NO];
   [self refreshCommandState];
   if (!root) {
     [_statusField setStringValue:@"Scan failed"];
     return;
   }
 
+  BOOL sameRoot = (root == _rootNode);
   _rootNode = root;
   [self reloadResults];
-  [_directoryTable expandItem:root];
+  if (!sameRoot) {
+    [_directoryTable expandItem:root];
+  }
   [self showSummaryStatus];
   [self updateSelectionField];
 }
@@ -889,10 +958,12 @@ static const CGFloat LDStatusBarHeight = 30.0;
   [outlineView reloadData];
 }
 
+// While scanning, children are in the order they were read and sizes still
+// grow, so they are sorted here (and again on every live reload).
 - (NSArray *)displayChildrenOfNode:(LDFileNode *)node
 {
   NSArray *children = [node children];
-  if (_treeSortIsDefault || [children count] < 2) {
+  if ((_treeSortIsDefault && ![self isScanning]) || [children count] < 2) {
     return children;
   }
   NSArray *sorted = [_sortedChildrenCache objectForKey:node];
@@ -1045,7 +1116,7 @@ static const CGFloat LDStatusBarHeight = 30.0;
   if (!item) {
     return 1;
   }
-  return (NSInteger)[[(LDFileNode *)item children] count];
+  return (NSInteger)[[self displayChildrenOfNode:item] count];
 }
 
 - (id)outlineView:(NSOutlineView *)outlineView child:(NSInteger)index ofItem:(id)item
@@ -1060,7 +1131,7 @@ static const CGFloat LDStatusBarHeight = 30.0;
 - (BOOL)outlineView:(NSOutlineView *)outlineView isItemExpandable:(id)item
 {
   (void)outlineView;
-  return item && [[(LDFileNode *)item children] count] > 0;
+  return item && [[self displayChildrenOfNode:item] count] > 0;
 }
 
 // A node's share of its parent, as WinDirStat's Percentage column shows it.
@@ -1107,7 +1178,9 @@ static const CGFloat LDStatusBarHeight = 30.0;
   LDFileNode *node = item;
   NSString *identifier = [tableColumn identifier];
   if ([identifier isEqualToString:@"subtree"]) {
-    [(LDPercentageBarCell *)cell setFraction:[self fractionOfParentForNode:node] depth:[node depth]];
+    LDPercentageBarCell *bar = cell;
+    [bar setFraction:[self fractionOfParentForNode:node] depth:[node depth]];
+    [bar setShowsPacman:[node isScanPending] time:[self pacmanTime]];
     return;
   }
   if ([identifier isEqualToString:@"name"]) {

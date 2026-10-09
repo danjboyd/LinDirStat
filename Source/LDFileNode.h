@@ -64,6 +64,10 @@ typedef enum {
           allocatedSize:(unsigned long long)allocatedSize;
 
 - (NSString *)path;
+// The full path as filesystem bytes (no terminating NUL), built from the
+// stored name bytes. Unlike -path it is exact for names that are not valid
+// UTF-8, so anything that touches the filesystem must use it.
+- (NSData *)pathData;
 // Made on demand from the stored bytes (UTF-8, or Latin-1 if they are not
 // valid UTF-8).
 - (NSString *)displayName;
@@ -117,10 +121,21 @@ typedef enum {
 - (NSUInteger)depth;
 
 - (void)recalculateAggregateSize;
+// After an edit below this node: recomputes the totals of this node and of
+// each ancestor from their direct children, and re-sorts their children by
+// metric. Main thread only, once the scan is finished.
+- (void)updateTotalsUpwardSortedByMetric:(LDSizeMetric)metric;
 // Sorts children (recursively) by descending size for the metric, then name
 // bytes. Views read -children directly, so this must run once after a scan and
 // again when the size metric changes. It also trims children arrays to size.
 - (void)sortChildrenByMetric:(LDSizeMetric)metric;
+// As above, but the replaced children arrays are added to retired instead of
+// being released, so a thread that read them during a live scan can finish
+// with them (see -[LDDirectoryNode publishChildren:]).
+- (void)sortChildrenByMetric:(LDSizeMetric)metric retiring:(NSMutableArray *)retired;
+
+// YES while this directory or something below it is still being read.
+- (BOOL)isScanPending;
 
 - (NSComparisonResult)compareByAggregateSizeThenName:(LDFileNode *)other;
 - (NSDictionary *)snapshotDictionary;
@@ -137,10 +152,36 @@ typedef enum {
   int64_t _aggregateModificationTime;
   uint32_t _fileCount;
   uint32_t _directoryCount;
+  uint32_t _pendingScans;
 }
 
 // Keeps storage the subtree depends on (the scan's name arenas) alive.
 - (void)setOwnedStorage:(id)storage;
+
+// Live scans. A directory's children are published once, as a complete
+// array that is never mutated, so the main thread can read the tree while
+// workers are still adding to it.
+- (void)publishChildren:(NSArray *)children;
+// Adds a finished directory read's direct files to this node and every
+// ancestor, so totals grow while the scan runs. Thread-safe.
+- (void)addLiveFiles:(NSUInteger)files
+         directories:(NSUInteger)directories
+                size:(unsigned long long)size
+       allocatedSize:(unsigned long long)allocatedSize
+    modificationTime:(int64_t)modificationTime;
+// Pending-read accounting for -isScanPending. A directory starts with one
+// pending read (its own); queueing a subdirectory adds one, and when a
+// directory's count reaches zero its parent's count drops by one.
+- (void)beginPendingScans:(NSUInteger)count;
+- (void)finishPendingScan;
+- (void)clearPendingScans;
+
+// Tree edits after a scan (main thread only). Totals are not updated; call
+// -updateTotalsUpwardSortedByMetric: on this directory afterwards.
+- (void)removeChild:(LDFileNode *)child;
+- (void)replaceChild:(LDFileNode *)child withNode:(LDFileNode *)replacement;
+// Recomputes this directory's totals from its direct children only.
+- (void)recalculateOwnTotals;
 
 @end
 

@@ -33,5 +33,7 @@
   BOOL _treeSortIsDefault;
   BOOL _syncingSelection;
   BOOL _splitPositionsSet;
+  NSTimeInterval _lastLiveReload;
+  NSTimeInterval _pacmanEpoch;
 }
 @end

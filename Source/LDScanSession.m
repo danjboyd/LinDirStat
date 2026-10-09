@@ -141,19 +141,45 @@
 - (void)startAsyncScanPath:(NSString *)path completion:(void (^)(void))completion
 {
   _asyncPath = [path copy];
+  [self startAsyncScanWithBlock:^(LDScanner *scanner) {
+    [scanner scanPath:_asyncPath session:self];
+  } completion:completion];
+}
+
+- (void)startAsyncRefreshOfPathData:(NSData *)pathData completion:(void (^)(LDFileNode *node))completion
+{
+  NSData *path = [pathData copy];
+  [self startAsyncScanWithBlock:^(LDScanner *scanner) {
+    [self setRootNode:[scanner scanEntryAtPathData:path session:self]];
+  } completion:^{
+    if (completion) {
+      completion([self rootNode]);
+    }
+  }];
+}
+
+- (void)startAsyncScanWithBlock:(void (^)(LDScanner *scanner))scan completion:(void (^)(void))completion
+{
   __atomic_store_n(&_asyncFinished, NO, __ATOMIC_RELEASE);
   // The blocks keep the session alive until the scan and completion are done.
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    NSArray *retired = nil;
     @autoreleasepool {
       LDScanner *scanner = [[LDScanner alloc] init];
       [scanner setSortMetric:_sortMetric];
       [scanner setThreadCount:_threadCount];
-      [scanner scanPath:_asyncPath session:self];
+      scan(scanner);
+      retired = [scanner takeRetiredArrays];
     }
     __atomic_store_n(&_asyncFinished, YES, __ATOMIC_RELEASE);
-    if (completion) {
-      dispatch_async(dispatch_get_main_queue(), completion);
-    }
+    // The main thread may still be using children arrays the final sort
+    // replaced, so they are released there.
+    dispatch_async(dispatch_get_main_queue(), ^{
+      (void)retired;
+      if (completion) {
+        completion();
+      }
+    });
   });
 }
 
