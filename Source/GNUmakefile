@@ -29,7 +29,12 @@ LinDirStat_OBJC_FILES = \
   LDListViews.m \
   AppController+Cleanup.m \
   LDFileAttributes.m \
-  LDCSV.m
+  LDCSV.m \
+  LDNodeRanking.m \
+  LDHasher.m \
+  LDLargestFiles.m \
+  LDDuplicateFinder.m \
+  LDSearch.m
 
 LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist $(wildcard Resources/Icons/*.png)
 
@@ -41,7 +46,7 @@ ADDITIONAL_CPPFLAGS += -I$(GNUSTEP_MAKEFILES)/../../../include
 ADDITIONAL_LIB_DIRS += -L$(GNUSTEP_MAKEFILES)/../../../lib -L$(GNUSTEP_MAKEFILES)/../../../lib64
 ADDITIONAL_LIB_DIRS += -L$(OPENSAVE_ROOT)/Source/obj
 ADDITIONAL_GUI_LIBS += -lOpenSave
-ADDITIONAL_OBJC_LIBS += -ldispatch
+ADDITIONAL_OBJC_LIBS += -ldispatch -lnettle
 ADDITIONAL_LDFLAGS += -Wl,-rpath,$(OPENSAVE_ROOT)/Source/obj
 
 include $(GNUSTEP_MAKEFILES)/application.make
