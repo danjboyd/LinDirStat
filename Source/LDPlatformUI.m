@@ -206,6 +206,11 @@ static NSString *const LDFullDiskAccessSettingsURL =
   return @"Settings";
 }
 
++ (BOOL)usesCommandDigitsForFileTabs
+{
+  return YES;
+}
+
 // Puts the standard editing commands (which text fields need for their
 // shortcuts) at the top of the Edit menu, before the app's own.
 + (void)completeEditMenu:(NSMenu *)edit
@@ -301,7 +306,15 @@ static NSString *const LDFullDiskAccessSettingsURL =
   [window addItemWithTitle:@"Bring All to Front" action:@selector(arrangeInFront:) keyEquivalent:@""];
   [NSApp setWindowsMenu:window];
 
-  NSMenu *help = [[NSMenu alloc] initWithTitle:@"Help"];
+  // The app's Help menu moves after Window; it also gets the system's menu
+  // search.
+  NSMenuItem *helpItem = [mainMenu itemWithTitle:@"Help"];
+  NSMenu *help = [helpItem submenu];
+  if (helpItem) {
+    [mainMenu removeItem:helpItem];
+  } else {
+    help = [[NSMenu alloc] initWithTitle:@"Help"];
+  }
   [[mainMenu addItemWithTitle:@"Help" action:NULL keyEquivalent:@""] setSubmenu:help];
   NSMenuItem *access = [help addItemWithTitle:@"Full Disk Access Settings…"
                                        action:@selector(showFullDiskAccessHelp:) keyEquivalent:@""];
@@ -347,6 +360,11 @@ static NSString *const LDFullDiskAccessSettingsURL =
 + (NSString *)settingsTitle
 {
   return @"Preferences";
+}
+
++ (BOOL)usesCommandDigitsForFileTabs
+{
+  return NO;
 }
 
 + (void)completeMainMenu:(NSMenu *)mainMenu

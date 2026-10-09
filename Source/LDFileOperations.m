@@ -551,6 +551,100 @@ static int LDRemoveTree(int directoryFD, const char *name, dev_t device)
 #endif
 }
 
++ (NSArray *)trashContentDirectories
+{
+  NSData *system = [self systemTrashPath];
+  if (system) {
+    return @[system];
+  }
+  NSMutableArray *folders = [NSMutableArray array];
+  for (NSData *trash in [self existingTrashDirectories]) {
+    [folders addObject:LDJoinString(trash, "files")];
+  }
+  return folders;
+}
+
+// Adds up the physical size below directoryFD, depth first, until *budget
+// runs out.
+static void LDMeasureTree(int directoryFD, unsigned long long *bytes, NSUInteger *budget)
+{
+  DIR *directory = fdopendir(directoryFD);
+  if (!directory) {
+    close(directoryFD);
+    return;
+  }
+  struct dirent *entry = NULL;
+  while (*budget > 0 && (entry = readdir(directory)) != NULL) {
+    if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+      continue;
+    }
+    struct stat info;
+    if (fstatat(dirfd(directory), entry->d_name, &info, AT_SYMLINK_NOFOLLOW) != 0) {
+      continue;
+    }
+    *budget -= 1;
+    *bytes += (unsigned long long)info.st_blocks * 512ULL;
+    if (S_ISDIR(info.st_mode)) {
+      int child = openat(dirfd(directory), entry->d_name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+      if (child >= 0) {
+        LDMeasureTree(child, bytes, budget);
+      }
+    }
+  }
+  closedir(directory);
+}
+
++ (void)measureTrashContents:(NSArray *)directories
+                  entryLimit:(NSUInteger)entryLimit
+                       items:(NSUInteger *)items
+                       bytes:(unsigned long long *)bytes
+                    complete:(BOOL *)complete
+{
+  NSUInteger count = 0;
+  unsigned long long total = 0;
+  NSUInteger budget = entryLimit;
+  BOOL unreadable = NO;
+  for (NSData *folder in directories) {
+    DIR *directory = opendir([LDTerminated(folder) bytes]);
+    if (!directory) {
+      // No trash yet is an empty trash; one we may not read (macOS without
+      // Full Disk Access) is unknown.
+      unreadable = unreadable || errno == EPERM || errno == EACCES;
+      continue;
+    }
+    struct dirent *entry = NULL;
+    while ((entry = readdir(directory)) != NULL) {
+      if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0
+          || (strcmp(entry->d_name, ".DS_Store") == 0 && [self systemTrashPath])) {
+        continue;
+      }
+      count++;
+      struct stat info;
+      if (budget == 0 || fstatat(dirfd(directory), entry->d_name, &info, AT_SYMLINK_NOFOLLOW) != 0) {
+        continue;
+      }
+      budget--;
+      total += (unsigned long long)info.st_blocks * 512ULL;
+      if (S_ISDIR(info.st_mode)) {
+        int child = openat(dirfd(directory), entry->d_name, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
+        if (child >= 0) {
+          LDMeasureTree(child, &total, &budget);
+        }
+      }
+    }
+    closedir(directory);
+  }
+  if (items) {
+    *items = unreadable ? NSNotFound : count;
+  }
+  if (bytes) {
+    *bytes = total;
+  }
+  if (complete) {
+    *complete = budget > 0 && !unreadable;
+  }
+}
+
 + (BOOL)emptyTrashDirectories:(NSArray *)trashDirectories error:(NSError **)error
 {
   BOOL emptied = YES;

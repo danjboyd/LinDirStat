@@ -10,6 +10,8 @@
 // Commands tried in order until one succeeds.
 + (NSArray *)openCommandsForPath:(NSData *)path;
 + (NSArray *)revealCommandsForPath:(NSData *)path;
+// Opens a web address in the default browser.
++ (NSArray *)openCommandsForURL:(NSString *)url;
 // Terminals run with the folder as their working directory too.
 + (NSArray *)terminalCommandsForDirectory:(NSData *)directory;
 // Terminals running command (an argument list as above) and closing when it

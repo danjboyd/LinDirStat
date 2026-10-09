@@ -23,6 +23,12 @@
 #import "LDTreeCells.h"
 #import "LDTreemapLayout.h"
 #import "LDTreemapView.h"
+#import "LDDesktop.h"
+#import "LDFileOperations.h"
+#import "LDMainWindow.h"
+#import "LDScanClock.h"
+#import "LDScanProgress.h"
+#import "LDTabCycle.h"
 #if defined(GNUSTEP)
 #import "GSOpenSave.h"
 #endif
@@ -42,8 +48,33 @@ static NSString *const LDToolbarZoomOut = @"ZoomOut";
 static const CGFloat LDStatusBarHeight = 30.0;
 static const NSTimeInterval LDPacmanFrameInterval = 1.0 / 25.0;
 static const NSTimeInterval LDLiveReloadInterval = 0.5;
+static const CGFloat LDProgressBarWidth = 160.0;
+// Empty Trash's label is measured at most this often, walking at most this
+// many entries.
+static const NSTimeInterval LDTrashMeasureInterval = 10.0;
+static const NSUInteger LDTrashMeasureEntryLimit = 20000;
+// Columns are fitted to at most this many rows.
+static const NSInteger LDColumnFitRowLimit = 1000;
+
+static NSString *const LDHelpURL = @"https://github.com/danjboyd/LinDirStat";
+static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat/issues/new";
 
 @interface AppController (TableData) <NSTableViewDataSource, NSTableViewDelegate, NSOutlineViewDataSource, NSOutlineViewDelegate, NSToolbarDelegate, NSSplitViewDelegate, LDTreemapViewDelegate>
+@end
+
+// Scan progress, window chrome and keyboard state.
+@interface AppController () <LDMainWindowKeyHandler>
+{
+  NSBox *_statusSeparator;
+  NSProgressIndicator *_progressBar;
+  unsigned long long _progressRange;
+  NSString *_titleBase;
+  NSString *_titlePrefix;
+  NSTimeInterval _pacmanResumedAt;
+  NSMenuItem *_emptyTrashItem;
+  NSTimeInterval _trashMeasuredAt;
+  BOOL _measuringTrash;
+}
 @end
 
 @implementation AppController
@@ -75,10 +106,11 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 #endif
 
   NSUInteger style = NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask;
-  _window = [[NSWindow alloc] initWithContentRect:NSMakeRect(100, 100, 1280, 820)
-                                        styleMask:style
-                                          backing:NSBackingStoreBuffered
-                                            defer:NO];
+  _window = [[LDMainWindow alloc] initWithContentRect:NSMakeRect(100, 100, 1280, 820)
+                                            styleMask:style
+                                              backing:NSBackingStoreBuffered
+                                                defer:NO];
+  [(LDMainWindow *)_window setKeyHandler:self];
   [_window setTitle:@"LinDirStat"];
   [_window setMinSize:NSMakeSize(720, 480)];
   [_window setFrameAutosaveName:@"LinDirStatMainWindow"];
@@ -183,6 +215,8 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   NSMenu *cleanupMenu = [self addSubmenuTitled:@"Clean Up" to:mainMenu];
   [self populateCleanupMenu:cleanupMenu forTreemap:NO];
   _cleanupMenu = cleanupMenu;
+  // GNUstep's NSMenuDelegate lists optional methods as required.
+  [_cleanupMenu setDelegate:(id)self];
 
   NSMenu *treemapMenu = [self addSubmenuTitled:@"Treemap" to:mainMenu];
   [self addItemTo:treemapMenu title:@"Zoom In" action:@selector(zoomIn:) key:@"+" target:self];
@@ -208,8 +242,18 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     setKeyEquivalentModifierMask:0];
   [[self addItemTo:optionsMenu title:@"Show Treemap" action:@selector(toggleTreemap:) key:[self functionKey:NSF9FunctionKey] target:self]
     setKeyEquivalentModifierMask:0];
+  [[self addItemTo:optionsMenu title:@"Show Toolbar" action:@selector(toggleToolBar:) key:[self functionKey:NSF10FunctionKey] target:self]
+    setKeyEquivalentModifierMask:0];
+  [self addItemTo:optionsMenu title:@"Large Toolbar Icons" action:@selector(toggleLargeToolBar:) key:nil target:self];
+  [[self addItemTo:optionsMenu title:@"Show Status Bar" action:@selector(toggleStatusBar:) key:[self functionKey:NSF11FunctionKey] target:self]
+    setKeyEquivalentModifierMask:0];
   [optionsMenu addItem:[NSMenuItem separatorItem]];
   [self addItemTo:optionsMenu title:@"Preferences" action:@selector(showPreferences:) key:nil target:self];
+
+  NSMenu *helpMenu = [self addSubmenuTitled:@"Help" to:mainMenu];
+  [[self addItemTo:helpMenu title:@"LinDirStat Help" action:@selector(showHelp:) key:[self functionKey:NSF1FunctionKey] target:self]
+    setKeyEquivalentModifierMask:0];
+  [self addItemTo:helpMenu title:@"Report a Bug…" action:@selector(reportBug:) key:nil target:self];
 
   [LDPlatformUI completeMainMenu:mainMenu applicationMenu:appMenu preferencesTarget:self];
   [NSApp setMainMenu:mainMenu];
@@ -274,6 +318,80 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [preferences setShowTreemap:![preferences showTreemap]];
 }
 
+- (void)toggleToolBar:(id)sender
+{
+  (void)sender;
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setShowToolBar:![preferences showToolBar]];
+}
+
+- (void)toggleLargeToolBar:(id)sender
+{
+  (void)sender;
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setLargeToolBar:![preferences largeToolBar]];
+}
+
+- (void)toggleStatusBar:(id)sender
+{
+  (void)sender;
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setShowStatusBar:![preferences showStatusBar]];
+}
+
+- (void)openWebAddress:(NSString *)address
+{
+  [LDDesktop runFirstSuccessfulCommand:[LDDesktop openCommandsForURL:address] inDirectory:nil completion:^(BOOL succeeded) {
+    if (!succeeded) {
+      [self showStatus:[NSString stringWithFormat:@"Could not open %@", address]];
+    }
+  }];
+}
+
+- (void)showHelp:(id)sender
+{
+  (void)sender;
+  [self openWebAddress:LDHelpURL];
+}
+
+- (void)reportBug:(id)sender
+{
+  (void)sender;
+  [self openWebAddress:LDReportBugURL];
+}
+
+// WinDirStat's View options: the toolbar, its icon size and the status bar.
+- (void)applyChromeVisibility
+{
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  NSToolbar *toolbar = [_window toolbar];
+  NSToolbarSizeMode sizeMode = [preferences largeToolBar] ? NSToolbarSizeModeRegular : NSToolbarSizeModeSmall;
+  if ([toolbar sizeMode] != sizeMode) {
+    // The theme decides how large the icons are drawn in each size mode.
+    [toolbar setSizeMode:sizeMode];
+  }
+  if ([toolbar isVisible] != [preferences showToolBar]) {
+    [toolbar setVisible:[preferences showToolBar]];
+  }
+  BOOL statusShown = [preferences showStatusBar];
+  if ([_statusField isHidden] == statusShown) {
+    for (NSView *view in @[_statusSeparator, _statusField, _selectionField, _memoryField]) {
+      [view setHidden:!statusShown];
+    }
+    [self updateProgressWidgets];
+    NSRect content = [[_window contentView] bounds];
+    CGFloat bottom = statusShown ? LDStatusBarHeight + 1 : 0.0;
+    // The treemap takes up or gives back the status bar's height.
+    CGFloat topHeight = NSHeight([_topSplit frame]);
+    [_mainSplit setFrame:NSMakeRect(0, bottom, content.size.width, content.size.height - bottom)];
+    if ([[_mainSplit subviews] count] > 1) {
+      [_mainSplit setPosition:topHeight ofDividerAtIndex:0];
+    }
+    [[_window contentView] setNeedsDisplay:YES];
+    [self fitFlexibleColumns];
+  }
+}
+
 // Hidden panes leave their split view; showing them again restores
 // WinDirStat's proportions.
 - (void)applyPaneVisibility
@@ -333,7 +451,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [self addItemTo:menu title:@"Move to Trash" action:@selector(moveToTrash:) key:nil target:self];
   [self addItemTo:menu title:@"Delete Permanently…" action:@selector(deletePermanently:) key:nil target:self];
   if (isMainMenu) {
-    [self addItemTo:menu title:@"Empty Trash…" action:@selector(emptyTrash:) key:nil target:self];
+    _emptyTrashItem = [self addItemTo:menu title:@"Empty Trash…" action:@selector(emptyTrash:) key:nil target:self];
   }
   [self addItemTo:menu title:@"Empty Folder…" action:@selector(emptyFolder:) key:nil target:self];
   [self addItemTo:menu title:@"Move To…" action:@selector(moveItemsTo:) key:isMainMenu ? @"m" : nil target:self];
@@ -373,12 +491,21 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [self applyDisplayPreferences];
 }
 
-// The Clean Up menu is about to show: fill Open With for the selection.
+// Before the Clean Up menu shows (GNUstep asks on every menu update): the
+// trash is measured again in the background if the last count is stale, and
+// Empty Trash shows it (WinDirStat's UpdateCleanupMenu); Open With is filled
+// for the selection.
 - (void)menuNeedsUpdate:(NSMenu *)menu
 {
   if (menu != _cleanupMenu) {
     return;
   }
+  [self measureTrashIfStale];
+  [self fillOpenWithIfSelectionChanged];
+}
+
+- (void)fillOpenWithIfSelectionChanged
+{
   NSArray *nodes = [self selectedNodes];
   BOOL unchanged = [nodes count] == [_openWithNodes count];
   for (NSUInteger i = 0; unchanged && i < [nodes count]; i++) {
@@ -391,12 +518,59 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [self fillOpenWithMenu:[[_cleanupMenu itemWithTitle:@"Open With"] submenu] forNodes:nodes];
 }
 
+- (void)measureTrashIfStale
+{
+  if (_measuringTrash || [NSDate timeIntervalSinceReferenceDate] - _trashMeasuredAt < LDTrashMeasureInterval) {
+    return;
+  }
+  _measuringTrash = YES;
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0), ^{
+    NSUInteger items = 0;
+    unsigned long long bytes = 0;
+    BOOL complete = YES;
+    [LDFileOperations measureTrashContents:[LDFileOperations trashContentDirectories]
+                                entryLimit:LDTrashMeasureEntryLimit
+                                     items:&items
+                                     bytes:&bytes
+                                  complete:&complete];
+    dispatch_async(dispatch_get_main_queue(), ^{
+      self->_measuringTrash = NO;
+      self->_trashMeasuredAt = [NSDate timeIntervalSinceReferenceDate];
+      [self->_emptyTrashItem setTitle:[LDCommandRules emptyTrashTitleForItems:items bytes:bytes complete:complete]];
+    });
+  });
+}
+
+// The tree's context menu starts with Expand or Collapse for rows that have
+// children (TreeListControl.cpp OnContextMenu). AppKit has no default
+// (bold) menu item, so it is only placed first.
 - (NSMenu *)contextMenuForListView:(NSTableView *)view
 {
-  (void)view;
   NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
+  if (view == _directoryTable) {
+    NSPoint point = [view convertPoint:[[NSApp currentEvent] locationInWindow] fromView:nil];
+    NSInteger row = [view rowAtPoint:point];
+    id item = row >= 0 ? [_directoryTable itemAtRow:row] : nil;
+    if (item && [[self displayChildrenOfNode:item] count] > 0) {
+      BOOL expanded = [_directoryTable isItemExpanded:item];
+      NSMenuItem *toggle = [self addItemTo:menu title:expanded ? @"Collapse" : @"Expand"
+                                    action:@selector(toggleExpansion:) key:nil target:self];
+      [toggle setRepresentedObject:item];
+      [menu addItem:[NSMenuItem separatorItem]];
+    }
+  }
   [self populateCleanupMenu:menu forTreemap:NO];
   return menu;
+}
+
+- (void)toggleExpansion:(id)sender
+{
+  id item = [sender representedObject];
+  if ([_directoryTable isItemExpanded:item]) {
+    [_directoryTable collapseItem:item];
+  } else {
+    [_directoryTable expandItem:item];
+  }
 }
 
 - (void)listViewOpenSelection:(NSTableView *)view
@@ -411,13 +585,78 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [self deleteNodes:[self selectedNodes] permanently:permanently];
 }
 
+#pragma mark - Keyboard
+
+// Ctrl+F1-F4 show the file tabs, and Tab cycles through the tabs and the
+// extension list (WinDirStat's accelerators and FileTabbedView CycleTab).
+- (BOOL)mainWindowHandleKeyDown:(NSEvent *)event
+{
+  NSString *characters = [event charactersIgnoringModifiers];
+  if ([characters length] != 1) {
+    return NO;
+  }
+  unichar key = [characters characterAtIndex:0];
+  NSUInteger modifiers = [event modifierFlags] & (NSControlKeyMask | NSAlternateKeyMask | NSCommandKeyMask | NSShiftKeyMask);
+  // GNUstep can map the Ctrl key to the Command modifier (as its menus show).
+  BOOL control = modifiers == NSControlKeyMask || modifiers == NSCommandKeyMask;
+  BOOL functionKey = control && key >= NSF1FunctionKey && key <= NSF4FunctionKey;
+  BOOL commandDigit = [LDPlatformUI usesCommandDigitsForFileTabs] && modifiers == NSCommandKeyMask
+    && key >= '1' && key <= '4';
+  if (functionKey || commandDigit) {
+    NSArray *tabs = @[_allFilesTab, _largestTab, _duplicatesTab, _searchTab];
+    NSTabViewItem *tab = [tabs objectAtIndex:functionKey ? key - NSF1FunctionKey : key - '1'];
+    if ([[_fileTabs tabViewItems] indexOfObjectIdenticalTo:tab] != NSNotFound) {
+      [_fileTabs selectTabViewItem:tab];
+      [_window makeFirstResponder:[self activeFileList]];
+    }
+    return YES;
+  }
+  BOOL backTab = key == NSBackTabCharacter || (key == NSTabCharacter && modifiers == NSShiftKeyMask);
+  if ((key == NSTabCharacter && modifiers == 0) || backTab) {
+    [self moveFocusForward:!backTab];
+    return YES;
+  }
+  return NO;
+}
+
+- (void)moveFocusForward:(BOOL)forward
+{
+  NSArray *tabs = [_fileTabs tabViewItems];
+  NSResponder *responder = [_window firstResponder];
+  BOOL extensionsShown = [[_topSplit subviews] indexOfObjectIdenticalTo:_extensionScroll] != NSNotFound;
+  NSInteger current = LDFocusOther;
+  if (responder == _extensionTable) {
+    current = LDFocusExtensionList;
+  } else if (responder == [self activeFileList]) {
+    current = (NSInteger)[tabs indexOfObjectIdenticalTo:[_fileTabs selectedTabViewItem]];
+  }
+  NSInteger next = [LDTabCycle nextFocusFrom:current
+                                 visibleTabs:[tabs count]
+                       extensionListVisible:extensionsShown
+                                     forward:forward];
+  if (next == LDFocusExtensionList) {
+    [_window makeFirstResponder:_extensionTable];
+  } else if (next >= 0) {
+    NSTabViewItem *tab = [tabs objectAtIndex:(NSUInteger)next];
+    if ([_fileTabs selectedTabViewItem] != tab) {
+      [_fileTabs selectTabViewItem:tab];
+    }
+    [_window makeFirstResponder:[self activeFileList]];
+  }
+}
+
 - (BOOL)isScanning
 {
   return _scanSession && ![_scanSession isFinished];
 }
 
+// While scanning, the scan's own clock, which stops while it is suspended
+// and so freezes the pacmen as WinDirStat does.
 - (NSTimeInterval)pacmanTime
 {
+  if ([self isScanning]) {
+    return [_scanSession elapsedTime];
+  }
   return [NSDate timeIntervalSinceReferenceDate] - _pacmanEpoch;
 }
 
@@ -515,6 +754,15 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   }
   if (action == @selector(toggleTreemap:)) {
     [item setState:[[LDPreferences sharedPreferences] showTreemap] ? NSOnState : NSOffState];
+  }
+  if (action == @selector(toggleToolBar:)) {
+    [item setState:[[LDPreferences sharedPreferences] showToolBar] ? NSOnState : NSOffState];
+  }
+  if (action == @selector(toggleLargeToolBar:)) {
+    [item setState:[[LDPreferences sharedPreferences] largeToolBar] ? NSOnState : NSOffState];
+  }
+  if (action == @selector(toggleStatusBar:)) {
+    [item setState:[[LDPreferences sharedPreferences] showStatusBar] ? NSOnState : NSOffState];
   }
   if (action == @selector(toggleFileWatcher:)) {
     [item setTitle:[self isFileWatcherOn] ? @"Stop File Watcher" : @"Start File Watcher"];
@@ -754,23 +1002,17 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [self applyColumnVisibility];
   if (_mainSplit) {
     [self applyPaneVisibility];
+    [self applyChromeVisibility];
   }
 
-  LDTreemapOptions options = [_treemapView options];
-  options.style = [preferences treemapStyle] == 1 ? LDTreemapStyleSequoiaView : LDTreemapStyleKDirStat;
-  options.grid = [preferences treemapGrid];
-  options.brightness = [preferences treemapBrightness] / 100.0;
-  options.ambientLight = [preferences treemapCushionShading] / 100.0;
-  options.height = [preferences treemapHeight] / 100.0;
-  options.scaleFactor = [preferences treemapScaleFactor] / 100.0;
-  options.lightSourceX = [preferences treemapLightSourceX] / 100.0;
-  options.lightSourceY = [preferences treemapLightSourceY] / 100.0;
+  LDTreemapOptions options = [preferences treemapOptions];
   LDTreemapOptions current = [_treemapView options];
   if (memcmp(&options, &current, sizeof(options)) != 0) {
     [_treemapView setOptions:options];
     [_swatchCache removeAllObjects];
     [_extensionTable setNeedsDisplay:YES];
   }
+  [_treemapView setHighlightColor:[preferences treemapHighlightColor]];
   [_directoryTable reloadData];
   [_extensionTable reloadData];
   [self updateSelectionField];
@@ -817,10 +1059,10 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 - (void)buildStatusBarInView:(NSView *)content
 {
   NSRect bounds = [content bounds];
-  NSBox *separator = [[NSBox alloc] initWithFrame:NSMakeRect(0, LDStatusBarHeight, bounds.size.width, 1)];
-  [separator setBoxType:NSBoxSeparator];
-  [separator setAutoresizingMask:NSViewWidthSizable | NSViewMaxYMargin];
-  [content addSubview:separator];
+  _statusSeparator = [[NSBox alloc] initWithFrame:NSMakeRect(0, LDStatusBarHeight, bounds.size.width, 1)];
+  [_statusSeparator setBoxType:NSBoxSeparator];
+  [_statusSeparator setAutoresizingMask:NSViewWidthSizable | NSViewMaxYMargin];
+  [content addSubview:_statusSeparator];
 
   _spinner = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(12, 7, 16, 16)];
   [_spinner setStyle:NSProgressIndicatorSpinningStyle];
@@ -828,6 +1070,16 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [_spinner setIndeterminate:YES];
   [_spinner setAutoresizingMask:NSViewMaxXMargin | NSViewMaxYMargin];
   [content addSubview:_spinner];
+
+  // WinDirStat's status-bar progress for scans of volumes.
+  _progressBar = [[NSProgressIndicator alloc] initWithFrame:NSMakeRect(12, 7, LDProgressBarWidth, 16)];
+  [_progressBar setStyle:NSProgressIndicatorBarStyle];
+  [_progressBar setIndeterminate:NO];
+  [_progressBar setMinValue:0.0];
+  [_progressBar setMaxValue:100.0];
+  [_progressBar setAutoresizingMask:NSViewMaxXMargin | NSViewMaxYMargin];
+  [_progressBar setHidden:YES];
+  [content addSubview:_progressBar];
 
   CGFloat memoryWidth = 130.0;
   CGFloat selectionWidth = 190.0;
@@ -960,6 +1212,37 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [flexible setWidth:MAX([flexible minWidth], floor(available - others - spacing))];
 }
 
+// WinDirStat's "Automatically resize columns": the tree's columns other
+// than Name and the graph are fitted to their header and widest value among
+// the rows shown (up to LDColumnFitRowLimit); Name keeps taking the rest.
+- (void)fitColumnsToContents
+{
+  if (![[LDPreferences sharedPreferences] automaticallyResizeColumns]) {
+    return;
+  }
+  NSInteger rows = MIN([_directoryTable numberOfRows], LDColumnFitRowLimit);
+  for (NSTableColumn *column in [_directoryTable tableColumns]) {
+    NSString *identifier = [column identifier];
+    if ([identifier isEqualToString:@"name"] || [identifier isEqualToString:@"subtree"]) {
+      continue;
+    }
+    NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
+    CGFloat widest = [[column headerCell] cellSize].width;
+    for (NSInteger row = 0; row < rows; row++) {
+      id value = [self outlineView:_directoryTable objectValueForTableColumn:column byItem:[_directoryTable itemAtRow:row]];
+      if ([value isKindOfClass:[NSString class]]) {
+        widest = MAX(widest, [value sizeWithAttributes:attributes].width + 12.0);
+      }
+    }
+    CGFloat width = MAX([column minWidth], ceil(widest));
+    [_naturalColumnWidths setObject:@(width) forKey:column];
+    if ([column width] != width) {
+      [column setWidth:width];
+    }
+  }
+  [self fitFlexibleColumns];
+}
+
 - (void)fitFlexibleColumns
 {
   [self fitColumn:@"name" ofTable:_directoryTable];
@@ -1062,9 +1345,12 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   }];
   [self fileListsDidStartScan];
 
-  [_window setTitle:[scanPaths count] > 1 ? @"This Computer" : [self displayPath:scanPath]];
+  _titleBase = [scanPaths count] > 1 ? @"This Computer" : [self displayPath:scanPath];
+  _progressRange = [LDScanProgress rangeForScanPaths:scanPaths options:[session scanOptions]];
+  _pacmanResumedAt = 0.0;
   _lastLiveReload = 0.0;
   [self startBusyIndicator];
+  [self updateScanProgress];
   [self updateScanStatus];
   [self refreshCommandState];
 }
@@ -1094,7 +1380,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 // completion arrives through the session's completion block.
 - (void)startBusyIndicator
 {
-  [_spinner startAnimation:nil];
+  [self updateProgressWidgets];
   if (!_busyTimer) {
     _busyTimer = [NSTimer scheduledTimerWithTimeInterval:LDPacmanFrameInterval
                                                   target:self
@@ -1111,10 +1397,57 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   }
   [_busyTimer invalidate];
   _busyTimer = nil;
-  [_spinner stopAnimation:nil];
+  // Scans and file operations can change what is in the trash.
+  _trashMeasuredAt = 0.0;
+  [self updateProgressWidgets];
+  [self updateScanProgress];
   [self refreshCommandState];
   [self showSummaryStatus];
   [_directoryTable setNeedsDisplay:YES];
+}
+
+// The spinner while anything runs, or a percentage bar while a scan of
+// volumes runs (WinDirStat's CreateProgress); the status text moves right of
+// whichever shows.
+- (void)updateProgressWidgets
+{
+  BOOL statusShown = [[LDPreferences sharedPreferences] showStatusBar];
+  BOOL showBar = statusShown && [self isScanning] && _progressRange > 0;
+  BOOL spin = statusShown && [self isBusy] && !showBar;
+  [_progressBar setHidden:!showBar];
+  if (spin) {
+    [_spinner startAnimation:nil];
+  } else {
+    [_spinner stopAnimation:nil];
+  }
+  CGFloat left = showBar ? NSMaxX([_progressBar frame]) + 12.0 : 36.0;
+  NSRect frame = [_statusField frame];
+  if (NSMinX(frame) != left) {
+    frame.size.width = NSMaxX(frame) - left;
+    frame.origin.x = left;
+    [_statusField setFrame:frame];
+    [[_window contentView] setNeedsDisplayInRect:NSMakeRect(0, 0, NSMaxX(frame), LDStatusBarHeight)];
+  }
+}
+
+// The progress bar's position and the window title's "NN% " or "Scanning "
+// prefix (WinDirStat's UpdateProgress), cleared when the scan ends.
+- (void)updateScanProgress
+{
+  NSString *prefix = nil;
+  if ([self isScanning]) {
+    unsigned long long position = [_scanSession bytesScanned];
+    prefix = [LDScanProgress titlePrefixForPosition:position range:_progressRange suspended:[_scanSession isSuspended]];
+    if (_progressRange > 0) {
+      [_progressBar setDoubleValue:(double)[LDScanProgress percentForPosition:position range:_progressRange]];
+    }
+  }
+  if ((prefix || _titlePrefix) && ![prefix isEqualToString:_titlePrefix]) {
+    _titlePrefix = [prefix copy];
+    if (_titleBase) {
+      [_window setTitle:prefix ? [NSString stringWithFormat:@"%@ %@", prefix, _titleBase] : _titleBase];
+    }
+  }
 }
 
 - (void)showStatus:(NSString *)status
@@ -1162,6 +1495,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     return;
   }
   NSTimeInterval elapsed = [_scanSession elapsedTime];
+  [self updateScanProgress];
   if (!_rootNode && [_scanSession rootNode]) {
     _rootNode = [_scanSession rootNode];
     [_directoryTable reloadData];
@@ -1224,6 +1558,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   [self showSummaryStatus];
   [self updateSelectionField];
   [self fileListsDidFinishScan];
+  [self fitColumnsToContents];
   if (!_loadedFile) {
     [LDPlatformUI scanDidFinishWithRoot:root window:_window];
   }
@@ -1348,10 +1683,13 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   _rootNode = root;
   [self reloadResults];
   [_directoryTable expandItem:root];
-  [_window setTitle:[NSString stringWithFormat:@"%@ (%@)", [self displayPath:[root path]], [path lastPathComponent]]];
+  _titleBase = [NSString stringWithFormat:@"%@ (%@)", [self displayPath:[root path]], [path lastPathComponent]];
+  _titlePrefix = nil;
+  [_window setTitle:_titleBase];
   [self showSummaryStatus];
   [self refreshCommandState];
   [self fileListsDidFinishScan];
+  [self fitColumnsToContents];
 }
 
 - (void)suspendScan:(id)sender
@@ -1359,6 +1697,7 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
   (void)sender;
   [_scanSession suspend];
   [self showStatus:@"Scan suspended"];
+  [self updateScanProgress];
   [self refreshCommandState];
 }
 
@@ -1375,6 +1714,8 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
 {
   (void)sender;
   [_scanSession resume];
+  _pacmanResumedAt = [self pacmanTime];
+  [self updateScanProgress];
   [self refreshCommandState];
 }
 
@@ -1927,10 +2268,15 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     return nil;
   }
   if ([identifier isEqualToString:@"percent"]) {
-    // WinDirStat shows the time spent on the root while scanning.
-    if (node == _rootNode && [self isScanning] && [[LDPreferences sharedPreferences] showTimeSpent]) {
-      NSInteger seconds = (NSInteger)[_scanSession elapsedTime];
-      return [NSString stringWithFormat:@"[%ld:%02ld]", (long)(seconds / 60), (long)(seconds % 60)];
+    // WinDirStat's time spent: the root's, and that of every row whose
+    // folder is still being read (IX GetText, MustShowReadJobs).
+    if ([self isScanning] && [[LDPreferences sharedPreferences] showTimeSpent]) {
+      if (node == _rootNode) {
+        return [NSString stringWithFormat:@"[%@]", LDFormatScanDuration((NSUInteger)[_scanSession elapsedTime])];
+      }
+      if ([[node parent] isScanPending]) {
+        return [NSString stringWithFormat:@"[%@]", LDFormatScanDuration([node scanSecondsAt:LDScanClockMilliseconds()])];
+      }
     }
     return [self percentStringForFraction:[self fractionOfParentForNode:node]];
   }
@@ -1981,7 +2327,18 @@ static const NSTimeInterval LDLiveReloadInterval = 0.5;
     [bar setFraction:[self fractionOfParentForNode:node] depth:[node depth]];
     BOOL pending = [node isScanPending];
     BOOL animate = [[LDPreferences sharedPreferences] pacmanAnimation];
-    [bar setShowsPacman:pending && animate time:[self pacmanTime]];
+    NSTimeInterval time = [self pacmanTime];
+    BOOL asleep = NO;
+    if (pending && animate) {
+      uint64_t idle = [node millisecondsSinceScanActivityAt:LDScanClockMilliseconds()];
+      asleep = LDPacmanIsAsleep(idle, (uint64_t)(MAX(0.0, time - _pacmanResumedAt) * 1000.0),
+                                [self isScanning] && [_scanSession isSuspended]);
+      if (asleep) {
+        // A sleeping pacman stays where it stopped.
+        time = MAX(0.0, time - idle / 1000.0);
+      }
+    }
+    [bar setShowsPacman:pending && animate time:time asleep:asleep];
     [bar setReadJobs:(pending && !animate) ? [node pendingScanCount] : 0];
     return;
   }

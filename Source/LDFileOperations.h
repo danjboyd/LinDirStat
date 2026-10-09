@@ -42,6 +42,21 @@
 // macOS asks the user to let LinDirStat control Finder.
 + (BOOL)emptySystemTrash:(NSError **)error;
 
+// The folders holding trashed items: each existing freedesktop.org trash's
+// files/ folder, or the macOS Trash.
++ (NSArray *)trashContentDirectories;
+// What the Empty Trash menu item shows (WinDirStat's "(N Items, X)"): the
+// items directly in the given folders and the physical size of everything
+// below them. Never follows links; stops after entryLimit entries, setting
+// complete to NO. items is NSNotFound when a folder exists but may not be
+// read (macOS without Full Disk Access). Blocking; call it off the main
+// thread.
++ (void)measureTrashContents:(NSArray *)directories
+                  entryLimit:(NSUInteger)entryLimit
+                       items:(NSUInteger *)items
+                       bytes:(unsigned long long *)bytes
+                    complete:(BOOL *)complete;
+
 // The trash directory (containing files/ and info/) the item would be moved
 // into, creating it if needed; nil if the item has no usable trash. Exposed
 // for tests.

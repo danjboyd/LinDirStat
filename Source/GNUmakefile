@@ -47,6 +47,11 @@ LinDirStat_OBJC_FILES = \
   LDSelectTargetRules.m \
   LDSelectTargetPanel.m \
   LDPlatformUI.m \
+  LDScanClock.m \
+  LDScanProgress.m \
+  LDTabCycle.m \
+  LDTreemapPreview.m \
+  LDMainWindow.m \
   LDPrivacyAccess.m \
   LDFileWatcher.m \
   LDFileWatcherLinux.m \

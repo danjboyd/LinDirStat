@@ -286,4 +286,30 @@
   XCTAssertFalse([[LDFileOperations existingTrashDirectories] containsObject:[self bytesOf:trash]]);
 }
 
+- (void)testTrashMeasurementCountsTopLevelItemsAndWholeSize
+{
+  NSFileManager *manager = [NSFileManager defaultManager];
+  NSString *files = [self dataPath:@"files"];
+  [manager createDirectoryAtPath:[files stringByAppendingPathComponent:@"folder/inner"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  NSMutableData *block = [NSMutableData dataWithLength:8192];
+  [block writeToFile:[files stringByAppendingPathComponent:@"folder/inner/big"] atomically:NO];
+  [block writeToFile:[files stringByAppendingPathComponent:@"single"] atomically:NO];
+  symlink("/usr", [[files stringByAppendingPathComponent:@"link"] fileSystemRepresentation]);
+
+  NSUInteger items = 0;
+  unsigned long long bytes = 0;
+  BOOL complete = NO;
+  [LDFileOperations measureTrashContents:@[[self bytesOf:files], [self bytesOf:[self dataPath:@"missing"]]]
+                              entryLimit:1000 items:&items bytes:&bytes complete:&complete];
+  XCTAssertEqual((NSUInteger)3, items);
+  XCTAssertTrue(bytes >= 16384);
+  // The link is not followed into /usr.
+  XCTAssertTrue(bytes < 1024 * 1024);
+  XCTAssertTrue(complete);
+
+  [LDFileOperations measureTrashContents:@[[self bytesOf:files]] entryLimit:2 items:&items bytes:&bytes complete:&complete];
+  XCTAssertEqual((NSUInteger)3, items);
+  XCTAssertFalse(complete);
+}
+
 @end

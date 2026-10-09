@@ -43,11 +43,13 @@ Run GUI checks on a private display (`docs/development.md`, "GUI review on a pri
 The remaining parity work is split between the Linux and macOS sessions in `docs/parity-plan.md`.
 
 
-- Treemap colour pickers (grid and highlight colours) and the treemap preview in Preferences.
 - A `.desktop` file action ("Open with LinDirStat") in place of WinDirStat's Explorer menu entry.
 - Full-window parity gate (roadmap 12J).
 
 ## Known Gaps and Theme Notes
+
+- Scan progress, time spent, sleeping pacmen, the treemap/folder-list colour preferences and the WinDirStat chrome items (parity plan L4–L6) are in; see `docs/windirstat-parity.md`. GUI runs must export `GNUSTEP_HOME` for private defaults, and `openapp` drops it (its `GNUstep.sh` unsets it): start the app through `openapp --gdb=<wrapper> --debug` with a wrapper script that exports it again and execs its arguments (after dropping `--args`).
+- The Adwaita header bar draws toolbar icons at 16 px whatever the toolbar's size mode, so Large Toolbar Icons has no visible effect under the theme.
 
 - Theme/libs-gui issues reported to the Adwaita theme session rather than worked around: NSSplitView gives half-pixel frames with thin dividers; `-[NSTableView setColumnAutoresizingStyle:]` is not implemented, so GNUstep resizes a table's last column (the app keeps it at its natural width while fitting its flexible column); NSAlert has no accessory view or suppression button (the delete warning is a custom panel of standard controls); disabled pop-up buttons do not look disabled; pop-up buttons size too narrow for the theme's arrow; NSTabView does not scroll tabs that do not fit.
 - Hard links (`LDHardLinks`, parity item L2): the scan's hard-link table lives with the root (`+[LDHardLinkTable tableForRoot:]`) and is handed to Refresh Selected; links carry `-[LDFileNode isHardLink]` (a bit in the existing flags byte, no per-node memory). The `<Hardlinks>` pseudo-items are recognised with `LDIsHardLinkItem`.

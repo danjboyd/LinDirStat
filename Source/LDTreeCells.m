@@ -1,4 +1,25 @@
 #import "LDTreeCells.h"
+#import "LDPreferences.h"
+
+NSColor *LDColorFromRGB(uint32_t rgb)
+{
+  return [NSColor colorWithCalibratedRed:((rgb >> 16) & 0xff) / 255.0
+                                   green:((rgb >> 8) & 0xff) / 255.0
+                                    blue:(rgb & 0xff) / 255.0
+                                   alpha:1.0];
+}
+
+uint32_t LDRGBFromColor(NSColor *color)
+{
+  NSColor *rgb = [color colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+  if (!rgb) {
+    return 0;
+  }
+  uint32_t red = (uint32_t)lround(MAX(0.0, MIN(1.0, [rgb redComponent])) * 255.0);
+  uint32_t green = (uint32_t)lround(MAX(0.0, MIN(1.0, [rgb greenComponent])) * 255.0);
+  uint32_t blue = (uint32_t)lround(MAX(0.0, MIN(1.0, [rgb blueComponent])) * 255.0);
+  return (red << 16) | (green << 8) | blue;
+}
 
 // Bar geometry: thin and rounded like GTK's level bars.
 static const CGFloat LDBarHeight = 8.0;
@@ -10,20 +31,7 @@ static const NSUInteger LDMaxIndentLevels = 8;
 
 + (NSColor *)colorForDepth:(NSUInteger)depth
 {
-  static NSArray *colors = nil;
-  if (!colors) {
-    colors = @[
-      [NSColor colorWithCalibratedRed:0x1a / 255.0 green:0x5f / 255.0 blue:0xb4 / 255.0 alpha:1.0], // blue 5
-      [NSColor colorWithCalibratedRed:0xa5 / 255.0 green:0x1d / 255.0 blue:0x2d / 255.0 alpha:1.0], // red 5
-      [NSColor colorWithCalibratedRed:0x26 / 255.0 green:0xa2 / 255.0 blue:0x69 / 255.0 alpha:1.0], // green 5
-      [NSColor colorWithCalibratedRed:0xe5 / 255.0 green:0xa5 / 255.0 blue:0x0a / 255.0 alpha:1.0], // yellow 5
-      [NSColor colorWithCalibratedRed:0x35 / 255.0 green:0x84 / 255.0 blue:0xe4 / 255.0 alpha:1.0], // blue 3
-      [NSColor colorWithCalibratedRed:0xe0 / 255.0 green:0x1b / 255.0 blue:0x24 / 255.0 alpha:1.0], // red 3
-      [NSColor colorWithCalibratedRed:0x33 / 255.0 green:0xd1 / 255.0 blue:0x7a / 255.0 alpha:1.0], // green 3
-      [NSColor colorWithCalibratedRed:0xf6 / 255.0 green:0xd3 / 255.0 blue:0x2d / 255.0 alpha:1.0], // yellow 3
-    ];
-  }
-  return [colors objectAtIndex:depth % [colors count]];
+  return LDColorFromRGB([[LDPreferences sharedPreferences] fileTreeColorForDepth:depth]);
 }
 
 - (void)setFraction:(double)fraction depth:(NSUInteger)depth
@@ -39,8 +47,14 @@ static const NSUInteger LDMaxIndentLevels = 8;
 
 - (void)setShowsPacman:(BOOL)showsPacman time:(NSTimeInterval)time
 {
+  [self setShowsPacman:showsPacman time:time asleep:NO];
+}
+
+- (void)setShowsPacman:(BOOL)showsPacman time:(NSTimeInterval)time asleep:(BOOL)asleep
+{
   _showsPacman = showsPacman;
   _pacmanTime = time;
+  _pacmanAsleep = asleep;
 }
 
 // WinDirStat's CPacman::UpdatePosition: a value that bounces between 0 and 1.
@@ -106,6 +120,26 @@ static CGFloat LDBounce(double travelled, BOOL *rising)
   [[NSColor blackColor] set];
   [pie setLineWidth:1.0];
   [pie stroke];
+  if (_pacmanAsleep) {
+    [self drawSleepAboveBody:body flipped:flipped];
+  }
+}
+
+// CPacman::Draw's sleepy graphic: three small bold "z"s rising to the right
+// from the pacman's top edge, lifted clear of it where the row has room.
+- (void)drawSleepAboveBody:(NSRect)body flipped:(BOOL)flipped
+{
+  NSFont *font = [NSFont boldSystemFontOfSize:MAX(8.0, floor(body.size.height * 0.6))];
+  NSDictionary *attributes = @{NSFontAttributeName: font,
+                               NSForegroundColorAttributeName: [NSColor controlTextColor]};
+  NSSize glyph = [@"z" sizeWithAttributes:attributes];
+  for (NSUInteger step = 1; step <= 3; step++) {
+    CGFloat x = NSMinX(body) + step * body.size.width / 3.0;
+    // How far the glyph's top sits above the body's top.
+    CGFloat lift = (step + 1) * body.size.height / 18.0 + glyph.height * 0.6;
+    CGFloat y = flipped ? NSMinY(body) - lift : NSMaxY(body) + lift - glyph.height;
+    [@"z" drawAtPoint:NSMakePoint(floor(x), floor(y)) withAttributes:attributes];
+  }
 }
 
 - (void)drawInteriorWithFrame:(NSRect)cellFrame inView:(NSView *)controlView

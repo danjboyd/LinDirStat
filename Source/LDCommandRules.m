@@ -1,4 +1,5 @@
 #import "LDCommandRules.h"
+#import "LDSizeFormatter.h"
 #import "LDPreferences.h"
 #import "LDHardLinks.h"
 
@@ -149,6 +150,21 @@
     }
   }
   return folders;
+}
+
++ (NSString *)emptyTrashTitleForItems:(NSUInteger)items
+                                bytes:(unsigned long long)bytes
+                             complete:(BOOL)complete
+{
+  if (items == NSNotFound) {
+    return @"Empty Trash…";
+  }
+  NSString *size = [LDSizeFormatter stringForBytes:bytes];
+  if (!complete) {
+    size = [size stringByAppendingString:@"+"];
+  }
+  NSString *count = items == 1 ? @"1 Item" : [NSString stringWithFormat:@"%lu Items", (unsigned long)items];
+  return [NSString stringWithFormat:@"Empty Trash (%@, %@)…", count, size];
 }
 
 @end

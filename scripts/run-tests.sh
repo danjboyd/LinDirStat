@@ -13,7 +13,11 @@ set -u
 
 cd "$repo_root"
 make -C Tests >/dev/null
-LD_LIBRARY_PATH="$TOOLS_XCTEST_ROOT/XCTest/obj:${LD_LIBRARY_PATH:-}" \
+# Tests write defaults (the xctest domain); a private GNUstep home keeps them
+# out of the user's. GNUstep.sh unsets GNUSTEP_HOME, so it is set here.
+test_home="$(mktemp -d "${TMPDIR:-/tmp}/lindirstat-tests-home.XXXXXX")"
+trap 'rm -rf "$test_home"' EXIT
+GNUSTEP_HOME="$test_home" LD_LIBRARY_PATH="$TOOLS_XCTEST_ROOT/XCTest/obj:${LD_LIBRARY_PATH:-}" \
   "$TOOLS_XCTEST_ROOT/obj/xctest" Tests/LinDirStatTests.bundle
 
 # The command line end to end, against the app build.

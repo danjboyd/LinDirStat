@@ -11,8 +11,9 @@
 @end
 
 // Displays an LDTreemap the way WinDirStat's CTreeMapView does: a cached
-// cushion bitmap, a white selection frame or per-extension highlights, and a
-// framed zoom state. Theme colors are used only for the view's chrome.
+// cushion bitmap, a selection frame or per-extension highlights in the
+// highlight colour (white by default), and a framed zoom state. Theme colors
+// are used only for the view's chrome.
 @interface LDTreemapView : NSView
 {
   __weak id _delegate;
@@ -30,6 +31,7 @@
   BOOL _dimmed;
   LDFileNode *_hoverNode;
   NSMutableArray *_reselectStack;
+  LDRGBColor _highlightColor;
 }
 
 - (id)delegate;
@@ -40,6 +42,9 @@
 - (LDFileNode *)rootNode;
 - (LDTreemapOptions)options;
 - (void)setOptions:(LDTreemapOptions)options;
+// WinDirStat's TreeMapHighlightColor, for the selection frame.
+- (LDRGBColor)highlightColor;
+- (void)setHighlightColor:(LDRGBColor)color;
 
 - (LDFileNode *)selectedNode;
 - (void)setSelectedNode:(LDFileNode *)node;

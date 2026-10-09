@@ -158,6 +158,13 @@ typedef enum {
 - (BOOL)isScanPending;
 // Directory reads still to finish in this subtree (WinDirStat's read jobs).
 - (NSUInteger)pendingScanCount;
+// WinDirStat's time spent (now in LDScanClock milliseconds): seconds since
+// the first read job was queued while pending, then the time the reads took.
+// 0 for files and for folders not scanned live.
+- (NSUInteger)scanSecondsAt:(uint64_t)now;
+// Milliseconds since the last progress below this pending folder; 0 when
+// it is not pending.
+- (uint64_t)millisecondsSinceScanActivityAt:(uint64_t)now;
 
 - (NSComparisonResult)compareByAggregateSizeThenName:(LDFileNode *)other;
 - (NSDictionary *)snapshotDictionary;
@@ -175,6 +182,11 @@ typedef enum {
   uint32_t _fileCount;
   uint32_t _directoryCount;
   uint32_t _pendingScans;
+  // LDScanClock stamps in what was padding: when the first read job was
+  // queued (seconds), and while pending the last progress below this node
+  // (10 ms steps), replaced by the read's duration in seconds once done.
+  uint16_t _scanStarted;
+  uint16_t _scanActivity;
 }
 
 // Keeps storage the subtree depends on (the scan's name arenas and hard-link
@@ -199,6 +211,9 @@ typedef enum {
 - (void)beginPendingScans:(NSUInteger)count;
 - (void)finishPendingScan;
 - (void)clearPendingScans;
+// Records progress (now, in LDScanClock milliseconds) on this node and every
+// pending ancestor, for the pacmen's sleep test. Thread-safe.
+- (void)noteScanActivityAt:(uint64_t)now;
 
 // Tree edits after a scan (main thread only). Totals are not updated; call
 // -updateTotalsUpwardSortedByMetric: on this directory afterwards.

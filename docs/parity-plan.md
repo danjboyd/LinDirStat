@@ -25,9 +25,9 @@ checks every PR on its own platform before it is merged.
 | L1 | Show Free Space / Show Unknown (F6/F7): `<Free Space>` and `<Unknown>` under volume roots, WinDirStat's lighter/darker colour flags in `LDTreemap` | Linux | done (#7) |
 | L2 | Hard links: `<Hardlinks>` pseudo-folder and ⧉ marker that jumps between links; Refresh Selected keeps the scan's hard-link set; CSV restores hard-link physical sizes and writes real Index values | Linux | done (#7) |
 | L3 | Command line: `--savetocsv`, `--savedupestocsv`, `--loadfromcsv` | Linux | done (#7) |
-| L4 | Scan progress: percent bar in the status bar and "NN%" title for volume roots, per-row time spent, pacman "zzz" when a folder stalls | Linux | todo |
-| L5 | Preferences: treemap grid and highlight colour pickers with a live preview; subtree bar level colours and level count; "Automatically resize columns" | Linux | todo |
-| L6 | Chrome: Show Toolbar, Show Status Bar, Large Toolbar Icons; Ctrl+F1–F4 tab shortcuts and Tab cycling into the extension list; Expand/Collapse as the tree context menu's default item; Name sorts by type first; Empty Trash label "(N Items, X)"; Help menu (manual, report a bug) | Linux | todo |
+| L4 | Scan progress: percent bar in the status bar and "NN%" title for volume roots, per-row time spent, pacman "zzz" when a folder stalls | Linux | PR |
+| L5 | Preferences: treemap grid and highlight colour pickers with a live preview; subtree bar level colours and level count; "Automatically resize columns" | Linux | PR |
+| L6 | Chrome: Show Toolbar, Show Status Bar, Large Toolbar Icons; Ctrl+F1–F4 tab shortcuts and Tab cycling into the extension list; Expand/Collapse as the tree context menu's default item; Name sorts by type first; Empty Trash label "(N Items, X)"; Help menu (manual, report a bug) | Linux | PR |
 | L7 | Duplicates found during the scan, not after it | Linux | done (#7) |
 | L8 | File Watcher tab (Tools › Start File Watcher): `LDFileWatcher` interface, inotify backend, tab UI | Linux | done (#7) |
 | M8 | File Watcher FSEvents backend for `LDFileWatcher` | macOS | done (#9) |

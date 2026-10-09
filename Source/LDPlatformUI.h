@@ -19,6 +19,10 @@
 // own symbolic icons.
 + (NSImage *)fileIconForNode:(LDFileNode *)node;
 
+// YES on macOS, where Control-F1…F4 belong to the system's keyboard
+// navigation: Command-1…4 select the file tabs instead.
++ (BOOL)usesCommandDigitsForFileTabs;
+
 // "Settings" on macOS, "Preferences" elsewhere.
 + (NSString *)settingsTitle;
 

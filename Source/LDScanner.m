@@ -3,6 +3,7 @@
 #import "LDScanSession.h"
 #import "LDExtensionStats.h"
 #import "LDScanOptions.h"
+#import "LDScanClock.h"
 #import "LDDuplicateFinder.h"
 #import "LDHardLinks.h"
 
@@ -602,6 +603,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
     [directoryNode setError:LDFileNodeErrorDirectoryUnreadable errorNumber:errno];
     [session incrementErrorCount];
     [session incrementSkippedCount];
+    [directoryNode noteScanActivityAt:LDScanClockMilliseconds()];
     [directoryNode finishPendingScan];
     return nil;
   }
@@ -619,6 +621,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   unsigned long long bytes = 0;
   unsigned long long logicalBytes = 0;
   int64_t newest = (int64_t)[directoryNode modificationTime];
+  NSUInteger entriesRead = 0;
   struct dirent *entry = NULL;
   while ((entry = readdir(directory)) != NULL) {
     const char *name = entry->d_name;
@@ -627,6 +630,11 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
     }
     if ([session isCanceled]) {
       break;
+    }
+    // A large folder keeps its pacmen awake while it is read (WinDirStat
+    // drives them per entry).
+    if (++entriesRead % 4096 == 0) {
+      [directoryNode noteScanActivityAt:LDScanClockMilliseconds()];
     }
     if (excludeHidden && name[0] == '.') {
       continue;
@@ -706,6 +714,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
     [_duplicateCollector addNodes:children];
   }
   [directoryNode addLiveFiles:files directories:directories size:logicalBytes allocatedSize:bytes modificationTime:newest];
+  [directoryNode noteScanActivityAt:LDScanClockMilliseconds()];
   for (LDScanJob *subdirectory in subdirectories) {
     [subdirectory->_node beginPendingScans:1];
   }

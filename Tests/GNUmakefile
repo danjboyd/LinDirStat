@@ -31,6 +31,10 @@ LinDirStatTests_OBJC_FILES = \
   LDVolumesTests.m \
   LDSpaceItemsTests.m \
   LDSelectTargetRulesTests.m \
+  LDScanClockTests.m \
+  LDScanProgressTests.m \
+  LDTabCycleTests.m \
+  LDTreemapPreviewTests.m \
   LDPrivacyAccessTests.m \
   LDFileWatcherTests.m \
   LDDesktopEntryTests.m \
@@ -64,6 +68,10 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDScanOptions.m \
   ../Source/LDVolumes.m \
   ../Source/LDSelectTargetRules.m \
+  ../Source/LDScanClock.m \
+  ../Source/LDScanProgress.m \
+  ../Source/LDTabCycle.m \
+  ../Source/LDTreemapPreview.m \
   ../Source/LDPrivacyAccess.m \
   ../Source/LDSpaceItems.m \
   ../Source/LDFileWatcher.m \

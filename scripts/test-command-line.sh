@@ -19,7 +19,7 @@ fi
 tmp="${TMPDIR:-/tmp}"
 work="$(mktemp -d "${tmp%/}/lindirstat-cli.XXXXXX")"
 trap 'rm -rf "$work"' EXIT
-mkdir -p "$work/defaults"
+mkdir -p "$work/home"
 cp -R "$repo_root/Tests/Fixtures/basic-tree" "$work/tree"
 printf 'duplicate contents\n' > "$work/tree/copy-1.txt"
 printf 'duplicate contents\n' > "$work/tree/src/copy-2.txt"
@@ -31,9 +31,11 @@ fail() {
 }
 
 run_app() {
-  # No display: the save flags must not need one. Private defaults keep the
-  # user's filters out of the result.
-  env -u DISPLAY -u WAYLAND_DISPLAY GNUSTEP_USER_DEFAULTS_DIR="$work/defaults" "$app" "$@"
+  # No display: the save flags must not need one. A private GNUstep home
+  # keeps the user's filters out of the result and the run out of the user's
+  # defaults. (gnustep-base ignores GNUSTEP_USER_DEFAULTS_DIR, and GNUstep.sh
+  # unsets GNUSTEP_HOME, so it is set here, after GNUstep.sh.)
+  env -u DISPLAY -u WAYLAND_DISPLAY GNUSTEP_HOME="$work/home" "$app" "$@"
 }
 
 # Results and duplicates in one run, with the Windows spelling for one flag.

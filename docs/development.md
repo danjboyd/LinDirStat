@@ -99,18 +99,21 @@ change your LinDirStat settings:
 
 ```sh
 Xvfb :77 -screen 0 1600x1000x24 &
-mkdir -p /tmp/ld-home/GNUstep/Defaults
-cp ~/GNUstep/Defaults/NSGlobalDomain.plist /tmp/ld-home/GNUstep/Defaults/
-. ~/.local/share/gnustep-cli/System/Library/Makefiles/GNUstep.sh
-GNUSTEP_HOME=/tmp/ld-home DISPLAY=:77 XDG_DATA_HOME=/tmp/ld-data \
-  DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent \
-  LINDIRSTAT_SCAN_PATH=/usr/share/doc openapp Source/LinDirStat.app &
+DISPLAY=:77 DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent XDG_DATA_HOME=/tmp/ld-data \
+  LINDIRSTAT_SCAN_PATH=/usr/share/doc scripts/run-isolated.sh /tmp/ld-gnustep-home &
 DISPLAY=:77 import -window root /tmp/ld-review.png
 ```
 
-- `GNUSTEP_HOME` gives the run its own defaults. gnustep-base ignores
-  `GNUSTEP_USER_DEFAULTS_DIR`, so that variable does not isolate anything;
-  run `defaults` with the same `GNUSTEP_HOME` to change test settings.
+- `scripts/run-isolated.sh` gives the app its own GNUstep home (defaults),
+  seeded with your global domain and linked to your `~/GNUstep/Library` for
+  the theme. Neither `$HOME` nor `GNUSTEP_USER_DEFAULTS_DIR` isolates
+  gnustep-base (it takes the home from the user database and ignores that
+  variable), and `openapp`'s `GNUstep.sh` unsets `GNUSTEP_HOME`, so the script
+  sets it again in a wrapper just before the app runs. For processes started
+  directly (xctest, the command-line binary, `defaults`), export
+  `GNUSTEP_HOME` after sourcing `GNUstep.sh`; `scripts/run-tests.sh` and
+  `scripts/test-command-line.sh` do. Check that the mtimes of
+  `~/GNUstep/Defaults/*.plist` do not change across a run.
 - `XDG_DATA_HOME` gives trash tests their own trash folder.
 - The dead D-Bus address keeps the file chooser portal and the file manager
   from opening on your desktop.

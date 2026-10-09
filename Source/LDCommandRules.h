@@ -36,6 +36,12 @@ typedef enum {
          rootNode:(LDFileNode *)root
              busy:(BOOL)busy;
 
+// WinDirStat's Empty Recycle Bin label: "Empty Trash (N Items, X)…", with
+// "X+" when the size is a lower bound (the walk was capped).
++ (NSString *)emptyTrashTitleForItems:(NSUInteger)items
+                                bytes:(unsigned long long)bytes
+                             complete:(BOOL)complete;
+
 // Nodes with every node that lies below another one in the list removed,
 // in their original order. Acting on a folder covers what is inside it.
 + (NSArray *)topmostNodes:(NSArray *)nodes;
