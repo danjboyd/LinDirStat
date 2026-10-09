@@ -1,6 +1,7 @@
 #import "LDTreemapView.h"
 #import "LDExtensionStats.h"
 #import "LDHardLinks.h"
+#import "LDPlatformUI.h"
 
 // WinDirStat's CTreeMapView::ZoomFrameWidth.
 static const int LDZoomFrameWidth = 4;
@@ -95,7 +96,20 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 - (NSSize)renderSize
 {
   NSRect bounds = [self bounds];
-  return NSMakeSize(MAX(0.0, floor(bounds.size.width) - 1.0), MAX(0.0, floor(bounds.size.height) - 1.0));
+  CGFloat scale = [self renderScale];
+  return NSMakeSize(MAX(0.0, floor(bounds.size.width) - 1.0) * scale, MAX(0.0, floor(bounds.size.height) - 1.0) * scale);
+}
+
+- (CGFloat)renderScale
+{
+  return [LDPlatformUI backingScaleForView:self];
+}
+
+// The treemap's pixel size for an area in points.
+- (NSSize)pixelSizeOfArea:(NSRect)area
+{
+  CGFloat scale = [self renderScale];
+  return NSMakeSize(area.size.width * scale, area.size.height * scale);
 }
 
 - (void)setOptions:(LDTreemapOptions)options
@@ -168,10 +182,11 @@ NSRect LDWholePixelRectInside(NSRect rect)
 - (NSRect)viewRectForCellRect:(LDTreemapRect)rect
 {
   NSRect area = [self treemapArea];
-  return NSMakeRect(area.origin.x + rect.left,
-                    area.origin.y + rect.top,
-                    LDTreemapRectWidth(rect),
-                    LDTreemapRectHeight(rect));
+  CGFloat scale = [self renderScale];
+  return NSMakeRect(area.origin.x + rect.left / scale,
+                    area.origin.y + rect.top / scale,
+                    LDTreemapRectWidth(rect) / scale,
+                    LDTreemapRectHeight(rect) / scale);
 }
 
 - (void)setFrameSize:(NSSize)size
@@ -211,9 +226,9 @@ NSRect LDWholePixelRectInside(NSRect rect)
   _bitmap = nil;
 
   LDFileNode *root = [self zoomNode];
-  NSRect area = [self treemapArea];
-  int width = (int)area.size.width;
-  int height = (int)area.size.height;
+  NSSize pixels = [self pixelSizeOfArea:[self treemapArea]];
+  int width = (int)pixels.width;
+  int height = (int)pixels.height;
   if (!root || width <= 0 || height <= 0) {
     return;
   }
@@ -254,9 +269,11 @@ NSRect LDWholePixelRectInside(NSRect rect)
   }
 
   NSRect area = [self treemapArea];
-  // Moving the view can change the whole-pixel area without resizing it.
-  BOOL areaChanged = _bitmap && ([_bitmap pixelsWide] != (NSInteger)NSWidth(area)
-                                 || [_bitmap pixelsHigh] != (NSInteger)NSHeight(area));
+  // Moving the view (or its window to another display) can change the
+  // area's pixels without resizing it.
+  NSSize pixels = [self pixelSizeOfArea:area];
+  BOOL areaChanged = _bitmap && ([_bitmap pixelsWide] != (NSInteger)pixels.width
+                                 || [_bitmap pixelsHigh] != (NSInteger)pixels.height);
   if ((_needsRender || areaChanged) && !_renderTimer) {
     [self render];
   }
@@ -369,8 +386,9 @@ NSRect LDWholePixelRectInside(NSRect rect)
     return nil;
   }
   NSRect area = [self treemapArea];
-  NSInteger index = [_treemap cellIndexAtX:(int)floor(point.x - area.origin.x)
-                                         y:(int)floor(point.y - area.origin.y)];
+  CGFloat scale = [self renderScale];
+  NSInteger index = [_treemap cellIndexAtX:(int)floor((point.x - area.origin.x) * scale)
+                                         y:(int)floor((point.y - area.origin.y) * scale)];
   return index >= 0 ? [_treemap nodeOfCell:(NSUInteger)index] : nil;
 }
 
@@ -570,6 +588,15 @@ NSRect LDWholePixelRectInside(NSRect rect)
 {
   [[self window] setAcceptsMouseMovedEvents:YES];
 }
+
+#if defined(__APPLE__)
+// Moved to a display with another scale: render at its resolution.
+- (void)viewDidChangeBackingProperties
+{
+  [super viewDidChangeBackingProperties];
+  [self setNeedsDisplay:YES];
+}
+#endif
 
 - (void)dealloc
 {

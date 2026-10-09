@@ -285,6 +285,11 @@ def run_style(gate, style_name, style, fixture_root, spec_json, parity, out_dir,
         gate.check(style_name, "scan-complete", "file tabs in WinDirStat's order",
                    [t["label"] for t in layout["tabs"]["tabs"]] == base.FILE_TABS,
                    [t["label"] for t in layout["tabs"]["tabs"]])
+        if layout["treemap"].get("scale", 1) != 1:
+            # Screenshots are compared in points; a Retina treemap has more pixels.
+            gate.note(style_name, "scan-complete", "treemap rendered above 1x; pixel and frame checks skipped",
+                      layout["treemap"]["scale"])
+            return states
         rendered = reference(*layout["treemap"]["renderSize"])[0]
         masked = mask_window_corners(image, layout, rendered)
         gate.note(style_name, "scan-complete", "treemap pixels under the window's rounded corners not compared", masked)

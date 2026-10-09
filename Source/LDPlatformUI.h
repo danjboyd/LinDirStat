@@ -31,6 +31,11 @@
 // width style (not the padded inset one) and no focus ring around the pane.
 + (void)configureTable:(NSTableView *)table;
 
+// Device pixels per point for view's window: the treemap is rendered at this
+// resolution. 1 under GNUstep. LINDIRSTAT_TREEMAP_SCALE overrides it (to try
+// a Retina layout on another display).
++ (CGFloat)backingScaleForView:(NSView *)view;
+
 // "Settings" on macOS, "Preferences" elsewhere.
 + (NSString *)settingsTitle;
 

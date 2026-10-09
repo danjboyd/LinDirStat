@@ -76,6 +76,7 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDTabCycle.m \
   ../Source/LDTreemapPreview.m \
   ../Source/LDTreemapView.m \
+  ../Source/LDPlatformUI.m \
   ../Source/LDLayoutDump.m \
   ../Source/LDPrivacyAccess.m \
   ../Source/LDSpaceItems.m \
