@@ -33,16 +33,16 @@ checks every PR on its own platform before it is merged.
 | M8 | File Watcher FSEvents backend for `LDFileWatcher` | macOS | done (#9) |
 | L9 | "Open With" submenu in place of WinDirStat's Explorer menu: `LDOpenWith` interface, Linux backend (desktop entries / `gio`), menu UI | Linux | done (#7) |
 | M9 | "Open With" Apple backend (`NSWorkspace` application URLs) | macOS | done (#10) |
-| M5 | Localization (WinDirStat's Language setting): `.lproj` string tables shared by both builds; done last because it touches every UI string | macOS | in review |
+| M5 | Localization (WinDirStat's Language setting): `.lproj` string tables shared by both builds; done last because it touches every UI string | macOS | done (#18) |
 
 ## Platform work
 
 | # | Gap | Owner | Status |
 |---|---|---|---|
 | L10 | Linux AppImage: fix `gnustep-packager` for apps without file associations, then package | Linux | PR (packaged and validated; needs gnustep-packager `appimage-no-associations` merged upstream) |
-| M1 | macOS distribution: DMG through `gnustep-packager`'s `dmg` backend (AGENTS.md: no ad hoc DMG scripts); signing pipeline ready for a Developer ID and notarization once there is one | macOS | todo |
+| M1 | macOS distribution: DMG through `gnustep-packager`'s `dmg` backend (AGENTS.md: no ad hoc DMG scripts); signing pipeline ready for a Developer ID and notarization once there is one | macOS | in progress (new dmg backend in gnustep-packager) |
 | M2 | Full Disk Access: detect missing access and guide the user to System Settings | macOS | done (#3) |
-| M3 | Apple backends for anything new in L1–L9 that needs one (free space, progress range, hard links on APFS clones) | macOS | as PRs land (L1/L2 icons: #12) |
+| M3 | Apple backends for anything new in L1–L9 that needs one (free space, progress range, hard links on APFS clones) | macOS | done (#12, #17) |
 
 ## Quality gates
 
@@ -52,7 +52,7 @@ checks every PR on its own platform before it is merged.
 | M11 | The same full-window review on macOS | macOS | done (#16) |
 | L12 | Automated UI coordination tests (selection sync, refresh, deletion, tab lists) | Linux | done (#13, #14) |
 | L13 | Performance: profile and fix stop/finalize time on million-file scans and duplicate detection memory | Linux | done (#15) |
-| M13 | macOS validation matrix (macOS 13–26, Intel and Apple Silicon where available) | macOS | todo |
+| M13 | macOS validation matrix (macOS 13–26, Intel and Apple Silicon where available) | macOS | deferred: needs Dan\'s Intel Mac (older macOS) |
 
 ## Intentional differences (not gaps)
 
