@@ -99,14 +99,21 @@ change your LinDirStat settings:
 
 ```sh
 Xvfb :77 -screen 0 1600x1000x24 &
-mkdir -p /tmp/ld-defaults && cp ~/GNUstep/Defaults/NSGlobalDomain.plist /tmp/ld-defaults/
+mkdir -p /tmp/ld-home/GNUstep/Defaults
+cp ~/GNUstep/Defaults/NSGlobalDomain.plist /tmp/ld-home/GNUstep/Defaults/
 . ~/.local/share/gnustep-cli/System/Library/Makefiles/GNUstep.sh
-GNUSTEP_USER_DEFAULTS_DIR=/tmp/ld-defaults DISPLAY=:77 XDG_DATA_HOME=/tmp/ld-data \
+GNUSTEP_HOME=/tmp/ld-home DISPLAY=:77 XDG_DATA_HOME=/tmp/ld-data \
+  DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent \
   LINDIRSTAT_SCAN_PATH=/usr/share/doc openapp Source/LinDirStat.app &
 DISPLAY=:77 import -window root /tmp/ld-review.png
 ```
 
+- `GNUSTEP_HOME` gives the run its own defaults. gnustep-base ignores
+  `GNUSTEP_USER_DEFAULTS_DIR`, so that variable does not isolate anything;
+  run `defaults` with the same `GNUSTEP_HOME` to change test settings.
 - `XDG_DATA_HOME` gives trash tests their own trash folder.
+- The dead D-Bus address keeps the file chooser portal and the file manager
+  from opening on your desktop.
 - There is no window manager: find windows with `xwininfo -root -tree`, not
   `xdotool search --pid`.
 - Drive clicks with `xdotool mousedown`, a short sleep, then `mouseup`;
