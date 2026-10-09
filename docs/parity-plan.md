@@ -30,7 +30,7 @@ checks every PR on its own platform before it is merged.
 | L6 | Chrome: Show Toolbar, Show Status Bar, Large Toolbar Icons; Ctrl+F1–F4 tab shortcuts and Tab cycling into the extension list; Expand/Collapse as the tree context menu's default item; Name sorts by type first; Empty Trash label "(N Items, X)"; Help menu (manual, report a bug) | Linux | todo |
 | L7 | Duplicates found during the scan, not after it | Linux | done (#7) |
 | L8 | File Watcher tab (Tools › Start File Watcher): `LDFileWatcher` interface, inotify backend, tab UI | Linux | done (#7) |
-| M8 | File Watcher FSEvents backend for `LDFileWatcher` | macOS | in review |
+| M8 | File Watcher FSEvents backend for `LDFileWatcher` | macOS | done (#9) |
 | L9 | "Open With" submenu in place of WinDirStat's Explorer menu: `LDOpenWith` interface, Linux backend (desktop entries / `gio`), menu UI | Linux | done (#7) |
 | M9 | "Open With" Apple backend (`NSWorkspace` application URLs) | macOS | in progress |
 | M5 | Localization (WinDirStat's Language setting): `.lproj` string tables shared by both builds; done last because it touches every UI string | macOS | after L1–L9 |
