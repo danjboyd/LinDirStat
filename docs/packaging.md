@@ -18,9 +18,8 @@ Current packaging scope:
 
 - `pwsh` (PowerShell 7) for the packager, plus `readelf`, `ldd`, `strip`,
   `dpkg` and `python3` (the stage script uses them).
-- `gnustep-packager` with AppImage support for apps without file
-  associations: branch `appimage-no-associations` (see
-  `docs/gnustep-packager-upstream-requests.md`) until it is merged.
+- `gnustep-packager` `main` (AppImage support for apps without file
+  associations landed in #8; see `docs/gnustep-packager-upstream-requests.md`).
 - The build inputs the stage script copies from, each overridable by an
   environment variable:
   - `GNUSTEP_CLI_ROOT`: the `gnustep-cli-new` install
@@ -173,8 +172,7 @@ gnustep-packager's `dmg` backend from the staged bundle.
 ### Requirements
 
 - macOS 13 or later with Xcode or the Command Line Tools, and `pwsh`.
-- gnustep-packager with the `dmg` backend (branch `dmg-backend` until it is
-  merged).
+- gnustep-packager `main` (the `dmg` backend landed in #10).
 - For the Finder window layout (app on the left, Applications on the right):
   a logged-in desktop session where the terminal may control Finder (System
   Settings › Privacy & Security › Automation). Without it the layout is

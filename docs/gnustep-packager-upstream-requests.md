@@ -4,8 +4,7 @@ LinDirStat depends on `~/git/gnustep/gnustep-packager` for packaging.
 
 ## AppImage: Apps Without File Associations
 
-Status: fixed on the packager branch `appimage-no-associations`
-(commit `15045ce`, based on `origin/main` `b358b2a`), awaiting review and merge.
+Status: fixed and merged upstream (gnustep-packager #8, 2026-10-12).
 
 The AppImage backend passed the empty MIME entry list of an app with no
 `integrations.fileAssociations` into mandatory `[psobject[]]` parameters,

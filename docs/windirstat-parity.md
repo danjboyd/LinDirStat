@@ -55,7 +55,7 @@ Status values:
 | --- | --- | --- |
 | Linux GNUstep build | partial | Builds through `gnustep-cli-new`. |
 | Linux Adwaita default | done | The payload bundles `Adwaita.theme` and makes it the default through a `GlobalDefaults.plist` beside a relocatable `GNUstep.conf`, below the user's own defaults (`ifUnset`); the package contracts require the bundled theme. See `docs/packaging.md`. |
-| Linux AppImage | matched | The stage script produces a self-contained payload (GNUstep, libobjc2, libdispatch, libs-OpenSave, nettle and the other non-host libraries, Adwaita, icon, notices) that starts, applies Adwaita and scans from the `AppRun` environment without build-machine paths. `GlobalDefaults.plist` ships the theme's header-bar and Ctrl-shortcut settings below the user's own. Packaged (about 29 MB) and validated with the packager's `-RunSmoke` on a private display; it needs gnustep-packager's `appimage-no-associations` branch until that is merged upstream. |
+| Linux AppImage | matched | The stage script produces a self-contained payload (GNUstep, libobjc2, libdispatch, libs-OpenSave, nettle and the other non-host libraries, Adwaita, icon, notices) that starts, applies Adwaita and scans from the `AppRun` environment without build-machine paths. `GlobalDefaults.plist` ships the theme's header-bar and Ctrl-shortcut settings below the user's own. Packaged (about 29 MB) and validated with the packager's `-RunSmoke` on a private display with gnustep-packager `main`. |
 | macOS app | partial | Builds and runs natively against Apple's AppKit, with the test suite passing on macOS; see `docs/macos.md`. |
 | macOS DMG packaging | deferred | Requires a new `gnustep-packager` macOS DMG-style backend. |
 
