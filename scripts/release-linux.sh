@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# Builds, checks and (with --publish) publishes a LinDirStat AppImage
+# release that installed copies update to (docs/updates.md).
+#
+#   scripts/release-linux.sh            # dry run: build, validate, sign, test
+#   scripts/release-linux.sh --publish  # the same, then publish
+#
+# The version is package.version in package.manifest.json; the release is
+# tag v<version> in the public releases repository (updates.github in the
+# manifest). Run it from a clean checkout of main at the commit to release.
+#
+# Steps:
+#   1. package the AppImage with gnustep-packager and validate it, with the
+#      smoke launch on a private Xvfb;
+#   2. sign the update feed with the update key (UPDATE_ED_PRIVATE_KEY, else
+#      the file UPDATE_ED_PRIVATE_KEY_FILE, default
+#      ~/.config/lindirstat/update-ed25519.key), which must match the
+#      manifest's updates.publicEDKey;
+#   3. when the releases repository has a release, check that it updates to
+#      this one (scripts/test-appimage-update.sh);
+#   4. with --publish: create the GitHub release with the AppImage, its .zsync
+#      and the sidecars, then publish the feed to the releases repository's
+#      gh-pages branch at updates/linux/stable.json, and tag the source
+#      commit. A version with "-" (0.2.0-rc1) is a pre-release: it gets a
+#      release but not the feed, so installed copies are not offered it.
+#
+# Inputs (environment): GNUSTEP_PACKAGER (gnustep-packager checkout,
+# default ~/git/gnustep/gnustep-packager; needs #8 and #10, its main from
+# 3e487ab on) and the GNUstep build inputs docs/packaging.md lists.
+set -euo pipefail
+
+publish=0
+case "${1:-}" in
+  "") ;;
+  --publish) publish=1 ;;
+  *) sed -n '2,32p' "$0" >&2; exit 2 ;;
+esac
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+packager_root="${GNUSTEP_PACKAGER:-$HOME/git/gnustep/gnustep-packager}"
+packager="$packager_root/scripts/gnustep-packager.ps1"
+
+die() { echo "release-linux: $*" >&2; exit 1; }
+manifest_value() {
+  python3 -c 'import json, sys
+value = json.load(open("package.manifest.json"))
+for key in sys.argv[1].split("."):
+    value = value[key]
+print(value)' "$1"
+}
+
+version="$(manifest_value package.version)"
+tag="v$version"
+owner="$(manifest_value updates.github.owner)"
+releases_repo="$owner/$(manifest_value updates.github.repo)"
+public_key="$(manifest_value updates.publicEDKey)"
+feed_url="$(manifest_value backends.appimage.updates.feedUrl)"
+prerelease=0
+[[ "$version" == *-* ]] && prerelease=1
+
+# The source is what gets released: a clean main.
+commit="$(git rev-parse HEAD)"
+[ -z "$(git status --porcelain)" ] || die "the working tree has changes; release a commit"
+if [ "$publish" = 1 ]; then
+  [ "$(git rev-parse --abbrev-ref HEAD)" = main ] || die "publish from main"
+  git fetch -q origin main
+  [ "$(git rev-parse origin/main)" = "$commit" ] || die "HEAD is not origin/main"
+fi
+[ -f "$packager" ] || die "no gnustep-packager at $packager_root (set GNUSTEP_PACKAGER)"
+git -C "$packager_root" merge-base --is-ancestor 3e487ab HEAD 2>/dev/null ||
+  die "gnustep-packager at $packager_root predates 3e487ab (its main with #8 and #10)"
+[ -z "$(git -C "$packager_root" status --porcelain)" ] || die "gnustep-packager at $packager_root has local changes"
+packager_commit="$(git -C "$packager_root" rev-parse --short HEAD)"
+if [ "$publish" = 1 ]; then
+  gh repo view "$releases_repo" >/dev/null 2>&1 || die "no releases repository $releases_repo (see docs/updates.md)"
+fi
+if gh release view "$tag" --repo "$releases_repo" >/dev/null 2>&1; then
+  die "$releases_repo already has $tag; bump package.version"
+fi
+
+if [ -z "${UPDATE_ED_PRIVATE_KEY:-}" ]; then
+  key_file="${UPDATE_ED_PRIVATE_KEY_FILE:-$HOME/.config/lindirstat/update-ed25519.key}"
+  [ -r "$key_file" ] || die "no update key (UPDATE_ED_PRIVATE_KEY or $key_file)"
+  UPDATE_ED_PRIVATE_KEY="$(cat "$key_file")"
+fi
+export UPDATE_ED_PRIVATE_KEY UPDATE_ED_PUBLIC_KEY="$public_key"
+
+echo "release-linux: LinDirStat $version from $(git rev-parse --short HEAD), gnustep-packager $packager_commit"
+
+# 1. Package and validate. The smoke launch runs on a private display with a
+# private GNUstep home.
+work="$(mktemp -d "${TMPDIR:-/tmp}/lindirstat-release.XXXXXX")"
+xvfb_pid=""
+cleanup() {
+  [ -n "$xvfb_pid" ] && kill "$xvfb_pid" 2>/dev/null || true
+  rm -rf "$work"
+}
+trap cleanup EXIT
+
+rm -rf dist/packages
+for command in manifest-check build stage validate; do
+  pwsh "$packager" -Manifest package.manifest.json -Command "$command"
+done
+pwsh "$packager" -Manifest package.manifest.json -Command package -Backend appimage
+
+exec 3< <(Xvfb -displayfd 4 -screen 0 1280x800x24 -nolisten tcp 4>&1 2>/dev/null)
+xvfb_pid=$!
+read -r -t 10 display_number <&3 || die "Xvfb did not start"
+mkdir -p "$work/home" "$work/xdg"
+DISPLAY=":$display_number" GNUSTEP_HOME="$work/home" XDG_DATA_HOME="$work/xdg" XDG_CONFIG_HOME="$work/xdg" \
+  DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent \
+  pwsh "$packager" -Manifest package.manifest.json -Command validate -Backend appimage -RunSmoke
+kill "$xvfb_pid" 2>/dev/null || true
+xvfb_pid=""
+
+appimage="dist/packages/LinDirStat-$version-x86_64.AppImage"
+feed="dist/packages/LinDirStat-$version-x86_64.update-feed.json"
+for file in "$appimage" "$appimage.zsync" "$feed"; do
+  [ -f "$file" ] || die "packaging did not produce $file"
+done
+python3 - "$feed" "$feed_url" "$releases_repo" "$tag" <<'PY' || die "the feed does not describe this release"
+import json, sys
+feed = json.load(open(sys.argv[1], encoding="utf-8-sig"))
+assert feed["feedUrl"] == sys.argv[2], feed["feedUrl"]
+url = feed["releases"][0]["assets"][0]["url"]
+assert url.startswith("https://github.com/%s/releases/download/%s/" % (sys.argv[3], sys.argv[4])), url
+PY
+
+# 2. Sign every payload in the feed.
+python3 scripts/sign-update-feed.py "$feed" dist/packages
+
+# 3. The current release must update to this one.
+if gh release view --repo "$releases_repo" >/dev/null 2>&1; then
+  mkdir -p "$work/previous"
+  gh release download --repo "$releases_repo" --pattern '*.AppImage' --dir "$work/previous"
+  previous="$(ls "$work/previous"/*.AppImage | head -1)"
+  scripts/test-appimage-update.sh "$previous" "$appimage" "$feed"
+else
+  echo "release-linux: $releases_repo has no release yet; the update test needs one, skipped"
+fi
+
+if [ "$publish" = 0 ]; then
+  echo "release-linux: dry run done; dist/packages has the signed release. Publish with --publish."
+  exit 0
+fi
+
+# 4. Publish: the release, then the feed that offers it, then the tag.
+notes="$work/notes.md"
+{
+  echo "LinDirStat $version for Linux (x86_64 AppImage)."
+  echo
+  echo "Built from danjboyd/LinDirStat \`$(git rev-parse --short HEAD)\` with gnustep-packager \`$packager_commit\`."
+} > "$notes"
+release_flags=()
+[ "$prerelease" = 1 ] && release_flags+=(--prerelease)
+gh release create "$tag" --repo "$releases_repo" --title "LinDirStat $version" --notes-file "$notes" \
+  "${release_flags[@]}" \
+  "$appimage" "$appimage.zsync" "$feed" \
+  "dist/packages/LinDirStat-$version-x86_64.metadata.json" \
+  "dist/packages/LinDirStat-$version-x86_64.diagnostics.txt"
+
+if [ "$prerelease" = 0 ]; then
+  pages="$work/pages"
+  git clone -q --depth 1 --branch gh-pages "https://github.com/$releases_repo.git" "$pages" 2>/dev/null || {
+    git init -q "$pages"
+    git -C "$pages" checkout -q --orphan gh-pages
+    git -C "$pages" remote add origin "https://github.com/$releases_repo.git"
+  }
+  mkdir -p "$pages/updates/linux"
+  cp "$feed" "$pages/updates/linux/stable.json"
+  touch "$pages/.nojekyll"
+  git -C "$pages" add .nojekyll updates/linux/stable.json
+  git -C "$pages" commit -q -m "Linux stable feed: LinDirStat $version"
+  git -C "$pages" push -q origin HEAD:gh-pages
+  echo "release-linux: feed published; $feed_url offers $version once Pages has deployed"
+fi
+
+git tag -a "$tag" -m "LinDirStat $version" "$commit"
+git push -q origin "$tag"
+echo "release-linux: released $tag"

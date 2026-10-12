@@ -113,6 +113,20 @@
       ]
     }
   },
+  "updates": {
+    "enabled": true,
+    "provider": "github-release-feed",
+    "channel": "stable",
+    "minimumCheckIntervalHours": 24,
+    "startupDelaySeconds": 15,
+    "publicEDKey": "SKdoAEydF4ABzOBG2lV37MtSXLjkB3fefGAkDEJUo3U=",
+    "github": {
+      "owner": "danjboyd",
+      "repo": "LinDirStat-releases",
+      "tagPattern": "v{version}",
+      "releaseNotesUrlPattern": "https://github.com/{owner}/{repo}/releases/tag/{tag}"
+    }
+  },
   "integrations": {
     "shortcutName": "LinDirStat",
     "categories": [
@@ -196,6 +210,13 @@
     ]
   },
   "platformOverrides": {
+    "linux": {
+      "backends": {
+        "dmg": {
+          "enabled": false
+        }
+      }
+    },
     "macos": {
       "profiles": [],
       "pipeline": {
@@ -255,6 +276,9 @@
             "stageRelativePath": "metadata/licenses/WinDirStat-reference.txt"
           }
         ]
+      },
+      "updates": {
+        "enabled": false
       }
     }
   },
@@ -271,6 +295,11 @@
       },
       "smoke": {
         "mode": "launch-only"
+      },
+      "updates": {
+        "feedUrl": "https://danjboyd.github.io/LinDirStat-releases/updates/linux/stable.json",
+        "embedUpdateInformation": true,
+        "releaseSelector": "latest"
       }
     },
     "dmg": {

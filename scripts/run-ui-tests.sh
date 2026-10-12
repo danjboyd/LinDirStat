@@ -32,6 +32,8 @@ set +u
 set -u
 
 cd "$repo_root"
+# The app first: the tests link the updater libraries it builds.
+make -C Source >/dev/null
 make -C Tests/UI >/dev/null
 
 root="$(mktemp -d "${TMPDIR:-/tmp}/lindirstat-ui.XXXXXX")"
