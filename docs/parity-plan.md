@@ -39,7 +39,7 @@ checks every PR on its own platform before it is merged.
 
 | # | Gap | Owner | Status |
 |---|---|---|---|
-| L10 | Linux AppImage: fix `gnustep-packager` for apps without file associations, then package | Linux | PR (packaged and validated; needs gnustep-packager `appimage-no-associations` merged upstream) |
+| L10 | Linux AppImage: fix `gnustep-packager` for apps without file associations, then package | Linux | done (gnustep-packager #8; AppImage validated against packager main 3e487ab) |
 | M1 | macOS distribution: DMG through `gnustep-packager`'s `dmg` backend (AGENTS.md: no ad hoc DMG scripts); signing pipeline ready for a Developer ID and notarization once there is one | macOS | PR #20 + gnustep-packager #10 (DMG builds and validates on macOS); waiting on Dan (packager) and the Linux check |
 | M2 | Full Disk Access: detect missing access and guide the user to System Settings | macOS | done (#3) |
 | M3 | Apple backends for anything new in L1–L9 that needs one (free space, progress range, hard links on APFS clones) | macOS | done (#12, #17) |
