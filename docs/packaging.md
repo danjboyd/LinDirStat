@@ -145,10 +145,15 @@ Checks run on the staged payload on 2026-10-09 (Debian 13, private Xvfb):
   `runtime/System/Library/Themes/Adwaita.theme` (Adwaita header bar and menu),
   scans `LINDIRSTAT_SCAN_PATH`, and maps no library from the build machine.
 
-The `package -Backend appimage` and `validate -Backend appimage` steps have
-not been run yet: the session that set this up could not run `pwsh`. Record
-the artifact size and the strict runtime-closure result here after the first
-run.
+`package -Backend appimage` and `validate -Backend appimage -RunSmoke`
+(strict runtime closure) pass with gnustep-packager `3e487ab` (checked
+2026-10-12, Debian 13, private Xvfb); the AppImage is about 29 MB.
+
+### Updates
+
+The AppImage updates itself: the manifest's `updates` settings, the update
+configuration and feed packaging writes, the signing key and the release
+script are described in [updates.md](updates.md).
 
 Note for screenshot runs: gnustep-base does not read
 `GNUSTEP_USER_DEFAULTS_DIR` from the environment, only from `GNUstep.conf`.
