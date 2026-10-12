@@ -195,6 +195,69 @@
       }
     ]
   },
+  "platformOverrides": {
+    "macos": {
+      "profiles": [],
+      "pipeline": {
+        "build": {
+          "command": "make -C macos"
+        },
+        "stage": {
+          "command": "./scripts/package-stage-macos.sh dist/stage",
+          "outputRoot": "dist/stage"
+        }
+      },
+      "payload": {
+        "runtimeSeedPaths": []
+      },
+      "launch": {
+        "entryRelativePath": "app/LinDirStat.app/Contents/MacOS/LinDirStat",
+        "workingDirectory": "app",
+        "env": null
+      },
+      "validation": {
+        "smoke": {
+          "requiredPaths": [
+            "app/LinDirStat.app/Contents/Info.plist",
+            "app/LinDirStat.app/Contents/Resources/LinDirStat.icns",
+            "metadata/licenses/LinDirStat.txt",
+            "metadata/licenses/WinDirStat-reference.txt"
+          ]
+        },
+        "packageContract": null,
+        "installedResult": {
+          "requiredContent": [
+            {
+              "kind": "notice-report"
+            }
+          ],
+          "requiredPaths": [
+            "LinDirStat.app/Contents/MacOS/LinDirStat",
+            "LinDirStat.app/Contents/Resources/LinDirStat.icns"
+          ]
+        }
+      },
+      "compliance": {
+        "runtimeNotices": [
+          {
+            "name": "LinDirStat",
+            "version": "0.1.0",
+            "license": "GPL-2.0-or-later",
+            "source": "LinDirStat application source",
+            "homepage": "https://github.com/danjboyd/LinDirStat",
+            "stageRelativePath": "metadata/licenses/LinDirStat.txt"
+          },
+          {
+            "name": "WinDirStat Reference Source",
+            "license": "GPL-2.0-or-later",
+            "source": "Local reference source only; not linked into LinDirStat",
+            "homepage": "https://github.com/windirstat/windirstat",
+            "stageRelativePath": "metadata/licenses/WinDirStat-reference.txt"
+          }
+        ]
+      }
+    }
+  },
   "backends": {
     "msi": {
       "enabled": false
@@ -208,6 +271,28 @@
       },
       "smoke": {
         "mode": "launch-only"
+      }
+    },
+    "dmg": {
+      "enabled": true,
+      "finderLayout": "auto",
+      "noticeReport": {
+        "enabled": true
+      },
+      "signing": {
+        "identity": "-",
+        "resign": false,
+        "entitlementsPath": "macos/LinDirStat.entitlements"
+      },
+      "notarization": {
+        "enabled": false,
+        "keychainProfileEnvVar": "LINDIRSTAT_NOTARY_PROFILE"
+      },
+      "smoke": {
+        "startupSeconds": 8,
+        "environment": {
+          "LINDIRSTAT_SCAN_PATH": "/usr/share/zoneinfo"
+        }
       }
     }
   }
