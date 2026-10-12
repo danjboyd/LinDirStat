@@ -43,6 +43,7 @@ LinDirStatTests_OBJC_FILES = \
   LDDesktopEntryTests.m \
   LDOpenWithTests.m \
   LDHardLinksTests.m \
+  LDUpdatesTests.m \
   ../Source/LDFileNode.m \
   ../Source/LDExtensionStats.m \
   ../Source/LDSizeFormatter.m \
@@ -88,7 +89,8 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDDesktopEntry.m \
   ../Source/LDMimeApps.m \
   ../Source/LDOpenWith.m \
-  ../Source/LDOpenWithLinux.m
+  ../Source/LDOpenWithLinux.m \
+  ../Source/LDUpdates.m
 
 LinDirStatTests_INCLUDE_DIRS = -I../Source -I.
 ifneq ($(TOOLS_XCTEST_ROOT),)
@@ -96,6 +98,12 @@ LinDirStatTests_INCLUDE_DIRS += -I$(TOOLS_XCTEST_ROOT)
 LinDirStatTests_LIB_DIRS += -L$(TOOLS_XCTEST_ROOT)/XCTest/obj
 endif
 LinDirStatTests_BUNDLE_LIBS += -lXCTest -ldispatch -lnettle
+
+# The updater (built by make -C Source).
+UPDATER_ROOT = ../vendor/gnustep-packager-updater
+LinDirStatTests_INCLUDE_DIRS += -I$(UPDATER_ROOT)/GPUpdaterCore/Headers -I$(UPDATER_ROOT)/GPUpdaterUI/Headers
+LinDirStatTests_LIB_DIRS += -L$(UPDATER_ROOT)/GPUpdaterUI/$(GNUSTEP_OBJ_DIR) -L$(UPDATER_ROOT)/GPUpdaterCore/$(GNUSTEP_OBJ_DIR)
+LinDirStatTests_BUNDLE_LIBS += -lGPUpdaterUI -lGPUpdaterCore
 LinDirStatTests_RESOURCE_FILES =
 
 include $(GNUSTEP_MAKEFILES)/bundle.make

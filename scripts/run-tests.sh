@@ -12,6 +12,8 @@ set +u
 set -u
 
 cd "$repo_root"
+# The app first: the tests link the updater libraries it builds.
+make -C Source >/dev/null
 make -C Tests >/dev/null
 # Tests write defaults (the xctest domain); a private GNUstep home keeps them
 # out of the user's. GNUstep.sh unsets GNUSTEP_HOME, so it is set here.
@@ -21,7 +23,6 @@ GNUSTEP_HOME="$test_home" LD_LIBRARY_PATH="$TOOLS_XCTEST_ROOT/XCTest/obj:${LD_LI
   "$TOOLS_XCTEST_ROOT/obj/xctest" Tests/LinDirStatTests.bundle
 
 # The command line end to end, against the app build.
-make -C Source >/dev/null
 scripts/test-command-line.sh
 
 # The UI coordination tests, on a private Xvfb (skipped without one).

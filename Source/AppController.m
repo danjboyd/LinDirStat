@@ -26,6 +26,7 @@
 #import "LDTreeCells.h"
 #import "LDTreemapLayout.h"
 #import "LDTreemapView.h"
+#import "LDUpdates.h"
 #import "LDDesktop.h"
 #import "LDFileOperations.h"
 #import "LDMainWindow.h"
@@ -98,6 +99,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 {
   (void)notification;
   [self setUpMainWindow];
+  [_updates startWithWindow:_window];
   [self startLayoutDumpIfRequested];
   LDCommandLine *commandLine = [LDCommandLine processCommandLine];
   if ([commandLine loadFromCSVPath]) {
@@ -270,6 +272,12 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [[self addItemTo:helpMenu title:LDLocalized(@"LinDirStat Help") action:@selector(showHelp:) key:[self functionKey:NSF1FunctionKey] target:self]
     setKeyEquivalentModifierMask:0];
   [self addItemTo:helpMenu title:LDLocalized(@"Report a Bug…") action:@selector(reportBug:) key:nil target:self];
+  // Only a copy that can update itself (the AppImage) offers it.
+  _updates = [LDUpdates packagedUpdates];
+  if (_updates) {
+    [helpMenu addItem:[NSMenuItem separatorItem]];
+    [self addItemTo:helpMenu title:LDLocalized(@"Check for Updates…") action:@selector(checkForUpdates:) key:nil target:_updates];
+  }
 
   [LDPlatformUI completeMainMenu:mainMenu applicationMenu:appMenu preferencesTarget:self];
   [NSApp setMainMenu:mainMenu];

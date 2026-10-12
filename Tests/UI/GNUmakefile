@@ -32,6 +32,12 @@ endif
 LinDirStatUITests_LIB_DIRS += -L$(GNUSTEP_MAKEFILES)/../../../lib -L$(GNUSTEP_MAKEFILES)/../../../lib64 -L$(OPENSAVE_ROOT)/Source/obj
 LinDirStatUITests_BUNDLE_LIBS += -lXCTest -lOpenSave -ldispatch -lnettle
 ADDITIONAL_LDFLAGS += -Wl,-rpath,$(OPENSAVE_ROOT)/Source/obj
+
+# The updater (built by make -C Source).
+UPDATER_ROOT = ../../vendor/gnustep-packager-updater
+LinDirStatUITests_INCLUDE_DIRS += -I$(UPDATER_ROOT)/GPUpdaterCore/Headers -I$(UPDATER_ROOT)/GPUpdaterUI/Headers
+LinDirStatUITests_LIB_DIRS += -L$(UPDATER_ROOT)/GPUpdaterUI/obj -L$(UPDATER_ROOT)/GPUpdaterCore/obj
+LinDirStatUITests_BUNDLE_LIBS += -lGPUpdaterUI -lGPUpdaterCore
 LinDirStatUITests_RESOURCE_FILES =
 
 include $(GNUSTEP_MAKEFILES)/bundle.make

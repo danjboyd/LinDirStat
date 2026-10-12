@@ -3,6 +3,8 @@
 #import "LDTreeSorting.h"
 #import "LDListViews.h"
 
+@class LDUpdates;
+
 @class LDScanSession;
 @class LDTreemapView;
 @class LDFileWatcher;
@@ -68,5 +70,7 @@
   BOOL _watcherWanted;
   NSDateFormatter *_watcherTimeFormatter;
   NSArray *_openWithNodes;
+  // The in-app updater; nil unless this copy can update itself.
+  LDUpdates *_updates;
 }
 @end

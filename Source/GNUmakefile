@@ -64,7 +64,8 @@ LinDirStat_OBJC_FILES = \
   LDDesktopEntry.m \
   LDMimeApps.m \
   LDOpenWith.m \
-  LDOpenWithLinux.m
+  LDOpenWithLinux.m \
+  LDUpdates.m
 
 LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist $(wildcard Resources/Icons/*.png) $(wildcard Resources/*.lproj)
 
@@ -79,4 +80,21 @@ ADDITIONAL_GUI_LIBS += -lOpenSave
 ADDITIONAL_OBJC_LIBS += -ldispatch -lnettle
 ADDITIONAL_LDFLAGS += -Wl,-rpath,$(OPENSAVE_ROOT)/Source/obj
 
+# The in-app updater (vendor/gnustep-packager-updater, built first): its
+# two static libraries, and gp-update-helper copied next to the executable,
+# where the updater looks for it.
+UPDATER_ROOT = ../vendor/gnustep-packager-updater
+ADDITIONAL_OBJCFLAGS += -I$(UPDATER_ROOT)/GPUpdaterCore/Headers -I$(UPDATER_ROOT)/GPUpdaterUI/Headers
+ADDITIONAL_LIB_DIRS += -L$(UPDATER_ROOT)/GPUpdaterUI/$(GNUSTEP_OBJ_DIR) -L$(UPDATER_ROOT)/GPUpdaterCore/$(GNUSTEP_OBJ_DIR)
+ADDITIONAL_GUI_LIBS += -lGPUpdaterUI -lGPUpdaterCore
+
 include $(GNUSTEP_MAKEFILES)/application.make
+
+before-all::
+	$(MAKE) -C $(UPDATER_ROOT)
+
+after-all::
+	cp $(UPDATER_ROOT)/gp-update-helper/$(GNUSTEP_OBJ_DIR)/gp-update-helper $(APP_NAME).app/gp-update-helper
+
+after-clean::
+	$(MAKE) -C $(UPDATER_ROOT) clean

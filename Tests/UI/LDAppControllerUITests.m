@@ -380,6 +380,18 @@
 
 #pragma mark - Selection sync
 
+// A build run from the tree can't update itself, so it doesn't offer to.
+- (void)testUnpackagedBuildDoesNotOfferUpdates
+{
+  NSMenu *mainMenu = [NSApp mainMenu];
+  XCTAssertNotNil(mainMenu);
+  for (NSMenuItem *top in [mainMenu itemArray]) {
+    for (NSMenuItem *item in [[top submenu] itemArray]) {
+      XCTAssertFalse([item action] == @selector(checkForUpdates:), @"%@ > %@", [top title], [item title]);
+    }
+  }
+}
+
 - (void)testTreeSelectionSelectsInTreemap
 {
   if (!_controller || ![self scanTree]) {
