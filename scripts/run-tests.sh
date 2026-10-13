@@ -3,13 +3,14 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-gnustep_makefiles="$HOME/.local/share/gnustep-cli/System/Library/Makefiles"
-export TOOLS_XCTEST_ROOT="${TOOLS_XCTEST_ROOT:-$HOME/git/Arlen/vendor/tools-xctest}"
+# shellcheck source=scripts/gnustep-env.sh
+. "$(dirname "${BASH_SOURCE[0]}")/gnustep-env.sh"
+# xctest from the GNUstep install, or from a tools-xctest checkout given by
+# TOOLS_XCTEST_ROOT (the makefiles in Tests use it too).
+xctest="${TOOLS_XCTEST_ROOT:+$TOOLS_XCTEST_ROOT/obj/}xctest"
+xctest_libraries="${TOOLS_XCTEST_ROOT:+$TOOLS_XCTEST_ROOT/XCTest/obj:}"
 
-set +u
-# shellcheck disable=SC1091
-. "$gnustep_makefiles/GNUstep.sh"
-set -u
+gnustep_source_env
 
 cd "$repo_root"
 # The app first: the tests link the updater libraries it builds.
@@ -19,8 +20,8 @@ make -C Tests >/dev/null
 # out of the user's. GNUstep.sh unsets GNUSTEP_HOME, so it is set here.
 test_home="$(mktemp -d "${TMPDIR:-/tmp}/lindirstat-tests-home.XXXXXX")"
 trap 'rm -rf "$test_home"' EXIT
-GNUSTEP_HOME="$test_home" LD_LIBRARY_PATH="$TOOLS_XCTEST_ROOT/XCTest/obj:${LD_LIBRARY_PATH:-}" \
-  "$TOOLS_XCTEST_ROOT/obj/xctest" Tests/LinDirStatTests.bundle
+GNUSTEP_HOME="$test_home" LD_LIBRARY_PATH="$xctest_libraries${LD_LIBRARY_PATH:-}" \
+  "$xctest" Tests/LinDirStatTests.bundle
 
 # The command line end to end, against the app build.
 scripts/test-command-line.sh

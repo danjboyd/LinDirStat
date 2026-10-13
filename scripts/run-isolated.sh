@@ -36,8 +36,7 @@ exec "\$@"
 EOF
 chmod +x "$wrapper"
 
-set +u
-# shellcheck disable=SC1091
-. "$HOME/.local/share/gnustep-cli/System/Library/Makefiles/GNUstep.sh"
-set -u
+# shellcheck source=scripts/gnustep-env.sh
+. "$repo_root/scripts/gnustep-env.sh"
+gnustep_source_env
 exec openapp --debug --gdb="$wrapper" "$app" "$@"

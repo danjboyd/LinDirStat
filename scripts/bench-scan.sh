@@ -33,10 +33,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-set +u
-# shellcheck disable=SC1091
-. "$HOME/.local/share/gnustep-cli/System/Library/Makefiles/GNUstep.sh"
-set -u
+# shellcheck source=scripts/gnustep-env.sh
+. "$repo_root/scripts/gnustep-env.sh"
+gnustep_source_env
 bench_home="$(mktemp -d "${TMPDIR:-/tmp}/lindirstat-bench-home.XXXXXX")"
 trap 'rm -rf "$bench_home"' EXIT
 export GNUSTEP_HOME="$bench_home"

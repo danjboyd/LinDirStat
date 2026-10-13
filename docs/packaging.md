@@ -22,10 +22,10 @@ Current packaging scope:
   associations landed in #8; see `docs/gnustep-packager-upstream-requests.md`).
 - The build inputs the stage script copies from, each overridable by an
   environment variable:
-  - `GNUSTEP_CLI_ROOT`: the `gnustep-cli-new` install
-    (default `~/.local/share/gnustep-cli`): GNUstep base, gui, back,
-    resources, `libobjc2`, `libdispatch`, and the `defaults`, `gpbs`, `gdnc`
-    tools.
+  - `LINDIRSTAT_GNUSTEP_ROOT`: the GNUstep install (default `/usr/GNUstep`,
+    the gnustep-clang apt packages; see `docs/development.md`): GNUstep base,
+    gui, back and their resources, `libobjc2`, `libdispatch`, and the
+    `defaults`, `gpbs`, `gdnc` and `make_services` tools.
   - `OPENSAVE_ROOT`: the `libs-OpenSave` build
     (default `~/git/gnustep/libs-OpenSave`, library in `Source/obj`).
   - `ADWAITA_THEME`: the built Adwaita GNUstep theme bundle
@@ -58,7 +58,9 @@ Alt, Alternate on Super), so shortcuts are Ctrl+… as in GNOME apps. Without
 them the first AppImage build had no title, window buttons or Zoom In.
 
 The AppImage lands at `dist/packages/LinDirStat-0.1.0-x86_64.AppImage` (about
-29 MB), with
+74 MB with the gnustep-clang packages, whose libgnustep-gui links FFmpeg,
+ImageMagick, libsndfile, libao and aspell, all bundled; 29 MB with
+gnustep-cli-new's leaner libs-gui), with
 `.metadata.json` and `.diagnostics.txt` sidecars; logs go to `dist/logs` and
 `dist/validation`. `dist/` is gitignored.
 
@@ -141,7 +143,7 @@ outside the AppImage.
 Checks run on the staged payload on 2026-10-09 (Debian 13, private Xvfb):
 
 - every ELF under `dist/stage` resolves with `LD_LIBRARY_PATH=dist/stage/runtime/lib`;
-  nothing resolves into `~/.local/share/gnustep-cli`, `~/git/gnustep` or
+  nothing resolves into the GNUstep install, `~/git/gnustep` or
   `~/GNUstep`, and no `RUNPATH` points outside the payload;
 - launched with the `AppRun` environment and an empty GNUstep home
   (`GNUSTEP_HOME`), the app starts, loads

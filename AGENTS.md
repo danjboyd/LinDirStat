@@ -24,7 +24,7 @@ WinDirStat is open source and should be treated as the primary behavioral refere
 
 ## GNUstep Tooling
 
-Use `~/git/gnustep/gnustep-cli-new` as the project provisioning, build, and run toolchain.
+Build, test and package against the gnustep-clang apt packages in `/usr/GNUstep` (see `docs/development.md`); the scripts select it through `scripts/gnustep-env.sh`, and `LINDIRSTAT_GNUSTEP_ROOT` picks another install. `~/git/gnustep/gnustep-cli-new` provides the `gnustep` CLI workflow on top of it.
 
 Expected project operations:
 

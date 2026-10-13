@@ -1,6 +1,24 @@
 # Development
 
-Use the local GNUstep CLI worktree for project operations:
+## GNUstep
+
+LinDirStat builds, tests and packages against the clang GNUstep stack from
+the gnustep-clang apt packages (`gnustep-clang`, which pulls in
+`gnustep-clang-libs-base`, `-libs-gui`, `-libs-back`, `-libobjc2`,
+`-libdispatch`, `-make` and `-tools-xctest`), installed in `/usr/GNUstep`.
+Their libs-gui and libs-back carry the CSD patch series the Adwaita theme
+uses. The scripts load it through `scripts/gnustep-env.sh`. To use another
+install, such as a gnustep-cli-new prefix, set `LINDIRSTAT_GNUSTEP_ROOT`
+(for example `LINDIRSTAT_GNUSTEP_ROOT=~/.local/share/gnustep-cli`). For
+make by hand:
+
+```sh
+. /usr/GNUstep/System/Library/Makefiles/GNUstep.sh
+make
+```
+
+The gnustep-cli-new worktree's build and run commands work in that
+environment too:
 
 ```sh
 python3 ~/git/gnustep/gnustep-cli-new/scripts/internal/build.py --json .
@@ -19,34 +37,24 @@ command line for another checkout:
 
 ```sh
 git clone https://github.com/danjboyd/libs-OpenSave ~/git/gnustep/libs-OpenSave
-(. ~/.local/share/gnustep-cli/System/Library/Makefiles/GNUstep.sh && make -C ~/git/gnustep/libs-OpenSave)
-OPENSAVE_ROOT=/path/to/libs-OpenSave gnustep build
+(. /usr/GNUstep/System/Library/Makefiles/GNUstep.sh && make -C ~/git/gnustep/libs-OpenSave)
+OPENSAVE_ROOT=/path/to/libs-OpenSave make
 ```
 
 `scripts/package-stage.sh` reads the same variable.
 
-Run Objective-C unit tests with GNUstep's `tools-xctest` support:
+The Objective-C unit tests use `tools-xctest` (`gnustep-clang-tools-xctest`:
+XCTest in the GNUstep libraries, `xctest` in `System/Tools`):
 
 ```sh
-. ~/git/gnustep/gnustep-cli-new/scripts/dev/activate-tools-xctest.sh
-make -C Tests
+. /usr/GNUstep/System/Library/Makefiles/GNUstep.sh
+make -C Source && make -C Tests
+GNUSTEP_HOME=$(mktemp -d) xctest Tests/LinDirStatTests.bundle
 ```
 
-If `tools-xctest` is being used from a local checkout instead of an installed prefix, pass its root explicitly:
-
-```sh
-GNUSTEP_MAKEFILES_DIR=~/.local/share/gnustep-cli/System/Library/Makefiles \
-TOOLS_XCTEST_ROOT=~/git/Arlen/vendor/tools-xctest \
-make -C Tests
-```
-
-Run the compiled test bundle with:
-
-```sh
-. ~/.local/share/gnustep-cli/System/Library/Makefiles/GNUstep.sh
-LD_LIBRARY_PATH=~/git/Arlen/vendor/tools-xctest/XCTest/obj:${LD_LIBRARY_PATH:-} \
-~/git/Arlen/vendor/tools-xctest/obj/xctest Tests/LinDirStatTests.bundle
-```
+To use a `tools-xctest` checkout instead, set `TOOLS_XCTEST_ROOT` to it; the
+makefiles in `Tests` and the scripts then take XCTest and `xctest` from
+there.
 
 The first fixture-backed scanner tests live under `Tests/Fixtures/basic-tree`.
 
@@ -62,8 +70,8 @@ private. Without Xvfb it prints SKIPPED and succeeds
 `scripts/run-ui-tests.sh -XCTest LDAppControllerUITests/testName`; under gdb:
 `LINDIRSTAT_UI_TESTS_WRAPPER="gdb -batch -ex run -ex bt --args"`.
 
-Two quirks of the installed GNUstep the harness works around: the
-gnustep-cli libraries need `GNUSTEP_CONFIG_FILE` pointing at their own
+Two quirks of the installed GNUstep the harness works around: a
+gnustep-cli-new install's libraries need `GNUSTEP_CONFIG_FILE` pointing at their own
 `GNUstep.conf` to find the GUI backend outside `openapp`, and libs-gui
 before "Fix: retain the default font names for the font roles" leaves the
 role font names dangling once the first autorelease pool drains, so the tests
@@ -113,20 +121,10 @@ macOS packaging is intentionally not enabled yet. `gnustep-packager` needs a nat
 The Adwaita theme draws GNOME's window shadow and rounded corners only when
 libs-back carries the theme's patches (`Docs/upstream-patches/` in
 `~/git/gnustep/plugins-themes-adwaita`). Stock libs-back gives square corners
-and no shadow; nothing in LinDirStat controls this.
-
-On this machine the patched backend from `~/git/gnustep/libs-back-series`
-(branch `ai-policy/csd-series`) is installed into the `gnustep-cli` prefix:
-
-```sh
-. ~/.local/share/gnustep-cli/System/Library/Makefiles/GNUstep.sh
-./configure && make && make install GNUSTEP_INSTALLATION_DOMAIN=LOCAL
-```
-
-The stock bundle was kept at
-`~/.local/share/gnustep-cli/Local/Library/libgnustep-back-032.stock-backup-20261008`.
-With the patched backend, window screenshots include the transparent shadow
-margin (the window grows by about 30px each way).
+and no shadow; nothing in LinDirStat controls this. The gnustep-clang
+packages' libs-back (`0.32.0-6+csd*`) carries them. With the patched backend,
+window screenshots include the transparent shadow margin (the window grows by
+about 30px each way).
 
 ## GUI review on a private display
 
