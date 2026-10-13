@@ -22,7 +22,8 @@ LinDirStatUITests_OBJC_FILES = \
   LDAppControllerUITests.m \
   $(addprefix ../../Source/,$(APP_SOURCES))
 
-OPENSAVE_ROOT = /home/danboyd/git/gnustep/libs-OpenSave
+# libs-OpenSave build (docs/development.md); override with OPENSAVE_ROOT=...
+OPENSAVE_ROOT ?= $(HOME)/git/gnustep/libs-OpenSave
 
 LinDirStatUITests_INCLUDE_DIRS = -I../../Source -I. -I$(OPENSAVE_ROOT)/Headers
 ifneq ($(TOOLS_XCTEST_ROOT),)

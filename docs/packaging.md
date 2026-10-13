@@ -95,8 +95,11 @@ Vulkan/Wayland, fontconfig/freetype/harfbuzz/cairo/pango, GTK 4 and GLib
 compression and system libraries (`libz`, `libzstd`, `liblzma`, `libffi`,
 `libdbus-1`, ...). The list is `HOST_LIBRARIES` in
 `scripts/stage-linux-runtime.py`. The AppImage therefore needs a desktop with
-GTK 4 and a glibc at least as new as the build host's (Debian 13 builds
-need glibc 2.41).
+GTK 4 and a glibc new enough for the newest symbol versions the payload uses,
+which is not the build host's glibc version: v0.1.0, built on Debian 13
+(glibc 2.41), needs glibc 2.38 or newer (`GLIBC_2.38` from the app and from
+staged Debian libraries such as `libxml2`). Check a new build with
+`objdump -T` over the extracted AppImage's ELF files.
 
 ### Launch environment
 

@@ -69,7 +69,8 @@ LinDirStat_OBJC_FILES = \
 
 LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist $(wildcard Resources/Icons/*.png) $(wildcard Resources/*.lproj)
 
-OPENSAVE_ROOT = /home/danboyd/git/gnustep/libs-OpenSave
+# libs-OpenSave build (docs/development.md); override with OPENSAVE_ROOT=...
+OPENSAVE_ROOT ?= $(HOME)/git/gnustep/libs-OpenSave
 
 ADDITIONAL_OBJCFLAGS += -I$(GNUSTEP_MAKEFILES)/../../../include
 ADDITIONAL_OBJCFLAGS += -I$(OPENSAVE_ROOT)/Headers
