@@ -84,7 +84,8 @@ key built into the installed copy is refused.
    current release to the new one.
 3. `scripts/release-linux.sh --publish` does the same, then creates the
    GitHub release in `danjboyd/LinDirStat-releases` (AppImage, `.zsync`,
-   feed, metadata and diagnostics), pushes the feed to `gh-pages` as
+   and feed; the `.metadata.json` and `.diagnostics.txt` sidecars hold the
+   build machine's paths and stay local), pushes the feed to `gh-pages` as
    `updates/linux/stable.json`, and pushes tag `v<version>` to this
    repository.
 

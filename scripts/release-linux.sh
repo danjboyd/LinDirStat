@@ -145,7 +145,9 @@ if [ "$publish" = 0 ]; then
   exit 0
 fi
 
-# 4. Publish: the release, then the feed that offers it, then the tag.
+# 4. Publish: the release, then the feed that offers it, then the tag. The
+# .metadata.json and .diagnostics.txt sidecars stay in dist/packages: they
+# hold the build machine's paths, and neither users nor the updater need them.
 notes="$work/notes.md"
 {
   echo "LinDirStat $version for Linux (x86_64 AppImage)."
@@ -156,9 +158,7 @@ release_flags=()
 [ "$prerelease" = 1 ] && release_flags+=(--prerelease)
 gh release create "$tag" --repo "$releases_repo" --title "LinDirStat $version" --notes-file "$notes" \
   "${release_flags[@]}" \
-  "$appimage" "$appimage.zsync" "$feed" \
-  "dist/packages/LinDirStat-$version-x86_64.metadata.json" \
-  "dist/packages/LinDirStat-$version-x86_64.diagnostics.txt"
+  "$appimage" "$appimage.zsync" "$feed"
 
 if [ "$prerelease" = 0 ]; then
   pages="$work/pages"
