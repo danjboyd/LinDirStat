@@ -155,14 +155,16 @@ language files. Its source code is kept under references/WinDirStat as
 reference material and is not compiled into LinDirStat.
 EOF
 
+# Every notice carries its license text; a missing file stops the stage.
 notice() {
   local file="$1" name="$2" license="$3" url="$4" text="${5:-}"
+  if [[ -z "$text" || ! -f "$text" ]]; then
+    echo "package-stage: license text for $name not found: ${text:-(none given)}" >&2
+    exit 1
+  fi
   {
-    printf '%s\nLicense: %s\nSource: %s\n' "$name" "$license" "$url"
-    if [[ -n "$text" && -f "$text" ]]; then
-      printf '\n'
-      cat "$text"
-    fi
+    printf '%s\nLicense: %s\nSource: %s\n\n' "$name" "$license" "$url"
+    cat "$text"
   } > "$licenses/$file"
 }
 notice LinDirStat.txt "LinDirStat, a disk usage viewer inspired by WinDirStat" "GPL-2.0-or-later" \
