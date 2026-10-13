@@ -30,3 +30,10 @@ lindirstat-bench_OBJC_FILES = ScanBenchmark.m $(filter-out TreemapParityExporter
 lindirstat-bench_INCLUDE_DIRS = -I../Source
 
 include $(GNUSTEP_MAKEFILES)/tool.make
+
+# Both tools compile the same ../Source files into the same objects
+# (obj/<tool>.obj/../Source is obj/Source for each), so building them at
+# once under make -j makes them race on those files. Build the benchmark
+# after the exporter: its own files still compile in parallel, and it finds
+# the shared objects already built.
+lindirstat-bench.all.tool.variables: windirstat-parity-exporter.all.tool.variables
