@@ -6,8 +6,10 @@ the in-app updater for LinDirStat's AppImage (see `docs/updates.md`).
 
 - Source: gnustep-packager `updater/objc` at `3e487ab` (its main after #8, #10
   and #12), the packager LinDirStat packages with.
+- License: MIT ([LICENSE](LICENSE), gnustep-packager's). The AppImage
+  carries it as `metadata/licenses/gnustep-packager-updater.txt`.
 - Copied: `Headers/` and `Source/` of each, unchanged. The helper's
-  `Source/monocypher/` is Monocypher 4.0.2 (CC0), which checks the update
+  `Source/monocypher/` is Monocypher 4.0.2 (BSD-2-Clause or CC0, `LICENCE.md`), which checks the update
   payloads' Ed25519 signatures.
 - Ours: the `GNUmakefile`s, which build the two libraries as static archives
   (linked into the app, so the AppImage carries no extra shared libraries)

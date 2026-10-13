@@ -202,6 +202,21 @@
         "stageRelativePath": "metadata/licenses/Adwaita-theme.txt"
       },
       {
+        "name": "gnustep-packager updater",
+        "license": "MIT",
+        "source": "Linked into the app (GPUpdaterCore, GPUpdaterUI) and app/LinDirStat.app/gp-update-helper",
+        "homepage": "https://github.com/danjboyd/gnustep-packager",
+        "stageRelativePath": "metadata/licenses/gnustep-packager-updater.txt"
+      },
+      {
+        "name": "Monocypher",
+        "version": "4.0.2",
+        "license": "BSD-2-Clause OR CC0-1.0",
+        "source": "Compiled into gp-update-helper",
+        "homepage": "https://monocypher.org",
+        "stageRelativePath": "metadata/licenses/Monocypher.txt"
+      },
+      {
         "name": "Bundled distribution libraries",
         "license": "Various; see host-libraries/ copyright files",
         "source": "Debian packages listed in host-libraries.txt",
