@@ -180,7 +180,11 @@ notice libdispatch.txt "libdispatch (swift-corelibs-libdispatch)" "Apache-2.0" \
 notice libs-OpenSave.txt "libs-OpenSave" "LGPL-2.1-or-later" \
   "https://github.com/danjboyd/libs-OpenSave" "$opensave_root/LICENSE"
 notice Adwaita-theme.txt "Adwaita GNUstep theme (plugins-themes-adwaita)" "LGPL-2.1-or-later" \
-  "https://github.com/danjboyd/plugins-themes-Adwaita""$adwaita_theme/../COPYING.LIB"
+  "https://github.com/danjboyd/plugins-themes-Adwaita" "$adwaita_theme/../COPYING.LIB"
+notice gnustep-packager-updater.txt "gnustep-packager updater (GPUpdaterCore, GPUpdaterUI, gp-update-helper)" "MIT" \
+  "https://github.com/danjboyd/gnustep-packager" "$repo_root/vendor/gnustep-packager-updater/LICENSE"
+notice Monocypher.txt "Monocypher 4.0.2 (in gp-update-helper)" "BSD-2-Clause OR CC0-1.0" \
+  "https://monocypher.org" "$repo_root/vendor/gnustep-packager-updater/gp-update-helper/Source/monocypher/LICENCE.md"
 
 cat > "$stage_root/metadata/stage-summary.json" <<EOF
 {
