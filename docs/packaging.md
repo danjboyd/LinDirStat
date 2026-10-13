@@ -25,7 +25,7 @@ Current packaging scope:
   - `GNUSTEP_CLI_ROOT`: the `gnustep-cli-new` install
     (default `~/.local/share/gnustep-cli`): GNUstep base, gui, back,
     resources, `libobjc2`, `libdispatch`, and the `defaults`, `gpbs`, `gdnc`
-    tools.
+    and `make_services` tools.
   - `OPENSAVE_ROOT`: the `libs-OpenSave` build
     (default `~/git/gnustep/libs-OpenSave`, library in `Source/obj`).
   - `ADWAITA_THEME`: the built Adwaita GNUstep theme bundle
@@ -78,7 +78,7 @@ its own to inspect the payload.
 | `app/LinDirStat.app` | The app bundle, including `Resources/Info-gnustep.plist` and the toolbar icons |
 | `runtime/lib` | Every shared library the app, the back bundle, the theme and the tools need, except host libraries (below) |
 | `runtime/System/Library` | GNUstep resources (`Libraries/gnustep-base`, `Libraries/gnustep-gui`), `Bundles` (including `libgnustep-back-032.bundle`), `ColorPickers`, `Fonts`, `Images`, `KeyBindings`, `PostScript`, `Services`, `Sounds`, and `Themes/Adwaita.theme` |
-| `runtime/bin` | `defaults`, `gpbs`, `gdnc` |
+| `runtime/bin` | `defaults`, `gpbs`, `gdnc`, `make_services` |
 | `runtime/etc/GNUstep` | `GNUstep.conf` and `GlobalDefaults.plist` |
 | `metadata/icons/lindirstat.png` | The 256x256 app icon (`packaging/linux/lindirstat.png`, drawn by `scripts/make-linux-icon.py`) |
 | `metadata/licenses` | Notices for LinDirStat and each bundled component, `host-libraries.txt` and the Debian copyright files of bundled distribution libraries |

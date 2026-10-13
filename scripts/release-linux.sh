@@ -11,7 +11,8 @@
 #
 # Steps:
 #   1. package the AppImage with gnustep-packager and validate it, with the
-#      smoke launch on a private Xvfb;
+#      smoke launch on a private Xvfb, then check a new user's first launch
+#      without GNUstep (scripts/check-appimage-first-launch.sh);
 #   2. sign the update feed with the update key (UPDATE_ED_PRIVATE_KEY, else
 #      the file UPDATE_ED_PRIVATE_KEY_FILE, default
 #      ~/.config/lindirstat/update-ed25519.key), which must match the
@@ -119,6 +120,8 @@ feed="dist/packages/LinDirStat-$version-x86_64.update-feed.json"
 for file in "$appimage" "$appimage.zsync" "$feed"; do
   [ -f "$file" ] || die "packaging did not produce $file"
 done
+# A new user's first launch on a machine without GNUstep (0.1.0 aborted there).
+scripts/check-appimage-first-launch.sh "$appimage" || die "the AppImage does not start for a new user"
 python3 - "$feed" "$feed_url" "$releases_repo" "$tag" <<'PY' || die "the feed does not describe this release"
 import json, sys
 feed = json.load(open(sys.argv[1], encoding="utf-8-sig"))
@@ -153,6 +156,11 @@ notes="$work/notes.md"
   echo "LinDirStat $version for Linux (x86_64 AppImage)."
   echo
   echo "Built from danjboyd/LinDirStat \`$(git rev-parse --short HEAD)\` with gnustep-packager \`$packager_commit\`."
+  # What changed, from packaging/linux/release-notes/<version>.md if there is one.
+  if [ -f "packaging/linux/release-notes/$version.md" ]; then
+    echo
+    cat "packaging/linux/release-notes/$version.md"
+  fi
 } > "$notes"
 release_flags=()
 [ "$prerelease" = 1 ] && release_flags+=(--prerelease)
