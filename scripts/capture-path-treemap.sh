@@ -6,14 +6,9 @@ scan_path="${1:-$HOME}"
 width="${2:-1200}"
 height="${3:-360}"
 output_dir="${4:-$repo_root/dist/validation/home-treemap}"
-gnustep_makefiles="$HOME/.local/share/gnustep-cli/System/Library/Makefiles"
-
-if [[ -f "$gnustep_makefiles/GNUstep.sh" ]]; then
-  set +u
-  # shellcheck disable=SC1091
-  . "$gnustep_makefiles/GNUstep.sh"
-  set -u
-fi
+# shellcheck source=scripts/gnustep-env.sh
+. "$repo_root/scripts/gnustep-env.sh"
+gnustep_source_env
 
 mkdir -p "$output_dir"
 cd "$repo_root"

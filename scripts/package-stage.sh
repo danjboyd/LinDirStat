@@ -13,7 +13,8 @@
 #   metadata/                     icon and license notices
 #
 # Inputs (override with environment variables):
-#   GNUSTEP_CLI_ROOT   gnustep-cli-new install (~/.local/share/gnustep-cli)
+#   LINDIRSTAT_GNUSTEP_ROOT  GNUstep install (/usr/GNUstep, the gnustep-clang
+#                      apt packages; see scripts/gnustep-env.sh)
 #   OPENSAVE_ROOT      libs-OpenSave build (~/git/gnustep/libs-OpenSave)
 #   ADWAITA_THEME      built Adwaita.theme
 #                      (~/git/gnustep/plugins-themes-adwaita/Adwaita.theme)
@@ -27,11 +28,10 @@ fi
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 stage_root="$1"
 app_source="$repo_root/Source/LinDirStat.app"
-gnustep_root="${GNUSTEP_CLI_ROOT:-$HOME/.local/share/gnustep-cli}"
 opensave_root="${OPENSAVE_ROOT:-$HOME/git/gnustep/libs-OpenSave}"
 adwaita_theme="${ADWAITA_THEME:-$HOME/git/gnustep/plugins-themes-adwaita/Adwaita.theme}"
-gnustep_library="$gnustep_root/Local/Library"
-gnustep_tools="$gnustep_root/Local/Tools"
+# shellcheck source=scripts/gnustep-env.sh
+. "$repo_root/scripts/gnustep-env.sh"
 
 require() {
   if [[ ! -e "$1" ]]; then
@@ -44,7 +44,7 @@ if [[ ! -x "$app_source/LinDirStat" ]]; then
   "$repo_root/scripts/package-build.sh"
 fi
 
-require "$gnustep_library/Libraries/libgnustep-base.so" "gnustep-cli-new GNUstep install; set GNUSTEP_CLI_ROOT"
+require "$gnustep_library/Libraries/libgnustep-base.so" "GNUstep install; set LINDIRSTAT_GNUSTEP_ROOT"
 require "$opensave_root/Source/obj/libOpenSave.so.0" "libs-OpenSave build; set OPENSAVE_ROOT"
 require "$adwaita_theme/Adwaita" "built Adwaita GNUstep theme; set ADWAITA_THEME"
 
@@ -62,12 +62,21 @@ rm -f "$stage_root/app/LinDirStat.app/Resources/LinDirStat.desktop" "$stage_root
 
 # GNUstep resources: base/gui library resources, the back bundle, images,
 # key bindings, colour pickers, fonts and printing support. Headers,
-# documentation and make files are build-time only.
-for item in Bundles ColorPickers Fonts Images KeyBindings PostScript Services Sounds; do
+# documentation and make files are build-time only. Only gnustep-gui's own
+# bundles: a full install's Bundles also holds other apps' plug-ins
+# (SystemPreferences panes, sound output) that LinDirStat does not use.
+for item in ColorPickers Fonts Images KeyBindings PostScript Services Sounds; do
   if [[ -d "$gnustep_library/$item" ]]; then
     cp -R "$gnustep_library/$item" "$system_library/$item"
   fi
 done
+mkdir -p "$system_library/Bundles"
+for item in libgnustep-back-032.bundle GSPrinting libgmodel.bundle TextConverters; do
+  if [[ -d "$gnustep_library/Bundles/$item" ]]; then
+    cp -R "$gnustep_library/Bundles/$item" "$system_library/Bundles/$item"
+  fi
+done
+require "$system_library/Bundles/libgnustep-back-032.bundle" "the GNUstep back bundle"
 for item in gnustep-base gnustep-gui; do
   cp -R "$gnustep_library/Libraries/$item" "$system_library/Libraries/$item"
 done
@@ -75,15 +84,21 @@ cp -R "$adwaita_theme" "$system_library/Themes/Adwaita.theme"
 rm -f "$system_library/Themes/Adwaita.theme/stamp.make"
 
 # Tools: defaults seeds packaged defaults from AppRun; gpbs and gdnc are the
-# pasteboard and distributed-notification servers gnustep-gui starts.
-for tool in defaults gpbs gdnc; do
+# pasteboard and distributed-notification servers gnustep-gui starts;
+# NSWorkspace runs make_services to build the services cache when the user's
+# GNUstep home has none (every first launch), and without it raises "Unable to
+# find the make_services tool".
+for tool in defaults gpbs gdnc make_services; do
   cp "$gnustep_tools/$tool" "$runtime/bin/$tool"
 done
 
 # The libraries themselves. libs-OpenSave and the GNUstep install come first;
 # remaining dependencies come from the host (see scripts/stage-linux-runtime.py).
-python3 "$repo_root/scripts/stage-linux-runtime.py" "$stage_root" \
-  "$opensave_root/Source/obj" "$gnustep_library/Libraries" "$gnustep_root/lib"
+# (gnustep-cli-new keeps libobjc2 and libdispatch in lib/; the apt packages
+# keep them with the GNUstep libraries.)
+library_dirs=("$opensave_root/Source/obj" "$gnustep_library/Libraries")
+[[ -d "$gnustep_root/lib" ]] && library_dirs+=("$gnustep_root/lib")
+python3 "$repo_root/scripts/stage-linux-runtime.py" "$stage_root" "${library_dirs[@]}"
 
 # GNUstep.conf with paths relative to itself (gnustep-base resolves './' and
 # '../' against the config file's directory), so the AppImage mount point can
@@ -127,7 +142,7 @@ conf="$runtime/etc/GNUstep/GNUstep.conf"
 # - GSX11HandlesWindowDecorations = NO: the theme draws the header bar (title,
 #   window buttons, the toolbar in the bar's row). The theme asks for this
 #   itself only with a patched libs-gui (plugins-themes-adwaita README,
-#   "Header bar"); the bundled libs-gui is stock.
+#   "Header bar"); set here so a stock libs-gui gets it too.
 # - The Control key acts as GNUstep's Command key, so shortcuts are Ctrl+…
 #   as in GNOME apps; Alt and Super take GNUstep's Control and Alternate.
 cat > "$runtime/etc/GNUstep/GlobalDefaults.plist" <<'EOF'

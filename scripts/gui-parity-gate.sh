@@ -5,18 +5,13 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-gnustep_makefiles="$HOME/.local/share/gnustep-cli/System/Library/Makefiles"
-
-if [[ -f "$gnustep_makefiles/GNUstep.sh" ]]; then
-  set +u
-  # The app is started directly (not through openapp), so it needs every
-  # GNUstep path in its environment to find its backend and the theme.
-  export GNUSTEP_SH_EXPORT_ALL_VARIABLES=yes
-  # shellcheck disable=SC1091
-  . "$gnustep_makefiles/GNUstep.sh"
-  unset GNUSTEP_SH_EXPORT_ALL_VARIABLES
-  set -u
-fi
+# shellcheck source=scripts/gnustep-env.sh
+. "$repo_root/scripts/gnustep-env.sh"
+# The app is started directly (not through openapp), so it needs every
+# GNUstep path in its environment to find its backend and the theme.
+export GNUSTEP_SH_EXPORT_ALL_VARIABLES=yes
+gnustep_source_env
+unset GNUSTEP_SH_EXPORT_ALL_VARIABLES
 
 cd "$repo_root"
 make -C Source >/dev/null

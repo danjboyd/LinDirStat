@@ -3,25 +3,23 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 packager="$HOME/git/gnustep/gnustep-packager/scripts/gnustep-packager.ps1"
-xctest_root="${TOOLS_XCTEST_ROOT:-$HOME/git/Arlen/vendor/tools-xctest}"
-gnustep_makefiles="$HOME/.local/share/gnustep-cli/System/Library/Makefiles"
-
-if [[ -f "$gnustep_makefiles/GNUstep.sh" ]]; then
-  set +u
-  # shellcheck disable=SC1091
-  . "$gnustep_makefiles/GNUstep.sh"
-  set -u
-fi
+# xctest from the GNUstep install, or from a tools-xctest checkout given by
+# TOOLS_XCTEST_ROOT.
+xctest="${TOOLS_XCTEST_ROOT:+$TOOLS_XCTEST_ROOT/obj/}xctest"
+xctest_libraries="${TOOLS_XCTEST_ROOT:+$TOOLS_XCTEST_ROOT/XCTest/obj:}"
+# shellcheck source=scripts/gnustep-env.sh
+. "$repo_root/scripts/gnustep-env.sh"
+gnustep_source_env
 
 cd "$repo_root"
 
 python3 "$HOME/git/gnustep/gnustep-cli-new/scripts/internal/build.py" --execute .
-TOOLS_XCTEST_ROOT="$xctest_root" make -C Tests
+make -C Tests
 # A private GNUstep home keeps the tests' defaults out of the user's (GNUstep.sh
 # unsets GNUSTEP_HOME, so it is set here).
 test_home="$(mktemp -d "${TMPDIR:-/tmp}/lindirstat-gate-home.XXXXXX")"
 trap 'rm -rf "$test_home"' EXIT
-GNUSTEP_HOME="$test_home" LD_LIBRARY_PATH="$xctest_root/XCTest/obj:${LD_LIBRARY_PATH:-}" "$xctest_root/obj/xctest" Tests/LinDirStatTests.bundle
+GNUSTEP_HOME="$test_home" LD_LIBRARY_PATH="$xctest_libraries${LD_LIBRARY_PATH:-}" "$xctest" Tests/LinDirStatTests.bundle
 scripts/test-command-line.sh
 scripts/run-ui-tests.sh
 

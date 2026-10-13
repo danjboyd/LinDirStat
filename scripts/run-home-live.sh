@@ -3,14 +3,9 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 scan_path="${1:-$HOME}"
-gnustep_makefiles="$HOME/.local/share/gnustep-cli/System/Library/Makefiles"
-
-if [[ -f "$gnustep_makefiles/GNUstep.sh" ]]; then
-  set +u
-  # shellcheck disable=SC1091
-  . "$gnustep_makefiles/GNUstep.sh"
-  set -u
-fi
+# shellcheck source=scripts/gnustep-env.sh
+. "$repo_root/scripts/gnustep-env.sh"
+gnustep_source_env
 
 cd "$repo_root"
 make -C Source

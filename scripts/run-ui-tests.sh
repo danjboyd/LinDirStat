@@ -17,8 +17,10 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-gnustep_makefiles="$HOME/.local/share/gnustep-cli/System/Library/Makefiles"
-export TOOLS_XCTEST_ROOT="${TOOLS_XCTEST_ROOT:-$HOME/git/Arlen/vendor/tools-xctest}"
+# shellcheck source=scripts/gnustep-env.sh
+. "$(dirname "${BASH_SOURCE[0]}")/gnustep-env.sh"
+xctest="${TOOLS_XCTEST_ROOT:+$TOOLS_XCTEST_ROOT/obj/}xctest"
+xctest_libraries="${TOOLS_XCTEST_ROOT:+$TOOLS_XCTEST_ROOT/XCTest/obj:}"
 
 if ! command -v Xvfb >/dev/null 2>&1; then
   echo "run-ui-tests: SKIPPED (Xvfb is not installed; the UI tests need a private display)"
@@ -26,10 +28,7 @@ if ! command -v Xvfb >/dev/null 2>&1; then
   exit 0
 fi
 
-set +u
-# shellcheck disable=SC1091
-. "$gnustep_makefiles/GNUstep.sh"
-set -u
+gnustep_source_env
 
 cd "$repo_root"
 # The app first: the tests link the updater libraries it builds.
@@ -72,14 +71,13 @@ if ! kill -0 "$xvfb_pid" 2>/dev/null || [ "$display" = ":" ]; then
   exit 1
 fi
 
-# The gnustep-cli libraries (on LD_LIBRARY_PATH after GNUstep.sh) were
-# built for another prefix; without their configuration file they do not
-# find the GUI backend.
-cli_prefix="$HOME/.local/share/gnustep-cli"
+# A gnustep-cli-new install's libraries were built for another prefix;
+# without its configuration file they do not find the GUI backend. (The apt
+# packages use /etc/GNUstep/GNUstep.conf.)
 config=()
-library_path="$TOOLS_XCTEST_ROOT/XCTest/obj:${LD_LIBRARY_PATH:-}"
-if [ -f "$cli_prefix/etc/GNUstep/GNUstep.conf" ]; then
-  config=(GNUSTEP_CONFIG_FILE="$cli_prefix/etc/GNUstep/GNUstep.conf")
+library_path="$xctest_libraries${LD_LIBRARY_PATH:-}"
+if [ -f "$gnustep_root/etc/GNUstep/GNUstep.conf" ]; then
+  config=(GNUSTEP_CONFIG_FILE="$gnustep_root/etc/GNUstep/GNUstep.conf")
 fi
 
 status=0
@@ -93,5 +91,5 @@ env "${config[@]}" GNUSTEP_HOME="$root/home" \
   LINDIRSTAT_UI_TESTS=1 \
   LINDIRSTAT_UI_TESTS_ROOT="$root" \
   LD_LIBRARY_PATH="$library_path" \
-  timeout 300 ${LINDIRSTAT_UI_TESTS_WRAPPER:-} "$TOOLS_XCTEST_ROOT/obj/xctest" "$@" Tests/UI/build/LinDirStatUITests.bundle || status=$?
+  timeout 300 ${LINDIRSTAT_UI_TESTS_WRAPPER:-} "$xctest" "$@" Tests/UI/build/LinDirStatUITests.bundle || status=$?
 exit "$status"
