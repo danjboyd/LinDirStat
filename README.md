@@ -24,13 +24,17 @@ show it in your file manager, or move it to the Trash after asking you first.
 
 | Platform | Download | Requirements |
 | --- | --- | --- |
-| **Linux** (x86_64) | [LinDirStat-0.1.0-x86_64.AppImage](https://github.com/danjboyd/LinDirStat-releases/releases/latest) | glibc 2.38 or newer and GTK 4, for example Debian 13, Ubuntu 24.04 or newer, Fedora 39 or newer. Tested on Debian 13. |
-| **macOS** (Apple Silicon and Intel) | [LinDirStat-0.1.0-macos-universal.dmg](https://github.com/danjboyd/LinDirStat-releases/releases/latest) | macOS 13 Ventura or newer. |
+| **Linux** (x86_64) | [AppImage (latest release)](https://github.com/danjboyd/LinDirStat-releases/releases/latest) | glibc 2.38 or newer and GTK 4, for example Debian 13, Ubuntu 24.04 or newer, Fedora 39 or newer. Tested on Debian 13. |
+| **macOS** (Apple Silicon and Intel) | [DMG (latest release)](https://github.com/danjboyd/LinDirStat-releases/releases/latest) | macOS 13 Ventura or newer. |
 
 All releases are listed at
 [danjboyd/LinDirStat-releases](https://github.com/danjboyd/LinDirStat-releases/releases).
 
 ### Linux
+
+If you downloaded the 0.1.0 AppImage: on most systems it stops on its first
+launch with "Unable to find the make_services tool", and it cannot update
+itself. Download 0.1.1 or newer from the latest release instead.
 
 ```sh
 chmod +x LinDirStat-*-x86_64.AppImage
