@@ -45,6 +45,11 @@
 - (id)outlineView:(NSOutlineView *)outlineView objectValueForTableColumn:(NSTableColumn *)tableColumn byItem:(id)item;
 @end
 
+// What a click on a cell does.
+@interface LDTreemapView (UITestAccess)
+- (void)selectNodeAndNotify:(LDFileNode *)node;
+@end
+
 @interface LDUITestController : AppController
 {
   NSUInteger _scansFinished;
@@ -443,6 +448,39 @@
   [self selectInTree:@[[self node:@"c.bin"]]];
   XCTAssertNil([[_controller treemap] highlightedExtensionKey]);
   XCTAssertEqual([self node:@"c.bin"], [[_controller treemap] selectedNode]);
+}
+
+// The size pane describes the tree's selection; with an extension selected
+// it is empty (WinDirStat, #26), and it comes back with the next selection.
+- (void)testExtensionSelectionClearsSelectionSize
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  LDFileNode *c = [self node:@"c.bin"];
+  NSString *cSize = [self physicalSizeLabel:[self allocatedBytesOnDisk:@"c.bin"]];
+  [self selectInTree:@[c]];
+  XCTAssertEqualObjects(cSize, [[_controller selectionField] stringValue]);
+
+  NSUInteger index = [[self extensionKeys] indexOfObject:[self key:@"x.log"]];
+  XCTAssertTrue(index != NSNotFound);
+  [self selectRow:(NSInteger)index inList:[_controller extensionTable]];
+  XCTAssertTrue([[[_controller statusField] stringValue] hasPrefix:@"*.log"]);
+  XCTAssertEqualObjects(@"", [[_controller selectionField] stringValue]);
+
+  // Back in the tree.
+  [self selectInTree:@[[self node:@"b"]]];
+  XCTAssertEqualObjects([self physicalSizeLabel:[self allocatedBytesOnDisk:@"b/b1.txt"]], [[_controller selectionField] stringValue]);
+
+  // A treemap click after an extension (what -mouseDown: does). The row is
+  // still selected from before, so select it afresh.
+  [[_controller extensionTable] deselectAll:nil];
+  [self selectRow:(NSInteger)index inList:[_controller extensionTable]];
+  XCTAssertEqualObjects(@"", [[_controller selectionField] stringValue]);
+  LDTreemapView *treemap = [_controller treemap];
+  [treemap selectNodeAndNotify:c];
+  XCTAssertNil([treemap highlightedExtensionKey]);
+  XCTAssertEqualObjects(cSize, [[_controller selectionField] stringValue]);
 }
 
 - (void)testMultipleSelectionSumsTopmostPhysicalSizes

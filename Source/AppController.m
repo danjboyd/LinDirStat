@@ -2099,11 +2099,14 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
           [LDSizeFormatter stringForBytes:[node aggregateSizeForMetric:_sizeMetric]]];
 }
 
-// WinDirStat's second status pane: the size of everything selected.
+// WinDirStat's second status pane: the size of everything selected. Empty
+// while an extension is the selection, as WinDirStat leaves it while its
+// extension list has focus: the tree's selection is no longer what the
+// status bar describes.
 - (void)updateSelectionField
 {
   unsigned long long total = 0;
-  NSArray *nodes = [LDCommandRules topmostNodes:[self selectedNodes]];
+  NSArray *nodes = [_treemapView highlightedExtensionKey] ? @[] : [LDCommandRules topmostNodes:[self selectedNodes]];
   for (LDFileNode *node in nodes) {
     total += [node aggregateSizeForMetric:_sizeMetric];
   }
@@ -2189,10 +2192,12 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   NSInteger row = [_extensionTable selectedRow];
   if (row < 0 || row >= (NSInteger)[_extensionRows count]) {
     [_treemapView setHighlightedExtensionKey:nil];
+    [self updateSelectionField];
     return;
   }
   LDExtensionStats *stats = [_extensionRows objectAtIndex:row];
   [_treemapView setHighlightedExtensionKey:[stats extensionKey]];
+  [self updateSelectionField];
   NSString *pattern = [[stats extensionKey] isEqualToString:LDLocalized(@"<none>")] ? LDLocalized(@"Files without an extension") : [@"*" stringByAppendingString:[stats displayName]];
   [_statusField setStringValue:[NSString stringWithFormat:LDLocalized(@"%@  ·  %lu files, %@"),
                                 pattern,
