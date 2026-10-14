@@ -8,7 +8,7 @@
     "id": "org.lindirstat.LinDirStat",
     "name": "LinDirStat",
     "displayName": "LinDirStat",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "manufacturer": "Daniel Boyd",
     "summary": "GNUstep disk usage viewer inspired by WinDirStat.",
     "license": "GPL-2.0-or-later",
@@ -70,6 +70,7 @@
         "metadata/licenses/LinDirStat.txt",
         "metadata/licenses/host-libraries.txt",
         "runtime/bin/defaults",
+        "runtime/bin/make_services",
         "runtime/etc/GNUstep/GNUstep.conf",
         "runtime/etc/GNUstep/GlobalDefaults.plist",
         "runtime/lib/libOpenSave.so.0",
@@ -139,7 +140,7 @@
     "runtimeNotices": [
       {
         "name": "LinDirStat",
-        "version": "0.1.0",
+        "version": "0.1.1",
         "license": "GPL-2.0-or-later",
         "source": "LinDirStat application source",
         "homepage": "https://github.com/danjboyd/LinDirStat",
@@ -277,7 +278,7 @@
         "runtimeNotices": [
           {
             "name": "LinDirStat",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "license": "GPL-2.0-or-later",
             "source": "LinDirStat application source",
             "homepage": "https://github.com/danjboyd/LinDirStat",

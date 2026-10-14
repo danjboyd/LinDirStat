@@ -75,8 +75,11 @@ cp -R "$adwaita_theme" "$system_library/Themes/Adwaita.theme"
 rm -f "$system_library/Themes/Adwaita.theme/stamp.make"
 
 # Tools: defaults seeds packaged defaults from AppRun; gpbs and gdnc are the
-# pasteboard and distributed-notification servers gnustep-gui starts.
-for tool in defaults gpbs gdnc; do
+# pasteboard and distributed-notification servers gnustep-gui starts;
+# NSWorkspace runs make_services to build the services cache when the user's
+# GNUstep home has none (every first launch), and without it raises "Unable to
+# find the make_services tool".
+for tool in defaults gpbs gdnc make_services; do
   cp "$gnustep_tools/$tool" "$runtime/bin/$tool"
 done
 
