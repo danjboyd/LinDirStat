@@ -2,7 +2,11 @@
 #import <XCTest/XCTest.h>
 
 // The standard info panel (About LinDirStat) reads its fields from the app
-// bundle's Info-gnustep.plist and shows "Unknown" for any it lacks.
+// bundle's Info-gnustep.plist and shows "Unknown" for any it lacks. GNUstep
+// only: the macOS build's panel reads macos/Info.plist, and there is no
+// Source/LinDirStat.app.
+#if !defined(__APPLE__)
+
 @interface LDInfoPanelTests : XCTestCase
 @end
 
@@ -30,8 +34,8 @@
 }
 
 // The release shown is the packaged version, so the panel and the AppImage
-// or DMG agree: gnustep-packager's version override when it sets one, else
-// the manifest's package.version.
+// agree: GP_PACKAGE_VERSION_OVERRIDE when the build was run with it set,
+// else the manifest's package.version.
 - (void)testInfoPanelReleaseIsThePackageVersion
 {
   NSString *version = [[NSProcessInfo processInfo] environment][@"GP_PACKAGE_VERSION_OVERRIDE"];
@@ -46,3 +50,5 @@
 }
 
 @end
+
+#endif

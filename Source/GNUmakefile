@@ -89,10 +89,11 @@ ADDITIONAL_OBJCFLAGS += -I$(UPDATER_ROOT)/GPUpdaterCore/Headers -I$(UPDATER_ROOT
 ADDITIONAL_LIB_DIRS += -L$(UPDATER_ROOT)/GPUpdaterUI/$(GNUSTEP_OBJ_DIR) -L$(UPDATER_ROOT)/GPUpdaterCore/$(GNUSTEP_OBJ_DIR)
 ADDITIONAL_GUI_LIBS += -lGPUpdaterUI -lGPUpdaterCore
 
-# The info panel's release: package.version from the packaging manifest, the
-# one place the version is kept, unless gnustep-packager builds with a
-# version override (package -PackageVersion), which is then the package's.
-APP_RELEASE := $(or $(GP_PACKAGE_VERSION_OVERRIDE),$(shell python3 -c 'import json; print(json.load(open("../package.manifest.json"))["package"]["version"])'))
+# The info panel's release: package.version from the packaging manifest (read
+# as macos/GNUmakefile does), the one place the version is kept, unless the
+# build runs with GP_PACKAGE_VERSION_OVERRIDE set, gnustep-packager's input
+# for a version other than the manifest's.
+APP_RELEASE := $(or $(GP_PACKAGE_VERSION_OVERRIDE),$(shell sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' ../package.manifest.json | head -1))
 
 include $(GNUSTEP_MAKEFILES)/application.make
 
