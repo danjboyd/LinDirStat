@@ -89,6 +89,10 @@ ADDITIONAL_OBJCFLAGS += -I$(UPDATER_ROOT)/GPUpdaterCore/Headers -I$(UPDATER_ROOT
 ADDITIONAL_LIB_DIRS += -L$(UPDATER_ROOT)/GPUpdaterUI/$(GNUSTEP_OBJ_DIR) -L$(UPDATER_ROOT)/GPUpdaterCore/$(GNUSTEP_OBJ_DIR)
 ADDITIONAL_GUI_LIBS += -lGPUpdaterUI -lGPUpdaterCore
 
+# The info panel's release: package.version from the packaging manifest, the
+# one place the version is kept.
+APP_RELEASE := $(shell python3 -c 'import json; print(json.load(open("../package.manifest.json"))["package"]["version"])')
+
 include $(GNUSTEP_MAKEFILES)/application.make
 
 before-all::
@@ -96,6 +100,8 @@ before-all::
 
 after-all::
 	cp $(UPDATER_ROOT)/gp-update-helper/$(GNUSTEP_OBJ_DIR)/gp-update-helper $(APP_NAME).app/gp-update-helper
+	echo '{ ApplicationRelease = "$(APP_RELEASE)"; }' > $(GNUSTEP_OBJ_DIR)/ApplicationRelease.plist
+	plmerge $(APP_NAME).app/Resources/Info-gnustep.plist $(GNUSTEP_OBJ_DIR)/ApplicationRelease.plist
 
 after-clean::
 	$(MAKE) -C $(UPDATER_ROOT) clean

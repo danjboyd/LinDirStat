@@ -44,6 +44,7 @@ LinDirStatTests_OBJC_FILES = \
   LDOpenWithTests.m \
   LDHardLinksTests.m \
   LDUpdatesTests.m \
+  LDInfoPanelTests.m \
   ../Source/LDFileNode.m \
   ../Source/LDExtensionStats.m \
   ../Source/LDSizeFormatter.m \
