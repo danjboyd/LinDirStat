@@ -155,7 +155,9 @@ for release in feed["releases"]:
         asset["url"] = pathlib.Path(sys.argv[2], asset["name"]).as_uri()
 json.dump(feed, open(sys.argv[3], "w"), indent=2)
 PY
-  UPDATE_ED_PRIVATE_KEY="$signing_key" python3 "$repo_root/scripts/sign-update-feed.py" \
+  # The wrong-key scenario signs with a throwaway key on purpose, so the signer
+  # must not check it against the manifest key that release-linux.sh exports.
+  UPDATE_ED_PUBLIC_KEY="" UPDATE_ED_PRIVATE_KEY="$signing_key" python3 "$repo_root/scripts/sign-update-feed.py" \
     "$work/release/stable.json" "$work/release" >/dev/null
 
   local old_sha new_sha state_dir state
