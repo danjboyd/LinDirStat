@@ -90,8 +90,9 @@ ADDITIONAL_LIB_DIRS += -L$(UPDATER_ROOT)/GPUpdaterUI/$(GNUSTEP_OBJ_DIR) -L$(UPDA
 ADDITIONAL_GUI_LIBS += -lGPUpdaterUI -lGPUpdaterCore
 
 # The info panel's release: package.version from the packaging manifest, the
-# one place the version is kept.
-APP_RELEASE := $(shell python3 -c 'import json; print(json.load(open("../package.manifest.json"))["package"]["version"])')
+# one place the version is kept, unless gnustep-packager builds with a
+# version override (package -PackageVersion), which is then the package's.
+APP_RELEASE := $(or $(GP_PACKAGE_VERSION_OVERRIDE),$(shell python3 -c 'import json; print(json.load(open("../package.manifest.json"))["package"]["version"])'))
 
 include $(GNUSTEP_MAKEFILES)/application.make
 

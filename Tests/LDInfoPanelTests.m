@@ -30,13 +30,17 @@
 }
 
 // The release shown is the packaged version, so the panel and the AppImage
-// or DMG agree.
+// or DMG agree: gnustep-packager's version override when it sets one, else
+// the manifest's package.version.
 - (void)testInfoPanelReleaseIsThePackageVersion
 {
-  NSData *data = [NSData dataWithContentsOfFile:[self repositoryPath:@"package.manifest.json"]];
-  XCTAssertNotNil(data);
-  NSDictionary *manifest = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL] : nil;
-  NSString *version = manifest[@"package"][@"version"];
+  NSString *version = [[NSProcessInfo processInfo] environment][@"GP_PACKAGE_VERSION_OVERRIDE"];
+  if ([version length] == 0) {
+    NSData *data = [NSData dataWithContentsOfFile:[self repositoryPath:@"package.manifest.json"]];
+    XCTAssertNotNil(data);
+    NSDictionary *manifest = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL] : nil;
+    version = manifest[@"package"][@"version"];
+  }
   XCTAssertTrue([version length] > 0);
   XCTAssertEqualObjects([self builtInfo][@"ApplicationRelease"], version);
 }
