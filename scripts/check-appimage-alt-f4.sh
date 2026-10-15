@@ -95,6 +95,25 @@ setsid env -i "${session_env[@]}" \
   "$appimage" > "$root/app.log" 2>&1 &
 app_pid=$!
 
+# The private session bus GNOME Shell runs on (dbus-run-session's).
+shell_bus() {
+  local pid
+  for pid in $(pgrep -u "$(id -u)" -x gnome-shell 2>/dev/null); do
+    if tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -qx "XDG_RUNTIME_DIR=$root/run"; then
+      tr '\0' '\n' < "/proc/$pid/environ" | sed -n 's/^DBUS_SESSION_BUS_ADDRESS=//p'
+      return 0
+    fi
+  done
+}
+hide_overview() {
+  local bus
+  bus="$(shell_bus)"
+  [ -n "$bus" ] || return 0
+  DBUS_SESSION_BUS_ADDRESS="$bus" gdbus call --session --dest org.gnome.Shell \
+    --object-path /org/gnome/Shell --method org.freedesktop.DBus.Properties.Set \
+    org.gnome.Shell OverviewActive '<false>' >/dev/null 2>&1 || true
+}
+
 # The window GNOME Shell manages whose title matches, or nothing.
 window_named() {
   local w
@@ -142,7 +161,9 @@ sleep 2
 prefs=""
 for _ in 1 2 3 4 5; do
   if xprop -root _NET_ACTIVE_WINDOW 2>/dev/null | grep -q '# 0x0$'; then
-    xdotool key Escape
+    # Synthetic keys and clicks don't always reach the overview; the
+    # shell's own D-Bus property always closes it.
+    hide_overview
     sleep 1
   fi
   xdotool windowactivate --sync "$main" 2>/dev/null || true
