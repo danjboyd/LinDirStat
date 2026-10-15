@@ -53,7 +53,7 @@
   XCTAssertEqualObjects(expected, [self mountPointsOf:volumes]);
 
   LDVolume *root = [volumes objectAtIndex:0];
-  XCTAssertEqual(makedev(259, 2), [root device]);
+  XCTAssertEqual(makedev(259u, 2u), [root device]);
   XCTAssertEqualObjects(@"ext4", [root fileSystemType]);
   XCTAssertEqualObjects(@"/dev/nvme0n1p2", [root source]);
   XCTAssertEqualObjects(@"/", [root displayName]);

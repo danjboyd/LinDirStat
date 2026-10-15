@@ -94,7 +94,9 @@ TESTS    := $(ROOT)/Tests
 TEST_SRC := $(shell sed -n '/_OBJC_FILES *=/,/^ *$$/p' $(TESTS)/GNUmakefile | grep -o '[A-Za-z0-9_+./]*\.m')
 XCT      := $(BUILD)/LinDirStatTests.xctest
 PLATFORM_DEV := $(shell xcrun --show-sdk-platform-path)/Developer
-TEST_FLAGS := -fobjc-arc -fmodules -mmacosx-version-min=$(MIN_MACOS) -g -O0 \
+# Xcode's XCTest.framework needs macOS 14; the app itself keeps MIN_MACOS.
+TEST_MIN_MACOS ?= 14.0
+TEST_FLAGS := -fobjc-arc -fmodules -mmacosx-version-min=$(TEST_MIN_MACOS) -g -O0 \
               -Wno-deprecated-declarations -Wno-unused-function \
               -I$(SRC) -I$(TESTS) -F$(PLATFORM_DEV)/Library/Frameworks
 

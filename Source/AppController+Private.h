@@ -43,7 +43,8 @@
 - (void)showLoadedTree:(LDFileNode *)root fromFile:(NSString *)path;
 @end
 
-@interface AppController (FileLists)
+// The file lists are tables whose data source and delegate are the controller.
+@interface AppController (FileLists) <NSTableViewDataSource, NSTableViewDelegate>
 - (NSView *)buildFileTabs;
 - (NSTableView *)activeFileList;
 - (BOOL)isFileList:(NSTableView *)table;
