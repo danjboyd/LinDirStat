@@ -119,6 +119,13 @@ alt_f4() {
 }
 
 fail() {
+  if [ -n "${LINDIRSTAT_ALT_F4_DEBUG:-}" ]; then
+    mkdir -p "$LINDIRSTAT_ALT_F4_DEBUG"
+    import -window root "$LINDIRSTAT_ALT_F4_DEBUG/screen.png" 2>/dev/null || true
+    xwininfo -root -tree > "$LINDIRSTAT_ALT_F4_DEBUG/windows.txt" 2>/dev/null || true
+    xprop -root _NET_ACTIVE_WINDOW _NET_CLIENT_LIST > "$LINDIRSTAT_ALT_F4_DEBUG/root.txt" 2>/dev/null || true
+    cp "$root/shell.log" "$root/app.log" "$LINDIRSTAT_ALT_F4_DEBUG/" 2>/dev/null || true
+  fi
   echo "alt-f4: FAILED for $appimage: $*" >&2
   echo "  log:" >&2
   sed 's/^/    /' "$root/app.log" >&2
@@ -129,10 +136,25 @@ main="$(wait_for_window '.*basic-tree')"
 [ -n "$main" ] || fail "no main window showing the fixture scan"
 sleep 2
 
-xdotool windowactivate --sync "$main" 2>/dev/null || true
-sleep 0.5
-xdotool key ctrl+comma
-prefs="$(wait_for_window 'Preferences')"
+# GNOME Shell can bring the overview up again as it finishes starting; while
+# it is up no window is active and keys go to its search field. Ctrl+, can
+# also arrive before the window has the input focus: try again.
+prefs=""
+for _ in 1 2 3 4 5; do
+  if xprop -root _NET_ACTIVE_WINDOW 2>/dev/null | grep -q '# 0x0$'; then
+    xdotool key Escape
+    sleep 1
+  fi
+  xdotool windowactivate --sync "$main" 2>/dev/null || true
+  sleep 1
+  xdotool key ctrl+comma
+  for _ in $(seq 30); do
+    prefs="$(window_named 'Preferences')"
+    [ -n "$prefs" ] && break
+    sleep 0.1
+  done
+  [ -n "$prefs" ] && break
+done
 [ -n "$prefs" ] || fail "Preferences did not open"
 protocols="$(xprop -id "$prefs" WM_PROTOCOLS 2>/dev/null || true)"
 sleep 1
