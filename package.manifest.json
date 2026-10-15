@@ -134,7 +134,13 @@
       "System",
       "FileTools"
     ],
-    "fileAssociations": []
+    "fileAssociations": [
+      {
+        "kind": "mime",
+        "value": "inode/directory",
+        "description": "Folder"
+      }
+    ]
   },
   "compliance": {
     "runtimeNotices": [

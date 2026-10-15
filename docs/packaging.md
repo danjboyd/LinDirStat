@@ -173,6 +173,20 @@ Checks run on the staged payload on 2026-10-09 (Debian 13, private Xvfb):
 (strict runtime closure) pass with gnustep-packager `3e487ab` (checked
 2026-10-12, Debian 13, private Xvfb); the AppImage is about 29 MB.
 
+### Opening folders from a file manager
+
+WinDirStat adds itself to folders in Explorer. The AppImage does the
+freedesktop.org equivalent: `integrations.fileAssociations` lists
+`inode/directory`, so gnustep-packager writes `MimeType=inode/directory;` and
+`Exec=AppRun %F` into its desktop entry, and once an AppImage integration tool
+(AppImageLauncher, Gear Lever, appimaged) installs that entry, file managers
+offer LinDirStat under "Open With" for folders. GNOME's Disk Usage Analyzer
+declares the same type. It only adds LinDirStat to the list: the default
+for folders still comes from `mimeapps.list` (GNOME's names Files). The folders are
+passed as arguments, which LinDirStat scans as on its command line.
+`scripts/check-appimage-open-folder.sh` checks the entry and launches the
+AppImage with a folder, as the entry does; `release-linux.sh` runs it.
+
 ### Updates
 
 The AppImage updates itself: the manifest's `updates` settings, the update

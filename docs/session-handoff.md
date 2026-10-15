@@ -48,7 +48,6 @@ Run GUI checks on a private display (`docs/development.md`, "GUI review on a pri
 The remaining parity work is split between the Linux and macOS sessions in `docs/parity-plan.md`.
 
 
-- A `.desktop` file action ("Open with LinDirStat") in place of WinDirStat's Explorer menu entry.
 - Full-window parity gate on macOS (M11; the Linux gate is `scripts/gui-parity-gate.sh`).
 
 ## Known Gaps and Theme Notes

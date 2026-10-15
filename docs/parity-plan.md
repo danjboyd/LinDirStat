@@ -43,6 +43,7 @@ checks every PR on its own platform before it is merged.
 | M1 | macOS distribution: DMG through `gnustep-packager`'s `dmg` backend (AGENTS.md: no ad hoc DMG scripts); signing pipeline ready for a Developer ID and notarization once there is one | macOS | done (#20, gnustep-packager #10; packager main 3e487ab green on Linux, Windows and macOS) |
 | M2 | Full Disk Access: detect missing access and guide the user to System Settings | macOS | done (#3) |
 | M3 | Apple backends for anything new in L1–L9 that needs one (free space, progress range, hard links on APFS clones) | macOS | done (#12, #17) |
+| L14 | "Open With LinDirStat" on folders in file managers, in place of WinDirStat's Explorer entry: the AppImage's desktop entry lists `inode/directory` | Linux | in review |
 
 ## Quality gates
 

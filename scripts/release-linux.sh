@@ -14,7 +14,8 @@
 #      smoke launch on a private Xvfb, then check a new user's first launch
 #      without GNUstep (scripts/check-appimage-first-launch.sh) and that
 #      Alt+F4 under GNOME Shell closes windows rather than killing the app
-#      (scripts/check-appimage-alt-f4.sh; needs gnome-shell);
+#      (scripts/check-appimage-alt-f4.sh; needs gnome-shell), and that file
+#      managers can open folders with it (scripts/check-appimage-open-folder.sh);
 #   2. sign the update feed with the update key (UPDATE_ED_PRIVATE_KEY, else
 #      the file UPDATE_ED_PRIVATE_KEY_FILE, default
 #      ~/.config/lindirstat/update-ed25519.key), which must match the
@@ -36,7 +37,7 @@ publish=0
 case "${1:-}" in
   "") ;;
   --publish) publish=1 ;;
-  *) sed -n '2,34p' "$0" >&2; exit 2 ;;
+  *) sed -n '2,33p' "$0" >&2; exit 2 ;;
 esac
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -124,6 +125,7 @@ for file in "$appimage" "$appimage.zsync" "$feed"; do
 done
 # A new user's first launch on a machine without GNUstep (0.1.0 aborted there).
 scripts/check-appimage-first-launch.sh "$appimage" || die "the AppImage does not start for a new user"
+scripts/check-appimage-open-folder.sh "$appimage" || die "the AppImage does not offer to open folders, or does not scan the folder it is given"
 LINDIRSTAT_ALT_F4_REQUIRED=1 scripts/check-appimage-alt-f4.sh "$appimage" || die "Alt+F4 under GNOME Shell does not close the AppImage's windows cleanly"
 python3 - "$feed" "$feed_url" "$releases_repo" "$tag" <<'PY' || die "the feed does not describe this release"
 import json, sys
