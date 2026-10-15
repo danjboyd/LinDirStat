@@ -89,6 +89,12 @@ ADDITIONAL_OBJCFLAGS += -I$(UPDATER_ROOT)/GPUpdaterCore/Headers -I$(UPDATER_ROOT
 ADDITIONAL_LIB_DIRS += -L$(UPDATER_ROOT)/GPUpdaterUI/$(GNUSTEP_OBJ_DIR) -L$(UPDATER_ROOT)/GPUpdaterCore/$(GNUSTEP_OBJ_DIR)
 ADDITIONAL_GUI_LIBS += -lGPUpdaterUI -lGPUpdaterCore
 
+# The info panel's release: package.version from the packaging manifest (read
+# as macos/GNUmakefile does), the one place the version is kept, unless the
+# build runs with GP_PACKAGE_VERSION_OVERRIDE set, gnustep-packager's input
+# for a version other than the manifest's.
+APP_RELEASE := $(or $(GP_PACKAGE_VERSION_OVERRIDE),$(shell sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' ../package.manifest.json | head -1))
+
 include $(GNUSTEP_MAKEFILES)/application.make
 
 before-all::
@@ -96,6 +102,8 @@ before-all::
 
 after-all::
 	cp $(UPDATER_ROOT)/gp-update-helper/$(GNUSTEP_OBJ_DIR)/gp-update-helper $(APP_NAME).app/gp-update-helper
+	echo '{ ApplicationRelease = "$(APP_RELEASE)"; }' > $(GNUSTEP_OBJ_DIR)/ApplicationRelease.plist
+	plmerge $(APP_NAME).app/Resources/Info-gnustep.plist $(GNUSTEP_OBJ_DIR)/ApplicationRelease.plist
 
 after-clean::
 	$(MAKE) -C $(UPDATER_ROOT) clean

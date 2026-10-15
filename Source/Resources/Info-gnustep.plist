@@ -1,6 +1,11 @@
 {
   ApplicationName = LinDirStat;
   ApplicationDescription = "GNUstep disk usage viewer inspired by WinDirStat";
+  /* The info panel's fields. ApplicationRelease is package.version from
+     package.manifest.json, merged into the built bundle (Source/GNUmakefile). */
+  Authors = ("Daniel Boyd");
+  Copyright = "Copyright © 2026 Daniel Boyd";
+  CopyrightDescription = "Released under the GNU General Public License, version 2 or later.";
   /* Adwaita GNUstep theme: GNOME metrics, the primary (hamburger) menu, and
      the toolbar packed into the header bar as GNOME apps do. */
   GnomeThemeMetrics = gnome;
