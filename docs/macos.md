@@ -14,17 +14,27 @@ Needs Xcode or the Command Line Tools (macOS 13 or later to run).
 ```sh
 make -C macos            # macos/build/LinDirStat.app (arm64 + x86_64)
 make -C macos run        # build and open it
-make -C macos test       # Tests/ as an Apple XCTest bundle
+make -C macos test       # Tests/ as an Apple XCTest bundle, then ui-test
+make -C macos ui-test    # Tests/UI, the UI coordination tests (opens windows)
 make -C macos zip        # macos/build/LinDirStat-<version>-macos.zip
 make -C macos CONFIG=debug
 ```
 
 The source list comes from `Source/GNUmakefile` and the test list from
 `Tests/GNUmakefile`, so a file added to the GNUstep build is also built on
-macOS. The UI coordination tests (`Tests/UI`) are not part of the macOS
-build: they rely on Xvfb, the freedesktop.org trash under a private
-`XDG_DATA_HOME` and GNUstep's defaults location, none of which isolate a
-test run on macOS (it would use the user's real Trash). The version is `package.manifest.json`'s, and the build number is the
+macOS.
+
+`make -C macos ui-test` builds the UI coordination tests (`Tests/UI`) from
+every app source but `main.m` and runs them with
+`scripts/run-ui-tests-macos.sh` (`UI_TEST=LDAppControllerUITests/testName`
+runs one). Their windows appear on the real display. macOS has no way to
+move a process's defaults, so the tests write to the xctest tool's domain
+(`com.apple.dt.xctest.tool`), never LinDirStat's: the script saves that
+domain and restores it afterwards, and gives the run a private `TMPDIR`. The
+tests refuse to run unless the host domain is the one the script saved. The
+Move to Trash test is Linux only, because the macOS Trash is the user's, and
+the mount point test skips itself (macOS has no small mount point to scan).
+The version is `package.manifest.json`'s, and the build number is the
 commit count. The app icon is drawn by `macos/icon/make-icon.swift` at build
 time.
 

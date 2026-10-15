@@ -1,8 +1,8 @@
 # UI coordination tests: the real AppController and its window, driven
 # without user input. They need a display; run them with
 # scripts/run-ui-tests.sh, which starts a private Xvfb and uses a private
-# HOME, XDG_DATA_HOME and TMPDIR. Not part of the macOS build
-# (macos/GNUmakefile reads Tests/GNUmakefile only).
+# HOME, XDG_DATA_HOME and TMPDIR. On macOS, make -C macos ui-test builds and
+# runs them (scripts/run-ui-tests-macos.sh).
 
 # Objects and the bundle go to build/, so the app's sources (../../Source)
 # are compiled under build/Source rather than next to this file.

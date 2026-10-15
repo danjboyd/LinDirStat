@@ -2,7 +2,8 @@
 #
 #   make -C macos            # build/LinDirStat.app (universal, ad-hoc signed)
 #   make -C macos run        # build and launch
-#   make -C macos test       # the Tests/ suite with Apple's XCTest
+#   make -C macos test       # the Tests/ suite with Apple's XCTest, then ui-test
+#   make -C macos ui-test    # the Tests/UI coordination tests (opens windows)
 #   make -C macos gui-gate   # full-window GUI parity gate (drives the app; see docs/macos.md)
 #   make -C macos zip        # build/LinDirStat-<version>-macos.zip
 #
@@ -41,7 +42,7 @@ LDFLAGS := -mmacosx-version-min=$(MIN_MACOS) $(ARCHFLAGS) \
 
 OBJECTS := $(patsubst %.m,$(OBJDIR)/%.o,$(SOURCES))
 
-.PHONY: all app run zip clean test exporter gui-gate
+.PHONY: all app run zip clean test unit-test ui-test exporter gui-gate
 all: app
 
 app: $(APP)/Contents/MacOS/LinDirStat $(APP)/Contents/Info.plist resources
@@ -97,13 +98,30 @@ TEST_FLAGS := -fobjc-arc -fmodules -mmacosx-version-min=$(MIN_MACOS) -g -O0 \
               -Wno-deprecated-declarations -Wno-unused-function \
               -I$(SRC) -I$(TESTS) -F$(PLATFORM_DEV)/Library/Frameworks
 
-test:
+test: unit-test ui-test
+
+unit-test:
 	mkdir -p $(XCT)/Contents/MacOS
 	cd $(TESTS) && $(CC) $(TEST_FLAGS) -bundle $(TEST_SRC) -o $(XCT)/Contents/MacOS/LinDirStatTests \
 	  -framework XCTest -framework AppKit -framework UniformTypeIdentifiers -framework CoreServices \
 	  -Wl,-rpath,$(PLATFORM_DEV)/Library/Frameworks -Wl,-rpath,$(PLATFORM_DEV)/usr/lib
 	printf '%s' '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>LinDirStatTests</string><key>CFBundleIdentifier</key><string>io.github.danjboyd.LinDirStatTests</string><key>CFBundlePackageType</key><string>BNDL</string></dict></plist>' > $(XCT)/Contents/Info.plist
 	cd $(ROOT) && xcrun xctest $(XCT)
+
+# The UI coordination tests (Tests/UI/LDAppControllerUITests.m): the real
+# AppController built from every app source but main.m, run by
+# scripts/run-ui-tests-macos.sh (private TMPDIR; the defaults it writes are
+# the xctest tool's, saved and restored). UI_TEST=Class/test runs one.
+UI_XCT := $(BUILD)/LinDirStatUITests.xctest
+
+ui-test:
+	mkdir -p $(UI_XCT)/Contents/MacOS
+	cd $(TESTS)/UI && $(CC) $(TEST_FLAGS) -I$(TESTS)/UI -bundle LDAppControllerUITests.m \
+	  $(addprefix $(SRC)/,$(filter-out main.m,$(SOURCES))) -o $(UI_XCT)/Contents/MacOS/LinDirStatUITests \
+	  -framework XCTest -framework AppKit -framework UniformTypeIdentifiers -framework CoreServices \
+	  -Wl,-rpath,$(PLATFORM_DEV)/Library/Frameworks -Wl,-rpath,$(PLATFORM_DEV)/usr/lib
+	printf '%s' '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>LinDirStatUITests</string><key>CFBundleIdentifier</key><string>io.github.danjboyd.LinDirStatUITests</string><key>CFBundlePackageType</key><string>BNDL</string></dict></plist>' > $(UI_XCT)/Contents/Info.plist
+	$(ROOT)/scripts/run-ui-tests-macos.sh $(UI_XCT) $(UI_TEST)
 
 # The Phase 11 treemap exporter (same file list as Tools/GNUmakefile), the
 # GUI gate's reference renderer.
