@@ -27,7 +27,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             ca-certificates curl git make pkg-config sudo \
-            libnettle-dev libgtk-4-dev \
+            nettle-dev libgtk-4-dev \
             xvfb xauth x11-utils
 
       - uses: actions/checkout@v4
