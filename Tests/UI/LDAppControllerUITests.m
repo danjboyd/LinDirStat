@@ -25,7 +25,10 @@
 // dialogs. scripts/run-ui-tests.sh runs these on a private Xvfb with a
 // private GNUSTEP_HOME (so private defaults), XDG_DATA_HOME (so a private trash) and
 // TMPDIR (so the trees below are throwaway folders on the trash's
-// filesystem).
+// filesystem). On macOS, scripts/run-ui-tests-macos.sh runs them with a
+// private TMPDIR; the defaults are the xctest tool's domain, which the
+// script saves and restores, and the test that trashes is Linux only (the
+// trash would be the user's).
 
 @interface AppController (UITestAccess)
 - (void)setUpMainWindow;
@@ -148,23 +151,34 @@
 #if defined(GNUSTEP)
   return GSDefaultsRootForUser(NSUserName());
 #else
-  return nil;
+  // The domain the defaults are written to: the host process's.
+  return [[NSBundle mainBundle] bundleIdentifier];
 #endif
 }
 
-// Only under scripts/run-ui-tests.sh: the tests write preferences and use
-// the trash, which must never be the user's.
+// Only under scripts/run-ui-tests.sh (or run-ui-tests-macos.sh): the tests
+// write preferences and use the trash, which must never be the user's.
 + (BOOL)isPrivateEnvironment
 {
   NSDictionary *environment = [[NSProcessInfo processInfo] environment];
   NSString *root = [environment objectForKey:@"LINDIRSTAT_UI_TESTS_ROOT"];
   if (![[environment objectForKey:@"LINDIRSTAT_UI_TESTS"] isEqualToString:@"1"] || [root length] == 0
-      || ![[environment objectForKey:@"XDG_DATA_HOME"] hasPrefix:root]
       || ![[environment objectForKey:@"TMPDIR"] hasPrefix:root]) {
+    return NO;
+  }
+#if defined(__APPLE__)
+  // macOS defaults cannot be moved: they are the host's domain, which must
+  // be the one the script saves and restores, never LinDirStat's.
+  NSString *domain = [self defaultsRoot];
+  return [domain length] > 0 && ![domain isEqualToString:@"io.github.danjboyd.LinDirStat"]
+    && [domain isEqualToString:[environment objectForKey:@"LINDIRSTAT_UI_TESTS_DEFAULTS_DOMAIN"]];
+#else
+  if (![[environment objectForKey:@"XDG_DATA_HOME"] hasPrefix:root]) {
     return NO;
   }
   // Where the user defaults really go.
   return [[self defaultsRoot] hasPrefix:root];
+#endif
 }
 
 - (void)writeFile:(NSString *)relative size:(NSUInteger)size seed:(unsigned)seed
@@ -233,7 +247,7 @@
   [self writeFile:@"c.bin" size:12000 seed:5];
 
   _controller = [[LDUITestController alloc] init];
-  [_controller applicationWillFinishLaunching:nil];
+  [_controller applicationWillFinishLaunching:[NSNotification notificationWithName:NSApplicationWillFinishLaunchingNotification object:NSApp]];
   [_controller setUpMainWindow];
 }
 
@@ -726,6 +740,8 @@
   XCTAssertEqual((unsigned long long)(3000 + 5000 + 2000 + 1000), [refreshed aggregateSize]);
 }
 
+// Linux only: on macOS the trash is the user's.
+#if !defined(__APPLE__)
 - (void)testMoveToTrashUpdatesEverythingAndUsesThePrivateTrash
 {
   if (!_controller || ![self scanTree]) {
@@ -768,6 +784,7 @@
   XCTAssertEqual((NSUInteger)0, [[_controller selectedNodes] count]);
   XCTAssertEqualObjects(@"", [[_controller selectionField] stringValue]);
 }
+#endif
 
 - (void)testDeletePermanentlyUpdatesTreeListsAndExtensions
 {
