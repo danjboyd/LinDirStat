@@ -17,6 +17,9 @@
 #   OPENSAVE_ROOT      libs-OpenSave build (~/git/gnustep/libs-OpenSave)
 #   ADWAITA_THEME      built Adwaita.theme
 #                      (~/git/gnustep/plugins-themes-adwaita/Adwaita.theme)
+#   LIBS_BACK_BUNDLE   a built libgnustep-back-032.bundle (default: built by
+#                      scripts/build-libs-back.sh from the pinned revision
+#                      and patches in packaging/linux/libs-back)
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
@@ -47,6 +50,8 @@ fi
 require "$gnustep_library/Libraries/libgnustep-base.so" "gnustep-cli-new GNUstep install; set GNUSTEP_CLI_ROOT"
 require "$opensave_root/Source/obj/libOpenSave.so.0" "libs-OpenSave build; set OPENSAVE_ROOT"
 require "$adwaita_theme/Adwaita" "built Adwaita GNUstep theme; set ADWAITA_THEME"
+libs_back_bundle="${LIBS_BACK_BUNDLE:-$("$repo_root/scripts/build-libs-back.sh")}"
+require "$libs_back_bundle/libgnustep-back-032" "pinned libs-back build (scripts/build-libs-back.sh); or set LIBS_BACK_BUNDLE"
 
 rm -rf "$stage_root"
 runtime="$stage_root/runtime"
@@ -71,6 +76,10 @@ done
 for item in gnustep-base gnustep-gui; do
   cp -R "$gnustep_library/Libraries/$item" "$system_library/Libraries/$item"
 done
+# The back bundle is the pinned, patched libs-back, not the install's.
+rm -rf "$system_library/Bundles/libgnustep-back-032.bundle"
+cp -R "$libs_back_bundle" "$system_library/Bundles/libgnustep-back-032.bundle"
+rm -f "$system_library/Bundles/libgnustep-back-032.bundle/stamp.make"
 cp -R "$adwaita_theme" "$system_library/Themes/Adwaita.theme"
 rm -f "$system_library/Themes/Adwaita.theme/stamp.make"
 

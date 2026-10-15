@@ -134,6 +134,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
                                             styleMask:style
                                               backing:NSBackingStoreBuffered
                                                 defer:NO];
+  // _window owns the window; released when closed as well, closing it
+  // released it twice and the app crashed on its way out.
+  [_window setReleasedWhenClosed:NO];
   [(LDMainWindow *)_window setKeyHandler:self];
   [_window setTitle:@"LinDirStat"];
   [_window setMinSize:NSMakeSize(720, 480)];

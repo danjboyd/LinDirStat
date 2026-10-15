@@ -411,6 +411,14 @@
   }
 }
 
+// The controller owns the main window. Released when closed as well, closing
+// it (its close button, or Alt+F4 under GNOME Shell) freed it twice and the
+// app crashed as it quit.
+- (void)testMainWindowIsNotReleasedWhenClosed
+{
+  XCTAssertFalse([[_controller window] isReleasedWhenClosed]);
+}
+
 - (void)testTreeSelectionSelectsInTreemap
 {
   if (!_controller || ![self scanTree]) {
