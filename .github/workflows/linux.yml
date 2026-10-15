@@ -1,0 +1,36 @@
+# The GNUstep build on Debian 13 (scripts/ci-linux.sh): the gnustep-cli-new
+# managed toolchain, pinned tools-xctest and libs-OpenSave, then the app and
+# the unit, command-line and UI coordination tests (on Xvfb).
+name: Linux
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    container: debian:trixie
+    timeout-minutes: 45
+    steps:
+      - name: Packages
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates curl git make pkg-config sudo \
+            libnettle-dev libgtk-4-dev \
+            xvfb xauth x11-utils
+
+      - uses: actions/checkout@v4
+
+      - name: Build and test
+        run: scripts/ci-linux.sh
