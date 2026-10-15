@@ -23,9 +23,30 @@ Current packaging scope:
 - The build inputs the stage script copies from, each overridable by an
   environment variable:
   - `GNUSTEP_CLI_ROOT`: the `gnustep-cli-new` install
-    (default `~/.local/share/gnustep-cli`): GNUstep base, gui, back,
+    (default `~/.local/share/gnustep-cli`): GNUstep base, gui,
     resources, `libobjc2`, `libdispatch`, and the `defaults`, `gpbs`, `gdnc`
-    and `make_services` tools.
+    and `make_services` tools, and the toolchain the back bundle is built with.
+  - `LIBS_BACK_BUNDLE`: a built `libgnustep-back-032.bundle`. By default
+    `scripts/build-libs-back.sh` builds it (below).
+
+### The back bundle
+
+The AppImage doesn't ship the install's libs-back. `scripts/build-libs-back.sh`
+builds the one pinned in `packaging/linux/libs-back/libs-back.lock.json`:
+upstream `bf3b3ce` (the revision `gnustep-cli-new` builds, which 0.1.1
+shipped unpatched) with the patches next to the lock file, applied in order
+after their sha256 is checked, in `out/libs-back`:
+
+| Patch | What | Upstream |
+| --- | --- | --- |
+| `0001-x11-reject-zero-frame-extents.patch` | Recent Mutter answers `_NET_REQUEST_FRAME_EXTENTS` with zeros; windows the window manager decorates ended up one title bar too short after a resize | libs-back#227 (`170c643`) |
+| `0002-x11-wm-delete-window.patch` | Windows the gui decorates (all of them with the Adwaita theme) didn't list `WM_DELETE_WINDOW`, so Alt+F4 under GNOME Shell killed the app | danjboyd/libs-back `x11-wm-delete-window`, not sent yet |
+
+The configure settings in the lock file turn off what the toolchain's
+build doesn't have (GLX, RandR, Xcursor, Xfixes, Xmu), so the bundle
+needs the same host libraries as before: built without the patches, it has
+the same undefined symbols as the install's. Drop a patch from the lock file
+once the revision includes it.
   - `OPENSAVE_ROOT`: the `libs-OpenSave` build
     (default `~/git/gnustep/libs-OpenSave`, library in `Source/obj`).
   - `ADWAITA_THEME`: the built Adwaita GNUstep theme bundle
