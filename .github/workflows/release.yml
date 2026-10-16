@@ -19,6 +19,7 @@ on:
       - .github/workflows/release.yml
       - scripts/ci-release-*.sh
       - scripts/package-linux.sh
+      - scripts/check-appimage-*.sh
       - scripts/package-stage*.sh
       - scripts/pinned-checkout.sh
       - scripts/build-*.sh
