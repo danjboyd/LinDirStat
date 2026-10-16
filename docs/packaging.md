@@ -236,6 +236,11 @@ pwsh $PACKAGER -Manifest package.manifest.json -Command validate -Backend dmg -R
 or the whole sequence:
 `pwsh ~/git/gnustep/gnustep-packager/scripts/run-packaging-pipeline.ps1 -Manifest package.manifest.json -Backend dmg -RunSmoke`.
 
+For a release, build the DMG from the release tag, attach it and its
+`.sha256` to the release in `danjboyd/LinDirStat-releases`, then run
+`scripts/release-sha256sums.sh v<version>` so the release's `SHA256SUMS`
+lists it (`docs/updates.md`, "Releasing").
+
 To check the Linux view of the manifest from a Mac:
 `pwsh $PACKAGER -Manifest package.manifest.json -Command manifest-check -Platform linux`.
 

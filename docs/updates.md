@@ -85,9 +85,21 @@ key built into the installed copy is refused.
 3. `scripts/release-linux.sh --publish` does the same, then creates the
    GitHub release in `danjboyd/LinDirStat-releases` (AppImage, `.zsync`,
    and feed; the `.metadata.json` and `.diagnostics.txt` sidecars hold the
-   build machine's paths and stay local), pushes the feed to `gh-pages` as
-   `updates/linux/stable.json`, and pushes tag `v<version>` to this
-   repository.
+   build machine's paths and stay local), attaches `SHA256SUMS`, pushes the
+   feed to `gh-pages` as `updates/linux/stable.json`, and pushes tag
+   `v<version>` to this repository.
+4. The macOS session builds the DMG from the tag (`docs/packaging.md`,
+   "macOS DMG") and attaches it and its `.sha256` to the same release, then
+   runs `scripts/release-sha256sums.sh v<version>` so `SHA256SUMS` lists it
+   too.
+
+Every release carries one `SHA256SUMS` covering every platform's payloads:
+each asset except `SHA256SUMS` itself, the per-file `.sha256` files and the
+signed `.update-feed.json`. `scripts/release-sha256sums.sh v<version>`
+writes it from the assets on the release, uploads it with `--clobber` and
+checks it against a fresh download, so run it after attaching any asset.
+`--check` only verifies, and fails if a payload is missing from the file.
+Users check a download with `sha256sum -c --ignore-missing SHA256SUMS`.
 
 A version with a `-` (`0.2.0-rc1`) is published as a GitHub pre-release and
 is not put in the feed, so installed copies are not offered it, and GitHub's
