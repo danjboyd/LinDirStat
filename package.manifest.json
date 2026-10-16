@@ -73,7 +73,6 @@
         "runtime/bin/make_services",
         "runtime/etc/GNUstep/GNUstep.conf",
         "runtime/etc/GNUstep/GlobalDefaults.plist",
-        "runtime/lib/libOpenSave.so.0",
         "runtime/lib/libgnustep-gui.so.0.32",
         "runtime/System/Library/Bundles/libgnustep-back-032.bundle/libgnustep-back-032",
         "runtime/System/Library/Themes/Adwaita.theme/Adwaita"
@@ -194,13 +193,6 @@
         "source": "runtime/lib/libdispatch.so",
         "homepage": "https://github.com/swiftlang/swift-corelibs-libdispatch",
         "stageRelativePath": "metadata/licenses/libdispatch.txt"
-      },
-      {
-        "name": "libs-OpenSave",
-        "license": "LGPL-2.1-or-later",
-        "source": "runtime/lib/libOpenSave.so.0",
-        "homepage": "https://github.com/danjboyd/libs-OpenSave",
-        "stageRelativePath": "metadata/licenses/libs-OpenSave.txt"
       },
       {
         "name": "Adwaita GNUstep theme",

@@ -4,8 +4,8 @@
 # Layout under <stage-root>:
 #   app/LinDirStat.app            the built app bundle
 #   runtime/lib                   bundled shared libraries (GNUstep, libobjc2,
-#                                 libdispatch, libs-OpenSave and their
-#                                 non-host dependencies)
+#                                 libdispatch and their non-host
+#                                 dependencies)
 #   runtime/System/Library        GNUstep resources, the back bundle, and the
 #                                 Adwaita theme (Themes/Adwaita.theme)
 #   runtime/bin                   GNUstep tools (defaults, gpbs, gdnc)
@@ -14,7 +14,6 @@
 #
 # Inputs (override with environment variables):
 #   GNUSTEP_CLI_ROOT   gnustep-cli-new install (~/.local/share/gnustep-cli)
-#   OPENSAVE_ROOT      libs-OpenSave build (~/git/gnustep/libs-OpenSave)
 #   ADWAITA_THEME      built Adwaita.theme
 #                      (~/git/gnustep/plugins-themes-adwaita/Adwaita.theme)
 #   LIBS_BACK_BUNDLE   a built libgnustep-back-032.bundle (default: built by
@@ -31,7 +30,6 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 stage_root="$1"
 app_source="$repo_root/Source/LinDirStat.app"
 gnustep_root="${GNUSTEP_CLI_ROOT:-$HOME/.local/share/gnustep-cli}"
-opensave_root="${OPENSAVE_ROOT:-$HOME/git/gnustep/libs-OpenSave}"
 adwaita_theme="${ADWAITA_THEME:-$HOME/git/gnustep/plugins-themes-adwaita/Adwaita.theme}"
 gnustep_library="$gnustep_root/Local/Library"
 gnustep_tools="$gnustep_root/Local/Tools"
@@ -48,7 +46,6 @@ if [[ ! -x "$app_source/LinDirStat" ]]; then
 fi
 
 require "$gnustep_library/Libraries/libgnustep-base.so" "gnustep-cli-new GNUstep install; set GNUSTEP_CLI_ROOT"
-require "$opensave_root/Source/obj/libOpenSave.so.0" "libs-OpenSave build; set OPENSAVE_ROOT"
 require "$adwaita_theme/Adwaita" "built Adwaita GNUstep theme; set ADWAITA_THEME"
 libs_back_bundle="${LIBS_BACK_BUNDLE:-$("$repo_root/scripts/build-libs-back.sh")}"
 require "$libs_back_bundle/libgnustep-back-032" "pinned libs-back build (scripts/build-libs-back.sh); or set LIBS_BACK_BUNDLE"
@@ -92,10 +89,10 @@ for tool in defaults gpbs gdnc make_services; do
   cp "$gnustep_tools/$tool" "$runtime/bin/$tool"
 done
 
-# The libraries themselves. libs-OpenSave and the GNUstep install come first;
-# remaining dependencies come from the host (see scripts/stage-linux-runtime.py).
+# The libraries themselves. The GNUstep install comes first; remaining
+# dependencies come from the host (see scripts/stage-linux-runtime.py).
 python3 "$repo_root/scripts/stage-linux-runtime.py" "$stage_root" \
-  "$opensave_root/Source/obj" "$gnustep_library/Libraries" "$gnustep_root/lib"
+  "$gnustep_library/Libraries" "$gnustep_root/lib"
 
 # GNUstep.conf with paths relative to itself (gnustep-base resolves './' and
 # '../' against the config file's directory), so the AppImage mount point can
@@ -191,8 +188,6 @@ notice libobjc2.txt "libobjc2 (GNUstep Objective-C runtime)" "MIT" \
   "https://github.com/gnustep/libobjc2" "$HOME/git/gnustep/libobjc2/COPYING"
 notice libdispatch.txt "libdispatch (swift-corelibs-libdispatch)" "Apache-2.0" \
   "https://github.com/swiftlang/swift-corelibs-libdispatch" "$HOME/git/gnustep/libdispatch/LICENSE"
-notice libs-OpenSave.txt "libs-OpenSave" "LGPL-2.1-or-later" \
-  "https://github.com/danjboyd/libs-OpenSave" "$opensave_root/LICENSE"
 notice Adwaita-theme.txt "Adwaita GNUstep theme (plugins-themes-adwaita)" "LGPL-2.1-or-later" \
   "https://github.com/danjboyd/plugins-themes-Adwaita" "$adwaita_theme/../COPYING.LIB"
 notice gnustep-packager-updater.txt "gnustep-packager updater (GPUpdaterCore, GPUpdaterUI, gp-update-helper)" "MIT" \

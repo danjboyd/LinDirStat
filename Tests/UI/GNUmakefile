@@ -22,17 +22,13 @@ LinDirStatUITests_OBJC_FILES = \
   LDAppControllerUITests.m \
   $(addprefix ../../Source/,$(APP_SOURCES))
 
-# libs-OpenSave build (docs/development.md); override with OPENSAVE_ROOT=...
-OPENSAVE_ROOT ?= $(HOME)/git/gnustep/libs-OpenSave
-
-LinDirStatUITests_INCLUDE_DIRS = -I../../Source -I. -I$(OPENSAVE_ROOT)/Headers
+LinDirStatUITests_INCLUDE_DIRS = -I../../Source -I.
 ifneq ($(TOOLS_XCTEST_ROOT),)
 LinDirStatUITests_INCLUDE_DIRS += -I$(TOOLS_XCTEST_ROOT)
 LinDirStatUITests_LIB_DIRS += -L$(TOOLS_XCTEST_ROOT)/XCTest/obj
 endif
-LinDirStatUITests_LIB_DIRS += -L$(GNUSTEP_MAKEFILES)/../../../lib -L$(GNUSTEP_MAKEFILES)/../../../lib64 -L$(OPENSAVE_ROOT)/Source/obj
-LinDirStatUITests_BUNDLE_LIBS += -lXCTest -lOpenSave -ldispatch -lnettle
-ADDITIONAL_LDFLAGS += -Wl,-rpath,$(OPENSAVE_ROOT)/Source/obj
+LinDirStatUITests_LIB_DIRS += -L$(GNUSTEP_MAKEFILES)/../../../lib -L$(GNUSTEP_MAKEFILES)/../../../lib64
+LinDirStatUITests_BUNDLE_LIBS += -lXCTest -ldispatch -lnettle
 
 # The updater (built by make -C Source).
 UPDATER_ROOT = ../../vendor/gnustep-packager-updater
