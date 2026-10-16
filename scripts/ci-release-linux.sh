@@ -2,8 +2,8 @@
 # The release workflow's Linux job (.github/workflows/release.yml), on a
 # clean Debian 13 container: the toolchain as Linux CI sets it up
 # (scripts/ci-linux.sh setup), PowerShell for gnustep-packager from its pin in
-# packaging/release-inputs.json, then scripts/package-linux.sh with the
-# Alt+F4 check tried (LINDIRSTAT_ALT_F4=try). Collects the unsigned release
+# packaging/release-inputs.json, then scripts/package-linux.sh with every
+# release check required, Alt+F4 under GNOME Shell included. Collects the unsigned release
 # files in dist/ci/linux: the AppImage, its .zsync, the unsigned feed and the
 # provenance. Nothing is signed: the update key stays off GitHub, and the
 # local publish step signs the feed.
@@ -53,7 +53,7 @@ fi
 step "Package and check"
 # When the Alt+F4 check fails here, its screenshot, window tree and logs go
 # with the job's logs (dist/logs, uploaded as linux-logs).
-LINDIRSTAT_ALT_F4=try LINDIRSTAT_ALT_F4_DEBUG="$repo_root/dist/logs/alt-f4" \
+LINDIRSTAT_ALT_F4=required LINDIRSTAT_ALT_F4_DEBUG="$repo_root/dist/logs/alt-f4" \
   scripts/package-linux.sh --release "${version_args[@]}"
 
 step "Collect"

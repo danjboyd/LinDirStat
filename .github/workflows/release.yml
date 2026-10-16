@@ -80,10 +80,9 @@ jobs:
             libfontconfig-dev libcairo2-dev libglib2.0-dev \
             xvfb xauth x11-utils fonts-cantarell fonts-dejavu-core \
             desktop-file-utils
-          # The Alt+F4 check (GNOME Shell on Xvfb). It is tried; if it can't
-          # run here, the local publish step runs it.
+          # The Alt+F4 check: GNOME Shell on Xvfb.
           apt-get install -y --no-install-recommends \
-            gnome-shell dbus dbus-x11 xdotool fuse3 || echo "::warning::GNOME Shell could not be installed"
+            gnome-shell dbus dbus-x11 xdotool fuse3
 
       - uses: actions/checkout@v4
 
@@ -97,7 +96,7 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
         run: scripts/ci-release-linux.sh "$VERSION"
 
-      - name: Alt+F4 result
+      - name: Check results
         if: always()
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY" || true
