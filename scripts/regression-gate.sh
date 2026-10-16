@@ -16,7 +16,7 @@ fi
 
 cd "$repo_root"
 
-python3 "$HOME/git/gnustep/gnustep-cli-new/scripts/internal/build.py" --execute .
+make
 TOOLS_XCTEST_ROOT="$xctest_root" make -C Tests
 # A private GNUstep home keeps the tests' defaults out of the user's (GNUstep.sh
 # unsets GNUSTEP_HOME, so it is set here).

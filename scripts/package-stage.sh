@@ -177,18 +177,21 @@ notice() {
     cat "$text"
   } > "$licenses/$file"
 }
+# The runtime's license texts, copied from upstream into the repository: the
+# gnustep-cli-new install does not carry them.
+license_texts="$repo_root/packaging/linux/licenses"
 notice LinDirStat.txt "LinDirStat, a disk usage viewer inspired by WinDirStat" "GPL-2.0-or-later" \
   "https://github.com/danjboyd/LinDirStat" "$repo_root/COPYING"
 notice GNUstep-base.txt "GNUstep Base (libgnustep-base)" "LGPL-2.1-or-later" \
-  "https://github.com/gnustep/libs-base" "$HOME/git/gnustep/libs-base/COPYING.LIB"
+  "https://github.com/gnustep/libs-base" "$license_texts/libs-base-COPYING.LIB"
 notice GNUstep-gui.txt "GNUstep GUI (libgnustep-gui)" "LGPL-2.1-or-later" \
-  "https://github.com/gnustep/libs-gui" "$HOME/git/gnustep/libs-gui/COPYING.LIB"
+  "https://github.com/gnustep/libs-gui" "$license_texts/libs-gui-COPYING.LIB"
 notice GNUstep-back.txt "GNUstep Back (libgnustep-back)" "LGPL-2.1-or-later" \
-  "https://github.com/gnustep/libs-back" "$HOME/git/gnustep/libs-back/COPYING.LIB"
+  "https://github.com/gnustep/libs-back" "$license_texts/libs-back-COPYING.LIB"
 notice libobjc2.txt "libobjc2 (GNUstep Objective-C runtime)" "MIT" \
-  "https://github.com/gnustep/libobjc2" "$HOME/git/gnustep/libobjc2/COPYING"
+  "https://github.com/gnustep/libobjc2" "$license_texts/libobjc2-COPYING"
 notice libdispatch.txt "libdispatch (swift-corelibs-libdispatch)" "Apache-2.0" \
-  "https://github.com/swiftlang/swift-corelibs-libdispatch" "$HOME/git/gnustep/libdispatch/LICENSE"
+  "https://github.com/swiftlang/swift-corelibs-libdispatch" "$license_texts/libdispatch-LICENSE"
 notice Adwaita-theme.txt "Adwaita GNUstep theme (plugins-themes-adwaita)" "LGPL-2.1-or-later" \
   "https://github.com/danjboyd/plugins-themes-Adwaita" "$adwaita_theme/../COPYING.LIB"
 notice gnustep-packager-updater.txt "gnustep-packager updater (GPUpdaterCore, GPUpdaterUI, gp-update-helper)" "MIT" \
