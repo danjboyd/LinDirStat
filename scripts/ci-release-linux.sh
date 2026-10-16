@@ -38,7 +38,10 @@ fi
 pwsh -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
 
 step "Package and check"
-LINDIRSTAT_ALT_F4=try scripts/package-linux.sh --release "${version_args[@]}"
+# When the Alt+F4 check fails here, its screenshot, window tree and logs go
+# with the job's logs (dist/logs, uploaded as linux-logs).
+LINDIRSTAT_ALT_F4=try LINDIRSTAT_ALT_F4_DEBUG="$repo_root/dist/logs/alt-f4" \
+  scripts/package-linux.sh --release "${version_args[@]}"
 
 step "Collect"
 out="dist/ci/linux"
