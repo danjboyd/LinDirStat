@@ -37,6 +37,14 @@ if ! command -v pwsh >/dev/null 2>&1; then
 fi
 pwsh -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
 
+# GNOME Shell (the Alt+F4 check) reaches logind over the system bus, which a
+# container does not run; without one its UI fails to start.
+if [ ! -S /run/dbus/system_bus_socket ] && command -v dbus-daemon >/dev/null 2>&1 && [ "$(id -u)" = 0 ]; then
+  step "System bus"
+  mkdir -p /run/dbus
+  dbus-daemon --system --fork --nopidfile || echo "ci-release-linux: could not start the system bus" >&2
+fi
+
 step "Package and check"
 # When the Alt+F4 check fails here, its screenshot, window tree and logs go
 # with the job's logs (dist/logs, uploaded as linux-logs).
