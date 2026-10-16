@@ -3,7 +3,8 @@
 # Debian 13 machine, then builds the app and runs the unit, command-line and
 # UI tests (scripts/run-tests.sh, with the UI tests required).
 #
-#   scripts/ci-linux.sh
+#   scripts/ci-linux.sh         # set up, build and test
+#   scripts/ci-linux.sh setup   # only set up the toolchain (the release workflow)
 #
 # Inputs, all pinned here:
 # - the gnustep-cli-new managed toolchain (its v0.1.0 bootstrap, checked
@@ -15,6 +16,9 @@
 # The bootstrap installs the toolchain's own prerequisites with --yes, so on
 # a clean machine it needs root (the workflow's container) or sudo.
 set -euo pipefail
+
+setup_only=0
+[ "${1:-}" = setup ] && setup_only=1
 
 bootstrap_url="https://github.com/danjboyd/gnustep-cli-new/releases/download/v0.1.0/gnustep-bootstrap.sh"
 bootstrap_sha256="3bdfa7a29a6442ce1bb994b027bfcba78beec649ae820391f009ac9eeb40ba63"
@@ -40,6 +44,8 @@ set +u
 . "$gnustep_root/System/Library/Makefiles/GNUstep.sh"
 set -u
 gnustep-config --variable=GNUSTEP_MAKEFILES
+
+[ "$setup_only" = 1 ] && exit 0
 
 step "tools-xctest $("$repo_root/scripts/pinned-checkout.sh" --field tools-xctest tag)"
 tools_xctest="$(TOOLS_XCTEST_BUILD_DIR="$work/tools-xctest" "$repo_root/scripts/build-tools-xctest.sh")"

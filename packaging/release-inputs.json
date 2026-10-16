@@ -21,5 +21,11 @@
     "url": "https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage",
     "version": "1.9.1",
     "sha256": "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
+  },
+  "powershell": {
+    "comment": "gnustep-packager runs on PowerShell; the release workflow's Debian container installs this (scripts/ci-release-linux.sh). The version used locally.",
+    "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.4.6/powershell-7.4.6-linux-x64.tar.gz",
+    "version": "7.4.6",
+    "sha256": "6f6015203c47806c5cc444c19d8ed019695e610fbd948154264bf9ca8e157561"
   }
 }

@@ -10,12 +10,11 @@
 # manifest). Run it from a clean checkout of main at the commit to release.
 #
 # Steps:
-#   1. package the AppImage with gnustep-packager and validate it, with the
-#      smoke launch on a private Xvfb, then check a new user's first launch
-#      without GNUstep (scripts/check-appimage-first-launch.sh) and that
+#   1. scripts/package-linux.sh: package the AppImage from the pinned inputs
+#      and validate it, with the smoke launch on a private Xvfb, then check a
+#      new user's first launch without GNUstep, opening a folder, and that
 #      Alt+F4 under GNOME Shell closes windows rather than killing the app
-#      (scripts/check-appimage-alt-f4.sh; needs gnome-shell), and that file
-#      managers can open folders with it (scripts/check-appimage-open-folder.sh);
+#      (needs gnome-shell); the release workflow runs the same script;
 #   2. sign the update feed with the update key (UPDATE_ED_PRIVATE_KEY, else
 #      the file UPDATE_ED_PRIVATE_KEY_FILE, default
 #      ~/.config/lindirstat/update-ed25519.key), which must match the
@@ -40,7 +39,7 @@ publish=0
 case "${1:-}" in
   "") ;;
   --publish) publish=1 ;;
-  *) sed -n '2,36p' "$0" >&2; exit 2 ;;
+  *) sed -n '2,35p' "$0" >&2; exit 2 ;;
 esac
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -72,33 +71,6 @@ if [ "$publish" = 1 ]; then
   git fetch -q origin main
   [ "$(git rev-parse origin/main)" = "$commit" ] || die "HEAD is not origin/main"
 fi
-# The inputs from other repositories are the ones packaging/release-inputs.json
-# pins. A local tree named in the environment may be used for a dry run, but
-# a published release is built only from trees at their pins.
-pin_check() { # name dir
-  if "$repo_root/scripts/pinned-checkout.sh" --verify "$1" "$2"; then
-    return 0
-  fi
-  [ "$publish" = 1 ] && die "publish builds only from the pinned $1 (packaging/release-inputs.json)"
-  echo "release-linux: warning: $1 is not at its pin; this dry run is not a release build" >&2
-}
-if [ -n "${GNUSTEP_PACKAGER:-}" ]; then
-  packager_root="$GNUSTEP_PACKAGER"
-  pin_check gnustep-packager "$packager_root"
-else
-  packager_root="$("$repo_root/scripts/pinned-checkout.sh" gnustep-packager "$repo_root/out/gnustep-packager")"
-fi
-packager="$packager_root/scripts/gnustep-packager.ps1"
-[ -f "$packager" ] || die "no gnustep-packager at $packager_root (set GNUSTEP_PACKAGER)"
-"$repo_root/scripts/fetch-appimagetool.sh" "$packager_root" >/dev/null
-packager_commit="$(git -C "$packager_root" rev-parse --short HEAD)"
-if [ -n "${ADWAITA_THEME:-}" ]; then
-  pin_check adwaita "$(dirname "$ADWAITA_THEME")"
-fi
-if [ -n "${LIBS_BACK_BUNDLE:-}" ]; then
-  [ "$publish" = 1 ] && die "publish builds libs-back from its lock file; unset LIBS_BACK_BUNDLE"
-  echo "release-linux: warning: LIBS_BACK_BUNDLE is set; this dry run is not a release build" >&2
-fi
 if [ "$publish" = 1 ]; then
   gh repo view "$releases_repo" >/dev/null 2>&1 || die "no releases repository $releases_repo (see docs/updates.md)"
 fi
@@ -113,43 +85,21 @@ if [ -z "${UPDATE_ED_PRIVATE_KEY:-}" ]; then
 fi
 export UPDATE_ED_PRIVATE_KEY UPDATE_ED_PUBLIC_KEY="$public_key"
 
-echo "release-linux: LinDirStat $version from $(git rev-parse --short HEAD), gnustep-packager $packager_commit"
+echo "release-linux: LinDirStat $version from $(git rev-parse --short HEAD)"
 
-# 1. Package and validate. The smoke launch runs on a private display with a
-# private GNUstep home.
 work="$(mktemp -d "${TMPDIR:-/tmp}/lindirstat-release.XXXXXX")"
-xvfb_pid=""
-cleanup() {
-  [ -n "$xvfb_pid" ] && kill "$xvfb_pid" 2>/dev/null || true
-  rm -rf "$work"
-}
-trap cleanup EXIT
+trap 'rm -rf "$work"' EXIT
 
-rm -rf dist/packages
-for command in manifest-check build stage validate; do
-  pwsh "$packager" -Manifest package.manifest.json -Command "$command"
-done
-pwsh "$packager" -Manifest package.manifest.json -Command package -Backend appimage
-
-exec 3< <(Xvfb -displayfd 4 -screen 0 1280x800x24 -nolisten tcp 4>&1 2>/dev/null)
-xvfb_pid=$!
-read -r -t 10 display_number <&3 || die "Xvfb did not start"
-mkdir -p "$work/home" "$work/xdg"
-DISPLAY=":$display_number" GNUSTEP_HOME="$work/home" XDG_DATA_HOME="$work/xdg" XDG_CONFIG_HOME="$work/xdg" \
-  DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent \
-  pwsh "$packager" -Manifest package.manifest.json -Command validate -Backend appimage -RunSmoke
-kill "$xvfb_pid" 2>/dev/null || true
-xvfb_pid=""
+# 1. Package from the pinned inputs and run the release checks
+# (scripts/package-linux.sh; --release refuses inputs off their pins).
+package_flags=()
+[ "$publish" = 1 ] && package_flags+=(--release)
+LINDIRSTAT_ALT_F4=required scripts/package-linux.sh "${package_flags[@]}"
 
 appimage="dist/packages/LinDirStat-$version-x86_64.AppImage"
 feed="dist/packages/LinDirStat-$version-x86_64.update-feed.json"
-for file in "$appimage" "$appimage.zsync" "$feed"; do
-  [ -f "$file" ] || die "packaging did not produce $file"
-done
-# A new user's first launch on a machine without GNUstep (0.1.0 aborted there).
-scripts/check-appimage-first-launch.sh "$appimage" || die "the AppImage does not start for a new user"
-scripts/check-appimage-open-folder.sh "$appimage" || die "the AppImage does not offer to open folders, or does not scan the folder it is given"
-LINDIRSTAT_ALT_F4_REQUIRED=1 scripts/check-appimage-alt-f4.sh "$appimage" || die "Alt+F4 under GNOME Shell does not close the AppImage's windows cleanly"
+provenance="dist/packages/LinDirStat-$version-x86_64.provenance.json"
+packager_commit="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["inputs"]["gnustep-packager"]["used"][:7])' "$provenance")"
 python3 - "$feed" "$feed_url" "$releases_repo" "$tag" <<'PY' || die "the feed does not describe this release"
 import json, sys
 feed = json.load(open(sys.argv[1], encoding="utf-8-sig"))
