@@ -52,7 +52,12 @@ for p in json.load(open(sys.argv[1]))["patches"]:
   set -u
   export PKG_CONFIG_PATH="$gnustep_root/lib/pkgconfig:$gnustep_root/Local/Library/Libraries/pkgconfig"
   ./configure "${configure_args[@]}" > "$build_dir/configure.out" 2>&1 || { tail -20 "$build_dir/configure.out" >&2; exit 1; }
-  make -j"$(nproc)" "${make_args[@]}" > "$build_dir/make.out" 2>&1 || { tail -20 "$build_dir/make.out" >&2; exit 1; }
+  # GNUstep Base's headers name themselves in assertions (__FILE__), which
+  # put the install's path, under the build user's home, into the bundle;
+  # mapped to a fixed name, builds on different machines are identical.
+  prefix_map="-fmacro-prefix-map=$gnustep_root=/gnustep-cli"
+  make -j"$(nproc)" "${make_args[@]}" AUXILIARY_OBJCFLAGS="$prefix_map" AUXILIARY_CFLAGS="$prefix_map" \
+    > "$build_dir/make.out" 2>&1 || { tail -20 "$build_dir/make.out" >&2; exit 1; }
 ) || die "the build failed (logs in $build_dir)"
 
 bundle="$build_dir/Source/libgnustep-back-032.bundle"
