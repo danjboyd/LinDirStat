@@ -416,7 +416,7 @@
   NSString *path = [self makeLinkedTree];
   LDFileNode *root = [self scan:path processHardLinks:YES];
   LDFileNode *container = [self child:@"<Hardlinks>" of:root];
-  LDFileNode *index = [[[[container children] objectAtIndex:0] children] objectAtIndex:0];
+  LDFileNode *index = [[(LDFileNode *)[[container children] objectAtIndex:0] children] objectAtIndex:0];
   LDFileNode *reference = [[index children] objectAtIndex:0];
 
   __block NSUInteger visited = 0;
@@ -455,7 +455,7 @@
   NSString *path = [self makeLinkedTree];
   LDFileNode *root = [self scan:path processHardLinks:YES];
   LDFileNode *container = [self child:@"<Hardlinks>" of:root];
-  LDFileNode *index = [[[[container children] objectAtIndex:0] children] objectAtIndex:0];
+  LDFileNode *index = [[(LDFileNode *)[[container children] objectAtIndex:0] children] objectAtIndex:0];
 
   XCTAssertEqual((LDRGBColor)(LDRGB(200, 150, 100) | LDTreemapColorFlagLighter),
                  [LDTreemap colorForNode:index colorIndexes:@{}]);
