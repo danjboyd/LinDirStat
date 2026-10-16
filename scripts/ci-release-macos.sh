@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # The release workflow's macOS job (.github/workflows/release.yml), on a
-# macos-15 runner: the universal DMG through gnustep-packager's dmg backend,
+# macos-26 runner: the unit and UI tests (make -C macos test), then the
+# universal DMG through gnustep-packager's dmg backend,
 # with the packager at its pin in packaging/release-inputs.json, then the
 # backend's validation with the launch smoke. The DMG stays ad-hoc signed
 # (backends.dmg.signing in package.manifest.json); no secrets are used.
@@ -26,6 +27,16 @@ packager="$packager_root/scripts/gnustep-packager.ps1"
 git -C "$packager_root" log -1 --format='%H %s'
 pwsh -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
 xcodebuild -version
+# An app linked against an SDK older than macOS 26 runs in compatibility mode
+# on macOS 26, with the old window and toolbar look; the DMGs released so far
+# use the 26 SDK. MACOS_MIN_SDK overrides the minimum.
+sdk="$(xcrun --sdk macosx --show-sdk-version)"
+min_sdk="${MACOS_MIN_SDK:-26}"
+[ "${sdk%%.*}" -ge "$min_sdk" ] || die "the macOS SDK is $sdk; a release needs $min_sdk or later (select a newer Xcode)"
+echo "macOS SDK $sdk"
+
+step "Unit and UI tests"
+make -C macos test
 
 step "Package and validate"
 rm -rf dist/packages

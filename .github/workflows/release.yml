@@ -1,6 +1,6 @@
 # Release builds on GitHub's runners (docs/updates.md, "Releasing"): the Linux
 # AppImage on Debian 13 (scripts/ci-release-linux.sh) and the universal DMG
-# on macOS 15 (scripts/ci-release-macos.sh), from the inputs pinned in
+# on macOS 26 (scripts/ci-release-macos.sh), from the inputs pinned in
 # packaging/release-inputs.json, with the release checks that can run here.
 # The result is a workflow artifact, "release", with SHA256SUMS. Nothing is
 # signed or published: the update key stays off GitHub, and
@@ -124,7 +124,10 @@ jobs:
 
   macos:
     needs: version
-    runs-on: macos-15
+    # The macOS 26 SDK: linked against an older one, the app runs in
+    # compatibility mode on macOS 26 (the old window and toolbar look), unlike
+    # the DMGs released so far (scripts/ci-release-macos.sh checks it).
+    runs-on: macos-26
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
