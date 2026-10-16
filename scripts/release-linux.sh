@@ -23,7 +23,8 @@
 #   3. when the releases repository has a release, check that it updates to
 #      this one (scripts/test-appimage-update.sh);
 #   4. with --publish: create the GitHub release with the AppImage, its .zsync
-#      and the sidecars, then publish the feed to the releases repository's
+#      and the sidecars, attach SHA256SUMS (scripts/release-sha256sums.sh),
+#      then publish the feed to the releases repository's
 #      gh-pages branch at updates/linux/stable.json, and tag the source
 #      commit. A version with "-" (0.2.0-rc1) is a pre-release: it gets a
 #      release but not the feed, so installed copies are not offered it.
@@ -37,7 +38,7 @@ publish=0
 case "${1:-}" in
   "") ;;
   --publish) publish=1 ;;
-  *) sed -n '2,33p' "$0" >&2; exit 2 ;;
+  *) sed -n '2,34p' "$0" >&2; exit 2 ;;
 esac
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -172,6 +173,7 @@ release_flags=()
 gh release create "$tag" --repo "$releases_repo" --title "LinDirStat $version" --notes-file "$notes" \
   "${release_flags[@]}" \
   "$appimage" "$appimage.zsync" "$feed"
+scripts/release-sha256sums.sh "$tag"
 
 if [ "$prerelease" = 0 ]; then
   pages="$work/pages"
