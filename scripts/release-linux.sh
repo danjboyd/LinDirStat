@@ -29,22 +29,22 @@
 #      commit. A version with "-" (0.2.0-rc1) is a pre-release: it gets a
 #      release but not the feed, so installed copies are not offered it.
 #
-# Inputs (environment): GNUSTEP_PACKAGER (gnustep-packager checkout,
-# default ~/git/gnustep/gnustep-packager; needs #8 and #10, its main from
-# 3e487ab on) and the GNUstep build inputs docs/packaging.md lists.
+# Inputs: gnustep-packager and the Adwaita theme at their pins in
+# packaging/release-inputs.json (checked out in out/), libs-back from its
+# lock file, and the GNUstep build inputs docs/packaging.md lists. For a dry
+# run GNUSTEP_PACKAGER, ADWAITA_THEME and LIBS_BACK_BUNDLE may name local
+# trees; --publish refuses any that is not at its pin.
 set -euo pipefail
 
 publish=0
 case "${1:-}" in
   "") ;;
   --publish) publish=1 ;;
-  *) sed -n '2,34p' "$0" >&2; exit 2 ;;
+  *) sed -n '2,36p' "$0" >&2; exit 2 ;;
 esac
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
-packager_root="${GNUSTEP_PACKAGER:-$HOME/git/gnustep/gnustep-packager}"
-packager="$packager_root/scripts/gnustep-packager.ps1"
 
 die() { echo "release-linux: $*" >&2; exit 1; }
 manifest_value() {
@@ -72,11 +72,32 @@ if [ "$publish" = 1 ]; then
   git fetch -q origin main
   [ "$(git rev-parse origin/main)" = "$commit" ] || die "HEAD is not origin/main"
 fi
+# The inputs from other repositories are the ones packaging/release-inputs.json
+# pins. A local tree named in the environment may be used for a dry run, but
+# a published release is built only from trees at their pins.
+pin_check() { # name dir
+  if "$repo_root/scripts/pinned-checkout.sh" --verify "$1" "$2"; then
+    return 0
+  fi
+  [ "$publish" = 1 ] && die "publish builds only from the pinned $1 (packaging/release-inputs.json)"
+  echo "release-linux: warning: $1 is not at its pin; this dry run is not a release build" >&2
+}
+if [ -n "${GNUSTEP_PACKAGER:-}" ]; then
+  packager_root="$GNUSTEP_PACKAGER"
+  pin_check gnustep-packager "$packager_root"
+else
+  packager_root="$("$repo_root/scripts/pinned-checkout.sh" gnustep-packager "$repo_root/out/gnustep-packager")"
+fi
+packager="$packager_root/scripts/gnustep-packager.ps1"
 [ -f "$packager" ] || die "no gnustep-packager at $packager_root (set GNUSTEP_PACKAGER)"
-git -C "$packager_root" merge-base --is-ancestor 3e487ab HEAD 2>/dev/null ||
-  die "gnustep-packager at $packager_root predates 3e487ab (its main with #8 and #10)"
-[ -z "$(git -C "$packager_root" status --porcelain)" ] || die "gnustep-packager at $packager_root has local changes"
 packager_commit="$(git -C "$packager_root" rev-parse --short HEAD)"
+if [ -n "${ADWAITA_THEME:-}" ]; then
+  pin_check adwaita "$(dirname "$ADWAITA_THEME")"
+fi
+if [ -n "${LIBS_BACK_BUNDLE:-}" ]; then
+  [ "$publish" = 1 ] && die "publish builds libs-back from its lock file; unset LIBS_BACK_BUNDLE"
+  echo "release-linux: warning: LIBS_BACK_BUNDLE is set; this dry run is not a release build" >&2
+fi
 if [ "$publish" = 1 ]; then
   gh repo view "$releases_repo" >/dev/null 2>&1 || die "no releases repository $releases_repo (see docs/updates.md)"
 fi

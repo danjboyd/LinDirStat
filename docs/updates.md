@@ -106,8 +106,10 @@ is not put in the feed, so installed copies are not offered it, and GitHub's
 latest release (which the AppImage update information follows) stays the
 last real one.
 
-It uses the gnustep-packager checkout in `GNUSTEP_PACKAGER` (default
-`~/git/gnustep/gnustep-packager`), which must be clean and include `3e487ab`.
+It builds with gnustep-packager and the Adwaita theme at their pins in
+`packaging/release-inputs.json` (`docs/packaging.md`, "Pinned inputs"),
+checked out in `out/`. `GNUSTEP_PACKAGER` and `ADWAITA_THEME` can point a dry
+run at local trees; `--publish` refuses any that is not at its pin.
 
 ## Testing
 

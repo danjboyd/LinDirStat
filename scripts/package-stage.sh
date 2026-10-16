@@ -14,8 +14,9 @@
 #
 # Inputs (override with environment variables):
 #   GNUSTEP_CLI_ROOT   gnustep-cli-new install (~/.local/share/gnustep-cli)
-#   ADWAITA_THEME      built Adwaita.theme
-#                      (~/git/gnustep/plugins-themes-adwaita/Adwaita.theme)
+#   ADWAITA_THEME      a built Adwaita.theme (default: built by
+#                      scripts/build-adwaita.sh from its pin in
+#                      packaging/release-inputs.json)
 #   LIBS_BACK_BUNDLE   a built libgnustep-back-032.bundle (default: built by
 #                      scripts/build-libs-back.sh from the pinned revision
 #                      and patches in packaging/linux/libs-back)
@@ -30,7 +31,6 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 stage_root="$1"
 app_source="$repo_root/Source/LinDirStat.app"
 gnustep_root="${GNUSTEP_CLI_ROOT:-$HOME/.local/share/gnustep-cli}"
-adwaita_theme="${ADWAITA_THEME:-$HOME/git/gnustep/plugins-themes-adwaita/Adwaita.theme}"
 gnustep_library="$gnustep_root/Local/Library"
 gnustep_tools="$gnustep_root/Local/Tools"
 
@@ -46,7 +46,8 @@ if [[ ! -x "$app_source/LinDirStat" ]]; then
 fi
 
 require "$gnustep_library/Libraries/libgnustep-base.so" "gnustep-cli-new GNUstep install; set GNUSTEP_CLI_ROOT"
-require "$adwaita_theme/Adwaita" "built Adwaita GNUstep theme; set ADWAITA_THEME"
+adwaita_theme="${ADWAITA_THEME:-$("$repo_root/scripts/build-adwaita.sh")}"
+require "$adwaita_theme/Adwaita" "pinned Adwaita build (scripts/build-adwaita.sh); or set ADWAITA_THEME"
 libs_back_bundle="${LIBS_BACK_BUNDLE:-$("$repo_root/scripts/build-libs-back.sh")}"
 require "$libs_back_bundle/libgnustep-back-032" "pinned libs-back build (scripts/build-libs-back.sh); or set LIBS_BACK_BUNDLE"
 

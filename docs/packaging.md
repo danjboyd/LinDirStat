@@ -47,15 +47,44 @@ build doesn't have (GLX, RandR, Xcursor, Xfixes, Xmu), so the bundle
 needs the same host libraries as before: built without the patches, it has
 the same undefined symbols as the install's. Drop a patch from the lock file
 once the revision includes it.
-  - `ADWAITA_THEME`: the built Adwaita GNUstep theme bundle
-    (default `~/git/gnustep/plugins-themes-adwaita/Adwaita.theme`).
+  - `ADWAITA_THEME`: a built Adwaita GNUstep theme bundle (default: built
+    by `scripts/build-adwaita.sh` from its pin, in `out/adwaita`).
+
+### Pinned inputs
+
+Release builds take nothing from a local tree. `packaging/release-inputs.json`
+pins what comes from other repositories, each by tag and revision:
+
+| Input | Pin | Used by |
+| --- | --- | --- |
+| Adwaita GNUstep theme | `0.1.0-alpha13` (`b74231f`) | `scripts/build-adwaita.sh`, from `package-stage.sh` |
+| gnustep-packager | `362f270` (the merge of #57; no tag yet) | `release-linux.sh`, `regression-gate.sh` |
+| tools-xctest | `v0.6.0` (`c45391a`) | `scripts/build-tools-xctest.sh`, from the test scripts and CI |
+
+libs-back keeps its own lock file because of its patches (above).
+`scripts/pinned-checkout.sh NAME DIR` checks an input out at its pin; when the
+pin has a tag the tag must point at the revision, so a moved tag fails rather
+than building something else. Move a pin by changing tag and revision together
+(a new Adwaita tag needs Dan's approval). `scripts/test-pinned-inputs.sh`, run by Linux CI,
+checks that each tag still points at its revision upstream and that the
+helper refuses a tree off its pin or with local changes.
+
+The environment overrides still work for local builds (`ADWAITA_THEME`,
+`GNUSTEP_PACKAGER`, `TOOLS_XCTEST_ROOT`, `LIBS_BACK_BUNDLE`). A dry run of
+`release-linux.sh` warns when one of them is not at its pin; `--publish`
+refuses.
+
+Built from its pin with the managed toolchain, the theme is reproducible: two
+builds in different folders have the same build ID. (0.1.3 shipped the
+alpha13 source built in `~/git/gnustep/plugins-themes-adwaita` against
+`/usr/GNUstep`'s headers, with debug information, so its build ID differs.)
 
 ### Commands
 
 From the repository root:
 
 ```sh
-PACKAGER=~/git/gnustep/gnustep-packager/scripts/gnustep-packager.ps1
+PACKAGER="$(scripts/pinned-checkout.sh gnustep-packager out/gnustep-packager)/scripts/gnustep-packager.ps1"
 pwsh $PACKAGER -Manifest package.manifest.json -Command manifest-check
 pwsh $PACKAGER -Manifest package.manifest.json -Command build
 pwsh $PACKAGER -Manifest package.manifest.json -Command stage
@@ -65,7 +94,7 @@ pwsh $PACKAGER -Manifest package.manifest.json -Command validate -Backend appima
 ```
 
 or the whole sequence with
-`pwsh ~/git/gnustep/gnustep-packager/scripts/run-packaging-pipeline.ps1 -Manifest package.manifest.json -Backend appimage -RunSmoke`.
+`pwsh out/gnustep-packager/scripts/run-packaging-pipeline.ps1 -Manifest package.manifest.json -Backend appimage -RunSmoke`.
 
 `GlobalDefaults.plist` also carries what the Adwaita theme needs from settings
 a GNOME user's GNUstep does not have yet, with the same `ifUnset` semantics:
