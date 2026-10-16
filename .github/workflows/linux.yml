@@ -26,7 +26,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
-            ca-certificates curl git make pkg-config sudo \
+            ca-certificates curl git make pkg-config python3 sudo \
             nettle-dev \
             xvfb xauth x11-utils
 

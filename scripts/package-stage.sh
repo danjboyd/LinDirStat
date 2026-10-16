@@ -14,8 +14,9 @@
 #
 # Inputs (override with environment variables):
 #   GNUSTEP_CLI_ROOT   gnustep-cli-new install (~/.local/share/gnustep-cli)
-#   ADWAITA_THEME      built Adwaita.theme
-#                      (~/git/gnustep/plugins-themes-adwaita/Adwaita.theme)
+#   ADWAITA_THEME      a built Adwaita.theme (default: built by
+#                      scripts/build-adwaita.sh from its pin in
+#                      packaging/release-inputs.json)
 #   LIBS_BACK_BUNDLE   a built libgnustep-back-032.bundle (default: built by
 #                      scripts/build-libs-back.sh from the pinned revision
 #                      and patches in packaging/linux/libs-back)
@@ -30,7 +31,6 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 stage_root="$1"
 app_source="$repo_root/Source/LinDirStat.app"
 gnustep_root="${GNUSTEP_CLI_ROOT:-$HOME/.local/share/gnustep-cli}"
-adwaita_theme="${ADWAITA_THEME:-$HOME/git/gnustep/plugins-themes-adwaita/Adwaita.theme}"
 gnustep_library="$gnustep_root/Local/Library"
 gnustep_tools="$gnustep_root/Local/Tools"
 
@@ -46,7 +46,8 @@ if [[ ! -x "$app_source/LinDirStat" ]]; then
 fi
 
 require "$gnustep_library/Libraries/libgnustep-base.so" "gnustep-cli-new GNUstep install; set GNUSTEP_CLI_ROOT"
-require "$adwaita_theme/Adwaita" "built Adwaita GNUstep theme; set ADWAITA_THEME"
+adwaita_theme="${ADWAITA_THEME:-$("$repo_root/scripts/build-adwaita.sh")}"
+require "$adwaita_theme/Adwaita" "pinned Adwaita build (scripts/build-adwaita.sh); or set ADWAITA_THEME"
 libs_back_bundle="${LIBS_BACK_BUNDLE:-$("$repo_root/scripts/build-libs-back.sh")}"
 require "$libs_back_bundle/libgnustep-back-032" "pinned libs-back build (scripts/build-libs-back.sh); or set LIBS_BACK_BUNDLE"
 
@@ -176,18 +177,21 @@ notice() {
     cat "$text"
   } > "$licenses/$file"
 }
+# The runtime's license texts, copied from upstream into the repository: the
+# gnustep-cli-new install does not carry them.
+license_texts="$repo_root/packaging/linux/licenses"
 notice LinDirStat.txt "LinDirStat, a disk usage viewer inspired by WinDirStat" "GPL-2.0-or-later" \
   "https://github.com/danjboyd/LinDirStat" "$repo_root/COPYING"
 notice GNUstep-base.txt "GNUstep Base (libgnustep-base)" "LGPL-2.1-or-later" \
-  "https://github.com/gnustep/libs-base" "$HOME/git/gnustep/libs-base/COPYING.LIB"
+  "https://github.com/gnustep/libs-base" "$license_texts/libs-base-COPYING.LIB"
 notice GNUstep-gui.txt "GNUstep GUI (libgnustep-gui)" "LGPL-2.1-or-later" \
-  "https://github.com/gnustep/libs-gui" "$HOME/git/gnustep/libs-gui/COPYING.LIB"
+  "https://github.com/gnustep/libs-gui" "$license_texts/libs-gui-COPYING.LIB"
 notice GNUstep-back.txt "GNUstep Back (libgnustep-back)" "LGPL-2.1-or-later" \
-  "https://github.com/gnustep/libs-back" "$HOME/git/gnustep/libs-back/COPYING.LIB"
+  "https://github.com/gnustep/libs-back" "$license_texts/libs-back-COPYING.LIB"
 notice libobjc2.txt "libobjc2 (GNUstep Objective-C runtime)" "MIT" \
-  "https://github.com/gnustep/libobjc2" "$HOME/git/gnustep/libobjc2/COPYING"
+  "https://github.com/gnustep/libobjc2" "$license_texts/libobjc2-COPYING"
 notice libdispatch.txt "libdispatch (swift-corelibs-libdispatch)" "Apache-2.0" \
-  "https://github.com/swiftlang/swift-corelibs-libdispatch" "$HOME/git/gnustep/libdispatch/LICENSE"
+  "https://github.com/swiftlang/swift-corelibs-libdispatch" "$license_texts/libdispatch-LICENSE"
 notice Adwaita-theme.txt "Adwaita GNUstep theme (plugins-themes-adwaita)" "LGPL-2.1-or-later" \
   "https://github.com/danjboyd/plugins-themes-Adwaita" "$adwaita_theme/../COPYING.LIB"
 notice gnustep-packager-updater.txt "gnustep-packager updater (GPUpdaterCore, GPUpdaterUI, gp-update-helper)" "MIT" \

@@ -18,7 +18,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 gnustep_makefiles="$HOME/.local/share/gnustep-cli/System/Library/Makefiles"
-export TOOLS_XCTEST_ROOT="${TOOLS_XCTEST_ROOT:-$HOME/git/Arlen/vendor/tools-xctest}"
+export TOOLS_XCTEST_ROOT="${TOOLS_XCTEST_ROOT:-$("$repo_root/scripts/build-tools-xctest.sh")}"
 
 if ! command -v Xvfb >/dev/null 2>&1; then
   echo "run-ui-tests: SKIPPED (Xvfb is not installed; the UI tests need a private display)"

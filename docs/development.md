@@ -20,20 +20,18 @@ Run Objective-C unit tests with GNUstep's `tools-xctest` support:
 make -C Tests
 ```
 
-If `tools-xctest` is being used from a local checkout instead of an installed prefix, pass its root explicitly:
+The test scripts build `tools-xctest` from its pin in
+`packaging/release-inputs.json` (`scripts/build-tools-xctest.sh`, in
+`out/tools-xctest`) unless `TOOLS_XCTEST_ROOT` names another checkout. To
+build and run the bundle by hand:
 
 ```sh
+TOOLS_XCTEST_ROOT="$(scripts/build-tools-xctest.sh)"
 GNUSTEP_MAKEFILES_DIR=~/.local/share/gnustep-cli/System/Library/Makefiles \
-TOOLS_XCTEST_ROOT=~/git/Arlen/vendor/tools-xctest \
-make -C Tests
-```
-
-Run the compiled test bundle with:
-
-```sh
+TOOLS_XCTEST_ROOT="$TOOLS_XCTEST_ROOT" make -C Tests
 . ~/.local/share/gnustep-cli/System/Library/Makefiles/GNUstep.sh
-LD_LIBRARY_PATH=~/git/Arlen/vendor/tools-xctest/XCTest/obj:${LD_LIBRARY_PATH:-} \
-~/git/Arlen/vendor/tools-xctest/obj/xctest Tests/LinDirStatTests.bundle
+LD_LIBRARY_PATH="$TOOLS_XCTEST_ROOT/XCTest/obj:${LD_LIBRARY_PATH:-}" \
+"$TOOLS_XCTEST_ROOT/obj/xctest" Tests/LinDirStatTests.bundle
 ```
 
 The first fixture-backed scanner tests live under `Tests/Fixtures/basic-tree`.

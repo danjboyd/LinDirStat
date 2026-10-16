@@ -2,8 +2,9 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-packager="$HOME/git/gnustep/gnustep-packager/scripts/gnustep-packager.ps1"
-xctest_root="${TOOLS_XCTEST_ROOT:-$HOME/git/Arlen/vendor/tools-xctest}"
+packager_root="${GNUSTEP_PACKAGER:-$("$repo_root/scripts/pinned-checkout.sh" gnustep-packager "$repo_root/out/gnustep-packager")}"
+packager="$packager_root/scripts/gnustep-packager.ps1"
+xctest_root="${TOOLS_XCTEST_ROOT:-$("$repo_root/scripts/build-tools-xctest.sh")}"
 gnustep_makefiles="$HOME/.local/share/gnustep-cli/System/Library/Makefiles"
 
 if [[ -f "$gnustep_makefiles/GNUstep.sh" ]]; then
@@ -15,7 +16,7 @@ fi
 
 cd "$repo_root"
 
-python3 "$HOME/git/gnustep/gnustep-cli-new/scripts/internal/build.py" --execute .
+make
 TOOLS_XCTEST_ROOT="$xctest_root" make -C Tests
 # A private GNUstep home keeps the tests' defaults out of the user's (GNUstep.sh
 # unsets GNUSTEP_HOME, so it is set here).

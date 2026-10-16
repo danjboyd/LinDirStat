@@ -9,7 +9,8 @@
 # - the gnustep-cli-new managed toolchain (its v0.1.0 bootstrap, checked
 #   against its sha256), in ~/.local/share/gnustep-cli as run-tests.sh
 #   expects; skipped when that install exists;
-# - tools-xctest at the commit below, built in CI_WORK
+# - tools-xctest at its pin in packaging/release-inputs.json
+#   (scripts/build-tools-xctest.sh), built in CI_WORK
 #   (default ${RUNNER_TEMP:-/tmp}/lindirstat-ci).
 # The bootstrap installs the toolchain's own prerequisites with --yes, so on
 # a clean machine it needs root (the workflow's container) or sudo.
@@ -17,8 +18,6 @@ set -euo pipefail
 
 bootstrap_url="https://github.com/danjboyd/gnustep-cli-new/releases/download/v0.1.0/gnustep-bootstrap.sh"
 bootstrap_sha256="3bdfa7a29a6442ce1bb994b027bfcba78beec649ae820391f009ac9eeb40ba63"
-tools_xctest_url="https://github.com/danjboyd/tools-xctest.git"
-tools_xctest_commit="a84f053e8546bb3e03bb470e2a0a17863ecabd62"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 work="${CI_WORK:-${RUNNER_TEMP:-/tmp}/lindirstat-ci}"
@@ -27,17 +26,8 @@ mkdir -p "$work"
 
 step() { printf '\n== %s\n' "$*"; }
 
-# A checkout of url at commit in dir, fetched by commit so no branch moves it.
-checkout() {
-  local url="$1" commit="$2" dir="$3"
-  if [ ! -d "$dir/.git" ]; then
-    git init -q "$dir"
-    git -C "$dir" remote add origin "$url"
-  fi
-  git -C "$dir" fetch -q --depth 1 origin "$commit"
-  git -C "$dir" checkout -q --force --detach FETCH_HEAD
-  [ "$(git -C "$dir" rev-parse HEAD)" = "$commit" ] || { echo "ci-linux: $url is not at $commit" >&2; exit 1; }
-}
+step "Pinned inputs"
+"$repo_root/scripts/test-pinned-inputs.sh"
 
 step "GNUstep toolchain"
 if [ ! -f "$gnustep_root/System/Library/Makefiles/GNUstep.sh" ]; then
@@ -51,10 +41,9 @@ set +u
 set -u
 gnustep-config --variable=GNUSTEP_MAKEFILES
 
-step "tools-xctest $tools_xctest_commit"
-checkout "$tools_xctest_url" "$tools_xctest_commit" "$work/tools-xctest"
-make -C "$work/tools-xctest" >/dev/null
+step "tools-xctest $("$repo_root/scripts/pinned-checkout.sh" --field tools-xctest tag)"
+tools_xctest="$(TOOLS_XCTEST_BUILD_DIR="$work/tools-xctest" "$repo_root/scripts/build-tools-xctest.sh")"
 
 step "Build and test"
 cd "$repo_root"
-TOOLS_XCTEST_ROOT="$work/tools-xctest" LINDIRSTAT_UI_TESTS_REQUIRED=1 scripts/run-tests.sh
+TOOLS_XCTEST_ROOT="$tools_xctest" LINDIRSTAT_UI_TESTS_REQUIRED=1 scripts/run-tests.sh

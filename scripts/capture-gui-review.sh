@@ -13,7 +13,7 @@ if [[ -f "$gnustep_makefiles/GNUstep.sh" ]]; then
 fi
 
 cd "$repo_root"
-python3 "$HOME/git/gnustep/gnustep-cli-new/scripts/internal/build.py" --execute .
+make
 
 openapp Source/LinDirStat.app &
 app_pid=$!

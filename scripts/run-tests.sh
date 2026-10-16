@@ -4,7 +4,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 gnustep_makefiles="$HOME/.local/share/gnustep-cli/System/Library/Makefiles"
-export TOOLS_XCTEST_ROOT="${TOOLS_XCTEST_ROOT:-$HOME/git/Arlen/vendor/tools-xctest}"
+export TOOLS_XCTEST_ROOT="${TOOLS_XCTEST_ROOT:-$("$repo_root/scripts/build-tools-xctest.sh")}"
 
 set +u
 # shellcheck disable=SC1091
