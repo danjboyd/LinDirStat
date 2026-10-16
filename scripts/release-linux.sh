@@ -149,6 +149,8 @@ PY
   rm -rf dist/packages
   mkdir -p dist/packages
   cp "$ci"/LinDirStat-"$version"-x86_64.* dist/packages/
+  # Workflow artifacts lose the execute bit.
+  chmod +x "dist/packages/LinDirStat-$version-x86_64.AppImage"
   appimage="dist/packages/LinDirStat-$version-x86_64.AppImage"
 
   # The build IDs inside the AppImage, against the provenance and against
