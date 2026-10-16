@@ -74,42 +74,67 @@ key built into the installed copy is refused.
 
 ## Releasing
 
-`scripts/release-linux.sh` makes a release from a clean checkout of `main`:
+Releases are built on GitHub's runners and signed and published here, after
+Dan approves. The update key never goes to GitHub, and the workflow has no
+secrets.
 
-1. Set `package.version` in `package.manifest.json` to the new version and
-   merge that to `main`. The release is tag `v<version>`.
-2. `scripts/release-linux.sh` (a dry run) packages the AppImage and validates
-   it (the smoke launch runs on a private Xvfb), signs the feed, and, when a
-   release already exists, runs `scripts/test-appimage-update.sh` from the
-   current release to the new one.
-3. `scripts/release-linux.sh --publish` does the same, then creates the
-   GitHub release in `danjboyd/LinDirStat-releases` (AppImage, `.zsync`,
-   and feed; the `.metadata.json` and `.diagnostics.txt` sidecars hold the
-   build machine's paths and stay local), attaches `SHA256SUMS`, pushes the
-   feed to `gh-pages` as `updates/linux/stable.json`, and pushes tag
-   `v<version>` to this repository.
-4. The macOS session builds the DMG from the tag (`docs/packaging.md`,
-   "macOS DMG") and attaches it and its `.sha256` to the same release, then
-   runs `scripts/release-sha256sums.sh v<version>` so `SHA256SUMS` lists it
-   too.
+1. Set `package.version` in `package.manifest.json` to the new version, add
+   `packaging/linux/release-notes/<version>.md`, and merge that to `main`. The
+   release is tag `v<version>`.
+2. Build a release candidate: run the **Release** workflow
+   (`.github/workflows/release.yml`) on `main` by hand with a version such as
+   `0.1.4-rc1` (`gh workflow run release.yml --ref main -f version=0.1.4-rc1`).
+   It packages the AppImage on Debian 13 (`scripts/ci-release-linux.sh`) and
+   the universal DMG on macOS 15 (`scripts/ci-release-macos.sh`) from the
+   inputs pinned in `packaging/release-inputs.json`, runs the release checks
+   that can run there, and uploads one artifact, `release`: the AppImage, its
+   `.zsync`, the unsigned feed, a provenance file (the commit, every pin, the
+   build IDs of the bundled Adwaita theme, libs-back and GNUstep libraries,
+   and each check's result), the DMG and its `.sha256`, and `SHA256SUMS`.
+   Every release check runs there, Alt+F4 under GNOME Shell included, and
+   the DMG must be built with the macOS 26 SDK.
+3. `scripts/release-linux.sh --from-ci <run id>` (a dry run, from a clean
+   checkout at the run's commit) downloads that artifact and checks it:
+   `SHA256SUMS`; that the provenance names this commit and this checkout's
+   pins; that the build IDs of the Adwaita theme and libs-back inside the
+   AppImage are the provenance's and those of builds of the pins made here;
+   then it runs the first-launch, open-folder and Alt+F4 checks on the CI
+   AppImage here, checks that the feed's URL, sha256 and size describe the
+   files, signs the feed, and runs `scripts/test-appimage-update.sh` from the
+   current release.
+4. With Dan's go, `scripts/release-linux.sh --from-ci <run id> --publish`
+   does the same, then creates the release in `danjboyd/LinDirStat-releases`
+   with the AppImage, `.zsync`, feed, DMG and `.sha256`, attaches
+   `SHA256SUMS`, and pushes tag `v<version>`. A release candidate is a
+   GitHub pre-release and stays out of the feed.
+5. The final release is the same with the version `package.version`: a
+   manual run without a version, or pushing tag `v<version>` (the workflow
+   checks the tag matches `package.version`; `--publish` then finds the tag
+   already there). A final release also pushes the signed feed to
+   `gh-pages` as `updates/linux/stable.json`.
+
+`scripts/release-linux.sh` without `--from-ci` still builds the AppImage on
+this machine (`scripts/package-linux.sh`, the script the workflow runs) and
+publishes it the same way, without a DMG. It builds with gnustep-packager,
+the Adwaita theme and appimagetool at their pins (`docs/packaging.md`,
+"Pinned inputs"), checked out in `out/`; `GNUSTEP_PACKAGER`, `ADWAITA_THEME`
+and `LIBS_BACK_BUNDLE` can point a dry run at local trees, and `--publish`
+refuses any that is not at its pin.
 
 Every release carries one `SHA256SUMS` covering every platform's payloads:
 each asset except `SHA256SUMS` itself, the per-file `.sha256` files and the
 signed `.update-feed.json`. `scripts/release-sha256sums.sh v<version>`
 writes it from the assets on the release, uploads it with `--clobber` and
-checks it against a fresh download, so run it after attaching any asset.
-`--check` only verifies, and fails if a payload is missing from the file.
-Users check a download with `sha256sum -c --ignore-missing SHA256SUMS`.
+checks it against a fresh download, so run it after attaching any asset by
+hand. `--check` only verifies, and fails if a payload is missing from the
+file; `--dir` and `--check-dir` do the same for a local folder (the
+workflow's artifact). Users check a download with
+`sha256sum -c --ignore-missing SHA256SUMS`.
 
 A version with a `-` (`0.2.0-rc1`) is published as a GitHub pre-release and
 is not put in the feed, so installed copies are not offered it, and GitHub's
 latest release (which the AppImage update information follows) stays the
 last real one.
-
-It builds with gnustep-packager and the Adwaita theme at their pins in
-`packaging/release-inputs.json` (`docs/packaging.md`, "Pinned inputs"),
-checked out in `out/`. `GNUSTEP_PACKAGER` and `ADWAITA_THEME` can point a dry
-run at local trees; `--publish` refuses any that is not at its pin.
 
 ## Testing
 

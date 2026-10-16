@@ -5,6 +5,7 @@
 #   scripts/release-sha256sums.sh v0.1.3          # regenerate and upload
 #   scripts/release-sha256sums.sh --check v0.1.3  # verify only
 #   scripts/release-sha256sums.sh --dir DIR       # write DIR/SHA256SUMS, no upload
+#   scripts/release-sha256sums.sh --check-dir DIR # verify DIR/SHA256SUMS only
 #
 # SHA256SUMS covers every platform's payloads: each asset except SHA256SUMS
 # itself, per-file *.sha256 checksums and the signed *.update-feed.json.
@@ -25,12 +26,14 @@ check_only=0
 local_dir=""
 case "${1:-}" in
   --check) check_only=1; shift ;;
-  --dir) local_dir="${2:-}"; [ -d "$local_dir" ] || { echo "release-sha256sums: --dir needs a folder" >&2; exit 2; } ;;
+  --dir|--check-dir)
+    [ "$1" = --check-dir ] && check_only=1
+    local_dir="${2:-}"; [ -d "$local_dir" ] || { echo "release-sha256sums: $1 needs a folder" >&2; exit 2; } ;;
 esac
 if [ -z "$local_dir" ]; then
   case "${1:-}" in
     v*) tag="$1" ;;
-    *) sed -n '2,21p' "$0" >&2; exit 2 ;;
+    *) sed -n '2,22p' "$0" >&2; exit 2 ;;
   esac
 fi
 
@@ -95,6 +98,12 @@ sys.exit(1 if failed else 0)
 EOF
 }
 
+if [ -n "$local_dir" ] && [ "$check_only" = 1 ]; then
+  [ -f "$local_dir/SHA256SUMS" ] || die "$local_dir has no SHA256SUMS"
+  sums --check "$local_dir" || die "$local_dir/SHA256SUMS does not match"
+  echo "release-sha256sums: $local_dir/SHA256SUMS covers every payload"
+  exit 0
+fi
 if [ -n "$local_dir" ]; then
   rm -f "$local_dir/SHA256SUMS"
   sums --write "$local_dir" > "$work/SHA256SUMS"
