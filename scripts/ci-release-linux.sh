@@ -37,12 +37,17 @@ if ! command -v pwsh >/dev/null 2>&1; then
 fi
 pwsh -NoLogo -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
 
-# GNOME Shell (the Alt+F4 check) reaches logind over the system bus, which a
-# container does not run; without one its UI fails to start.
-if [ ! -S /run/dbus/system_bus_socket ] && command -v dbus-daemon >/dev/null 2>&1 && [ "$(id -u)" = 0 ]; then
-  step "System bus"
-  mkdir -p /run/dbus
-  dbus-daemon --system --fork --nopidfile || echo "ci-release-linux: could not start the system bus" >&2
+# GNOME Shell (the Alt+F4 check) uses logind when /run/systemd/seats exists,
+# and its UI fails to start when it cannot reach it. A container runs neither
+# systemd nor logind: drop the stale folder, so the shell uses its stand-in
+# login manager, and give it a system bus.
+if [ "$(id -u)" = 0 ] && [ ! -d /run/systemd/system ]; then
+  step "No systemd: GNOME Shell without logind"
+  rm -rf /run/systemd/seats
+  if [ ! -S /run/dbus/system_bus_socket ] && command -v dbus-daemon >/dev/null 2>&1; then
+    mkdir -p /run/dbus
+    dbus-daemon --system --fork --nopidfile || echo "ci-release-linux: could not start the system bus" >&2
+  fi
 fi
 
 step "Package and check"
