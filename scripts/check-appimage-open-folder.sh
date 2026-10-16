@@ -13,6 +13,10 @@
 set -euo pipefail
 
 appimage="$(realpath "$1")"
+# Without a FUSE device (a container) the AppImage cannot mount itself; it
+# then runs from a temporary extraction, as AppImages offer.
+appimage_env=()
+[ -e /dev/fuse ] || appimage_env=(APPIMAGE_EXTRACT_AND_RUN=1)
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fixture="$repo_root/Tests/Fixtures/basic-tree"
 wait_seconds="${LINDIRSTAT_OPEN_FOLDER_WAIT:-15}"
@@ -64,6 +68,7 @@ setsid env -i \
   TMP="$gs_tmp" TEMP="$gs_tmp" TMPDIR="$gs_tmp" \
   DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent \
   LANG=C.UTF-8 \
+  ${appimage_env[@]+"${appimage_env[@]}"} \
   "$appimage" "$fixture" > "$root/app.log" 2>&1 &
 app_pid=$!
 

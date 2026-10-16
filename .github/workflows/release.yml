@@ -1,0 +1,180 @@
+# Release builds on GitHub's runners (docs/updates.md, "Releasing"): the Linux
+# AppImage on Debian 13 (scripts/ci-release-linux.sh) and the universal DMG
+# on macOS 26 (scripts/ci-release-macos.sh), from the inputs pinned in
+# packaging/release-inputs.json, with the release checks that can run here.
+# The result is a workflow artifact, "release", with SHA256SUMS. Nothing is
+# signed or published: the update key stays off GitHub, and
+# scripts/release-linux.sh --from-ci signs the feed and publishes locally,
+# once Dan approves.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  # A pull request that changes how releases are built runs it too, as
+  # package.version, so the workflow is tested before it is merged (a manual
+  # run needs the workflow on main).
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - scripts/ci-release-*.sh
+      - scripts/package-linux.sh
+      - scripts/check-appimage-*.sh
+      - scripts/package-stage*.sh
+      - scripts/pinned-checkout.sh
+      - scripts/build-*.sh
+      - scripts/fetch-appimagetool.sh
+      - packaging/**
+      - package.manifest.json
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to package instead of package.version (a release candidate such as 0.1.4-rc1)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  VERSION: ${{ inputs.version }}
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        name: Version
+        run: |
+          manifest="$(python3 -c 'import json; print(json.load(open("package.manifest.json"))["package"]["version"])')"
+          version="${VERSION:-$manifest}"
+          case "$GITHUB_REF" in
+            refs/tags/v*)
+              [ "${GITHUB_REF#refs/tags/v}" = "$version" ] || {
+                echo "::error::tag ${GITHUB_REF#refs/tags/} is not v$version (package.version)"; exit 1; }
+              ;;
+          esac
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "LinDirStat $version from ${GITHUB_SHA::7}" >> "$GITHUB_STEP_SUMMARY"
+
+  linux:
+    needs: version
+    runs-on: ubuntu-24.04
+    container: debian:trixie
+    timeout-minutes: 90
+    steps:
+      - name: Packages
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates curl git make pkg-config python3 sudo file binutils \
+            nettle-dev \
+            libx11-dev libxext-dev libxft-dev libxrender-dev libfreetype-dev \
+            libfontconfig-dev libcairo2-dev libglib2.0-dev \
+            xvfb xauth x11-utils fonts-cantarell fonts-dejavu-core \
+            desktop-file-utils
+          # The Alt+F4 check: GNOME Shell on Xvfb.
+          apt-get install -y --no-install-recommends \
+            gnome-shell dbus dbus-x11 xdotool fuse3
+
+      - uses: actions/checkout@v4
+
+      # The container runs as root on a workspace the runner's user owns; the
+      # scripts read the commit with git.
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Package and check
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: scripts/ci-release-linux.sh "$VERSION"
+
+      - name: Check results
+        if: always()
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY" || true
+          import glob, json
+          for path in glob.glob("dist/ci/linux/*.provenance.json"):
+              p = json.load(open(path))
+              print("Linux checks: " + ", ".join("%s %s" % kv for kv in p["checks"].items()))
+              print("")
+              print("Build IDs: " + ", ".join("%s %s" % kv for kv in p["buildIds"].items()))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/ci/linux
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-logs
+          path: dist/logs
+          if-no-files-found: warn
+
+  macos:
+    needs: version
+    # The macOS 26 SDK: linked against an older one, the app runs in
+    # compatibility mode on macOS 26 (the old window and toolbar look), unlike
+    # the DMGs released so far (scripts/ci-release-macos.sh checks it).
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The build number is the commit count.
+          fetch-depth: 0
+
+      - name: Package and validate
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: scripts/ci-release-macos.sh "$VERSION"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/ci/macos
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-logs
+          path: dist/logs
+          if-no-files-found: warn
+
+  release:
+    needs: [version, linux, macos]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "{linux,macos}"
+          path: dist/ci/release
+          merge-multiple: true
+
+      - name: SHA256SUMS
+        run: |
+          scripts/release-sha256sums.sh --dir dist/ci/release
+          {
+            echo '```'
+            cat dist/ci/release/SHA256SUMS
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: dist/ci/release
+          if-no-files-found: error

@@ -4,6 +4,7 @@
 #
 #   scripts/release-sha256sums.sh v0.1.3          # regenerate and upload
 #   scripts/release-sha256sums.sh --check v0.1.3  # verify only
+#   scripts/release-sha256sums.sh --dir DIR       # write DIR/SHA256SUMS, no upload
 #
 # SHA256SUMS covers every platform's payloads: each asset except SHA256SUMS
 # itself, per-file *.sha256 checksums and the signed *.update-feed.json.
@@ -15,22 +16,28 @@
 # with --clobber, then downloads the release again and checks it. --check
 # only does that last step, and fails if any payload is missing from
 # SHA256SUMS or does not match. Hashing is done with python3 so it runs the
-# same on Linux and macOS.
+# same on Linux and macOS. --dir writes SHA256SUMS for the payloads in a
+# local folder by the same rule (the release workflow's artifacts) and checks
+# it; it needs no gh.
 set -euo pipefail
 
 check_only=0
-if [ "${1:-}" = --check ]; then
-  check_only=1
-  shift
-fi
+local_dir=""
 case "${1:-}" in
-  v*) tag="$1" ;;
-  *) sed -n '2,19p' "$0" >&2; exit 2 ;;
+  --check) check_only=1; shift ;;
+  --dir) local_dir="${2:-}"; [ -d "$local_dir" ] || { echo "release-sha256sums: --dir needs a folder" >&2; exit 2; } ;;
 esac
+if [ -z "$local_dir" ]; then
+  case "${1:-}" in
+    v*) tag="$1" ;;
+    *) sed -n '2,21p' "$0" >&2; exit 2 ;;
+  esac
+fi
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[ -n "$local_dir" ] && local_dir="$(cd "$local_dir" && pwd)"
 cd "$repo_root"
-releases_repo="$(python3 -c 'import json
+[ -n "$local_dir" ] || releases_repo="$(python3 -c 'import json
 github = json.load(open("package.manifest.json"))["updates"]["github"]
 print(github["owner"] + "/" + github["repo"])')"
 
@@ -87,6 +94,16 @@ for name in sorted(set(listed) - set(names)):
 sys.exit(1 if failed else 0)
 EOF
 }
+
+if [ -n "$local_dir" ]; then
+  rm -f "$local_dir/SHA256SUMS"
+  sums --write "$local_dir" > "$work/SHA256SUMS"
+  [ -s "$work/SHA256SUMS" ] || die "$local_dir has no payloads"
+  mv "$work/SHA256SUMS" "$local_dir/SHA256SUMS"
+  sums --check "$local_dir" || die "$local_dir/SHA256SUMS does not match"
+  echo "release-sha256sums: $local_dir/SHA256SUMS covers every payload"
+  exit 0
+fi
 
 if [ "$check_only" = 0 ]; then
   mkdir "$work/assets"
