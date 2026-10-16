@@ -91,7 +91,8 @@ secrets.
    `.zsync`, the unsigned feed, a provenance file (the commit, every pin, the
    build IDs of the bundled Adwaita theme, libs-back and GNUstep libraries,
    and each check's result), the DMG and its `.sha256`, and `SHA256SUMS`.
-   The Alt+F4 check is tried there; GNOME Shell may not run in the container.
+   Every release check runs there, Alt+F4 under GNOME Shell included, and
+   the DMG must be built with the macOS 26 SDK.
 3. `scripts/release-linux.sh --from-ci <run id>` (a dry run, from a clean
    checkout at the run's commit) downloads that artifact and checks it:
    `SHA256SUMS`; that the provenance names this commit and this checkout's

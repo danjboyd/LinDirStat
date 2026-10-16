@@ -26,8 +26,7 @@
 #      libs-back inside the AppImage are the provenance's and those of local
 #      builds of the pins (scripts/build-adwaita.sh, build-libs-back.sh), then
 #      runs the first-launch, open-folder and Alt+F4 checks on the AppImage
-#      here; Alt+F4 always runs here, since the workflow may not run GNOME
-#      Shell;
+#      again here, on a desktop machine rather than a container;
 #   2. checks the feed describes this release and its files (URL, sha256,
 #      size), then signs it with the update key (UPDATE_ED_PRIVATE_KEY, else
 #      the file UPDATE_ED_PRIVATE_KEY_FILE, default
@@ -56,7 +55,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --publish) publish=1; shift ;;
     --from-ci) run_id="${2:?--from-ci needs a run id}"; shift 2 ;;
-    *) sed -n '2,50p' "$0" >&2; exit 2 ;;
+    *) sed -n '2,49p' "$0" >&2; exit 2 ;;
   esac
 done
 
