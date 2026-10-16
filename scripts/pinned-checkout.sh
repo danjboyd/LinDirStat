@@ -6,7 +6,8 @@
 #   scripts/pinned-checkout.sh --verify NAME DIR # DIR must be a clean tree at the pin
 #   scripts/pinned-checkout.sh --field NAME KEY  # print url, tag or revision
 #
-# NAME is adwaita, gnustep-packager or tools-xctest. When the pin has a tag,
+# NAME is adwaita, gnustep-packager or tools-xctest (--field also reads
+# appimagetool, a download: url, version, sha256). When the pin has a tag,
 # the tag is fetched and must point at the revision, so a moved tag fails
 # rather than building something else. The checkout prints DIR.
 set -euo pipefail
@@ -15,7 +16,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 inputs="$repo_root/packaging/release-inputs.json"
 
 die() { printf 'pinned-checkout: %s\n' "$*" >&2; exit 1; }
-usage() { sed -n '2,11p' "$0" >&2; exit 2; }
+usage() { sed -n '2,12p' "$0" >&2; exit 2; }
 field() {
   python3 -c 'import json, sys
 pin = json.load(open(sys.argv[1])).get(sys.argv[2])

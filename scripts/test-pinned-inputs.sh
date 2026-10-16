@@ -24,6 +24,12 @@ for name in adwaita gnustep-packager tools-xctest; do
   fi
 done
 
+# appimagetool is a download: a tagged release (not the moving continuous
+# build) with its sha256.
+url="$("$pin" --field appimagetool url)"
+[[ "$url" == */releases/download/"$("$pin" --field appimagetool version)"/* ]] || fail "appimagetool: $url is not the pinned release"
+[[ "$("$pin" --field appimagetool sha256)" =~ ^[0-9a-f]{64}$ ]] || fail "appimagetool: no sha256"
+
 # A checkout of the smallest input, then --verify on it and on broken copies.
 dir="$work/tools-xctest"
 [[ "$("$pin" tools-xctest "$dir")" == "$dir" ]] || fail "checkout did not print its folder"

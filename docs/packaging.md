@@ -60,8 +60,15 @@ pins what comes from other repositories, each by tag and revision:
 | Adwaita GNUstep theme | `0.1.0-alpha13` (`b74231f`) | `scripts/build-adwaita.sh`, from `package-stage.sh` |
 | gnustep-packager | `362f270` (the merge of #57; no tag yet) | `release-linux.sh`, `regression-gate.sh` |
 | tools-xctest | `v0.6.0` (`c45391a`) | `scripts/build-tools-xctest.sh`, from the test scripts and CI |
+| appimagetool | release `1.9.1` by sha256 | `scripts/fetch-appimagetool.sh`, from `release-linux.sh` |
 
 libs-back keeps its own lock file because of its patches (above).
+gnustep-packager would otherwise download appimagetool's moving `continuous`
+build, or reuse whatever copy its `tools/appimage` holds (0.1.3 was made with
+build 295, a run today fetched 313); `fetch-appimagetool.sh` puts the pinned
+1.9.1 (build 296, the same commit as 295) there, and the backend also takes
+the AppImage runtime from it. Run it after checking the packager out, since
+the checkout's `git clean` removes it.
 `scripts/pinned-checkout.sh NAME DIR` checks an input out at its pin; when the
 pin has a tag the tag must point at the revision, so a moved tag fails rather
 than building something else. Move a pin by changing tag and revision together

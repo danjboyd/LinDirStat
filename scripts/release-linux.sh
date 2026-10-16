@@ -29,8 +29,8 @@
 #      commit. A version with "-" (0.2.0-rc1) is a pre-release: it gets a
 #      release but not the feed, so installed copies are not offered it.
 #
-# Inputs: gnustep-packager and the Adwaita theme at their pins in
-# packaging/release-inputs.json (checked out in out/), libs-back from its
+# Inputs: gnustep-packager, the Adwaita theme and appimagetool at their pins
+# in packaging/release-inputs.json (in out/), libs-back from its
 # lock file, and the GNUstep build inputs docs/packaging.md lists. For a dry
 # run GNUSTEP_PACKAGER, ADWAITA_THEME and LIBS_BACK_BUNDLE may name local
 # trees; --publish refuses any that is not at its pin.
@@ -90,6 +90,7 @@ else
 fi
 packager="$packager_root/scripts/gnustep-packager.ps1"
 [ -f "$packager" ] || die "no gnustep-packager at $packager_root (set GNUSTEP_PACKAGER)"
+"$repo_root/scripts/fetch-appimagetool.sh" "$packager_root" >/dev/null
 packager_commit="$(git -C "$packager_root" rev-parse --short HEAD)"
 if [ -n "${ADWAITA_THEME:-}" ]; then
   pin_check adwaita "$(dirname "$ADWAITA_THEME")"

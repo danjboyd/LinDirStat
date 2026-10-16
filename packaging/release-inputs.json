@@ -15,5 +15,11 @@
     "url": "https://github.com/danjboyd/tools-xctest.git",
     "tag": "v0.6.0",
     "revision": "c45391a7f9a6c0e5e30a8b2b1a96fe1f622b6a98"
+  },
+  "appimagetool": {
+    "comment": "gnustep-packager's default is appimagetool's moving continuous build; 0.1.3 was made with build 295 (8c8c91f). Release 1.9.1 is build 296 from the same commit. scripts/fetch-appimagetool.sh installs it where the packager looks, and the packager takes the AppImage runtime from it.",
+    "url": "https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage",
+    "version": "1.9.1",
+    "sha256": "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
   }
 }
