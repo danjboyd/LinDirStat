@@ -86,6 +86,11 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      # The container runs as root on a workspace the runner's user owns; the
+      # scripts read the commit with git.
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Package and check
         env:
           VERSION: ${{ needs.version.outputs.version }}

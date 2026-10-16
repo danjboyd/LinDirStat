@@ -70,11 +70,12 @@ if [ -n "${LIBS_BACK_BUNDLE:-}" ]; then
   warn "LIBS_BACK_BUNDLE is set; this is not a release build"
 fi
 
+commit="$(git rev-parse HEAD)" || die "cannot read the source commit"
 version="${version_override:-$(python3 -c 'import json; print(json.load(open("package.manifest.json"))["package"]["version"])')}"
 version_args=()
 [ -n "$version_override" ] && version_args=(-PackageVersion "$version_override")
 packager_commit="$(git -C "$packager_root" rev-parse HEAD)"
-echo "package-linux: LinDirStat $version from $(git rev-parse --short HEAD), gnustep-packager ${packager_commit:0:7}"
+echo "package-linux: LinDirStat $version from ${commit:0:7}, gnustep-packager ${packager_commit:0:7}"
 
 work="$(mktemp -d "${TMPDIR:-/tmp}/lindirstat-package.XXXXXX")"
 xvfb_pid=""
@@ -146,7 +147,7 @@ def pin(name):
 json.dump({
     "package": "LinDirStat",
     "version": "$version",
-    "commit": "$(git rev-parse HEAD)",
+    "commit": "$commit",
     "builtBy": "${GITHUB_ACTIONS:+github-actions}" or "local",
     "run": "${GITHUB_SERVER_URL:-}/${GITHUB_REPOSITORY:-}/actions/runs/${GITHUB_RUN_ID:-}" if "${GITHUB_RUN_ID:-}" else None,
     "inputs": {
