@@ -69,17 +69,10 @@ LinDirStat_OBJC_FILES = \
 
 LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist $(wildcard Resources/Icons/*.png) $(wildcard Resources/*.lproj)
 
-# libs-OpenSave build (docs/development.md); override with OPENSAVE_ROOT=...
-OPENSAVE_ROOT ?= $(HOME)/git/gnustep/libs-OpenSave
-
 ADDITIONAL_OBJCFLAGS += -I$(GNUSTEP_MAKEFILES)/../../../include
-ADDITIONAL_OBJCFLAGS += -I$(OPENSAVE_ROOT)/Headers
 ADDITIONAL_CPPFLAGS += -I$(GNUSTEP_MAKEFILES)/../../../include
 ADDITIONAL_LIB_DIRS += -L$(GNUSTEP_MAKEFILES)/../../../lib -L$(GNUSTEP_MAKEFILES)/../../../lib64
-ADDITIONAL_LIB_DIRS += -L$(OPENSAVE_ROOT)/Source/obj
-ADDITIONAL_GUI_LIBS += -lOpenSave
 ADDITIONAL_OBJC_LIBS += -ldispatch -lnettle
-ADDITIONAL_LDFLAGS += -Wl,-rpath,$(OPENSAVE_ROOT)/Source/obj
 
 # The in-app updater (vendor/gnustep-packager-updater, built first): its
 # two static libraries, and gp-update-helper copied next to the executable,

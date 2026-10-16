@@ -9,8 +9,8 @@ Adwaita theme) and runtime/bin (GNUstep tools), it:
     copying each shared library into runtime/lib unless it is a host
     library (see HOST_LIBRARIES);
   * strips the staged ELF copies;
-  * rewrites RUNPATHs that point outside the stage (the app's libs-OpenSave
-    build path) to $ORIGIN-relative paths;
+  * rewrites RUNPATHs that point outside the stage (build-machine paths) to
+    $ORIGIN-relative paths;
   * writes metadata/licenses/host-libraries.txt listing every bundled
     distribution library with its Debian package, and copies those
     packages' copyright files next to it.
@@ -27,7 +27,7 @@ import sys
 
 # Libraries the AppImage takes from the host instead of bundling: the C
 # runtime, the display stack, and GTK 4 with everything it shares with the
-# desktop (libs-OpenSave and the Adwaita theme use the host's GTK/GLib).
+# desktop (the Adwaita theme uses the host's GTK/GLib).
 # Mixing a bundled copy of any of these with the host's is what breaks
 # AppImages, so the walk stops at them.
 HOST_LIBRARIES = re.compile(r"^(" + "|".join([

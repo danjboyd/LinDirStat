@@ -121,8 +121,7 @@ make -C macos test
 
 **Linux** builds with GNUstep, using
 [gnustep-cli-new](https://github.com/danjboyd/gnustep-cli-new) for the
-toolchain, plus [libs-OpenSave](https://github.com/danjboyd/libs-OpenSave) and,
-for the GNOME look,
+toolchain, plus, for the GNOME look,
 [the Adwaita GNUstep theme](https://github.com/danjboyd/plugins-themes-Adwaita).
 [docs/development.md](docs/development.md) has the build and test commands.
 

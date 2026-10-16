@@ -1,5 +1,5 @@
 # The GNUstep build on Debian 13 (scripts/ci-linux.sh): the gnustep-cli-new
-# managed toolchain, pinned tools-xctest and libs-OpenSave, then the app and
+# managed toolchain and a pinned tools-xctest, then the app and
 # the unit, command-line and UI coordination tests (on Xvfb).
 name: Linux
 
@@ -27,7 +27,7 @@ jobs:
           apt-get update
           apt-get install -y --no-install-recommends \
             ca-certificates curl git make pkg-config sudo \
-            nettle-dev libgtk-4-dev \
+            nettle-dev \
             xvfb xauth x11-utils
 
       - uses: actions/checkout@v4

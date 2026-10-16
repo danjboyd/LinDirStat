@@ -47,8 +47,6 @@ build doesn't have (GLX, RandR, Xcursor, Xfixes, Xmu), so the bundle
 needs the same host libraries as before: built without the patches, it has
 the same undefined symbols as the install's. Drop a patch from the lock file
 once the revision includes it.
-  - `OPENSAVE_ROOT`: the `libs-OpenSave` build
-    (default `~/git/gnustep/libs-OpenSave`, library in `Source/obj`).
   - `ADWAITA_THEME`: the built Adwaita GNUstep theme bundle
     (default `~/git/gnustep/plugins-themes-adwaita/Adwaita.theme`).
 
@@ -106,13 +104,13 @@ its own to inspect the payload.
 
 `scripts/stage-linux-runtime.py` builds `runtime/lib` by walking the `NEEDED`
 entries of every ELF file in the payload, resolving each library first in the
-`libs-OpenSave` build and the GNUstep install, then in the host linker cache.
+GNUstep install, then in the host linker cache.
 It strips the staged copies and rewrites any `RUNPATH` that points outside the
-payload (the app's link-time `libs-OpenSave` path) to `$ORIGIN/../../runtime/lib`.
+payload to `$ORIGIN/../../runtime/lib`.
 
 Host libraries are not bundled: glibc, `libstdc++`/`libgcc_s`, X11/xcb/GL/
 Vulkan/Wayland, fontconfig/freetype/harfbuzz/cairo/pango, GTK 4 and GLib
-(used by `libs-OpenSave` and the Adwaita theme), and a few ubiquitous
+(used by the Adwaita theme), and a few ubiquitous
 compression and system libraries (`libz`, `libzstd`, `liblzma`, `libffi`,
 `libdbus-1`, ...). The list is `HOST_LIBRARIES` in
 `scripts/stage-linux-runtime.py`. The AppImage therefore needs a desktop with
@@ -153,7 +151,7 @@ precedence over the bundled one, as in any GNUstep install.
 
 `validation.smoke.requiredPaths` covers the app, the `Info-gnustep.plist`,
 icon, notices, tools, `GNUstep.conf`, `GlobalDefaults.plist`,
-`libOpenSave.so.0`, the back bundle and the Adwaita theme. The package and
+the back bundle and the Adwaita theme. The package and
 installed-result contracts require the bundled Adwaita theme and the notice
 report. `backends.appimage.validation.runtimeClosure` is `strict`: every ELF
 in the extracted AppImage must resolve its libraries and carry no `RUNPATH`

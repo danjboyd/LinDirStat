@@ -9,21 +9,9 @@ python3 ~/git/gnustep/gnustep-cli-new/scripts/internal/run.py --json .
 
 The project was initially scaffolded from the `gui-app` template in `~/git/gnustep/gnustep-cli-new`.
 
-The app and the UI tests link libs-OpenSave
-(<https://github.com/danjboyd/libs-OpenSave>), which provides the native
-(GTK) Open and Save panels. Clone it and build it with `make` from a GNUstep-configured
-shell. The build looks for its headers in `$(OPENSAVE_ROOT)/Headers` and its
-library in `$(OPENSAVE_ROOT)/Source/obj`. `OPENSAVE_ROOT` defaults to
-`~/git/gnustep/libs-OpenSave`; set it in the environment or on the `make`
-command line for another checkout:
-
-```sh
-git clone https://github.com/danjboyd/libs-OpenSave ~/git/gnustep/libs-OpenSave
-(. ~/.local/share/gnustep-cli/System/Library/Makefiles/GNUstep.sh && make -C ~/git/gnustep/libs-OpenSave)
-OPENSAVE_ROOT=/path/to/libs-OpenSave gnustep build
-```
-
-`scripts/package-stage.sh` reads the same variable.
+The Open and Save panels are GNUstep's own `NSOpenPanel` and `NSSavePanel`,
+drawn by the theme like every other control. (Until 0.1.2 the Linux build
+linked libs-OpenSave for GTK file choosers; it is no longer used.)
 
 Run Objective-C unit tests with GNUstep's `tools-xctest` support:
 

@@ -9,8 +9,8 @@
 # - the gnustep-cli-new managed toolchain (its v0.1.0 bootstrap, checked
 #   against its sha256), in ~/.local/share/gnustep-cli as run-tests.sh
 #   expects; skipped when that install exists;
-# - tools-xctest and libs-OpenSave at the commits below, built in
-#   CI_WORK (default ${RUNNER_TEMP:-/tmp}/lindirstat-ci).
+# - tools-xctest at the commit below, built in CI_WORK
+#   (default ${RUNNER_TEMP:-/tmp}/lindirstat-ci).
 # The bootstrap installs the toolchain's own prerequisites with --yes, so on
 # a clean machine it needs root (the workflow's container) or sudo.
 set -euo pipefail
@@ -19,8 +19,6 @@ bootstrap_url="https://github.com/danjboyd/gnustep-cli-new/releases/download/v0.
 bootstrap_sha256="3bdfa7a29a6442ce1bb994b027bfcba78beec649ae820391f009ac9eeb40ba63"
 tools_xctest_url="https://github.com/danjboyd/tools-xctest.git"
 tools_xctest_commit="a84f053e8546bb3e03bb470e2a0a17863ecabd62"
-opensave_url="https://github.com/danjboyd/libs-OpenSave.git"
-opensave_commit="0c1d933d712ec272239e53328a89242aaffc8f2a"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 work="${CI_WORK:-${RUNNER_TEMP:-/tmp}/lindirstat-ci}"
@@ -57,11 +55,6 @@ step "tools-xctest $tools_xctest_commit"
 checkout "$tools_xctest_url" "$tools_xctest_commit" "$work/tools-xctest"
 make -C "$work/tools-xctest" >/dev/null
 
-step "libs-OpenSave $opensave_commit"
-checkout "$opensave_url" "$opensave_commit" "$work/libs-OpenSave"
-make -C "$work/libs-OpenSave/Source" >/dev/null
-
 step "Build and test"
 cd "$repo_root"
-TOOLS_XCTEST_ROOT="$work/tools-xctest" OPENSAVE_ROOT="$work/libs-OpenSave" \
-  LINDIRSTAT_UI_TESTS_REQUIRED=1 scripts/run-tests.sh
+TOOLS_XCTEST_ROOT="$work/tools-xctest" LINDIRSTAT_UI_TESTS_REQUIRED=1 scripts/run-tests.sh
