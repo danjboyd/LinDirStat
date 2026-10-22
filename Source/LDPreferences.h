@@ -167,6 +167,10 @@ typedef enum {
 - (void)resetTreemapOptions;
 - (BOOL)useLogicalSize;
 - (void)setUseLogicalSize:(BOOL)flag;
+// WinDirStat 2.6's UseAbsolutePercentages (default on): the Percentage
+// column shows each row's share of the whole scan, not of its parent.
+- (BOOL)useAbsolutePercentages;
+- (void)setUseAbsolutePercentages:(BOOL)flag;
 
 // Filtering (PageFiltering). Patterns are one per line.
 - (NSString *)excludedFolderPatterns;

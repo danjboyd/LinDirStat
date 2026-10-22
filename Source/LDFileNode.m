@@ -205,6 +205,28 @@ static Class LDClassForKind(LDFileNodeKind kind)
   return metric == LDSizeMetricLogical ? [self aggregateSize] : [self aggregateAllocatedSize];
 }
 
+- (double)fractionOfParentForMetric:(LDSizeMetric)metric
+{
+  if (!_parent) {
+    return 1.0;
+  }
+  unsigned long long parentBytes = [_parent aggregateSizeForMetric:metric];
+  return parentBytes ? (double)[self aggregateSizeForMetric:metric] / (double)parentBytes : 0.0;
+}
+
+- (double)fractionOfRootForMetric:(LDSizeMetric)metric
+{
+  if (!_parent) {
+    return 1.0;
+  }
+  LDFileNode *root = _parent;
+  while (root->_parent) {
+    root = root->_parent;
+  }
+  unsigned long long rootBytes = [root aggregateSizeForMetric:metric];
+  return rootBytes ? (double)[self aggregateSizeForMetric:metric] / (double)rootBytes : 0.0;
+}
+
 - (void)setModificationTime:(NSTimeInterval)modificationTime
 {
   _modificationTime = (int64_t)modificationTime;

@@ -191,6 +191,7 @@ Substitution goes through `>`-markers so a `%` inside a filename is safe. Paths 
 - **Read-job mode.** A row is in read-job mode while its *parent* is not done; the root uses its own done state (`MustShowReadJobs`, `IX:1001-1009`).
 - **Cell content.** Read-job mode, PacmanAnimation on (default true, `OPT:46`), item not done: an animated pacman. Read-job mode otherwise: the text `[1 Read Job]` or `[N Read Jobs]` (`IX:105-115`, `EN:144,255`). Out of read-job mode: the percentage bar, indented by level (`IX:65-70`). In read-job mode the column sorts by read-job count (`IX:210-219`).
 - **Percentage column.** Shows `[elapsed]` when `ShowTimeSpent` is on (default true, `OPT:66`) and the row is in read-job mode. The **root row always** shows `[elapsed]`. Otherwise it shows `NN.N%` (`IX:120-125`).
+  - *Later upstream (v2.6, `db7af300`):* `UseAbsolutePercentages` (default **true**, toggled by View › Show Absolute Percentages) makes the column show each row's share of the whole scan (`CItem::GetAbsoluteFraction`: size over the topmost ancestor's size, by the logical/physical choice). With it on, the root shows `100.0%` instead of `[elapsed]`; with it off the column is as above. Sorting is unchanged, because siblings rank the same either way. The Subtree Percentage bar stays share-of-parent. LinDirStat follows this, with the toggle in its Treemap menu.
 - **Driving the pacmen.** Each entry a scanner thread adds walks up its ancestors. An ancestor with 0 read jobs stops its pacman; the others advance (`IX:611-623`, `Item.cpp:936-958`).
 - **Animation** (`Controls/PacMan.cpp:21-130`): It moves 0.09 px/ms, bouncing between the cell edges. The mouth changes 0.003/ms, opening to at most 90°. Fill `#FCC92F` with a black outline. After more than 750 ms with no update it stops and draws three "z"s (`#888888` in dark mode). The global suspend flag freezes it.
 
@@ -648,6 +649,7 @@ Hidden tabs are removed, not greyed (`:49-77`).
 
 **&Treemap**
 1. &Show Treemap ✓ (F9) · 2. Use &Logical Size ✓ (Ctrl+L; default off) · 3. Show &Extensions ✓ (default off) · 4. — · 5. Zoom &In (+) · 6. Zoom &Out (−) · 7. Zoom &Reset (Numpad . or Ctrl+.) · 8. Reselect &Child (Numpad * or Ctrl+=) · 9. Select &Parent (Numpad / or Ctrl+−)
+*Later upstream (v2.6+):* this menu becomes View. After the Logical/Physical pair it gains Show &Absolute Percentages ✓ (default on, `db7af300`; §2).
 
 **&Tools**
 1. Start File Watcher ✓ · 2. Create Shadow Copy ▸ · 3. Defragment Volume ▸ · 4. Check Disk ▸

@@ -41,6 +41,7 @@
 - (void)toggleFileTypes:(id)sender;
 - (void)toggleTreemap:(id)sender;
 - (void)toggleLogicalSize:(id)sender;
+- (void)toggleAbsolutePercentages:(id)sender;
 - (void)stopScan:(id)sender;
 - (void)openPath:(id)sender;
 - (void)treemapView:(LDTreemapView *)view didSelectNode:(LDFileNode *)node;
@@ -1116,6 +1117,41 @@
   [preferences setColumn:LDColumnFiles shown:NO];
   XCTAssertNil([tree tableColumnWithIdentifier:LDColumnFiles]);
   XCTAssertEqualObjects(@[a], [self treeSelection]);
+}
+
+- (void)testAbsolutePercentagesToggle
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSOutlineView *tree = [_controller tree];
+  NSTableColumn *percent = [tree tableColumnWithIdentifier:@"percent"];
+  LDFileNode *deep = [self node:@"a/sub/deep.txt"];
+  NSString *(^shown)(LDFileNode *) = ^NSString *(LDFileNode *node) {
+    return [_controller outlineView:tree objectValueForTableColumn:percent byItem:node];
+  };
+  NSString *(^formatted)(double) = ^NSString *(double fraction) {
+    return [NSString stringWithFormat:@"%.1f%%", fraction * 100.0];
+  };
+  LDSizeMetric metric = [[LDPreferences sharedPreferences] useLogicalSize] ? LDSizeMetricLogical : LDSizeMetricPhysical;
+
+  // WinDirStat 2.6's default: the share of the whole scan.
+  XCTAssertEqual(NSOnState, [self menuStateFor:@selector(toggleAbsolutePercentages:)]);
+  XCTAssertEqualObjects(formatted([deep fractionOfRootForMetric:metric]), shown(deep));
+  LDFileNode *root = deep;
+  while ([root parent]) {
+    root = [root parent];
+  }
+  XCTAssertEqualObjects(@"100.0%", shown(root));
+  XCTAssertNotEqualObjects(@"100.0%", shown(deep));
+
+  [_controller toggleAbsolutePercentages:nil];
+  XCTAssertFalse([[LDPreferences sharedPreferences] useAbsolutePercentages]);
+  XCTAssertEqual(NSOffState, [self menuStateFor:@selector(toggleAbsolutePercentages:)]);
+  // deep.txt is the only file in a/sub.
+  XCTAssertEqualObjects(@"100.0%", shown(deep));
+  XCTAssertEqualObjects(formatted([[deep parent] fractionOfParentForMetric:metric]), shown([deep parent]));
+  XCTAssertNotEqualObjects(shown([deep parent]), formatted([[deep parent] fractionOfRootForMetric:metric]));
 }
 
 - (void)testUseLogicalSizeResortsAndKeepsSelection

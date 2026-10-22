@@ -39,6 +39,14 @@
   XCTAssertFalse([_preferences isColumnShown:LDColumnOwner]);
   XCTAssertFalse([_preferences showFreeSpace]);
   XCTAssertFalse([_preferences showUnknown]);
+  XCTAssertTrue([_preferences useAbsolutePercentages]);
+}
+
+- (void)testAbsolutePercentagesPersist
+{
+  [_preferences setUseAbsolutePercentages:NO];
+  XCTAssertFalse([_defaults boolForKey:@"UseAbsolutePercentages"]);
+  XCTAssertFalse([_preferences useAbsolutePercentages]);
 }
 
 - (void)testShowFreeSpaceAndUnknownPersist

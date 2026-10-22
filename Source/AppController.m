@@ -241,6 +241,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [self addItemTo:treemapMenu title:LDLocalized(@"Select Parent") action:@selector(selectParent:) key:@"u" target:self];
   [treemapMenu addItem:[NSMenuItem separatorItem]];
   [self addItemTo:treemapMenu title:LDLocalized(@"Use Logical Size") action:@selector(toggleLogicalSize:) key:@"l" target:self];
+  [self addItemTo:treemapMenu title:LDLocalized(@"Show Absolute Percentages") action:@selector(toggleAbsolutePercentages:) key:nil target:self];
   [self addItemTo:treemapMenu title:LDLocalized(@"Show Grid") action:@selector(toggleGrid:) key:nil target:self];
   [self addItemTo:treemapMenu title:LDLocalized(@"SequoiaView Layout") action:@selector(toggleLayoutStyle:) key:nil target:self];
 
@@ -787,6 +788,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   }
   if (action == @selector(toggleLogicalSize:)) {
     [item setState:_sizeMetric == LDSizeMetricLogical ? NSOnState : NSOffState];
+  } else if (action == @selector(toggleAbsolutePercentages:)) {
+    [item setState:[[LDPreferences sharedPreferences] useAbsolutePercentages] ? NSOnState : NSOffState];
   } else if (action == @selector(toggleGrid:)) {
     [item setState:[_treemapView options].grid ? NSOnState : NSOffState];
   } else if (action == @selector(toggleLayoutStyle:)) {
@@ -2053,6 +2056,16 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [self updateSelectionField];
 }
 
+// WinDirStat's OnViewAbsolutePercentages: only the Percentage column changes;
+// siblings keep their order, so the tree is not re-sorted.
+- (void)toggleAbsolutePercentages:(id)sender
+{
+  (void)sender;
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setUseAbsolutePercentages:![preferences useAbsolutePercentages]];
+  [_directoryTable setNeedsDisplay:YES];
+}
+
 - (void)toggleGrid:(id)sender
 {
   (void)sender;
@@ -2458,15 +2471,19 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   return item && [[self displayChildrenOfNode:item] count] > 0;
 }
 
-// A node's share of its parent, as WinDirStat's Percentage column shows it.
+// A node's share of its parent, as the Subtree Percentage bar shows it.
 - (double)fractionOfParentForNode:(LDFileNode *)node
 {
-  LDFileNode *parent = [node parent];
-  if (!parent) {
-    return 1.0;
-  }
-  unsigned long long parentBytes = [parent aggregateSizeForMetric:_sizeMetric];
-  return parentBytes ? (double)[node aggregateSizeForMetric:_sizeMetric] / (double)parentBytes : 0.0;
+  return [node fractionOfParentForMetric:_sizeMetric];
+}
+
+// The Percentage column: the share of the whole scan, or of the parent with
+// Show Absolute Percentages off (WinDirStat's GetText, COL_PERCENTAGE).
+- (double)percentageFractionForNode:(LDFileNode *)node
+{
+  return [[LDPreferences sharedPreferences] useAbsolutePercentages]
+    ? [node fractionOfRootForMetric:_sizeMetric]
+    : [node fractionOfParentForMetric:_sizeMetric];
 }
 
 - (id)outlineView:(NSOutlineView *)outlineView objectValueForTableColumn:(NSTableColumn *)tableColumn byItem:(id)item
@@ -2493,7 +2510,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
         return [NSString stringWithFormat:@"[%@]", LDFormatScanDuration([node scanSecondsAt:LDScanClockMilliseconds()])];
       }
     }
-    return [self percentStringForFraction:[self fractionOfParentForNode:node]];
+    return [self percentStringForFraction:[self percentageFractionForNode:node]];
   }
   if ([identifier isEqualToString:LDColumnPhysicalSize]) {
     return [self physicalSizeStringForNode:node];

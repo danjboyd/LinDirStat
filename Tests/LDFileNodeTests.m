@@ -46,6 +46,36 @@
   XCTAssertEqual((unsigned long long)12288, [root aggregateSizeForMetric:LDSizeMetricPhysical]);
 }
 
+- (void)testFractionsOfParentAndOfRoot
+{
+  LDFileNode *root = [LDFileNode nodeWithPath:@"/tmp/root" kind:LDFileNodeKindDirectory size:0];
+  LDFileNode *subdir = [LDFileNode nodeWithName:@"subdir" kind:LDFileNodeKindDirectory size:0 allocatedSize:0];
+  LDFileNode *file = [LDFileNode nodeWithName:@"b.bin" kind:LDFileNodeKindFile size:25 allocatedSize:4096];
+  [subdir addChild:file];
+  [subdir addChild:[LDFileNode nodeWithName:@"c.bin" kind:LDFileNodeKindFile size:25 allocatedSize:4096]];
+  [root addChild:subdir];
+  [root addChild:[LDFileNode nodeWithName:@"a.txt" kind:LDFileNodeKindFile size:50 allocatedSize:8192]];
+  [root recalculateAggregateSize];
+
+  XCTAssertEqualWithAccuracy(0.5, [file fractionOfParentForMetric:LDSizeMetricLogical], 1e-9);
+  XCTAssertEqualWithAccuracy(0.25, [file fractionOfRootForMetric:LDSizeMetricLogical], 1e-9);
+  XCTAssertEqualWithAccuracy(0.25, [file fractionOfRootForMetric:LDSizeMetricPhysical], 1e-9);
+  XCTAssertEqualWithAccuracy(0.5, [subdir fractionOfRootForMetric:LDSizeMetricLogical], 1e-9);
+  XCTAssertEqualWithAccuracy(1.0, [root fractionOfParentForMetric:LDSizeMetricLogical], 1e-9);
+  XCTAssertEqualWithAccuracy(1.0, [root fractionOfRootForMetric:LDSizeMetricLogical], 1e-9);
+}
+
+- (void)testFractionsOfEmptyParentAndRootAreZero
+{
+  LDFileNode *root = [LDFileNode nodeWithPath:@"/tmp/root" kind:LDFileNodeKindDirectory size:0];
+  LDFileNode *empty = [LDFileNode nodeWithName:@"empty.txt" kind:LDFileNodeKindFile size:0 allocatedSize:0];
+  [root addChild:empty];
+  [root recalculateAggregateSize];
+
+  XCTAssertEqualWithAccuracy(0.0, [empty fractionOfParentForMetric:LDSizeMetricLogical], 1e-9);
+  XCTAssertEqualWithAccuracy(0.0, [empty fractionOfRootForMetric:LDSizeMetricLogical], 1e-9);
+}
+
 - (void)testSortsChildrenByChosenMetric
 {
   LDFileNode *root = [LDFileNode nodeWithPath:@"/tmp/root" kind:LDFileNodeKindDirectory size:0];

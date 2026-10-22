@@ -101,6 +101,11 @@ typedef enum {
 // Physical subtree size.
 - (unsigned long long)aggregateAllocatedSize;
 - (unsigned long long)aggregateSizeForMetric:(LDSizeMetric)metric;
+// WinDirStat's Percentage column: the share of the parent (GetFraction), or
+// of the whole scan, the topmost ancestor (GetAbsoluteFraction). Both are 1
+// for a node without a parent and 0 when the parent or root is empty.
+- (double)fractionOfParentForMetric:(LDSizeMetric)metric;
+- (double)fractionOfRootForMetric:(LDSizeMetric)metric;
 
 - (NSUInteger)fileCount;
 - (NSUInteger)directoryCount;
