@@ -641,6 +641,46 @@
 
 #pragma mark - Refresh engine
 
+- (void)testAddToExclusionFilterDropsItemsAndExtensions
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [self revealInTree:[self node:@"a/a2.log"]];
+  [self selectInTree:@[[self node:@"a/a2.log"], [self node:@"b"]]];
+  XCTAssertTrue([_controller validateAction:@selector(excludeItem:)]);
+  [_controller excludeItem:nil];
+  if (![self waitUntilIdle]) {
+    return;
+  }
+  // A file's name, a folder's whole path.
+  XCTAssertEqualObjects(@"a2.log", [preferences excludedFilePatterns]);
+  XCTAssertEqualObjects([self pathOf:@"b"], [preferences excludedFolderPatterns]);
+  XCTAssertNil([self node:@"a/a2.log"]);
+  XCTAssertNil([self node:@"b"]);
+  XCTAssertNotNil([self node:@"a/a1.txt"]);
+  XCTAssertEqual((unsigned long long)(3000 + 2000 + 12000), [[_controller root] aggregateSize]);
+
+  // The scan root itself cannot be excluded.
+  [self selectInTree:@[[_controller root]]];
+  XCTAssertFalse([_controller validateAction:@selector(excludeItem:)]);
+
+  NSUInteger index = [[self extensionKeys] indexOfObject:[self key:@"x.txt"]];
+  XCTAssertTrue(index != NSNotFound);
+  [self selectRow:(NSInteger)index inList:[_controller extensionTable]];
+  XCTAssertTrue([_controller validateAction:@selector(excludeExtension:)]);
+  [_controller excludeExtension:nil];
+  if (![self waitUntilIdle]) {
+    return;
+  }
+  XCTAssertEqualObjects(@"a2.log\n?*.txt", [preferences excludedFilePatterns]);
+  XCTAssertNil([self node:@"a/a1.txt"]);
+  XCTAssertNil([self node:@"a/sub/deep.txt"]);
+  XCTAssertNotNil([self node:@"c.bin"]);
+  XCTAssertEqual(NSNotFound, [[self extensionKeys] indexOfObject:[self key:@"x.txt"]]);
+}
+
 - (void)testRefreshSelectedUpdatesTotalsAndKeepsExpansionAndSelection
 {
   if (!_controller || ![self scanTree]) {

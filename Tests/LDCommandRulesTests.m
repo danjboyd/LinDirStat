@@ -64,6 +64,14 @@
   XCTAssertFalse(([self command:LDCommandEmptyFolder nodes:@[_mount] busy:NO]));
 }
 
+- (void)testExcludeItemTakesFoldersAndFilesBelowTheRoots
+{
+  XCTAssertTrue(([self command:LDCommandExcludeItem nodes:@[_file, _folder] busy:NO]));
+  XCTAssertFalse(([self command:LDCommandExcludeItem nodes:@[_file] busy:YES]));
+  XCTAssertFalse(([self command:LDCommandExcludeItem nodes:@[_root] busy:NO]));
+  XCTAssertFalse(([self command:LDCommandExcludeItem nodes:@[_folder, _mount] busy:NO]));
+}
+
 - (void)testComputeHashNeedsExactlyOneFile
 {
   XCTAssertTrue(([self command:LDCommandComputeHash nodes:@[_file] busy:NO]));

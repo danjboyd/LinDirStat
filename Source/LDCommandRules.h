@@ -15,7 +15,10 @@ typedef enum {
   LDCommandEmptyFolder,
   LDCommandMoveTo,
   LDCommandComputeHash,
-  LDCommandCustomCleanup
+  LDCommandCustomCleanup,
+  // Add to Exclusion Filter (WinDirStat 2.5.8): folders and files below the
+  // scan roots, not while busy.
+  LDCommandExcludeItem
 } LDCommand;
 
 @class LDCustomCleanup;

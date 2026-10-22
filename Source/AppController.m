@@ -225,6 +225,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [editMenu addItem:[NSMenuItem separatorItem]];
   [self addItemTo:editMenu title:LDLocalized(@"Search…") action:@selector(search:) key:@"f" target:self];
   [editMenu addItem:[NSMenuItem separatorItem]];
+  [self addItemTo:editMenu title:LDLocalized(@"Add to Exclusion Filter") action:@selector(excludeItem:) key:nil target:self];
+  [editMenu addItem:[NSMenuItem separatorItem]];
   [self addItemTo:editMenu title:LDLocalized(@"Compute Hash") action:@selector(computeHash:) key:@"h" target:self];
 
   NSMenu *cleanupMenu = [self addSubmenuTitled:LDLocalized(@"Clean Up") to:mainMenu];
@@ -455,6 +457,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     [self addItemTo:menu title:LDLocalized(@"Copy Path") action:@selector(copyPath:) key:nil target:self];
     [self addItemTo:menu title:[LDPlatformUI showInFileManagerTitle] action:@selector(revealItem:) key:nil target:self];
     [self addItemTo:menu title:LDLocalized(@"Open Terminal Here") action:@selector(openTerminal:) key:nil target:self];
+    [self addItemTo:menu title:LDLocalized(@"Add to Exclusion Filter") action:@selector(excludeItem:) key:nil target:self];
     return;
   }
   BOOL isMainMenu = ([menu supermenu] != nil);
@@ -466,6 +469,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     [self addItemTo:menu title:LDLocalized(@"Refresh Selected") action:@selector(refreshSelected:) key:nil target:self];
   }
   [self addItemTo:menu title:LDLocalized(@"Properties") action:@selector(showProperties:) key:isMainMenu ? @"i" : nil target:self];
+  if (!isMainMenu) {
+    [self addItemTo:menu title:LDLocalized(@"Add to Exclusion Filter") action:@selector(excludeItem:) key:nil target:self];
+  }
   [menu addItem:[NSMenuItem separatorItem]];
   [self addItemTo:menu title:LDLocalized(@"Move to Trash") action:@selector(moveToTrash:) key:nil target:self];
   [self addItemTo:menu title:LDLocalized(@"Delete Permanently…") action:@selector(deletePermanently:) key:nil target:self];
@@ -566,6 +572,11 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 - (NSMenu *)contextMenuForListView:(NSTableView *)view
 {
   NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
+  // The extension list's own menu (WinDirStat's OnContextMenu there).
+  if (view == _extensionTable) {
+    [self addItemTo:menu title:LDLocalized(@"Add to Exclusion Filter") action:@selector(excludeExtension:) key:nil target:self];
+    return menu;
+  }
   if (view == _directoryTable) {
     NSPoint point = [view convertPoint:[[NSApp currentEvent] locationInWindow] fromView:nil];
     NSInteger row = [view rowAtPoint:point];
@@ -594,13 +605,18 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 - (void)listViewOpenSelection:(NSTableView *)view
 {
-  (void)view;
+  // Rows of the extension list are not files.
+  if (view == _extensionTable) {
+    return;
+  }
   [self openItem:nil];
 }
 
 - (void)listView:(NSTableView *)view deleteSelectionPermanently:(BOOL)permanently
 {
-  (void)view;
+  if (view == _extensionTable) {
+    return;
+  }
   [self deleteNodes:[self selectedNodes] permanently:permanently];
 }
 
@@ -694,6 +710,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     NSStringFromSelector(@selector(revealItem:)): @(LDCommandReveal),
     NSStringFromSelector(@selector(openTerminal:)): @(LDCommandTerminal),
     NSStringFromSelector(@selector(refreshSelected:)): @(LDCommandRefreshSelected),
+    NSStringFromSelector(@selector(excludeItem:)): @(LDCommandExcludeItem),
     NSStringFromSelector(@selector(moveToTrash:)): @(LDCommandMoveToTrash),
     NSStringFromSelector(@selector(deletePermanently:)): @(LDCommandDeletePermanently),
     NSStringFromSelector(@selector(emptyFolder:)): @(LDCommandEmptyFolder),
@@ -733,6 +750,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   }
   if (action == @selector(search:) || action == @selector(saveResultsToCSV:)) {
     return _rootNode != nil && ![self isBusy];
+  }
+  if (action == @selector(excludeExtension:)) {
+    return _rootNode != nil && ![self isBusy] && [self exclusionPatternForSelectedExtension] != nil;
   }
   if (action == @selector(saveDuplicatesToCSV:)) {
     return [_duplicateGroups count] > 0 && ![self isBusy];
@@ -1065,7 +1085,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 - (void)buildExtensionTable
 {
-  _extensionTable = [[NSTableView alloc] initWithFrame:NSMakeRect(0, 0, 360, 300)];
+  _extensionTable = [[LDTableView alloc] initWithFrame:NSMakeRect(0, 0, 360, 300)];
+  [(LDTableView *)_extensionTable setCommandTarget:self];
   // WinDirStat's columns; only the description gives or takes width.
   NSTableColumn *extension = [self addColumn:@"extension" title:LDLocalized(@"Extension") width:84 right:NO toTable:_extensionTable];
   [[extension dataCell] setLineBreakMode:NSLineBreakByTruncatingTail];

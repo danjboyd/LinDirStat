@@ -90,6 +90,9 @@
     case LDCommandMoveToTrash:
     case LDCommandDeletePermanently:
     case LDCommandMoveTo:
+    // WinDirStat also takes drives, but excluding a scan root or mount point
+    // would empty the scan; the Filtering page still can.
+    case LDCommandExcludeItem:
       return [self allNodes:nodes satisfy:removable];
     case LDCommandEmptyFolder:
       return [self allNodes:nodes satisfy:^BOOL(LDFileNode *node) {

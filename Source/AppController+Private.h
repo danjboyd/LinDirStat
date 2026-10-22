@@ -123,6 +123,9 @@
 - (NSMenu *)customCleanupMenu;
 - (void)refreshSelected:(id)sender;
 - (void)refreshNodes:(NSArray *)nodes;
+- (void)excludeItem:(id)sender;
+- (void)excludeExtension:(id)sender;
+- (NSString *)exclusionPatternForSelectedExtension;
 - (LDFileNode *)nodeForPathData:(NSData *)pathData;
 // The Open With submenu: the applications for nodes, or none.
 - (void)fillOpenWithMenu:(NSMenu *)menu forNodes:(NSArray *)nodes;

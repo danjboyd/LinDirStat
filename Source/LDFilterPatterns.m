@@ -43,4 +43,43 @@
   return nil;
 }
 
++ (NSString *)literalPattern:(NSString *)text usesRegex:(BOOL)usesRegex
+{
+  if (!usesRegex) {
+    return text;
+  }
+  NSMutableString *escaped = [NSMutableString stringWithCapacity:[text length]];
+  NSCharacterSet *special = [NSCharacterSet characterSetWithCharactersInString:@".^$|()[]{}*+?\\"];
+  for (NSUInteger i = 0; i < [text length]; i++) {
+    unichar c = [text characterAtIndex:i];
+    if ([special characterIsMember:c]) {
+      [escaped appendString:@"\\"];
+    }
+    [escaped appendFormat:@"%C", c];
+  }
+  return escaped;
+}
+
++ (NSString *)patternForExtension:(NSString *)key usesRegex:(BOOL)usesRegex
+{
+  if ([key length] == 0 || [key isEqualToString:@"<none>"]) {
+    return nil;
+  }
+  NSString *suffix = [@"." stringByAppendingString:key];
+  return usesRegex ? [@".+" stringByAppendingString:[self literalPattern:suffix usesRegex:YES]]
+                   : [@"?*" stringByAppendingString:suffix];
+}
+
++ (NSString *)string:(NSString *)string byAddingPattern:(NSString *)pattern
+{
+  if ([[self patternsFromString:string] containsObject:pattern]) {
+    return string;
+  }
+  NSString *current = string ?: @"";
+  if ([current length] == 0 || [current hasSuffix:@"\n"]) {
+    return [current stringByAppendingString:pattern];
+  }
+  return [NSString stringWithFormat:@"%@\n%@", current, pattern];
+}
+
 @end

@@ -73,6 +73,7 @@ The Largest, Duplicates and Search lists are the same tree-list class and show t
 ### 1.3 Treemap context menu (`RC:334-351`)
 
 1. Zoom In · 2. Zoom Out · 3. Zoom Reset · 4. Reselect Child · 5. Select Parent · 6. — · 7. Copy Path · 8. Select in Explorer · 9. Open in Command Prompt · 10. Open in PowerShell · 11. — · 12. C&ancel
+*Later upstream (v2.5.8+):* Add to Exclusion Filter follows Open in PowerShell. The file tree context menu has it after Compute Hash (`a874bcf4`; §9).
 
 ### 1.4 Command semantics
 
@@ -446,6 +447,12 @@ Enabled only when the Duplicates tab is visible.
 
 **Access and effect**
 - The toolbar **Filter** button opens a sheet holding only this page (`WinDirStat.cpp:445-451`). · **Changing a filter does not rescan** the user must Refresh (`PageFiltering.cpp:121-133`). · Excluded entries count toward nothing.
+- *Later upstream (v2.5.8+, `a874bcf4`, `c9501507`):* **Add to Exclusion Filter** (Edit menu and the tree, treemap and extension list context menus). For each selected drive, folder or file it appends a line: a file's **name** to the file name patterns, otherwise the full **path** to the folder patterns, regex-escaped when regular expressions are on. Then it refreshes the selection, which drops the items. On the extension list it appends `*.ext` to the file name patterns (`*.` for no extension) and refreshes everything. LinDirStat differences:
+  - It leaves out scan roots and mount points, because excluding one would empty the scan.
+  - It skips a pattern that is already a line.
+  - Its extension pattern is `?*.ext`, or `.+\.ext` with regular expressions, so a hidden file named `.ext` (which has no extension) is not caught. Upstream writes a glob even in regex mode.
+  - There is no pattern for files without an extension, because none can select names without a dot.
+  - Refresh Selected now applies the filters to the refreshed item itself, as a scan of its folder does.
 
 ### Scan exclusions (Advanced page; `RC:573-602`, `OPT:32-39`, `Item.cpp:886-914`)
 
@@ -644,6 +651,7 @@ Hidden tabs are removed, not greyed (`:49-77`).
 
 **&Edit**
 1. &Copy Path (Ctrl+C or Ctrl+Ins) · 2. — · 3. &Search... (Ctrl+F) · 4. — · 5. Compute &Hash (Ctrl+H)
+*Later upstream (v2.5.8+):* Add &to Exclusion Filter goes between Search and Compute Hash, with separators around it (`a874bcf4`; §9).
 
 **&Clean Up:** §1.1.
 
