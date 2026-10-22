@@ -205,6 +205,28 @@ static Class LDClassForKind(LDFileNodeKind kind)
   return metric == LDSizeMetricLogical ? [self aggregateSize] : [self aggregateAllocatedSize];
 }
 
+- (double)fractionOfParentForMetric:(LDSizeMetric)metric
+{
+  if (!_parent) {
+    return 1.0;
+  }
+  unsigned long long parentBytes = [_parent aggregateSizeForMetric:metric];
+  return parentBytes ? (double)[self aggregateSizeForMetric:metric] / (double)parentBytes : 0.0;
+}
+
+- (double)fractionOfRootForMetric:(LDSizeMetric)metric
+{
+  if (!_parent) {
+    return 1.0;
+  }
+  LDFileNode *root = _parent;
+  while (root->_parent) {
+    root = root->_parent;
+  }
+  unsigned long long rootBytes = [root aggregateSizeForMetric:metric];
+  return rootBytes ? (double)[self aggregateSizeForMetric:metric] / (double)rootBytes : 0.0;
+}
+
 - (void)setModificationTime:(NSTimeInterval)modificationTime
 {
   _modificationTime = (int64_t)modificationTime;
@@ -480,9 +502,8 @@ static void LDAtomicMax64(int64_t *target, int64_t value)
 {
   // WinDirStat's m_tstart: set when the first read job is added.
   if (__atomic_fetch_add(&_pendingScans, (uint32_t)count, __ATOMIC_RELAXED) == 0 && count > 0) {
-    uint64_t now = LDScanClockMilliseconds();
-    __atomic_store_n(&_scanStarted, LDScanClockSecondsStamp(now), __ATOMIC_RELAXED);
-    __atomic_store_n(&_scanActivity, LDScanClockActivityStamp(now), __ATOMIC_RELAXED);
+    __atomic_store_n(&_scanStarted, LDScanClockSecondsStamp(LDScanClockActiveMilliseconds()), __ATOMIC_RELAXED);
+    __atomic_store_n(&_scanActivity, LDScanClockActivityStamp(LDScanClockMilliseconds()), __ATOMIC_RELAXED);
   }
 }
 
@@ -490,7 +511,7 @@ static void LDAtomicMax64(int64_t *target, int64_t value)
 {
   if (__atomic_sub_fetch(&_pendingScans, 1, __ATOMIC_ACQ_REL) == 0) {
     uint16_t started = __atomic_load_n(&_scanStarted, __ATOMIC_RELAXED);
-    __atomic_store_n(&_scanActivity, (uint16_t)LDScanClockSecondsSince(started, LDScanClockMilliseconds()), __ATOMIC_RELAXED);
+    __atomic_store_n(&_scanActivity, (uint16_t)LDScanClockSecondsSince(started, LDScanClockActiveMilliseconds()), __ATOMIC_RELAXED);
     if ([_parent isKindOfClass:[LDDirectoryNode class]]) {
       [(LDDirectoryNode *)_parent finishPendingScan];
     }

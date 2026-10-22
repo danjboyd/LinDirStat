@@ -5,6 +5,8 @@
 #import "LDScanner.h"
 #import "LDScanSession.h"
 
+#include <unistd.h>
+
 @interface LDScanClockTests : XCTestCase
 @end
 
@@ -54,7 +56,8 @@
   [child beginPendingScans:1];
   [root beginPendingScans:1];
   uint64_t now = LDScanClockMilliseconds();
-  XCTAssertTrue([root scanSecondsAt:now + 5000] >= 4);
+  uint64_t scanNow = LDScanClockActiveMilliseconds();
+  XCTAssertTrue([root scanSecondsAt:scanNow + 5000] >= 4);
   XCTAssertTrue([child millisecondsSinceScanActivityAt:now + 2000] >= 1900);
 
   // Progress below the root keeps both awake.
@@ -66,7 +69,7 @@
   [child finishPendingScan];
   XCTAssertFalse([child isScanPending]);
   XCTAssertEqual((uint64_t)0, [child millisecondsSinceScanActivityAt:now + 9000]);
-  XCTAssertTrue([child scanSecondsAt:now + 99000] <= 1);
+  XCTAssertTrue([child scanSecondsAt:scanNow + 99000] <= 1);
   XCTAssertTrue([root isScanPending]);
 }
 
@@ -81,7 +84,7 @@
   XCTAssertTrue([root directoryCount] > 1);
   uint64_t now = LDScanClockMilliseconds();
   XCTAssertFalse([root isScanPending]);
-  XCTAssertTrue([root scanSecondsAt:now + 60000] <= 1);
+  XCTAssertTrue([root scanSecondsAt:LDScanClockActiveMilliseconds() + 60000] <= 1);
   XCTAssertEqual((uint64_t)0, [root millisecondsSinceScanActivityAt:now]);
 }
 
@@ -92,6 +95,44 @@
   XCTAssertEqual((NSUInteger)0, [file scanSecondsAt:LDScanClockMilliseconds()]);
   XCTAssertEqual((NSUInteger)0, [folder scanSecondsAt:LDScanClockMilliseconds()]);
   XCTAssertEqual((uint64_t)0, [folder millisecondsSinceScanActivityAt:LDScanClockMilliseconds()]);
+}
+
+// WinDirStat 2.6 (e451d346): time suspended does not count as time spent.
+- (void)testScanTimeStandsStillWhileSuspended
+{
+  uint64_t base = LDScanClockMilliseconds();
+  uint64_t start = LDScanClockActiveMillisecondsAt(base);
+  LDScanClockSuspendAt(base + 2000);
+  LDScanClockSuspendAt(base + 3000);
+  XCTAssertEqual(start + 2000, LDScanClockActiveMillisecondsAt(base + 9000));
+  LDScanClockResumeAt(base + 10000);
+  LDScanClockResumeAt(base + 11000);
+  XCTAssertEqual(start + 2000, LDScanClockActiveMillisecondsAt(base + 10000));
+  XCTAssertEqual(start + 4000, LDScanClockActiveMillisecondsAt(base + 12000));
+  // Undo the 8 s pause: suspended at scan time t, resuming at time t leaves
+  // no paused time at all.
+  LDScanClockSuspendAt(base + 12000);
+  LDScanClockResumeAt(LDScanClockActiveMillisecondsAt(base + 12000));
+  XCTAssertEqual(base + 12000, LDScanClockActiveMillisecondsAt(base + 12000));
+}
+
+- (void)testSuspendedSessionPausesFolderTime
+{
+  LDScanSession *session = [[LDScanSession alloc] init];
+  [session suspend];
+  uint64_t frozen = LDScanClockActiveMilliseconds();
+  usleep(50000);
+  XCTAssertEqual(frozen, LDScanClockActiveMilliseconds());
+  [session resume];
+  usleep(50000);
+  XCTAssertTrue(LDScanClockActiveMilliseconds() > frozen);
+
+  // Stopping a suspended scan lets scan time run again.
+  [session suspend];
+  frozen = LDScanClockActiveMilliseconds();
+  [session cancel];
+  usleep(50000);
+  XCTAssertTrue(LDScanClockActiveMilliseconds() > frozen);
 }
 
 @end

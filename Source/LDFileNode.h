@@ -101,6 +101,11 @@ typedef enum {
 // Physical subtree size.
 - (unsigned long long)aggregateAllocatedSize;
 - (unsigned long long)aggregateSizeForMetric:(LDSizeMetric)metric;
+// WinDirStat's Percentage column: the share of the parent (GetFraction), or
+// of the whole scan, the topmost ancestor (GetAbsoluteFraction). Both are 1
+// for a node without a parent and 0 when the parent or root is empty.
+- (double)fractionOfParentForMetric:(LDSizeMetric)metric;
+- (double)fractionOfRootForMetric:(LDSizeMetric)metric;
 
 - (NSUInteger)fileCount;
 - (NSUInteger)directoryCount;
@@ -162,7 +167,8 @@ typedef enum {
 - (BOOL)isScanPending;
 // Directory reads still to finish in this subtree (WinDirStat's read jobs).
 - (NSUInteger)pendingScanCount;
-// WinDirStat's time spent (now in LDScanClock milliseconds): seconds since
+// WinDirStat's time spent (now in LDScanClockActiveMilliseconds, so time
+// suspended does not count): seconds since
 // the first read job was queued while pending, then the time the reads took.
 // 0 for files and for folders not scanned live.
 - (NSUInteger)scanSecondsAt:(uint64_t)now;

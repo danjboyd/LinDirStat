@@ -5,7 +5,9 @@
 #import "LDCustomCleanupRunner.h"
 #import "LDDesktop.h"
 #import "LDDialogs.h"
+#import "LDExtensionStats.h"
 #import "LDFileOperations.h"
+#import "LDFilterPatterns.h"
 #import "LDOpenWith.h"
 #import "LDPreferences.h"
 #import "LDScanSession.h"
@@ -487,6 +489,60 @@
     return;
   }
   [self refreshNodes:[self selectedNodes]];
+}
+
+#pragma mark - Add to Exclusion Filter
+
+// WinDirStat's OnFilterExcludeItem (a874bcf4, c9501507): a file's name goes to
+// the file name patterns, a folder's path to the folder patterns, escaped
+// when the filters are regular expressions; then the items are refreshed,
+// which drops them from the tree.
+- (void)excludeItem:(id)sender
+{
+  (void)sender;
+  if (![self selectionAllows:LDCommandExcludeItem]) {
+    return;
+  }
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  BOOL regex = [preferences filterUsesRegex];
+  NSString *files = [preferences excludedFilePatterns];
+  NSString *folders = [preferences excludedFolderPatterns];
+  NSArray *nodes = [self selectedNodes];
+  for (LDFileNode *node in nodes) {
+    if ([node kind] == LDFileNodeKindDirectory) {
+      folders = [LDFilterPatterns string:folders byAddingPattern:[LDFilterPatterns literalPattern:[node path] usesRegex:regex]];
+    } else {
+      files = [LDFilterPatterns string:files byAddingPattern:[LDFilterPatterns literalPattern:[node displayName] usesRegex:regex]];
+    }
+  }
+  [preferences setExcludedFilePatterns:files];
+  [preferences setExcludedFolderPatterns:folders];
+  [self refreshNodes:nodes];
+}
+
+// The extension list's Add to Exclusion Filter (OnExcludeExtension): a file
+// name pattern for the selected extension, then Refresh All.
+- (NSString *)exclusionPatternForSelectedExtension
+{
+  NSInteger row = [_extensionTable selectedRow];
+  if (row < 0 || row >= (NSInteger)[_extensionRows count]) {
+    return nil;
+  }
+  LDExtensionStats *stats = [_extensionRows objectAtIndex:(NSUInteger)row];
+  return [LDFilterPatterns patternForExtension:[stats extensionKey]
+                                     usesRegex:[[LDPreferences sharedPreferences] filterUsesRegex]];
+}
+
+- (void)excludeExtension:(id)sender
+{
+  (void)sender;
+  NSString *pattern = [self exclusionPatternForSelectedExtension];
+  if (!pattern || [self isBusy] || !_rootNode) {
+    return;
+  }
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setExcludedFilePatterns:[LDFilterPatterns string:[preferences excludedFilePatterns] byAddingPattern:pattern]];
+  [self rescan:nil];
 }
 
 // Finds the node for an exact path, if it is in the tree.

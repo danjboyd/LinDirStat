@@ -225,6 +225,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [editMenu addItem:[NSMenuItem separatorItem]];
   [self addItemTo:editMenu title:LDLocalized(@"Search…") action:@selector(search:) key:@"f" target:self];
   [editMenu addItem:[NSMenuItem separatorItem]];
+  [self addItemTo:editMenu title:LDLocalized(@"Add to Exclusion Filter") action:@selector(excludeItem:) key:nil target:self];
+  [editMenu addItem:[NSMenuItem separatorItem]];
   [self addItemTo:editMenu title:LDLocalized(@"Compute Hash") action:@selector(computeHash:) key:@"h" target:self];
 
   NSMenu *cleanupMenu = [self addSubmenuTitled:LDLocalized(@"Clean Up") to:mainMenu];
@@ -241,6 +243,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [self addItemTo:treemapMenu title:LDLocalized(@"Select Parent") action:@selector(selectParent:) key:@"u" target:self];
   [treemapMenu addItem:[NSMenuItem separatorItem]];
   [self addItemTo:treemapMenu title:LDLocalized(@"Use Logical Size") action:@selector(toggleLogicalSize:) key:@"l" target:self];
+  [self addItemTo:treemapMenu title:LDLocalized(@"Show Absolute Percentages") action:@selector(toggleAbsolutePercentages:) key:nil target:self];
   [self addItemTo:treemapMenu title:LDLocalized(@"Show Grid") action:@selector(toggleGrid:) key:nil target:self];
   [self addItemTo:treemapMenu title:LDLocalized(@"SequoiaView Layout") action:@selector(toggleLayoutStyle:) key:nil target:self];
 
@@ -454,6 +457,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     [self addItemTo:menu title:LDLocalized(@"Copy Path") action:@selector(copyPath:) key:nil target:self];
     [self addItemTo:menu title:[LDPlatformUI showInFileManagerTitle] action:@selector(revealItem:) key:nil target:self];
     [self addItemTo:menu title:LDLocalized(@"Open Terminal Here") action:@selector(openTerminal:) key:nil target:self];
+    [self addItemTo:menu title:LDLocalized(@"Add to Exclusion Filter") action:@selector(excludeItem:) key:nil target:self];
     return;
   }
   BOOL isMainMenu = ([menu supermenu] != nil);
@@ -465,6 +469,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     [self addItemTo:menu title:LDLocalized(@"Refresh Selected") action:@selector(refreshSelected:) key:nil target:self];
   }
   [self addItemTo:menu title:LDLocalized(@"Properties") action:@selector(showProperties:) key:isMainMenu ? @"i" : nil target:self];
+  if (!isMainMenu) {
+    [self addItemTo:menu title:LDLocalized(@"Add to Exclusion Filter") action:@selector(excludeItem:) key:nil target:self];
+  }
   [menu addItem:[NSMenuItem separatorItem]];
   [self addItemTo:menu title:LDLocalized(@"Move to Trash") action:@selector(moveToTrash:) key:nil target:self];
   [self addItemTo:menu title:LDLocalized(@"Delete Permanently…") action:@selector(deletePermanently:) key:nil target:self];
@@ -565,6 +572,11 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 - (NSMenu *)contextMenuForListView:(NSTableView *)view
 {
   NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
+  // The extension list's own menu (WinDirStat's OnContextMenu there).
+  if (view == _extensionTable) {
+    [self addItemTo:menu title:LDLocalized(@"Add to Exclusion Filter") action:@selector(excludeExtension:) key:nil target:self];
+    return menu;
+  }
   if (view == _directoryTable) {
     NSPoint point = [view convertPoint:[[NSApp currentEvent] locationInWindow] fromView:nil];
     NSInteger row = [view rowAtPoint:point];
@@ -593,13 +605,18 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 - (void)listViewOpenSelection:(NSTableView *)view
 {
-  (void)view;
+  // Rows of the extension list are not files.
+  if (view == _extensionTable) {
+    return;
+  }
   [self openItem:nil];
 }
 
 - (void)listView:(NSTableView *)view deleteSelectionPermanently:(BOOL)permanently
 {
-  (void)view;
+  if (view == _extensionTable) {
+    return;
+  }
   [self deleteNodes:[self selectedNodes] permanently:permanently];
 }
 
@@ -693,6 +710,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     NSStringFromSelector(@selector(revealItem:)): @(LDCommandReveal),
     NSStringFromSelector(@selector(openTerminal:)): @(LDCommandTerminal),
     NSStringFromSelector(@selector(refreshSelected:)): @(LDCommandRefreshSelected),
+    NSStringFromSelector(@selector(excludeItem:)): @(LDCommandExcludeItem),
     NSStringFromSelector(@selector(moveToTrash:)): @(LDCommandMoveToTrash),
     NSStringFromSelector(@selector(deletePermanently:)): @(LDCommandDeletePermanently),
     NSStringFromSelector(@selector(emptyFolder:)): @(LDCommandEmptyFolder),
@@ -732,6 +750,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   }
   if (action == @selector(search:) || action == @selector(saveResultsToCSV:)) {
     return _rootNode != nil && ![self isBusy];
+  }
+  if (action == @selector(excludeExtension:)) {
+    return _rootNode != nil && ![self isBusy] && [self exclusionPatternForSelectedExtension] != nil;
   }
   if (action == @selector(saveDuplicatesToCSV:)) {
     return [_duplicateGroups count] > 0 && ![self isBusy];
@@ -787,6 +808,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   }
   if (action == @selector(toggleLogicalSize:)) {
     [item setState:_sizeMetric == LDSizeMetricLogical ? NSOnState : NSOffState];
+  } else if (action == @selector(toggleAbsolutePercentages:)) {
+    [item setState:[[LDPreferences sharedPreferences] useAbsolutePercentages] ? NSOnState : NSOffState];
   } else if (action == @selector(toggleGrid:)) {
     [item setState:[_treemapView options].grid ? NSOnState : NSOffState];
   } else if (action == @selector(toggleLayoutStyle:)) {
@@ -934,7 +957,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   NSTableColumn *subtree = [self addColumn:@"subtree" title:LDLocalized(@"Subtree Percentage") width:130 right:NO toTable:_directoryTable];
   [subtree setDataCell:[[LDPercentageBarCell alloc] init]];
   [self setSortPrototypeForColumn:subtree ascending:NO];
-  NSTableColumn *percent = [self addColumn:@"percent" title:LDLocalized(@"Percentage") width:90 right:YES toTable:_directoryTable];
+  NSTableColumn *percent = [self addColumn:@"percent" title:LDLocalized(@"Percentage") width:105 right:YES toTable:_directoryTable];
   [self setSortPrototypeForColumn:percent ascending:NO];
 
   // WinDirStat's optional columns, shown per Preferences > Folder List.
@@ -1062,7 +1085,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 - (void)buildExtensionTable
 {
-  _extensionTable = [[NSTableView alloc] initWithFrame:NSMakeRect(0, 0, 360, 300)];
+  _extensionTable = [[LDTableView alloc] initWithFrame:NSMakeRect(0, 0, 360, 300)];
+  [(LDTableView *)_extensionTable setCommandTarget:self];
   // WinDirStat's columns; only the description gives or takes width.
   NSTableColumn *extension = [self addColumn:@"extension" title:LDLocalized(@"Extension") width:84 right:NO toTable:_extensionTable];
   [[extension dataCell] setLineBreakMode:NSLineBreakByTruncatingTail];
@@ -1261,6 +1285,20 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   }
 }
 
+// The title's width, plus the sort indicator beside it when the table is
+// sorted by this column: a header's cell size leaves the indicator out, so
+// the sorted column ("Percentage", by default) would be cut to "Perce…".
+- (CGFloat)headerWidthOfColumn:(NSTableColumn *)column inTable:(NSTableView *)table
+{
+  NSTableHeaderCell *header = (NSTableHeaderCell *)[column headerCell];
+  CGFloat width = [header cellSize].width;
+  NSString *sortKey = [[[table sortDescriptors] firstObject] key];
+  if (sortKey && [sortKey isEqualToString:[[column sortDescriptorPrototype] key]]) {
+    width += NSWidth([header sortIndicatorRectForBounds:NSMakeRect(0, 0, width, 24)]) + 6.0;
+  }
+  return ceil(width);
+}
+
 // WinDirStat's "Automatically resize columns": the tree's columns other
 // than Name and the graph are fitted to their header and widest value among
 // the rows shown (up to LDColumnFitRowLimit); Name keeps taking the rest.
@@ -1276,7 +1314,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
       continue;
     }
     NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
-    CGFloat widest = [[column headerCell] cellSize].width;
+    CGFloat widest = [self headerWidthOfColumn:column inTable:_directoryTable];
     for (NSInteger row = 0; row < rows; row++) {
       id value = [self outlineView:_directoryTable objectValueForTableColumn:column byItem:[_directoryTable itemAtRow:row]];
       if ([value isKindOfClass:[NSString class]]) {
@@ -2053,6 +2091,16 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [self updateSelectionField];
 }
 
+// WinDirStat's OnViewAbsolutePercentages: only the Percentage column changes;
+// siblings keep their order, so the tree is not re-sorted.
+- (void)toggleAbsolutePercentages:(id)sender
+{
+  (void)sender;
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setUseAbsolutePercentages:![preferences useAbsolutePercentages]];
+  [_directoryTable setNeedsDisplay:YES];
+}
+
 - (void)toggleGrid:(id)sender
 {
   (void)sender;
@@ -2094,6 +2142,20 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   return [NSString stringWithFormat:@"%@  ·  %@",
           [self displayPath:[node path]],
           [LDSizeFormatter stringForBytes:[node aggregateSizeForMetric:_sizeMetric]]];
+}
+
+// WinDirStat's first status pane for a selection: one item's path, or for
+// several "N Items Selected | N Files | N Folders" (WinDirStat 2.6, 9e134e2d).
+- (NSString *)statusForSelection:(NSArray *)nodes
+{
+  if ([nodes count] < 2) {
+    return [nodes count] ? [self describeNode:[nodes lastObject]] : nil;
+  }
+  NSUInteger files = 0;
+  NSUInteger folders = 0;
+  [LDCommandRules countFiles:&files folders:&folders inNodes:nodes];
+  return [NSString stringWithFormat:LDLocalized(@"%lu Items Selected | %lu Files | %lu Folders"),
+          (unsigned long)[nodes count], (unsigned long)files, (unsigned long)folders];
 }
 
 // WinDirStat's second status pane: the size of everything selected. Empty
@@ -2163,7 +2225,10 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   LDFileNode *node = row >= 0 ? [_directoryTable itemAtRow:row] : nil;
   [_treemapView setHighlightedExtensionKey:nil];
   [_treemapView setSelectedNode:node];
-  if (node) {
+  NSArray *nodes = [self selectedNodes];
+  if ([nodes count] > 1) {
+    [_statusField setStringValue:[self statusForSelection:nodes]];
+  } else if (node) {
     [_statusField setStringValue:[self describeNode:node]];
   }
   [self updateSelectionField];
@@ -2248,6 +2313,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   _treeSortIsDefault = (_treeSortKey == modelKey && !_treeSortAscending);
   [_sortedChildrenCache removeAllObjects];
   [outlineView reloadData];
+  // The sort indicator moved to another column, which may need the room.
+  [self fitColumnsToContents];
 }
 
 // While scanning, children are in the order they were read and sizes still
@@ -2458,15 +2525,19 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   return item && [[self displayChildrenOfNode:item] count] > 0;
 }
 
-// A node's share of its parent, as WinDirStat's Percentage column shows it.
+// A node's share of its parent, as the Subtree Percentage bar shows it.
 - (double)fractionOfParentForNode:(LDFileNode *)node
 {
-  LDFileNode *parent = [node parent];
-  if (!parent) {
-    return 1.0;
-  }
-  unsigned long long parentBytes = [parent aggregateSizeForMetric:_sizeMetric];
-  return parentBytes ? (double)[node aggregateSizeForMetric:_sizeMetric] / (double)parentBytes : 0.0;
+  return [node fractionOfParentForMetric:_sizeMetric];
+}
+
+// The Percentage column: the share of the whole scan, or of the parent with
+// Show Absolute Percentages off (WinDirStat's GetText, COL_PERCENTAGE).
+- (double)percentageFractionForNode:(LDFileNode *)node
+{
+  return [[LDPreferences sharedPreferences] useAbsolutePercentages]
+    ? [node fractionOfRootForMetric:_sizeMetric]
+    : [node fractionOfParentForMetric:_sizeMetric];
 }
 
 - (id)outlineView:(NSOutlineView *)outlineView objectValueForTableColumn:(NSTableColumn *)tableColumn byItem:(id)item
@@ -2490,10 +2561,10 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
         return [NSString stringWithFormat:@"[%@]", LDFormatScanDuration((NSUInteger)[_scanSession elapsedTime])];
       }
       if ([[node parent] isScanPending]) {
-        return [NSString stringWithFormat:@"[%@]", LDFormatScanDuration([node scanSecondsAt:LDScanClockMilliseconds()])];
+        return [NSString stringWithFormat:@"[%@]", LDFormatScanDuration([node scanSecondsAt:LDScanClockActiveMilliseconds()])];
       }
     }
-    return [self percentStringForFraction:[self fractionOfParentForNode:node]];
+    return [self percentStringForFraction:[self percentageFractionForNode:node]];
   }
   if ([identifier isEqualToString:LDColumnPhysicalSize]) {
     return [self physicalSizeStringForNode:node];

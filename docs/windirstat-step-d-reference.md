@@ -52,6 +52,9 @@ All selection-dependent commands go through one table (`DOC:873-985`). Each comm
 | Reselect Child | y | y | y | any | reselect stack not empty | DOC:950 |
 | Show Free Space / Unknown | y | y | n | any | | DOC:955-956 |
 
+*Later upstream (v2.5.7):* Zoom In also requires the target (the item, or a file's parent) to have a treemap size above 0 (`cc74efab`). Treemap hit testing stops at an item of size 0 (`86abc10a`). LinDirStat's layout never subdivides such an item, so its hit test already stopped there.
+Add to Exclusion Filter (v2.5.8, `a874bcf4`, `c9501507`) is `n | y | n | Drive/Dir/File`; LinDirStat leaves out scan roots and mount points (§9).
+
 ¹ Empty Folder is listed as allowing an empty selection, but the extra predicate is evaluated against `nullptr` and fails, so in practice it needs a selection.
 
 **Port rule:** while a scan runs, every destructive action and every refresh is disabled. Open, Properties, Copy Path, Reveal and Terminal stay enabled.
@@ -73,6 +76,7 @@ The Largest, Duplicates and Search lists are the same tree-list class and show t
 ### 1.3 Treemap context menu (`RC:334-351`)
 
 1. Zoom In · 2. Zoom Out · 3. Zoom Reset · 4. Reselect Child · 5. Select Parent · 6. — · 7. Copy Path · 8. Select in Explorer · 9. Open in Command Prompt · 10. Open in PowerShell · 11. — · 12. C&ancel
+*Later upstream (v2.5.8+):* Add to Exclusion Filter follows Open in PowerShell. The file tree context menu has it after Compute Hash (`a874bcf4`; §9).
 
 ### 1.4 Command semantics
 
@@ -191,6 +195,8 @@ Substitution goes through `>`-markers so a `%` inside a filename is safe. Paths 
 - **Read-job mode.** A row is in read-job mode while its *parent* is not done; the root uses its own done state (`MustShowReadJobs`, `IX:1001-1009`).
 - **Cell content.** Read-job mode, PacmanAnimation on (default true, `OPT:46`), item not done: an animated pacman. Read-job mode otherwise: the text `[1 Read Job]` or `[N Read Jobs]` (`IX:105-115`, `EN:144,255`). Out of read-job mode: the percentage bar, indented by level (`IX:65-70`). In read-job mode the column sorts by read-job count (`IX:210-219`).
 - **Percentage column.** Shows `[elapsed]` when `ShowTimeSpent` is on (default true, `OPT:66`) and the row is in read-job mode. The **root row always** shows `[elapsed]`. Otherwise it shows `NN.N%` (`IX:120-125`).
+  - *Later upstream (v2.6, `db7af300`):* `UseAbsolutePercentages` (default **true**, toggled by View › Show Absolute Percentages) makes the column show each row's share of the whole scan (`CItem::GetAbsoluteFraction`: size over the topmost ancestor's size, by the logical/physical choice). With it on, the root shows `100.0%` instead of `[elapsed]`; with it off the column is as above. Sorting is unchanged, because siblings rank the same either way. The Subtree Percentage bar stays share-of-parent. LinDirStat follows this, with the toggle in its Treemap menu.
+  - *Later upstream (v2.6, `e451d346`):* the per-folder `[elapsed]` times use a scan clock that stops while the scan is suspended (`CItem::GetScanTickCount`), so paused time no longer counts. LinDirStat's root already excluded it. Its folders now do too (`LDScanClockActiveMilliseconds`), and stopping a suspended scan restarts the clock.
 - **Driving the pacmen.** Each entry a scanner thread adds walks up its ancestors. An ancestor with 0 read jobs stops its pacman; the others advance (`IX:611-623`, `Item.cpp:936-958`).
 - **Animation** (`Controls/PacMan.cpp:21-130`): It moves 0.09 px/ms, bouncing between the cell edges. The mouth changes 0.003/ms, opening to at most 90°. Fill `#FCC92F` with a black outline. After more than 750 ms with no update it stops and draws three "z"s (`#888888` in dark mode). The global suspend flag freezes it.
 
@@ -202,6 +208,7 @@ Substitution goes through `>`-markers so a `%` inside a filename is safe. Paths 
 
 **Status bar panes (`MF:664-666`, `MF:1202-1246`)**
 - **Pane 0:** "Ready" (`EN:71`). It also hosts the progress widget. Treemap hover shows the hovered path (and its size in pane 1). After the scan, one selected item shows its full path. With the extension list focused it shows `*.<ext>`. · **Pane 1:** `Physical Size: ∑ <sum of selected>`. · **Pane 2:** process RAM.
+- *Later upstream (v2.6, `9e134e2d`):* with several items selected, pane 0 shows `N Items Selected | N Files | N Folders`. Each selected file or folder counts itself, plus the files and folders below it. LinDirStat counts an item inside another selected one only once; upstream counts it twice.
 
 ---
 
@@ -445,6 +452,12 @@ Enabled only when the Duplicates tab is visible.
 
 **Access and effect**
 - The toolbar **Filter** button opens a sheet holding only this page (`WinDirStat.cpp:445-451`). · **Changing a filter does not rescan** the user must Refresh (`PageFiltering.cpp:121-133`). · Excluded entries count toward nothing.
+- *Later upstream (v2.5.8+, `a874bcf4`, `c9501507`):* **Add to Exclusion Filter** (Edit menu and the tree, treemap and extension list context menus). For each selected drive, folder or file it appends a line: a file's **name** to the file name patterns, otherwise the full **path** to the folder patterns, regex-escaped when regular expressions are on. Then it refreshes the selection, which drops the items. On the extension list it appends `*.ext` to the file name patterns (`*.` for no extension) and refreshes everything. LinDirStat differences:
+  - It leaves out scan roots and mount points, because excluding one would empty the scan.
+  - It skips a pattern that is already a line.
+  - Its extension pattern is `?*.ext`, or `.+\.ext` with regular expressions, so a hidden file named `.ext` (which has no extension) is not caught. Upstream writes a glob even in regex mode.
+  - There is no pattern for files without an extension, because none can select names without a dot.
+  - Refresh Selected now applies the filters to the refreshed item itself, as a scan of its folder does.
 
 ### Scan exclusions (Advanced page; `RC:573-602`, `OPT:32-39`, `Item.cpp:886-914`)
 
@@ -643,11 +656,13 @@ Hidden tabs are removed, not greyed (`:49-77`).
 
 **&Edit**
 1. &Copy Path (Ctrl+C or Ctrl+Ins) · 2. — · 3. &Search... (Ctrl+F) · 4. — · 5. Compute &Hash (Ctrl+H)
+*Later upstream (v2.5.8+):* Add &to Exclusion Filter goes between Search and Compute Hash, with separators around it (`a874bcf4`; §9).
 
 **&Clean Up:** §1.1.
 
 **&Treemap**
 1. &Show Treemap ✓ (F9) · 2. Use &Logical Size ✓ (Ctrl+L; default off) · 3. Show &Extensions ✓ (default off) · 4. — · 5. Zoom &In (+) · 6. Zoom &Out (−) · 7. Zoom &Reset (Numpad . or Ctrl+.) · 8. Reselect &Child (Numpad * or Ctrl+=) · 9. Select &Parent (Numpad / or Ctrl+−)
+*Later upstream (v2.6+):* this menu becomes View. After the Logical/Physical pair it gains Show &Absolute Percentages ✓ (default on, `db7af300`; §2).
 
 **&Tools**
 1. Start File Watcher ✓ · 2. Create Shadow Copy ▸ · 3. Defragment Volume ▸ · 4. Check Disk ▸

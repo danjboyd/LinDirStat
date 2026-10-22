@@ -373,6 +373,32 @@
   XCTAssertNil([[[LDScanner alloc] init] scanEntryAtPathData:[gone pathData] session:[[LDScanSession alloc] init]]);
 }
 
+// After Add to Exclusion Filter: refreshing an excluded entry drops it, as a
+// scan of its folder would.
+- (void)testEntryRescanOfExcludedEntryReturnsNil
+{
+  NSString *root = [self makeDirectory:@"root"];
+  [self makeDirectory:@"root/cache"];
+  [self writeFile:@"root/cache/a.bin" bytes:1000];
+  [self writeFile:@"root/b.log" bytes:200];
+  [self writeFile:@"root/c.txt" bytes:300];
+  NSData *(^pathData)(NSString *) = ^NSData *(NSString *name) {
+    const char *bytes = [[root stringByAppendingPathComponent:name] fileSystemRepresentation];
+    return [NSData dataWithBytes:bytes length:strlen(bytes)];
+  };
+
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setExcludedFolderPatterns:[NSArray arrayWithObject:[root stringByAppendingPathComponent:@"cache"]]];
+  [options setExcludedFilePatterns:[NSArray arrayWithObject:@"*.log"]];
+  LDScanner *scanner = [[LDScanner alloc] init];
+  [scanner setScanOptions:options];
+
+  XCTAssertNil([scanner scanEntryAtPathData:pathData(@"cache") session:[[LDScanSession alloc] init]]);
+  XCTAssertNil([scanner scanEntryAtPathData:pathData(@"b.log") session:[[LDScanSession alloc] init]]);
+  LDFileNode *kept = [scanner scanEntryAtPathData:pathData(@"c.txt") session:[[LDScanSession alloc] init]];
+  XCTAssertEqualObjects(@"c.txt", [kept displayName]);
+}
+
 #if defined(__APPLE__)
 // The Data volume shares st_dev with the System volume it is mounted under;
 // it must still be a mount point so the firmlinks (/Users...) own its data.

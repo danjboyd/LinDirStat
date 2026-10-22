@@ -41,6 +41,7 @@
 - (void)toggleFileTypes:(id)sender;
 - (void)toggleTreemap:(id)sender;
 - (void)toggleLogicalSize:(id)sender;
+- (void)toggleAbsolutePercentages:(id)sender;
 - (void)stopScan:(id)sender;
 - (void)openPath:(id)sender;
 - (void)treemapView:(LDTreemapView *)view didSelectNode:(LDFileNode *)node;
@@ -640,6 +641,71 @@
 
 #pragma mark - Refresh engine
 
+- (void)testAddToExclusionFilterDropsItemsAndExtensions
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [self revealInTree:[self node:@"a/a2.log"]];
+  [self selectInTree:@[[self node:@"a/a2.log"], [self node:@"b"]]];
+  XCTAssertTrue([_controller validateAction:@selector(excludeItem:)]);
+  [_controller excludeItem:nil];
+  if (![self waitUntilIdle]) {
+    return;
+  }
+  // A file's name, a folder's whole path.
+  XCTAssertEqualObjects(@"a2.log", [preferences excludedFilePatterns]);
+  XCTAssertEqualObjects([self pathOf:@"b"], [preferences excludedFolderPatterns]);
+  XCTAssertNil([self node:@"a/a2.log"]);
+  XCTAssertNil([self node:@"b"]);
+  XCTAssertNotNil([self node:@"a/a1.txt"]);
+  XCTAssertEqual((unsigned long long)(3000 + 2000 + 12000), [[_controller root] aggregateSize]);
+
+  // The scan root itself cannot be excluded.
+  [self selectInTree:@[[_controller root]]];
+  XCTAssertFalse([_controller validateAction:@selector(excludeItem:)]);
+
+  NSUInteger index = [[self extensionKeys] indexOfObject:[self key:@"x.txt"]];
+  XCTAssertTrue(index != NSNotFound);
+  [self selectRow:(NSInteger)index inList:[_controller extensionTable]];
+  XCTAssertTrue([_controller validateAction:@selector(excludeExtension:)]);
+  [_controller excludeExtension:nil];
+  if (![self waitUntilIdle]) {
+    return;
+  }
+  XCTAssertEqualObjects(@"a2.log\n?*.txt", [preferences excludedFilePatterns]);
+  XCTAssertNil([self node:@"a/a1.txt"]);
+  XCTAssertNil([self node:@"a/sub/deep.txt"]);
+  XCTAssertNotNil([self node:@"c.bin"]);
+  XCTAssertEqual(NSNotFound, [[self extensionKeys] indexOfObject:[self key:@"x.txt"]]);
+}
+
+- (void)testSeveralSelectedItemsShowTheirCounts
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  [self selectInTree:@[[self node:@"a"], [self node:@"c.bin"]]];
+  XCTAssertEqualObjects(@"2 Items Selected | 4 Files | 2 Folders", [[_controller statusField] stringValue]);
+  [self selectInTree:@[[self node:@"c.bin"]]];
+  XCTAssertTrue([[[_controller statusField] stringValue] hasPrefix:[self pathOf:@"c.bin"]]);
+}
+
+// The sorted column leaves room for its sort indicator beside the title.
+- (void)testSortedColumnFitsItsIndicator
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSOutlineView *tree = [_controller tree];
+  NSTableColumn *percent = [tree tableColumnWithIdentifier:@"percent"];
+  NSTableHeaderCell *header = (NSTableHeaderCell *)[percent headerCell];
+  CGFloat title = [header cellSize].width;
+  CGFloat indicator = NSWidth([header sortIndicatorRectForBounds:NSMakeRect(0, 0, title, 24)]);
+  XCTAssertTrue([percent width] >= title + indicator, @"%g < %g + %g", [percent width], title, indicator);
+}
+
 - (void)testRefreshSelectedUpdatesTotalsAndKeepsExpansionAndSelection
 {
   if (!_controller || ![self scanTree]) {
@@ -1116,6 +1182,41 @@
   [preferences setColumn:LDColumnFiles shown:NO];
   XCTAssertNil([tree tableColumnWithIdentifier:LDColumnFiles]);
   XCTAssertEqualObjects(@[a], [self treeSelection]);
+}
+
+- (void)testAbsolutePercentagesToggle
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSOutlineView *tree = [_controller tree];
+  NSTableColumn *percent = [tree tableColumnWithIdentifier:@"percent"];
+  LDFileNode *deep = [self node:@"a/sub/deep.txt"];
+  NSString *(^shown)(LDFileNode *) = ^NSString *(LDFileNode *node) {
+    return [_controller outlineView:tree objectValueForTableColumn:percent byItem:node];
+  };
+  NSString *(^formatted)(double) = ^NSString *(double fraction) {
+    return [NSString stringWithFormat:@"%.1f%%", fraction * 100.0];
+  };
+  LDSizeMetric metric = [[LDPreferences sharedPreferences] useLogicalSize] ? LDSizeMetricLogical : LDSizeMetricPhysical;
+
+  // WinDirStat 2.6's default: the share of the whole scan.
+  XCTAssertEqual(NSOnState, [self menuStateFor:@selector(toggleAbsolutePercentages:)]);
+  XCTAssertEqualObjects(formatted([deep fractionOfRootForMetric:metric]), shown(deep));
+  LDFileNode *root = deep;
+  while ([root parent]) {
+    root = [root parent];
+  }
+  XCTAssertEqualObjects(@"100.0%", shown(root));
+  XCTAssertNotEqualObjects(@"100.0%", shown(deep));
+
+  [_controller toggleAbsolutePercentages:nil];
+  XCTAssertFalse([[LDPreferences sharedPreferences] useAbsolutePercentages]);
+  XCTAssertEqual(NSOffState, [self menuStateFor:@selector(toggleAbsolutePercentages:)]);
+  // deep.txt is the only file in a/sub.
+  XCTAssertEqualObjects(@"100.0%", shown(deep));
+  XCTAssertEqualObjects(formatted([[deep parent] fractionOfParentForMetric:metric]), shown([deep parent]));
+  XCTAssertNotEqualObjects(shown([deep parent]), formatted([[deep parent] fractionOfRootForMetric:metric]));
 }
 
 - (void)testUseLogicalSizeResortsAndKeepsSelection

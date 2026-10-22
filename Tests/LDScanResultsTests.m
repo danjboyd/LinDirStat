@@ -228,4 +228,29 @@
   XCTAssertNil([view treemap]);
 }
 
+// WinDirStat 2.5.7 (cc74efab): Zoom In is refused for an empty folder, or a
+// file inside one.
+- (void)testTreemapViewDoesNotZoomIntoEmptyFolders
+{
+  LDFileNode *root = [LDFileNode nodeWithPath:@"/r" kind:LDFileNodeKindDirectory size:0];
+  LDFileNode *full = [LDFileNode nodeWithName:@"full" kind:LDFileNodeKindDirectory size:0 allocatedSize:0];
+  LDFileNode *empty = [LDFileNode nodeWithName:@"empty" kind:LDFileNodeKindDirectory size:0 allocatedSize:0];
+  LDFileNode *data = [LDFileNode nodeWithName:@"data.bin" kind:LDFileNodeKindFile size:100 allocatedSize:4096];
+  LDFileNode *blank = [LDFileNode nodeWithName:@"blank.txt" kind:LDFileNodeKindFile size:0 allocatedSize:0];
+  [full addChild:data];
+  [empty addChild:blank];
+  [root addChild:full];
+  [root addChild:empty];
+  [root recalculateAggregateSize];
+
+  LDTreemapView *view = [[LDTreemapView alloc] initWithFrame:NSMakeRect(0, 0, 121, 81)];
+  [view setRootNode:root metric:LDSizeMetricPhysical colorIndexes:nil];
+  [view setSelectedNode:data];
+  XCTAssertTrue([view canZoomIn]);
+  [view setSelectedNode:empty];
+  XCTAssertFalse([view canZoomIn]);
+  [view setSelectedNode:blank];
+  XCTAssertFalse([view canZoomIn]);
+}
+
 @end

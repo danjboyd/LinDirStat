@@ -417,7 +417,8 @@ NSRect LDWholePixelRectInside(NSRect rect)
   [_delegate treemapViewDidChangeZoom:self];
 }
 
-// WinDirStat zooms into the selected directory, or the parent of a selected file.
+// WinDirStat zooms into the selected directory, or the parent of a selected
+// file, but not into an empty one (2.5.7, cc74efab): it would have no area.
 - (LDFileNode *)zoomInTarget
 {
   LDFileNode *node = _selectedNode;
@@ -427,7 +428,8 @@ NSRect LDWholePixelRectInside(NSRect rect)
   if (node && [node isLeaf]) {
     node = [node parent];
   }
-  if (!node || node == [self zoomNode] || ![[self zoomNode] isAncestorOf:node]) {
+  if (!node || node == [self zoomNode] || ![[self zoomNode] isAncestorOf:node]
+      || [node aggregateSizeForMetric:_metric] == 0) {
     return nil;
   }
   return node;

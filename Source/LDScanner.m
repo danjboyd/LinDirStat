@@ -440,9 +440,9 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   }
 
   LDFileNodeKind kind = [self kindForMode:info.st_mode];
+  BOOL directoryLike = (kind == LDFileNodeKindDirectory);
   if (kind == LDFileNodeKindSymlink) {
-    BOOL isDirectory = NO;
-    LDLinkDisposition disposition = [self dispositionForLinkAt:AT_FDCWD name:path stat:&info isDirectory:&isDirectory];
+    LDLinkDisposition disposition = [self dispositionForLinkAt:AT_FDCWD name:path stat:&info isDirectory:&directoryLike];
     if (disposition == LDLinkSkip) {
       [session markComplete];
       return nil;
@@ -450,6 +450,15 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
     if (disposition == LDLinkFollow) {
       kind = [self kindForMode:info.st_mode];
     }
+  }
+  // An entry the filters now exclude is gone, as it would be from a scan of
+  // its folder (Add to Exclusion Filter refreshes what it excluded).
+  if (([_options excludeHidden] && name[0] == '.')
+      || (directoryLike && _folderFilter && [_folderFilter matchesBytes:path])
+      || (!directoryLike && ((_fileFilter && [_fileFilter matchesBytes:name])
+                             || (kind == LDFileNodeKindFile && (unsigned long long)info.st_size < [_options minimumFileSize])))) {
+    [session markComplete];
+    return nil;
   }
   unsigned long long size = 0;
   unsigned long long allocated = 0;

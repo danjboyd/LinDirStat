@@ -15,7 +15,10 @@ typedef enum {
   LDCommandEmptyFolder,
   LDCommandMoveTo,
   LDCommandComputeHash,
-  LDCommandCustomCleanup
+  LDCommandCustomCleanup,
+  // Add to Exclusion Filter (WinDirStat 2.5.8): folders and files below the
+  // scan roots, not while busy.
+  LDCommandExcludeItem
 } LDCommand;
 
 @class LDCustomCleanup;
@@ -45,6 +48,11 @@ typedef enum {
 // Nodes with every node that lies below another one in the list removed,
 // in their original order. Acting on a folder covers what is inside it.
 + (NSArray *)topmostNodes:(NSArray *)nodes;
+
+// WinDirStat 2.6's status text for several selected items (9e134e2d): the
+// files and folders they hold, each counting itself. A node below another
+// selected one is counted once; "This Computer" is not a folder.
++ (void)countFiles:(NSUInteger *)files folders:(NSUInteger *)folders inNodes:(NSArray *)nodes;
 
 // The folders a terminal opens in: each folder itself, a file's parent,
 // without repeats.

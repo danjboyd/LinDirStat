@@ -271,7 +271,9 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   return field;
 }
 
-- (NSStepper *)stepperFrom:(double)low to:(double)high action:(SEL)action
+// A stepper as tall as the field it adjusts, whatever height the theme
+// gives that field.
+- (NSStepper *)stepperFrom:(double)low to:(double)high action:(SEL)action forField:(NSTextField *)field
 {
   NSStepper *stepper = [[NSStepper alloc] initWithFrame:NSZeroRect];
   [stepper setMinValue:low];
@@ -280,7 +282,7 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   [stepper setValueWraps:NO];
   [stepper setTarget:self];
   [stepper setAction:action];
-  [stepper setFrameSize:NSMakeSize(19.0, 26.0)];
+  [stepper setFrameSize:NSMakeSize(19.0, NSHeight([field frame]))];
   return stepper;
 }
 
@@ -728,11 +730,11 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   [self addSectionTitle:LDLocalized(@"Lists")];
   _largeFileCount = [self numberFieldWithAction:@selector(countEntered:)];
   [_largeFileCount setFrameSize:NSMakeSize(80, NSHeight([_largeFileCount frame]))];
-  _largeFileStepper = [self stepperFrom:0 to:10000 action:@selector(countStepped:)];
+  _largeFileStepper = [self stepperFrom:0 to:10000 action:@selector(countStepped:) forField:_largeFileCount];
   [self addRow:LDLocalized(@"Largest files shown") controls:@[_largeFileCount, _largeFileStepper]];
   _historyCount = [self numberFieldWithAction:@selector(countEntered:)];
   [_historyCount setFrameSize:NSMakeSize(80, NSHeight([_historyCount frame]))];
-  _historyStepper = [self stepperFrom:0 to:100 action:@selector(countStepped:)];
+  _historyStepper = [self stepperFrom:0 to:100 action:@selector(countStepped:) forField:_historyCount];
   [self addRow:LDLocalized(@"Folder history entries") controls:@[_historyCount, _historyStepper]];
 
   [self addSectionTitle:LDLocalized(@"Reset")];

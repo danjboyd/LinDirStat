@@ -183,7 +183,7 @@ static NSString *const LDTabWatcher = @"watcher";
   [_treemapView setHighlightedExtensionKey:nil];
   [_treemapView setSelectedNode:node];
   if (node) {
-    [self showStatus:[self describeNode:node]];
+    [self showStatus:[self statusForSelection:nodes]];
   }
   [self updateSelectionField];
   [self refreshCommandState];

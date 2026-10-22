@@ -182,6 +182,7 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"TreeMapGridColor": @0x000000,
     @"TreeMapHighlightColor": @0xffffff,
     @"UseLogicalSize": @NO,
+    @"UseAbsolutePercentages": @YES,
     @"FilteringExcludeDirs": @"",
     @"FilteringExcludeFiles": @"",
     @"FilteringUseRegex": @NO,
@@ -401,6 +402,8 @@ static uint32_t LDColorValue(NSInteger value)
 
 - (BOOL)useLogicalSize { return [self boolForKey:@"UseLogicalSize"]; }
 - (void)setUseLogicalSize:(BOOL)flag { [self setBool:flag forKey:@"UseLogicalSize"]; }
+- (BOOL)useAbsolutePercentages { return [self boolForKey:@"UseAbsolutePercentages"]; }
+- (void)setUseAbsolutePercentages:(BOOL)flag { [self setBool:flag forKey:@"UseAbsolutePercentages"]; }
 
 - (NSString *)excludedFolderPatterns { return [self stringForKey:@"FilteringExcludeDirs"]; }
 - (void)setExcludedFolderPatterns:(NSString *)patterns { [self setString:patterns forKey:@"FilteringExcludeDirs"]; }

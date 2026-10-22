@@ -147,6 +147,22 @@
   XCTAssertEqual(dir, [treemap nodeOfCell:(NSUInteger)[treemap cellIndexForNode:dir]]);
 }
 
+// WinDirStat 2.5.7 (86abc10a): hit testing stops at an item of size 0; here
+// such items are never subdivided, so their children are never hit.
+- (void)testHitTestingStopsAtZeroSizeItems
+{
+  LDFileNode *root = [LDFileNode nodeWithPath:@"/r" kind:LDFileNodeKindDirectory size:0];
+  LDFileNode *empty = [LDFileNode nodeWithName:@"empty" kind:LDFileNodeKindDirectory size:0 allocatedSize:0];
+  [empty addChild:[LDFileNode nodeWithName:@"blank.txt" kind:LDFileNodeKindFile size:0 allocatedSize:0]];
+  [root addChild:empty];
+  [root recalculateAggregateSize];
+
+  LDTreemap *treemap = [self treemapForRoot:root width:100 height:100];
+  NSInteger index = [treemap cellIndexAtX:50 y:50];
+  XCTAssertTrue(index >= 0);
+  XCTAssertEqual(root, [treemap nodeOfCell:(NSUInteger)index]);
+}
+
 - (void)testZeroSizeRootRendersBlack
 {
   LDFileNode *root = [LDFileNode nodeWithPath:@"/empty" kind:LDFileNodeKindDirectory size:0];

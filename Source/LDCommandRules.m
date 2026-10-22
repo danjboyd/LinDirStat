@@ -90,6 +90,9 @@
     case LDCommandMoveToTrash:
     case LDCommandDeletePermanently:
     case LDCommandMoveTo:
+    // WinDirStat also takes drives, but excluding a scan root or mount point
+    // would empty the scan; the Filtering page still can.
+    case LDCommandExcludeItem:
       return [self allNodes:nodes satisfy:removable];
     case LDCommandEmptyFolder:
       return [self allNodes:nodes satisfy:^BOOL(LDFileNode *node) {
@@ -121,6 +124,23 @@
     }
     return [cleanup worksForFiles];
   }];
+}
+
++ (void)countFiles:(NSUInteger *)files folders:(NSUInteger *)folders inNodes:(NSArray *)nodes
+{
+  NSUInteger fileTotal = 0;
+  NSUInteger folderTotal = 0;
+  for (LDFileNode *node in [self topmostNodes:nodes]) {
+    fileTotal += [node fileCount];
+    NSUInteger directories = [node directoryCount];
+    folderTotal += ([self isComputerNode:node] && directories > 0) ? directories - 1 : directories;
+  }
+  if (files) {
+    *files = fileTotal;
+  }
+  if (folders) {
+    *folders = folderTotal;
+  }
 }
 
 + (NSArray *)topmostNodes:(NSArray *)nodes
