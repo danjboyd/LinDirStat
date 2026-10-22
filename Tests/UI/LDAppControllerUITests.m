@@ -681,6 +681,17 @@
   XCTAssertEqual(NSNotFound, [[self extensionKeys] indexOfObject:[self key:@"x.txt"]]);
 }
 
+- (void)testSeveralSelectedItemsShowTheirCounts
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  [self selectInTree:@[[self node:@"a"], [self node:@"c.bin"]]];
+  XCTAssertEqualObjects(@"2 Items Selected | 4 Files | 2 Folders", [[_controller statusField] stringValue]);
+  [self selectInTree:@[[self node:@"c.bin"]]];
+  XCTAssertTrue([[[_controller statusField] stringValue] hasPrefix:[self pathOf:@"c.bin"]]);
+}
+
 - (void)testRefreshSelectedUpdatesTotalsAndKeepsExpansionAndSelection
 {
   if (!_controller || ![self scanTree]) {

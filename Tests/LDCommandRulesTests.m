@@ -95,6 +95,35 @@
   XCTAssertFalse(([LDCommandRules isCleanup:cleanup enabledForNodes:@[_root] rootNode:_root busy:YES]));
 }
 
+- (void)testSelectionCountsFilesAndFoldersOnce
+{
+  LDFileNode *root = [LDFileNode nodeWithPath:@"/data" kind:LDFileNodeKindDirectory size:0];
+  LDFileNode *folder = [LDFileNode nodeWithName:@"photos" kind:LDFileNodeKindDirectory size:0 allocatedSize:0];
+  LDFileNode *inner = [LDFileNode nodeWithName:@"2026" kind:LDFileNodeKindDirectory size:0 allocatedSize:0];
+  LDFileNode *a = [LDFileNode nodeWithName:@"a.jpg" kind:LDFileNodeKindFile size:1 allocatedSize:1];
+  LDFileNode *b = [LDFileNode nodeWithName:@"b.jpg" kind:LDFileNodeKindFile size:1 allocatedSize:1];
+  LDFileNode *c = [LDFileNode nodeWithName:@"c.txt" kind:LDFileNodeKindFile size:1 allocatedSize:1];
+  [inner addChild:b];
+  [folder addChild:a];
+  [folder addChild:inner];
+  [root addChild:folder];
+  [root addChild:c];
+  [root recalculateAggregateSize];
+
+  NSUInteger files = 0;
+  NSUInteger folders = 0;
+  [LDCommandRules countFiles:&files folders:&folders inNodes:@[folder, c]];
+  XCTAssertEqual((NSUInteger)3, files);
+  XCTAssertEqual((NSUInteger)2, folders);
+  // b.jpg is inside photos, so it adds nothing.
+  [LDCommandRules countFiles:&files folders:&folders inNodes:@[folder, b]];
+  XCTAssertEqual((NSUInteger)2, files);
+  XCTAssertEqual((NSUInteger)2, folders);
+  [LDCommandRules countFiles:&files folders:&folders inNodes:@[a, c]];
+  XCTAssertEqual((NSUInteger)2, files);
+  XCTAssertEqual((NSUInteger)0, folders);
+}
+
 - (void)testTopmostNodesDropDescendants
 {
   NSArray *topmost = [LDCommandRules topmostNodes:@[_file, _folder, _file]];

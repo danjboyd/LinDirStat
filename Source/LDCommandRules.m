@@ -126,6 +126,23 @@
   }];
 }
 
++ (void)countFiles:(NSUInteger *)files folders:(NSUInteger *)folders inNodes:(NSArray *)nodes
+{
+  NSUInteger fileTotal = 0;
+  NSUInteger folderTotal = 0;
+  for (LDFileNode *node in [self topmostNodes:nodes]) {
+    fileTotal += [node fileCount];
+    NSUInteger directories = [node directoryCount];
+    folderTotal += ([self isComputerNode:node] && directories > 0) ? directories - 1 : directories;
+  }
+  if (files) {
+    *files = fileTotal;
+  }
+  if (folders) {
+    *folders = folderTotal;
+  }
+}
+
 + (NSArray *)topmostNodes:(NSArray *)nodes
 {
   NSMutableArray *topmost = [NSMutableArray array];

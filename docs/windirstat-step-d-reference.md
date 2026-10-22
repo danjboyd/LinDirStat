@@ -204,6 +204,7 @@ Substitution goes through `>`-markers so a `%` inside a filename is safe. Paths 
 
 **Status bar panes (`MF:664-666`, `MF:1202-1246`)**
 - **Pane 0:** "Ready" (`EN:71`). It also hosts the progress widget. Treemap hover shows the hovered path (and its size in pane 1). After the scan, one selected item shows its full path. With the extension list focused it shows `*.<ext>`. · **Pane 1:** `Physical Size: ∑ <sum of selected>`. · **Pane 2:** process RAM.
+- *Later upstream (v2.6, `9e134e2d`):* with several items selected, pane 0 shows `N Items Selected | N Files | N Folders`. Each selected file or folder counts itself, plus the files and folders below it. LinDirStat counts an item inside another selected one only once; upstream counts it twice.
 
 ---
 

@@ -2130,6 +2130,20 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
           [LDSizeFormatter stringForBytes:[node aggregateSizeForMetric:_sizeMetric]]];
 }
 
+// WinDirStat's first status pane for a selection: one item's path, or for
+// several "N Items Selected | N Files | N Folders" (WinDirStat 2.6, 9e134e2d).
+- (NSString *)statusForSelection:(NSArray *)nodes
+{
+  if ([nodes count] < 2) {
+    return [nodes count] ? [self describeNode:[nodes lastObject]] : nil;
+  }
+  NSUInteger files = 0;
+  NSUInteger folders = 0;
+  [LDCommandRules countFiles:&files folders:&folders inNodes:nodes];
+  return [NSString stringWithFormat:LDLocalized(@"%lu Items Selected | %lu Files | %lu Folders"),
+          (unsigned long)[nodes count], (unsigned long)files, (unsigned long)folders];
+}
+
 // WinDirStat's second status pane: the size of everything selected. Empty
 // while an extension is the selection, as WinDirStat leaves it while its
 // extension list has focus: the tree's selection is no longer what the
@@ -2197,7 +2211,10 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   LDFileNode *node = row >= 0 ? [_directoryTable itemAtRow:row] : nil;
   [_treemapView setHighlightedExtensionKey:nil];
   [_treemapView setSelectedNode:node];
-  if (node) {
+  NSArray *nodes = [self selectedNodes];
+  if ([nodes count] > 1) {
+    [_statusField setStringValue:[self statusForSelection:nodes]];
+  } else if (node) {
     [_statusField setStringValue:[self describeNode:node]];
   }
   [self updateSelectionField];

@@ -123,6 +123,7 @@
 - (NSMenu *)customCleanupMenu;
 - (void)refreshSelected:(id)sender;
 - (void)refreshNodes:(NSArray *)nodes;
+- (NSString *)statusForSelection:(NSArray *)nodes;
 - (void)excludeItem:(id)sender;
 - (void)excludeExtension:(id)sender;
 - (NSString *)exclusionPatternForSelectedExtension;
