@@ -52,6 +52,9 @@ All selection-dependent commands go through one table (`DOC:873-985`). Each comm
 | Reselect Child | y | y | y | any | reselect stack not empty | DOC:950 |
 | Show Free Space / Unknown | y | y | n | any | | DOC:955-956 |
 
+*Later upstream (v2.5.7):* Zoom In also requires the target (the item, or a file's parent) to have a treemap size above 0 (`cc74efab`). Treemap hit testing stops at an item of size 0 (`86abc10a`). LinDirStat's layout never subdivides such an item, so its hit test already stopped there.
+Add to Exclusion Filter (v2.5.8, `a874bcf4`, `c9501507`) is `n | y | n | Drive/Dir/File`; LinDirStat leaves out scan roots and mount points (§9).
+
 ¹ Empty Folder is listed as allowing an empty selection, but the extra predicate is evaluated against `nullptr` and fails, so in practice it needs a selection.
 
 **Port rule:** while a scan runs, every destructive action and every refresh is disabled. Open, Properties, Copy Path, Reveal and Terminal stay enabled.
