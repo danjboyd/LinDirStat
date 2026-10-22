@@ -7,6 +7,8 @@ include $(GNUSTEP_MAKEFILES)/common.make
 LIBRARY_NAME = GPUpdaterUI
 
 GPUpdaterUI_OBJC_FILES = Source/GPStandardUpdaterController.m
+# ShellExecuteW for opening URLs on Windows; empty elsewhere.
+GPUpdaterUI_C_FILES = Source/GPUpdaterUIShell.c
 GPUpdaterUI_CPPFLAGS += -IHeaders -I../GPUpdaterCore/Headers
 
 ADDITIONAL_OBJCFLAGS += -fPIC

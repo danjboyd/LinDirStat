@@ -6,7 +6,7 @@ include $(GNUSTEP_MAKEFILES)/common.make
 
 LIBRARY_NAME = GPUpdaterCore
 
-GPUpdaterCore_OBJC_FILES = Source/GPUpdater.m Source/GPUpdaterDownload.m
+GPUpdaterCore_OBJC_FILES = Source/GPUpdater.m Source/GPUpdaterDownload.m Source/GPUpdaterApplyOutcome.m
 GPUpdaterCore_C_FILES = Source/GPUpdaterWinHTTP.c
 GPUpdaterCore_CPPFLAGS += -IHeaders
 

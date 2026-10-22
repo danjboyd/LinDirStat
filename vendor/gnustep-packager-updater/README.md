@@ -4,8 +4,8 @@
 `updater/objc/` in [danjboyd/gnustep-packager](https://github.com/danjboyd/gnustep-packager):
 the in-app updater for LinDirStat's AppImage (see `docs/updates.md`).
 
-- Source: gnustep-packager `updater/objc` at `3e487ab` (its main after #8, #10
-  and #12), the packager LinDirStat packages with.
+- Source: gnustep-packager `updater/objc` at `v0.1.4` (`211d913`), the
+  packager LinDirStat packages with (`packaging/release-inputs.json`).
 - License: MIT ([LICENSE](LICENSE), gnustep-packager's). The AppImage
   carries it as `metadata/licenses/gnustep-packager-updater.txt`.
 - Copied: `Headers/` and `Source/` of each, unchanged. The helper's
