@@ -33,6 +33,25 @@
   XCTAssertTrue([info[@"CopyrightDescription"] containsString:@"GNU General Public License"]);
 }
 
+// The panel, the window and the AppImage show LinDirStat's own icon, not the
+// GNUstep logo (which an info panel scales up when NSIcon is missing).
+- (void)testBundleDeclaresItsIcon
+{
+  NSDictionary *info = [self builtInfo];
+  XCTAssertEqualObjects(info[@"NSIcon"], @"LinDirStat.png");
+  NSString *path = [self repositoryPath:@"Source/LinDirStat.app/Resources/LinDirStat.png"];
+  NSData *png = [NSData dataWithContentsOfFile:path];
+  XCTAssertTrue([png length] > 24);
+  if ([png length] > 24) {
+    const unsigned char *bytes = [png bytes];
+    XCTAssertEqual(0, memcmp(bytes, "\x89PNG", 4));
+    // IHDR width and height, big-endian: at least 128 px.
+    uint32_t width = ((uint32_t)bytes[16] << 24) | ((uint32_t)bytes[17] << 16) | ((uint32_t)bytes[18] << 8) | bytes[19];
+    uint32_t height = ((uint32_t)bytes[20] << 24) | ((uint32_t)bytes[21] << 16) | ((uint32_t)bytes[22] << 8) | bytes[23];
+    XCTAssertTrue(width >= 128 && width == height);
+  }
+}
+
 // The release shown is the packaged version, so the panel and the AppImage
 // agree: GP_PACKAGE_VERSION_OVERRIDE when the build was run with it set,
 // else the manifest's package.version.

@@ -135,7 +135,7 @@ its own to inspect the payload.
 | `runtime/System/Library` | GNUstep resources (`Libraries/gnustep-base`, `Libraries/gnustep-gui`), `Bundles` (including `libgnustep-back-032.bundle`), `ColorPickers`, `Fonts`, `Images`, `KeyBindings`, `PostScript`, `Services`, `Sounds`, and `Themes/Adwaita.theme` |
 | `runtime/bin` | `defaults`, `gpbs`, `gdnc`, `make_services` |
 | `runtime/etc/GNUstep` | `GNUstep.conf` and `GlobalDefaults.plist` |
-| `metadata/icons/lindirstat.png` | The 256x256 app icon (`packaging/linux/lindirstat.png`, drawn by `scripts/make-linux-icon.py`) |
+| `metadata/icons/lindirstat.png` | The 256x256 app icon (`Source/Resources/LinDirStat.png`, also the bundle's `NSIcon`; drawn by `scripts/make-linux-icon.py`) |
 | `metadata/licenses` | Notices for LinDirStat and each bundled component, `host-libraries.txt` and the Debian copyright files of bundled distribution libraries |
 
 `scripts/stage-linux-runtime.py` builds `runtime/lib` by walking the `NEEDED`
