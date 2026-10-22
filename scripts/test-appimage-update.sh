@@ -19,6 +19,11 @@
 # xdotool; your LinDirStat settings must not change. Needs Xvfb, xdotool,
 # xwininfo and openssl.
 set -euo pipefail
+# Runs again inside a private-home bwrap sandbox (scripts/sandbox.sh).
+. "$(dirname "${BASH_SOURCE[0]}")/sandbox.sh"
+ld_sandbox "$@"
+# Without a fuse device (CI containers, the sandbox) AppImages run extracted.
+[ -e /dev/fuse ] || export APPIMAGE_EXTRACT_AND_RUN=1
 
 if [ $# -ne 3 ]; then
   sed -n '2,20p' "$0" >&2

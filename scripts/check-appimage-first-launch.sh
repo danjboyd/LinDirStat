@@ -11,6 +11,9 @@
 # when the app exits. The build machine's PATH hid a missing make_services
 # from the packager's smoke launch in 0.1.0.
 set -euo pipefail
+# Runs again inside a private-home bwrap sandbox (scripts/sandbox.sh).
+. "$(dirname "${BASH_SOURCE[0]}")/sandbox.sh"
+ld_sandbox "$@"
 
 appimage="$(realpath "$1")"
 # Without a FUSE device (a container) the AppImage cannot mount itself; it

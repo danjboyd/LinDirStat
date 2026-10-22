@@ -26,6 +26,9 @@
 # the build IDs of the Adwaita theme, libs-back and the GNUstep libraries
 # inside the AppImage, and each check's result.
 set -euo pipefail
+# Runs again inside a private-home bwrap sandbox (scripts/sandbox.sh).
+. "$(dirname "${BASH_SOURCE[0]}")/sandbox.sh"
+ld_sandbox "$@"
 
 release=0
 version_override=""

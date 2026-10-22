@@ -116,6 +116,15 @@ margin (the window grows by about 30px each way).
 
 ## GUI review on a private display
 
+The scripts that launch the packaged AppImage (`check-appimage-*.sh`,
+`test-appimage-update.sh`, `package-linux.sh`, `release-linux.sh`) run
+themselves inside a bwrap sandbox with an empty home bound over yours
+(`scripts/sandbox.sh`): the AppImage's AppRun points GNUstep at a defaults
+folder under your passwd home, which no environment variable redirects. Your
+LinDirStat and global defaults are compared before and after each run.
+`LINDIRSTAT_SANDBOX=off` skips it, `required` fails without bwrap; CI runs
+unsandboxed.
+
 Run GUI checks on a private X server so synthetic input never reaches the
 desktop you are working on, and with private defaults so test runs do not
 change your LinDirStat settings:

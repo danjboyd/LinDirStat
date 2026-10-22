@@ -93,7 +93,9 @@ secrets.
    and each check's result), the DMG and its `.sha256`, and `SHA256SUMS`.
    Every release check runs there, Alt+F4 under GNOME Shell included, and
    the DMG must be built with the macOS 26 SDK.
-3. `scripts/release-linux.sh --from-ci <run id>` (a dry run, from a clean
+3. `scripts/release-linux.sh --from-ci <run id>` (a dry run, run inside a
+   private-home bwrap sandbox like every script that launches the AppImage,
+   see `docs/development.md`; from a clean
    checkout at the run's commit) downloads that artifact and checks it:
    `SHA256SUMS`; that the provenance names this commit and this checkout's
    pins; that the build IDs of the Adwaita theme and libs-back inside the

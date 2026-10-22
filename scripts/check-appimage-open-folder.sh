@@ -11,6 +11,9 @@
 # WinDirStat puts a "WinDirStat" entry on folders in Explorer; this is the
 # freedesktop.org equivalent (GNOME's Disk Usage Analyzer does the same).
 set -euo pipefail
+# Runs again inside a private-home bwrap sandbox (scripts/sandbox.sh).
+. "$(dirname "${BASH_SOURCE[0]}")/sandbox.sh"
+ld_sandbox "$@"
 
 appimage="$(realpath "$1")"
 # Without a FUSE device (a container) the AppImage cannot mount itself; it
