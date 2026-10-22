@@ -155,7 +155,7 @@ EOF
 # gnustep-base ignores config files that group or others can write.
 chmod 0644 "$conf" "$runtime/etc/GNUstep/GlobalDefaults.plist"
 
-cp "$repo_root/packaging/linux/lindirstat.png" "$stage_root/metadata/icons/lindirstat.png"
+cp "$repo_root/Source/Resources/LinDirStat.png" "$stage_root/metadata/icons/lindirstat.png"
 
 licenses="$stage_root/metadata/licenses"
 cat > "$licenses/WinDirStat-reference.txt" <<'EOF'

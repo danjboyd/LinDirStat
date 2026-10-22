@@ -67,7 +67,7 @@ LinDirStat_OBJC_FILES = \
   LDOpenWithLinux.m \
   LDUpdates.m
 
-LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist $(wildcard Resources/Icons/*.png) $(wildcard Resources/*.lproj)
+LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist Resources/LinDirStat.png $(wildcard Resources/Icons/*.png) $(wildcard Resources/*.lproj)
 
 ADDITIONAL_OBJCFLAGS += -I$(GNUSTEP_MAKEFILES)/../../../include
 ADDITIONAL_CPPFLAGS += -I$(GNUSTEP_MAKEFILES)/../../../include

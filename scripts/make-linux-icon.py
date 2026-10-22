@@ -3,7 +3,8 @@
 
 A port of macos/icon/make-icon.swift: a cushion treemap in WinDirStat's
 colours on a rounded square. The output is committed as
-packaging/linux/lindirstat.png; rerun this only to change the artwork.
+Source/Resources/LinDirStat.png (the bundle's NSIcon, and the AppImage's
+icon); rerun this only to change the artwork.
 
 Usage: make-linux-icon.py out.png   (needs Pillow and NumPy)
 """
