@@ -7,6 +7,7 @@
 // Shared between AppController's files.
 @interface AppController (Private)
 - (NSArray *)selectedNodes;
+- (NSString *)statusForSelection:(NSArray *)nodes;
 - (BOOL)isScanning;
 // Scanning, refreshing or running a file operation.
 - (BOOL)isBusy;
@@ -123,7 +124,6 @@
 - (NSMenu *)customCleanupMenu;
 - (void)refreshSelected:(id)sender;
 - (void)refreshNodes:(NSArray *)nodes;
-- (NSString *)statusForSelection:(NSArray *)nodes;
 - (void)excludeItem:(id)sender;
 - (void)excludeExtension:(id)sender;
 - (NSString *)exclusionPatternForSelectedExtension;
