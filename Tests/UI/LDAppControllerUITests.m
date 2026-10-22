@@ -670,8 +670,13 @@
   XCTAssertTrue(index != NSNotFound);
   [self selectRow:(NSInteger)index inList:[_controller extensionTable]];
   XCTAssertTrue([_controller validateAction:@selector(excludeExtension:)]);
+  // Refresh All: wait for the new scan, not just for idle (the rescan may
+  // not have started yet).
+  LDUITestController *controller = _controller;
+  NSUInteger before = [controller scansFinished];
   [_controller excludeExtension:nil];
-  if (![self waitUntilIdle]) {
+  if (![self waitFor:^BOOL { return [controller scansFinished] > before && ![controller isBusy]; } seconds:20.0]) {
+    XCTFail(@"the rescan finished");
     return;
   }
   XCTAssertEqualObjects(@"a2.log\n?*.txt", [preferences excludedFilePatterns]);
