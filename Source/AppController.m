@@ -2545,7 +2545,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
         return [NSString stringWithFormat:@"[%@]", LDFormatScanDuration((NSUInteger)[_scanSession elapsedTime])];
       }
       if ([[node parent] isScanPending]) {
-        return [NSString stringWithFormat:@"[%@]", LDFormatScanDuration([node scanSecondsAt:LDScanClockMilliseconds()])];
+        return [NSString stringWithFormat:@"[%@]", LDFormatScanDuration([node scanSecondsAt:LDScanClockActiveMilliseconds()])];
       }
     }
     return [self percentStringForFraction:[self percentageFractionForNode:node]];

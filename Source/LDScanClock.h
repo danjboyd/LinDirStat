@@ -15,6 +15,18 @@
 // Monotonic milliseconds (a coarse clock where there is one).
 FOUNDATION_EXPORT uint64_t LDScanClockMilliseconds(void);
 
+// Scan time: LDScanClockMilliseconds less the time scans spent suspended,
+// so it stands still while one is (WinDirStat 2.6's GetScanTickCount,
+// e451d346). Folders' time spent is measured in it; activity stamps stay on
+// LDScanClockMilliseconds. Suspend and resume are idempotent.
+FOUNDATION_EXPORT uint64_t LDScanClockActiveMilliseconds(void);
+FOUNDATION_EXPORT void LDScanClockSuspend(void);
+FOUNDATION_EXPORT void LDScanClockResume(void);
+// The same at a given LDScanClockMilliseconds time.
+FOUNDATION_EXPORT uint64_t LDScanClockActiveMillisecondsAt(uint64_t now);
+FOUNDATION_EXPORT void LDScanClockSuspendAt(uint64_t now);
+FOUNDATION_EXPORT void LDScanClockResumeAt(uint64_t now);
+
 static inline uint16_t LDScanClockSecondsStamp(uint64_t milliseconds)
 {
   return (uint16_t)(milliseconds / 1000);

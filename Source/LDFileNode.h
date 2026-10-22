@@ -167,7 +167,8 @@ typedef enum {
 - (BOOL)isScanPending;
 // Directory reads still to finish in this subtree (WinDirStat's read jobs).
 - (NSUInteger)pendingScanCount;
-// WinDirStat's time spent (now in LDScanClock milliseconds): seconds since
+// WinDirStat's time spent (now in LDScanClockActiveMilliseconds, so time
+// suspended does not count): seconds since
 // the first read job was queued while pending, then the time the reads took.
 // 0 for files and for folders not scanned live.
 - (NSUInteger)scanSecondsAt:(uint64_t)now;

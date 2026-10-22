@@ -4,6 +4,7 @@
 #import "LDScanOptions.h"
 #import "LDDuplicateFinder.h"
 #import "LDScanResults.h"
+#import "LDScanClock.h"
 
 #include <dispatch/dispatch.h>
 
@@ -169,6 +170,10 @@
 {
   [_suspendCondition lock];
   __atomic_store_n(&_canceled, YES, __ATOMIC_RELEASE);
+  // A scan stopped while suspended must not leave scan time standing still.
+  if (_suspended) {
+    LDScanClockResume();
+  }
   [_suspendCondition broadcast];
   [_suspendCondition unlock];
   [[self duplicateCollector] cancel];
@@ -202,6 +207,7 @@
     [_lock lock];
     _suspendedAt = [NSDate date];
     [_lock unlock];
+    LDScanClockSuspend();
   }
   [_suspendCondition unlock];
 }
@@ -217,6 +223,7 @@
     }
     _suspendedAt = nil;
     [_lock unlock];
+    LDScanClockResume();
     [_suspendCondition broadcast];
   }
   [_suspendCondition unlock];
