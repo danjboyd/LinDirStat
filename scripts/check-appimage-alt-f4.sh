@@ -20,6 +20,9 @@
 # Skips (exit 0) when gnome-shell or Xvfb is missing, unless
 # LINDIRSTAT_ALT_F4_REQUIRED=1.
 set -euo pipefail
+# Runs again inside a private-home bwrap sandbox (scripts/sandbox.sh).
+. "$(dirname "${BASH_SOURCE[0]}")/sandbox.sh"
+ld_sandbox "$@"
 
 appimage="$(realpath "$1")"
 # Without a FUSE device (a container) the AppImage cannot mount itself; it

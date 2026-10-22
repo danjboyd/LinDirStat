@@ -48,6 +48,9 @@
 # dry run GNUSTEP_PACKAGER, ADWAITA_THEME and LIBS_BACK_BUNDLE may name local
 # trees; --publish refuses any that is not at its pin.
 set -euo pipefail
+# Runs again inside a private-home bwrap sandbox (scripts/sandbox.sh).
+. "$(dirname "${BASH_SOURCE[0]}")/sandbox.sh"
+ld_sandbox "$@"
 
 publish=0
 run_id=""
