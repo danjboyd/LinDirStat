@@ -692,6 +692,20 @@
   XCTAssertTrue([[[_controller statusField] stringValue] hasPrefix:[self pathOf:@"c.bin"]]);
 }
 
+// The sorted column leaves room for its sort indicator beside the title.
+- (void)testSortedColumnFitsItsIndicator
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSOutlineView *tree = [_controller tree];
+  NSTableColumn *percent = [tree tableColumnWithIdentifier:@"percent"];
+  NSTableHeaderCell *header = (NSTableHeaderCell *)[percent headerCell];
+  CGFloat title = [header cellSize].width;
+  CGFloat indicator = NSWidth([header sortIndicatorRectForBounds:NSMakeRect(0, 0, title, 24)]);
+  XCTAssertTrue([percent width] >= title + indicator, @"%g < %g + %g", [percent width], title, indicator);
+}
+
 - (void)testRefreshSelectedUpdatesTotalsAndKeepsExpansionAndSelection
 {
   if (!_controller || ![self scanTree]) {

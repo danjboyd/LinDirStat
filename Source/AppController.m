@@ -957,7 +957,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   NSTableColumn *subtree = [self addColumn:@"subtree" title:LDLocalized(@"Subtree Percentage") width:130 right:NO toTable:_directoryTable];
   [subtree setDataCell:[[LDPercentageBarCell alloc] init]];
   [self setSortPrototypeForColumn:subtree ascending:NO];
-  NSTableColumn *percent = [self addColumn:@"percent" title:LDLocalized(@"Percentage") width:90 right:YES toTable:_directoryTable];
+  NSTableColumn *percent = [self addColumn:@"percent" title:LDLocalized(@"Percentage") width:105 right:YES toTable:_directoryTable];
   [self setSortPrototypeForColumn:percent ascending:NO];
 
   // WinDirStat's optional columns, shown per Preferences > Folder List.
@@ -1285,6 +1285,20 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   }
 }
 
+// The title's width, plus the sort indicator beside it when the table is
+// sorted by this column: a header's cell size leaves the indicator out, so
+// the sorted column ("Percentage", by default) would be cut to "Perce…".
+- (CGFloat)headerWidthOfColumn:(NSTableColumn *)column inTable:(NSTableView *)table
+{
+  NSTableHeaderCell *header = (NSTableHeaderCell *)[column headerCell];
+  CGFloat width = [header cellSize].width;
+  NSString *sortKey = [[[table sortDescriptors] firstObject] key];
+  if (sortKey && [sortKey isEqualToString:[[column sortDescriptorPrototype] key]]) {
+    width += NSWidth([header sortIndicatorRectForBounds:NSMakeRect(0, 0, width, 24)]) + 6.0;
+  }
+  return ceil(width);
+}
+
 // WinDirStat's "Automatically resize columns": the tree's columns other
 // than Name and the graph are fitted to their header and widest value among
 // the rows shown (up to LDColumnFitRowLimit); Name keeps taking the rest.
@@ -1300,7 +1314,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
       continue;
     }
     NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
-    CGFloat widest = [[column headerCell] cellSize].width;
+    CGFloat widest = [self headerWidthOfColumn:column inTable:_directoryTable];
     for (NSInteger row = 0; row < rows; row++) {
       id value = [self outlineView:_directoryTable objectValueForTableColumn:column byItem:[_directoryTable itemAtRow:row]];
       if ([value isKindOfClass:[NSString class]]) {
@@ -2299,6 +2313,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   _treeSortIsDefault = (_treeSortKey == modelKey && !_treeSortAscending);
   [_sortedChildrenCache removeAllObjects];
   [outlineView reloadData];
+  // The sort indicator moved to another column, which may need the room.
+  [self fitColumnsToContents];
 }
 
 // While scanning, children are in the order they were read and sizes still
