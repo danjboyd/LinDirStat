@@ -705,7 +705,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 - (BOOL)isBusy
 {
-  return [self isScanning] || _refreshQueue != nil || _fileOperationRunning;
+  return [self isScanning] || _scanAwaitingAdoption || _refreshQueue != nil || _fileOperationRunning;
 }
 
 - (BOOL)validateAction:(SEL)action
@@ -1443,6 +1443,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
   LDScanSession *session = [[LDScanSession alloc] init];
   _scanSession = session;
+  _scanAwaitingAdoption = YES;
   [self releaseInBackground:previous];
   previous = nil;
   [self configureScanSession:session];
@@ -1728,6 +1729,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 {
   NSTimeInterval started = [LDProfiling now];
   LDFileNode *root = [_scanSession rootNode];
+  _scanAwaitingAdoption = NO;
   [self finishBusyWork];
   if (!root) {
     [_statusField setStringValue:LDLocalized(@"Scan failed")];
@@ -1933,6 +1935,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 {
   [_scanSession cancel];
   _scanSession = nil;
+  _scanAwaitingAdoption = NO;
   [self clearResults];
   [self resetFileListsForScan];
   [_detachedSubtrees removeAllObjects];
