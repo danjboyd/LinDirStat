@@ -184,6 +184,18 @@ typedef enum {
 - (LDSizeUnit)minimumFileSizeUnit;
 - (void)setMinimumFileSizeUnit:(LDSizeUnit)unit;
 - (unsigned long long)minimumFileSizeInBytes;
+// WinDirStat 2.6: include patterns, "<"/">" for the size and age filters,
+// and the age filter (days, 0 = off).
+- (NSString *)includedFolderPatterns;
+- (void)setIncludedFolderPatterns:(NSString *)patterns;
+- (NSString *)includedFilePatterns;
+- (void)setIncludedFilePatterns:(NSString *)patterns;
+- (BOOL)filterExcludesLargerFiles;        // FilteringSizeComparison: NO "<" (default), YES ">"
+- (void)setFilterExcludesLargerFiles:(BOOL)flag;
+- (NSUInteger)filterMaximumAgeDays;       // 0..36500
+- (void)setFilterMaximumAgeDays:(NSUInteger)days;
+- (BOOL)filterExcludesNewerFiles;         // FilteringMaxAgeComparison: NO ">" older (default), YES "<" newer
+- (void)setFilterExcludesNewerFiles:(BOOL)flag;
 
 // Advanced: scan exclusions and limits.
 - (BOOL)excludeMountPoints;              // YES: do not enter other filesystems

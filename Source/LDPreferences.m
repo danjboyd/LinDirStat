@@ -188,6 +188,11 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"FilteringUseRegex": @NO,
     @"FilteringSizeMinimum": @0,
     @"FilteringSizeUnits": @0,
+    @"FilteringIncludeDirs": @"",
+    @"FilteringIncludeFiles": @"",
+    @"FilteringSizeComparison": @0,
+    @"FilteringMaxAgeDays": @0,
+    @"FilteringMaxAgeComparison": @1,
     @"ExcludeVolumeMountPoints": @YES,
     @"ExcludeSymbolicLinks": @YES,
     @"ExcludeHidden": @NO,
@@ -425,6 +430,18 @@ static uint32_t LDColorValue(NSInteger value)
 
 - (LDSizeUnit)minimumFileSizeUnit { return (LDSizeUnit)LDClamp([self integerForKey:@"FilteringSizeUnits"], 0, 4); }
 - (void)setMinimumFileSizeUnit:(LDSizeUnit)unit { [self setInteger:LDClamp(unit, 0, 4) forKey:@"FilteringSizeUnits"]; }
+
+- (NSString *)includedFolderPatterns { return [self stringForKey:@"FilteringIncludeDirs"]; }
+- (void)setIncludedFolderPatterns:(NSString *)patterns { [self setString:patterns forKey:@"FilteringIncludeDirs"]; }
+- (NSString *)includedFilePatterns { return [self stringForKey:@"FilteringIncludeFiles"]; }
+- (void)setIncludedFilePatterns:(NSString *)patterns { [self setString:patterns forKey:@"FilteringIncludeFiles"]; }
+- (BOOL)filterExcludesLargerFiles { return [self integerForKey:@"FilteringSizeComparison"] == 1; }
+- (void)setFilterExcludesLargerFiles:(BOOL)flag { [self setInteger:flag ? 1 : 0 forKey:@"FilteringSizeComparison"]; }
+- (NSUInteger)filterMaximumAgeDays { return (NSUInteger)LDClamp([self integerForKey:@"FilteringMaxAgeDays"], 0, 36500); }
+- (void)setFilterMaximumAgeDays:(NSUInteger)days { [self setInteger:LDClamp((NSInteger)days, 0, 36500) forKey:@"FilteringMaxAgeDays"]; }
+// WinDirStat's FilteringMaxAgeComparison: 1 (the default) leaves out older files.
+- (BOOL)filterExcludesNewerFiles { return [self integerForKey:@"FilteringMaxAgeComparison"] == 0; }
+- (void)setFilterExcludesNewerFiles:(BOOL)flag { [self setInteger:flag ? 0 : 1 forKey:@"FilteringMaxAgeComparison"]; }
 
 - (unsigned long long)minimumFileSizeInBytes
 {

@@ -447,6 +447,24 @@ Enabled only when the Duplicates tab is visible.
 | "Use regular expression instead of glob patterns" | off | Globs become anchored `^…$` regexes; `*` and `?` never cross `\ / :`. |
 | "Exclude files less than:" N + unit (bytes, KiB, MiB, GiB, TiB) | 0, bytes | Files whose **logical** size is under the threshold are skipped (`OPT:226`, `Item.cpp:923-927`). |
 
+*Later upstream (v2.6–v2.9.0, `db7c9e04`, `f28e1b5f`, `b30b874c`, `80022cfe`, `fbaf5458`, `5e3dcd0e`; `Filtering.cpp`):*
+- **Folder patterns match the folder and everything below it.** This applies to both exclude and include patterns (`MatchDirectoryAndDescendants`: `(?:pat)(?:\\.*)?`, with a trailing unescaped `$` dropped).
+- **"Folder paths to include:" and "File name patterns to include:"** (`FilteringIncludeDirs`/`FilteringIncludeFiles`).
+  - With folder includes, only files below an included folder are kept.
+  - A folder is entered only when it is included, or when it is on the way to an include's fixed leading folder (`ExtractIncludeAnchor`). An include starting with a wildcard prunes no folder.
+  - With file includes, only matching names are kept.
+  - Exclusions win.
+- **Size:** "Exclude files by size:" gets a `<`/`>` choice (`FilteringSizeComparison`, 0 = `<`).
+- **Age:** a new "Exclude files by age (0 = disabled):" N days, with `<`/`>` (`FilteringMaxAgeDays`, `FilteringMaxAgeComparison`, default 1 = `>`, which leaves out files older than N days). It is measured against the last write time.
+- **Changing filters refreshes everything** (`5e3dcd0e`). This replaces "Changing a filter does not rescan" below.
+
+LinDirStat follows this, with three differences:
+- **Glob includes are followed component by component.** For example, `/data/*/src` goes through `/data` and `/data/x`. Upstream prunes everything below an include's fixed leading folder, so it finds nothing for such a pattern. Regex includes prune only off their leading folder.
+- **When the rescan happens:** the Preferences window applies changes live, so the rescan happens when the Filtering page is left or the window closes (with valid filters, and not for results loaded from a file).
+- **The size and age filters apply to regular files**, as before.
+
+The post-v2.9.0 fixes are Windows path handling (`864a22cb`, `b2963623`), a speed-up (`7b04b45e`, done here independently: files in an included folder skip the path check) and newline names (`f4a131f8`; POSIX `.` already matches newlines). None was copied; v2.9.2 and later are GPL-3.
+
 **Pattern handling**
 - Trailing `\r` and `\` are trimmed. · A bad pattern reports "Invalid filter: <token>" (`OPT:210-222`). · Tooltip examples (`RC:34-37`): glob `C:\Windows\Sys*` or `*.exe`; regex `C:\\Windows\\Sys.*` or `.*\.exe`.
 

@@ -12,6 +12,11 @@ typedef enum {
   LDOptionsPageAdvanced = 6
 } LDOptionsPage;
 
+// Posted when the Filtering page's settings changed and the user left the
+// page or closed the window (WinDirStat 2.6 refreshes everything when its
+// filtering settings change, 5e3dcd0e). Only valid filters are announced.
+FOUNDATION_EXPORT NSString *const LDOptionsFiltersDidChangeNotification;
+
 // WinDirStat's Options dialog as a non-modal GNOME-style "Preferences"
 // window. Every change is written straight to LDPreferences, which posts
 // LDPreferencesDidChangeNotification; the window also follows changes made

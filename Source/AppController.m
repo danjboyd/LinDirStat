@@ -143,6 +143,10 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
                                            selector:@selector(systemColorsDidChange:)
                                                name:NSSystemColorsDidChangeNotification
                                              object:nil];
+  [[NSNotificationCenter defaultCenter] addObserver:self
+                                           selector:@selector(filtersDidChange:)
+                                               name:LDOptionsFiltersDidChangeNotification
+                                             object:nil];
 
   [_window makeKeyAndOrderFront:nil];
   [self applyDefaultSplitPositions];
@@ -1962,6 +1966,18 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   _pacmanResumedAt = [self pacmanTime];
   [self updateScanProgress];
   [self refreshCommandState];
+}
+
+// WinDirStat 2.6 (5e3dcd0e): changed filtering settings stop the scan and
+// refresh everything. Results loaded from a file are left as they are.
+- (void)filtersDidChange:(NSNotification *)notification
+{
+  (void)notification;
+  if (!_rootNode || _loadedFile) {
+    return;
+  }
+  [self stopScan:nil];
+  [self rescan:nil];
 }
 
 - (void)rescan:(id)sender
