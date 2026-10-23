@@ -187,7 +187,8 @@
       [found addObject:node];
     }
     for (LDFileNode *child in [node children]) {
-      if ([self isWalkableFolder:child] && [LDFileOperations isRealFolder:[child pathData]]) {
+      if ([self isWalkableFolder:child] && [LDFileOperations isRealFolder:[child pathData]]
+          && ![LDFileOperations isPackage:[child pathData]]) {
         [stack addObject:child];
       }
     }
@@ -215,7 +216,8 @@
       [found addObject:node];
     }
     for (LDFileNode *child in [node children]) {
-      if ([self isWalkableFolder:child] && [LDFileOperations isRealFolder:[child pathData]]) {
+      if ([self isWalkableFolder:child] && [LDFileOperations isRealFolder:[child pathData]]
+          && ![LDFileOperations isPackage:[child pathData]]) {
         [stack addObject:child];
       }
     }

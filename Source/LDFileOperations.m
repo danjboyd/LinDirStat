@@ -686,6 +686,19 @@ static void LDMeasureTree(int directoryFD, unsigned long long *bytes, NSUInteger
   return lstat([LDTerminated(path) bytes], &info) == 0 && S_ISDIR(info.st_mode);
 }
 
++ (BOOL)isPackage:(NSData *)path
+{
+#if defined(__APPLE__)
+  NSString *string = [[NSFileManager defaultManager] stringWithFileSystemRepresentation:[path bytes] length:[path length]];
+  NSNumber *package = nil;
+  return string && [[NSURL fileURLWithPath:string isDirectory:YES] getResourceValue:&package forKey:NSURLIsPackageKey error:NULL]
+    && [package boolValue];
+#else
+  (void)path;
+  return NO;
+#endif
+}
+
 + (BOOL)removeEmptyFolder:(NSData *)path error:(NSError **)error
 {
   if (![self isRealFolder:path]) {

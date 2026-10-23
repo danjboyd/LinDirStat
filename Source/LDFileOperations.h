@@ -35,6 +35,9 @@
 + (BOOL)setModificationTime:(NSTimeInterval)seconds ofFolder:(NSData *)path error:(NSError **)error;
 // YES when path is a real folder: not a symlink.
 + (BOOL)isRealFolder:(NSData *)path;
+// YES for a folder macOS shows as one item: an app, a bundle or a document
+// package such as a Photos library (NSURLIsPackageKey). Always NO on Linux.
++ (BOOL)isPackage:(NSData *)path;
 
 // The trash directories (each containing files/ and info/) that exist for
 // this user: the home trash and the per-volume trashes of mounted
