@@ -97,7 +97,7 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   NSPopUpButton *_refreshPolicy;
 
   // Prompts
-  NSButton *_deleteWarning;
+  NSMutableArray *_promptChecks;   // one per [LDPreferences prompts], tagged with its LDPrompt
 
   // Advanced
   NSButton *_excludeMountPoints;
@@ -706,7 +706,22 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
 {
   [self beginPage:LDLocalized(@"Prompts")];
   [self addSectionTitle:LDLocalized(@"Confirmations")];
-  _deleteWarning = [self addCheckbox:LDLocalized(@"Warn before deleting") action:@selector(promptsChanged:)];
+  // WinDirStat 2.6: "Show confirmation before: <operation>", one per operation.
+  NSDictionary *operations = @{
+    @(LDPromptDeletePermanently): LDLocalized(@"Delete Permanently"),
+    @(LDPromptMoveToTrash): LDLocalized(@"Move to Trash"),
+    @(LDPromptEmptyTrash): LDLocalized(@"Empty Trash"),
+    @(LDPromptCreateHardLink): LDLocalized(@"Deduplicate with Hardlink"),
+    @(LDPromptSetFolderDates): LDLocalized(@"Change Folder Dates to Last Change"),
+    @(LDPromptRemoveEmptyFolders): LDLocalized(@"Remove Empty Folders"),
+  };
+  _promptChecks = [NSMutableArray array];
+  for (NSNumber *prompt in [LDPreferences prompts]) {
+    NSString *title = [NSString stringWithFormat:LDLocalized(@"Show confirmation before: %@"), [operations objectForKey:prompt]];
+    NSButton *check = [self addCheckbox:title action:@selector(promptsChanged:)];
+    [check setTag:[prompt integerValue]];
+    [_promptChecks addObject:check];
+  }
 }
 
 - (void)buildAdvancedPage
@@ -817,7 +832,9 @@ static NSInteger LDState(BOOL flag)
   }
   [self refreshCleanupControls];
 
-  [_deleteWarning setState:LDState([preferences showDeleteWarning])];
+  for (NSButton *check in _promptChecks) {
+    [check setState:LDState([preferences showsPrompt:(LDPrompt)[check tag]])];
+  }
 
   [_excludeMountPoints setState:LDState([preferences excludeMountPoints])];
   [_excludeSymlinks setState:LDState([preferences excludeSymbolicLinks])];
@@ -907,8 +924,9 @@ static NSInteger LDState(BOOL flag)
 - (void)promptsChanged:(id)sender
 {
   BOOL on = [(NSButton *)sender state] == NSOnState;
+  LDPrompt prompt = (LDPrompt)[(NSButton *)sender tag];
   [self apply:^(LDPreferences *preferences) {
-    [preferences setShowDeleteWarning:on];
+    [preferences setShowsPrompt:on forPrompt:prompt];
   }];
 }
 

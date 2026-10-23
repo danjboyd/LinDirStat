@@ -197,7 +197,12 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"FolderHistoryCount": @10,
     @"SearchMaxResults": @10000,
     @"ScanForDuplicates": @NO,
-    @"ShowDeleteWarning": @YES,
+    @"ShowDeletePermanentlyWarning": @YES,
+    @"ShowDeleteToRecycleBinWarning": @YES,
+    @"ShowEmptyRecycleBinPrompt": @YES,
+    @"ShowCreateHardlinkPrompt": @YES,
+    @"ShowSetDatesPrompt": @YES,
+    @"ShowRemoveEmptyFoldersPrompt": @YES,
     @"SearchRegex": @NO,
     @"SearchCase": @NO,
     @"SearchWholePhrase": @NO,
@@ -223,6 +228,7 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
   if (self) {
     _defaults = defaults;
     [_defaults registerDefaults:[LDPreferences defaultValues]];
+    [self migrateDeleteWarning];
   }
   return self;
 }
@@ -453,8 +459,43 @@ static uint32_t LDColorValue(NSInteger value)
 - (BOOL)scanForDuplicates { return [self boolForKey:@"ScanForDuplicates"]; }
 - (void)setScanForDuplicates:(BOOL)flag { [self setBool:flag forKey:@"ScanForDuplicates"]; }
 
-- (BOOL)showDeleteWarning { return [self boolForKey:@"ShowDeleteWarning"]; }
-- (void)setShowDeleteWarning:(BOOL)flag { [self setBool:flag forKey:@"ShowDeleteWarning"]; }
+// WinDirStat's keys; the recycle bin is the trash here.
+static NSString *LDPromptKey(LDPrompt prompt)
+{
+  switch (prompt) {
+    case LDPromptDeletePermanently: return @"ShowDeletePermanentlyWarning";
+    case LDPromptMoveToTrash: return @"ShowDeleteToRecycleBinWarning";
+    case LDPromptEmptyTrash: return @"ShowEmptyRecycleBinPrompt";
+    case LDPromptCreateHardLink: return @"ShowCreateHardlinkPrompt";
+    case LDPromptSetFolderDates: return @"ShowSetDatesPrompt";
+    case LDPromptRemoveEmptyFolders: return @"ShowRemoveEmptyFoldersPrompt";
+  }
+  return nil;
+}
+
++ (NSArray *)prompts
+{
+  return @[@(LDPromptDeletePermanently), @(LDPromptMoveToTrash), @(LDPromptEmptyTrash),
+           @(LDPromptCreateHardLink), @(LDPromptSetFolderDates), @(LDPromptRemoveEmptyFolders)];
+}
+
+- (BOOL)showsPrompt:(LDPrompt)prompt { return [self boolForKey:LDPromptKey(prompt)]; }
+- (void)setShowsPrompt:(BOOL)flag forPrompt:(LDPrompt)prompt { [self setBool:flag forKey:LDPromptKey(prompt)]; }
+
+// Before 0.1.5 one ShowDeleteWarning covered deleting, the trash, emptying
+// the trash and Empty Folder; its value carries over to those prompts once.
+- (void)migrateDeleteWarning
+{
+  id old = [_defaults objectForKey:@"ShowDeleteWarning"];
+  if (!old) {
+    return;
+  }
+  BOOL on = [old boolValue];
+  for (NSNumber *prompt in @[@(LDPromptDeletePermanently), @(LDPromptMoveToTrash), @(LDPromptEmptyTrash)]) {
+    [_defaults setBool:on forKey:LDPromptKey((LDPrompt)[prompt intValue])];
+  }
+  [_defaults removeObjectForKey:@"ShowDeleteWarning"];
+}
 
 - (BOOL)searchUsesRegex { return [self boolForKey:@"SearchRegex"]; }
 - (void)setSearchUsesRegex:(BOOL)flag { [self setBool:flag forKey:@"SearchRegex"]; }

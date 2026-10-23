@@ -93,6 +93,15 @@ typedef enum {
 
 @end
 
+typedef enum {
+  LDPromptDeletePermanently = 0,  // Delete Permanently, Empty Folder
+  LDPromptMoveToTrash,
+  LDPromptEmptyTrash,
+  LDPromptCreateHardLink,
+  LDPromptSetFolderDates,
+  LDPromptRemoveEmptyFolders
+} LDPrompt;
+
 @interface LDPreferences : NSObject
 {
   NSUserDefaults *_defaults;
@@ -204,9 +213,12 @@ typedef enum {
 - (BOOL)scanForDuplicates;               // default NO
 - (void)setScanForDuplicates:(BOOL)flag;
 
-// Prompts
-- (BOOL)showDeleteWarning;
-- (void)setShowDeleteWarning:(BOOL)flag;
+// Prompts (WinDirStat 2.6's per-operation confirmations, 581c609d): one
+// "Show confirmation before" switch per destructive operation, each on by
+// default. "Don't ask again" in a confirmation turns off only its own.
++ (NSArray *)prompts;                    // LDPrompt values, as NSNumbers, in page order
+- (BOOL)showsPrompt:(LDPrompt)prompt;
+- (void)setShowsPrompt:(BOOL)flag forPrompt:(LDPrompt)prompt;
 
 // Search dialog
 - (BOOL)searchUsesRegex;

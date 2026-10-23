@@ -230,8 +230,10 @@
   [NSApplication sharedApplication];
   LDPreferences *preferences = [LDPreferences sharedPreferences];
   [preferences resetAll];
-  // The delete warning is a modal panel.
-  [preferences setShowDeleteWarning:NO];
+  // Confirmations are modal panels.
+  for (NSNumber *prompt in [LDPreferences prompts]) {
+    [preferences setShowsPrompt:NO forPrompt:(LDPrompt)[prompt intValue]];
+  }
 
   // TMPDIR itself: gnustep-base's NSTemporaryDirectory() may pick another.
   NSString *temporary = [[[NSProcessInfo processInfo] environment] objectForKey:@"TMPDIR"];
