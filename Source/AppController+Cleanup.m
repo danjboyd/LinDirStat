@@ -504,6 +504,80 @@
   [self refreshNodes:[self selectedNodes]];
 }
 
+#pragma mark - Remove Empty Folders, Change Folder Dates
+
+// WinDirStat 2.7's OnCleanupRemoveEmpty: the empty folders in the selection,
+// deepest first, after one confirmation listing them; then the remaining
+// parents are refreshed.
+- (void)removeEmptyFolders:(id)sender
+{
+  (void)sender;
+  if (![self selectionAllows:LDCommandRemoveEmptyFolders]) {
+    return;
+  }
+  NSArray *folders = [LDCommandRules emptyFoldersIn:[self selectedNodes] rootNode:_rootNode];
+  if ([folders count] == 0) {
+    [self showStatus:LDLocalized(@"There are no empty folders in the selection")];
+    return;
+  }
+  if (![self confirmAction:LDLocalized(@"Remove Empty Folders")
+                    prompt:LDPromptRemoveEmptyFolders
+                   message:LDLocalized(@"These empty folders will be removed.")
+                     paths:[self displayPathsForNodes:folders]]) {
+    return;
+  }
+  NSMutableArray *paths = [NSMutableArray array];
+  for (LDFileNode *folder in folders) {
+    [paths addObject:[folder pathData]];
+  }
+  // The parents left standing are refreshed, which drops what was removed.
+  NSMutableArray *parents = [NSMutableArray array];
+  for (LDFileNode *folder in folders) {
+    LDFileNode *parent = [folder parent];
+    if (parent && [folders indexOfObjectIdenticalTo:parent] == NSNotFound && [parents indexOfObjectIdenticalTo:parent] == NSNotFound) {
+      [parents addObject:parent];
+    }
+  }
+  [self performFileOperation:LDLocalized(@"Removing empty folders")
+                       paths:paths
+                   operation:^BOOL(NSData *path, NSError **error) {
+    return [LDFileOperations removeEmptyFolder:path error:error];
+  }
+              thenRefreshing:parents];
+}
+
+// WinDirStat 2.7's OnToolsSetDates: each folder in the selection (the whole
+// tree when nothing is selected) gets its Last Change as its date.
+- (void)setFolderDates:(id)sender
+{
+  (void)sender;
+  if (!_rootNode || [self isBusy]) {
+    return;
+  }
+  NSArray *folders = [LDCommandRules foldersForDatesIn:[self selectedNodes] rootNode:_rootNode];
+  if ([folders count] == 0) {
+    return;
+  }
+  if (![self confirmAction:LDLocalized(@"Change Folder Dates to Last Change")
+                    prompt:LDPromptSetFolderDates
+                   message:LDLocalized(@"Each folder's date will be set to the newest change below it.")
+                     paths:@[]]) {
+    return;
+  }
+  NSMutableDictionary *times = [NSMutableDictionary dictionary];
+  NSMutableArray *paths = [NSMutableArray array];
+  for (LDFileNode *folder in folders) {
+    [paths addObject:[folder pathData]];
+    [times setObject:@([folder aggregateModificationTime]) forKey:[folder pathData]];
+  }
+  [self performFileOperation:LDLocalized(@"Changing folder dates")
+                       paths:paths
+                   operation:^BOOL(NSData *path, NSError **error) {
+    return [LDFileOperations setModificationTime:[[times objectForKey:path] doubleValue] ofFolder:path error:error];
+  }
+              thenRefreshing:@[]];
+}
+
 #pragma mark - Add to Exclusion Filter
 
 // WinDirStat's OnFilterExcludeItem (a874bcf4, c9501507): a file's name goes to

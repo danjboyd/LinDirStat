@@ -1,10 +1,13 @@
 #import <AppKit/AppKit.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 #import <XCTest/XCTest.h>
 #if defined(GNUSTEP)
 #import <GNUstepGUI/GSFontInfo.h>
 #endif
 #import "AppController.h"
 #import "AppController+Private.h"
+#import "LDCommandRules.h"
 #import "LDExtensionStats.h"
 #import "LDFileOperations.h"
 #import "LDFileWatcher.h"
@@ -711,6 +714,56 @@
   CGFloat title = [header cellSize].width;
   CGFloat indicator = NSWidth([header sortIndicatorRectForBounds:NSMakeRect(0, 0, title, 24)]);
   XCTAssertTrue([percent width] >= title + indicator, @"%g < %g + %g", [percent width], title, indicator);
+}
+
+// WinDirStat 2.7: Remove Empty Folders goes bottom-up and keeps folders
+// holding files; Change Folder Dates sets each folder to its Last Change.
+- (void)testRemoveEmptyFoldersAndChangeFolderDates
+{
+  if (!_controller) {
+    return;
+  }
+  NSFileManager *files = [NSFileManager defaultManager];
+  [files createDirectoryAtPath:[self pathOf:@"e1/e2/e3"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  [files createDirectoryAtPath:[self pathOf:@"a/empty"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  // A folder holding only one the scan could not read is not empty: its
+  // rmdir would fail.
+  [files createDirectoryAtPath:[self pathOf:@"u/locked"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  chmod([[self pathOf:@"u/locked"] fileSystemRepresentation], 0);
+  if (![self scanTree]) {
+    chmod([[self pathOf:@"u/locked"] fileSystemRepresentation], 0755);
+    return;
+  }
+  chmod([[self pathOf:@"u/locked"] fileSystemRepresentation], 0755);
+  if ([[self node:@"u/locked"] error] != LDFileNodeErrorNone) {
+    XCTAssertEqualObjects(@[], [LDCommandRules emptyFoldersIn:@[[self node:@"u"]] rootNode:[_controller root]]);
+  }
+  [self selectInTree:@[[self node:@"e1"], [self node:@"a"]]];
+  XCTAssertTrue([_controller validateAction:@selector(removeEmptyFolders:)]);
+  [_controller removeEmptyFolders:nil];
+  if (![self waitUntilIdle]) {
+    return;
+  }
+  XCTAssertFalse([files fileExistsAtPath:[self pathOf:@"e1"]]);
+  XCTAssertFalse([files fileExistsAtPath:[self pathOf:@"a/empty"]]);
+  XCTAssertTrue([files fileExistsAtPath:[self pathOf:@"a/sub/deep.txt"]]);
+  XCTAssertNil([self node:@"e1"]);
+  XCTAssertNil([self node:@"a/empty"]);
+  XCTAssertNotNil([self node:@"a/sub"]);
+
+  LDFileNode *a = [self node:@"a"];
+  [self selectInTree:@[a]];
+  XCTAssertTrue([_controller validateAction:@selector(setFolderDates:)]);
+  NSTimeInterval newest = [a aggregateModificationTime];
+  struct timeval old[2] = {{1000000000, 0}, {1000000000, 0}};
+  utimes([[self pathOf:@"a"] fileSystemRepresentation], old);
+  [_controller setFolderDates:nil];
+  if (![self waitUntilIdle]) {
+    return;
+  }
+  struct stat info;
+  XCTAssertEqual(0, stat([[self pathOf:@"a"] fileSystemRepresentation], &info));
+  XCTAssertEqual((time_t)newest, info.st_mtime);
 }
 
 - (void)testRefreshSelectedUpdatesTotalsAndKeepsExpansionAndSelection

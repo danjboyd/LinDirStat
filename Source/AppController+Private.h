@@ -125,6 +125,8 @@
 - (void)refreshSelected:(id)sender;
 - (void)refreshNodes:(NSArray *)nodes;
 - (void)excludeItem:(id)sender;
+- (void)removeEmptyFolders:(id)sender;
+- (void)setFolderDates:(id)sender;
 - (void)excludeExtension:(id)sender;
 - (NSString *)exclusionPatternForSelectedExtension;
 - (LDFileNode *)nodeForPathData:(NSData *)pathData;

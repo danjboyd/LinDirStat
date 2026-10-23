@@ -80,6 +80,12 @@ The Largest, Duplicates and Search lists are the same tree-list class and show t
 
 ### 1.4 Command semantics
 
+*Later upstream (v2.7, `262a1b94`, `489323a5`; v2.9.0 `WinDirStatModel.Actions.cpp`):*
+- **Clean Up › Remove Empty Folders** (also in the tree's context menu, between Delete to Recycle Bin and Empty Folder): available for drives and folders, several at a time, not while scanning. It collects every folder in the selection whose subtree holds no files (`GetFilesCount() == 0`), never the root, never entering reparse points. It confirms once, listing them (`ShowRemoveEmptyFoldersPrompt`), then removes them deepest first with `RemoveDirectory` and refreshes the parents left standing.
+- **Tools › Change Folder Dates to Last Change** (`ShowSetDatesPrompt`): every folder in the selection (or the whole tree when nothing is selected) gets its Last Change, the newest time below it, as its modification time.
+- **LinDirStat:** both commands never go through a symlink (checked on disk) and skip mount points and unreadable folders, whose contents the tree does not show. Folders are removed with `rmdir(2)`, which cannot remove anything that is not empty: a folder holding filtered-out or hidden entries fails and is reported. Dates are set with `utimensat` on the folder itself, leaving its access time.
+- **On macOS** neither command enters a package (an app, a bundle, a Photos or Final Cut library: `NSURLIsPackageKey`) unless that package is itself selected. Such packages keep intentionally empty folders, and their layout is part of what makes them work. Finder leaves `.DS_Store` files in folders it has shown, so most folders that look empty there are not empty on disk, and they are kept. A folder counts as empty only when every child is an empty folder that is listed too, so one holding a skipped package, a link, a mount point or a folder the scan could not read is kept (upstream would list it, and its `RemoveDirectory` would fail).
+
 **Open (`DOC:1605-1611`, `DOC:326-360`)**
 Runs the default shell verb on each selected item. For MyComputer it opens "This PC". Reserved items are skipped. *Linux:* `NSWorkspace openFile:` once per item.
 

@@ -249,6 +249,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
   NSMenu *toolsMenu = [self addSubmenuTitled:LDLocalized(@"Tools") to:mainMenu];
   [self addItemTo:toolsMenu title:LDLocalized(@"Start File Watcher") action:@selector(toggleFileWatcher:) key:nil target:self];
+  [toolsMenu addItem:[NSMenuItem separatorItem]];
+  [self addItemTo:toolsMenu title:LDLocalized(@"Change Folder Dates to Last Change") action:@selector(setFolderDates:) key:nil target:self];
 
   NSMenu *optionsMenu = [self addSubmenuTitled:LDLocalized(@"Options") to:mainMenu];
   [[self addItemTo:optionsMenu title:LDLocalized(@"Show Free Space") action:@selector(toggleFreeSpace:) key:[self functionKey:NSF6FunctionKey] target:self]
@@ -478,6 +480,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   if (isMainMenu) {
     _emptyTrashItem = [self addItemTo:menu title:LDLocalized(@"Empty Trash…") action:@selector(emptyTrash:) key:nil target:self];
   }
+  [self addItemTo:menu title:LDLocalized(@"Remove Empty Folders") action:@selector(removeEmptyFolders:) key:nil target:self];
   [self addItemTo:menu title:LDLocalized(@"Empty Folder…") action:@selector(emptyFolder:) key:nil target:self];
   [self addItemTo:menu title:LDLocalized(@"Move To…") action:@selector(moveItemsTo:) key:isMainMenu ? @"m" : nil target:self];
   [menu addItem:[NSMenuItem separatorItem]];
@@ -711,6 +714,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     NSStringFromSelector(@selector(openTerminal:)): @(LDCommandTerminal),
     NSStringFromSelector(@selector(refreshSelected:)): @(LDCommandRefreshSelected),
     NSStringFromSelector(@selector(excludeItem:)): @(LDCommandExcludeItem),
+    NSStringFromSelector(@selector(removeEmptyFolders:)): @(LDCommandRemoveEmptyFolders),
     NSStringFromSelector(@selector(moveToTrash:)): @(LDCommandMoveToTrash),
     NSStringFromSelector(@selector(deletePermanently:)): @(LDCommandDeletePermanently),
     NSStringFromSelector(@selector(emptyFolder:)): @(LDCommandEmptyFolder),
@@ -750,6 +754,11 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   }
   if (action == @selector(search:) || action == @selector(saveResultsToCSV:)) {
     return _rootNode != nil && ![self isBusy];
+  }
+  // With nothing selected it covers the whole tree.
+  if (action == @selector(setFolderDates:)) {
+    return _rootNode != nil && ![self isBusy] && !_loadedFile
+      && [[LDCommandRules foldersForDatesIn:[self selectedNodes] rootNode:_rootNode] count] > 0;
   }
   if (action == @selector(excludeExtension:)) {
     return _rootNode != nil && ![self isBusy] && [self exclusionPatternForSelectedExtension] != nil;

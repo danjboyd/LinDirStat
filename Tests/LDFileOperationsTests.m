@@ -312,4 +312,42 @@
   XCTAssertFalse(complete);
 }
 
+#pragma mark - Folder tools
+
+- (void)testRemoveEmptyFolderOnlyRemovesEmptyRealFolders
+{
+  NSFileManager *files = [NSFileManager defaultManager];
+  NSString *empty = [_temporaryRoot stringByAppendingPathComponent:@"data/empty"];
+  NSString *full = [_temporaryRoot stringByAppendingPathComponent:@"data/full"];
+  NSString *link = [_temporaryRoot stringByAppendingPathComponent:@"data/link"];
+  [files createDirectoryAtPath:empty withIntermediateDirectories:YES attributes:nil error:NULL];
+  [files createDirectoryAtPath:full withIntermediateDirectories:YES attributes:nil error:NULL];
+  [@"x" writeToFile:[full stringByAppendingPathComponent:@"f"] atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  [files createSymbolicLinkAtPath:link withDestinationPath:empty error:NULL];
+
+  NSError *error = nil;
+  XCTAssertFalse([LDFileOperations removeEmptyFolder:[self bytesOf:link] error:&error]);
+  XCTAssertEqual(ENOTDIR, [error code]);
+  XCTAssertFalse([LDFileOperations removeEmptyFolder:[self bytesOf:full] error:&error]);
+  XCTAssertEqual(ENOTEMPTY, [error code]);
+  XCTAssertTrue([files fileExistsAtPath:[full stringByAppendingPathComponent:@"f"]]);
+  XCTAssertTrue([LDFileOperations removeEmptyFolder:[self bytesOf:empty] error:&error]);
+  XCTAssertFalse([files fileExistsAtPath:empty]);
+}
+
+- (void)testSetFolderModificationTime
+{
+  NSString *folder = [_temporaryRoot stringByAppendingPathComponent:@"data/dated"];
+  [[NSFileManager defaultManager] createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:NULL];
+  NSError *error = nil;
+  XCTAssertTrue([LDFileOperations setModificationTime:1600000000 ofFolder:[self bytesOf:folder] error:&error]);
+  struct stat info;
+  XCTAssertEqual(0, stat([folder fileSystemRepresentation], &info));
+  XCTAssertEqual((time_t)1600000000, info.st_mtime);
+  NSString *file = [_temporaryRoot stringByAppendingPathComponent:@"data/plain"];
+  [@"x" writeToFile:file atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  XCTAssertFalse([LDFileOperations setModificationTime:1600000000 ofFolder:[self bytesOf:file] error:&error]);
+  XCTAssertEqual(ENOTDIR, [error code]);
+}
+
 @end

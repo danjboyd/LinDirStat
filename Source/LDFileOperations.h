@@ -26,6 +26,19 @@
 // mv(1) copies and removes it.
 + (BOOL)moveItem:(NSData *)path toDirectory:(NSData *)directory error:(NSError **)error;
 
+// WinDirStat's Remove Empty Folders: removes the folder with rmdir(2), which
+// only removes empty folders. Fails with ENOTDIR for anything but a real
+// folder (a symlink to one included).
++ (BOOL)removeEmptyFolder:(NSData *)path error:(NSError **)error;
+// WinDirStat's Change Folder Dates: sets a real folder's modification time
+// (seconds since 1970), leaving its access time; never follows a symlink.
++ (BOOL)setModificationTime:(NSTimeInterval)seconds ofFolder:(NSData *)path error:(NSError **)error;
+// YES when path is a real folder: not a symlink.
++ (BOOL)isRealFolder:(NSData *)path;
+// YES for a folder macOS shows as one item: an app, a bundle or a document
+// package such as a Photos library (NSURLIsPackageKey). Always NO on Linux.
++ (BOOL)isPackage:(NSData *)path;
+
 // The trash directories (each containing files/ and info/) that exist for
 // this user: the home trash and the per-volume trashes of mounted
 // filesystems.
