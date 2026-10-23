@@ -188,6 +188,11 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"FilteringUseRegex": @NO,
     @"FilteringSizeMinimum": @0,
     @"FilteringSizeUnits": @0,
+    @"FilteringIncludeDirs": @"",
+    @"FilteringIncludeFiles": @"",
+    @"FilteringSizeComparison": @0,
+    @"FilteringMaxAgeDays": @0,
+    @"FilteringMaxAgeComparison": @1,
     @"ExcludeVolumeMountPoints": @YES,
     @"ExcludeSymbolicLinks": @YES,
     @"ExcludeHidden": @NO,
@@ -197,10 +202,26 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"FolderHistoryCount": @10,
     @"SearchMaxResults": @10000,
     @"ScanForDuplicates": @NO,
-    @"ShowDeleteWarning": @YES,
+    @"ShowDeletePermanentlyWarning": @YES,
+    @"ShowDeleteToRecycleBinWarning": @YES,
+    @"ShowEmptyRecycleBinPrompt": @YES,
+    @"ShowCreateHardlinkPrompt": @YES,
+    @"ShowSetDatesPrompt": @YES,
+    @"ShowRemoveEmptyFoldersPrompt": @YES,
     @"SearchRegex": @NO,
     @"SearchCase": @NO,
     @"SearchWholePhrase": @NO,
+    @"SearchIncludeFiles": @YES,
+    @"SearchIncludeFolders": @YES,
+    @"SearchOwner": @"",
+    @"SearchSizeMinimum": @"",
+    @"SearchSizeMaximum": @"",
+    @"SearchPhysicalMinimum": @"",
+    @"SearchPhysicalMaximum": @"",
+    @"SearchSizeUnits": @2,
+    @"SearchPhysicalUnits": @2,
+    @"SearchHistory": @[],
+    @"SearchHistoryCount": @10,
     @"SearchTerm": @"",
     @"SelectDrivesRadio": @(LDSelectTargetFolder),
     @"SelectDrivesDrives": @[],
@@ -223,6 +244,7 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
   if (self) {
     _defaults = defaults;
     [_defaults registerDefaults:[LDPreferences defaultValues]];
+    [self migrateDeleteWarning];
   }
   return self;
 }
@@ -426,6 +448,18 @@ static uint32_t LDColorValue(NSInteger value)
 - (LDSizeUnit)minimumFileSizeUnit { return (LDSizeUnit)LDClamp([self integerForKey:@"FilteringSizeUnits"], 0, 4); }
 - (void)setMinimumFileSizeUnit:(LDSizeUnit)unit { [self setInteger:LDClamp(unit, 0, 4) forKey:@"FilteringSizeUnits"]; }
 
+- (NSString *)includedFolderPatterns { return [self stringForKey:@"FilteringIncludeDirs"]; }
+- (void)setIncludedFolderPatterns:(NSString *)patterns { [self setString:patterns forKey:@"FilteringIncludeDirs"]; }
+- (NSString *)includedFilePatterns { return [self stringForKey:@"FilteringIncludeFiles"]; }
+- (void)setIncludedFilePatterns:(NSString *)patterns { [self setString:patterns forKey:@"FilteringIncludeFiles"]; }
+- (BOOL)filterExcludesLargerFiles { return [self integerForKey:@"FilteringSizeComparison"] == 1; }
+- (void)setFilterExcludesLargerFiles:(BOOL)flag { [self setInteger:flag ? 1 : 0 forKey:@"FilteringSizeComparison"]; }
+- (NSUInteger)filterMaximumAgeDays { return (NSUInteger)LDClamp([self integerForKey:@"FilteringMaxAgeDays"], 0, 36500); }
+- (void)setFilterMaximumAgeDays:(NSUInteger)days { [self setInteger:LDClamp((NSInteger)days, 0, 36500) forKey:@"FilteringMaxAgeDays"]; }
+// WinDirStat's FilteringMaxAgeComparison: 1 (the default) leaves out older files.
+- (BOOL)filterExcludesNewerFiles { return [self integerForKey:@"FilteringMaxAgeComparison"] == 0; }
+- (void)setFilterExcludesNewerFiles:(BOOL)flag { [self setInteger:flag ? 0 : 1 forKey:@"FilteringMaxAgeComparison"]; }
+
 - (unsigned long long)minimumFileSizeInBytes
 {
   return [self minimumFileSize] << (10 * [self minimumFileSizeUnit]);
@@ -453,13 +487,71 @@ static uint32_t LDColorValue(NSInteger value)
 - (BOOL)scanForDuplicates { return [self boolForKey:@"ScanForDuplicates"]; }
 - (void)setScanForDuplicates:(BOOL)flag { [self setBool:flag forKey:@"ScanForDuplicates"]; }
 
-- (BOOL)showDeleteWarning { return [self boolForKey:@"ShowDeleteWarning"]; }
-- (void)setShowDeleteWarning:(BOOL)flag { [self setBool:flag forKey:@"ShowDeleteWarning"]; }
+// WinDirStat's keys; the recycle bin is the trash here.
+static NSString *LDPromptKey(LDPrompt prompt)
+{
+  switch (prompt) {
+    case LDPromptDeletePermanently: return @"ShowDeletePermanentlyWarning";
+    case LDPromptMoveToTrash: return @"ShowDeleteToRecycleBinWarning";
+    case LDPromptEmptyTrash: return @"ShowEmptyRecycleBinPrompt";
+    case LDPromptCreateHardLink: return @"ShowCreateHardlinkPrompt";
+    case LDPromptSetFolderDates: return @"ShowSetDatesPrompt";
+    case LDPromptRemoveEmptyFolders: return @"ShowRemoveEmptyFoldersPrompt";
+  }
+  return nil;
+}
+
++ (NSArray *)prompts
+{
+  return @[@(LDPromptDeletePermanently), @(LDPromptMoveToTrash), @(LDPromptEmptyTrash),
+           @(LDPromptCreateHardLink), @(LDPromptSetFolderDates), @(LDPromptRemoveEmptyFolders)];
+}
+
+- (BOOL)showsPrompt:(LDPrompt)prompt { return [self boolForKey:LDPromptKey(prompt)]; }
+- (void)setShowsPrompt:(BOOL)flag forPrompt:(LDPrompt)prompt { [self setBool:flag forKey:LDPromptKey(prompt)]; }
+
+// Before 0.1.5 one ShowDeleteWarning covered deleting, the trash, emptying
+// the trash and Empty Folder; its value carries over to those prompts once.
+- (void)migrateDeleteWarning
+{
+  id old = [_defaults objectForKey:@"ShowDeleteWarning"];
+  if (!old) {
+    return;
+  }
+  BOOL on = [old boolValue];
+  for (NSNumber *prompt in @[@(LDPromptDeletePermanently), @(LDPromptMoveToTrash), @(LDPromptEmptyTrash)]) {
+    [_defaults setBool:on forKey:LDPromptKey((LDPrompt)[prompt intValue])];
+  }
+  [_defaults removeObjectForKey:@"ShowDeleteWarning"];
+}
 
 - (BOOL)searchUsesRegex { return [self boolForKey:@"SearchRegex"]; }
 - (void)setSearchUsesRegex:(BOOL)flag { [self setBool:flag forKey:@"SearchRegex"]; }
 - (BOOL)searchCaseSensitive { return [self boolForKey:@"SearchCase"]; }
 - (void)setSearchCaseSensitive:(BOOL)flag { [self setBool:flag forKey:@"SearchCase"]; }
+- (BOOL)searchIncludesFiles { return [self boolForKey:@"SearchIncludeFiles"]; }
+- (void)setSearchIncludesFiles:(BOOL)flag { [self setBool:flag forKey:@"SearchIncludeFiles"]; }
+- (BOOL)searchIncludesFolders { return [self boolForKey:@"SearchIncludeFolders"]; }
+- (void)setSearchIncludesFolders:(BOOL)flag { [self setBool:flag forKey:@"SearchIncludeFolders"]; }
+- (NSString *)searchOwner { return [self stringForKey:@"SearchOwner"]; }
+- (void)setSearchOwner:(NSString *)owner { [self setString:owner forKey:@"SearchOwner"]; }
+- (NSString *)searchSizeField:(NSString *)key { return [self stringForKey:key]; }
+- (void)setSearchSizeField:(NSString *)value forKey:(NSString *)key { [self setString:value forKey:key]; }
+- (NSInteger)searchSizeUnits { return LDClamp([self integerForKey:@"SearchSizeUnits"], 0, 4); }
+- (void)setSearchSizeUnits:(NSInteger)unit { [self setInteger:LDClamp(unit, 0, 4) forKey:@"SearchSizeUnits"]; }
+- (NSInteger)searchPhysicalUnits { return LDClamp([self integerForKey:@"SearchPhysicalUnits"], 0, 4); }
+- (void)setSearchPhysicalUnits:(NSInteger)unit { [self setInteger:LDClamp(unit, 0, 4) forKey:@"SearchPhysicalUnits"]; }
+- (NSArray *)searchHistory
+{
+  id history = [_defaults objectForKey:@"SearchHistory"];
+  return [history isKindOfClass:[NSArray class]] ? history : @[];
+}
+- (void)setSearchHistory:(NSArray *)history
+{
+  [_defaults setObject:history ?: @[] forKey:@"SearchHistory"];
+  [self changed];
+}
+- (NSUInteger)searchHistoryCount { return (NSUInteger)LDClamp([self integerForKey:@"SearchHistoryCount"], 0, 100); }
 - (BOOL)searchWholePhrase { return [self boolForKey:@"SearchWholePhrase"]; }
 - (void)setSearchWholePhrase:(BOOL)flag { [self setBool:flag forKey:@"SearchWholePhrase"]; }
 - (NSString *)lastSearchTerm { return [self stringForKey:@"SearchTerm"]; }

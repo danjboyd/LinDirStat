@@ -5,7 +5,7 @@
      package.manifest.json, merged into the built bundle (Source/GNUmakefile). */
   Authors = ("Daniel Boyd");
   Copyright = "Copyright © 2026 Daniel Boyd";
-  CopyrightDescription = "Released under the GNU General Public License, version 2 or later.";
+  CopyrightDescription = "Released under the GNU General Public License, version 3 or later.";
   /* The app icon (the info panel's, the window's and the AppImage's), drawn
      by scripts/make-linux-icon.py. */
   NSIcon = "LinDirStat.png";

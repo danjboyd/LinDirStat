@@ -166,16 +166,21 @@
 
 #pragma mark - Delete, trash, empty folder, move
 
-- (BOOL)confirmAction:(NSString *)action message:(NSString *)message paths:(NSArray *)paths
+// WinDirStat's ConfirmOperation: asks unless the operation's prompt is off;
+// "Don't ask again" turns off that prompt only.
+- (BOOL)confirmAction:(NSString *)action
+               prompt:(LDPrompt)prompt
+              message:(NSString *)message
+                paths:(NSArray *)paths
 {
   LDPreferences *preferences = [LDPreferences sharedPreferences];
-  if (![preferences showDeleteWarning]) {
+  if (![preferences showsPrompt:prompt]) {
     return YES;
   }
   BOOL dontAskAgain = NO;
   BOOL confirmed = [LDDialogs confirmDestructiveAction:action message:message paths:paths dontAskAgain:&dontAskAgain];
   if (confirmed && dontAskAgain) {
-    [preferences setShowDeleteWarning:NO];
+    [preferences setShowsPrompt:NO forPrompt:prompt];
   }
   return confirmed;
 }
@@ -220,7 +225,10 @@
   NSString *message = permanently
     ? LDLocalized(@"These items will be deleted permanently. They cannot be recovered.")
     : LDLocalized(@"These items will be moved to the trash.");
-  if (![self confirmAction:action message:message paths:[self displayPathsForNodes:nodes]]) {
+  if (![self confirmAction:action
+                    prompt:permanently ? LDPromptDeletePermanently : LDPromptMoveToTrash
+                   message:message
+                     paths:[self displayPathsForNodes:nodes]]) {
     return;
   }
   NSMutableArray *paths = [NSMutableArray array];
@@ -266,6 +274,7 @@
   }
   NSArray *folders = [LDCommandRules topmostNodes:[self selectedNodes]];
   if (![self confirmAction:LDLocalized(@"Empty Folder")
+                    prompt:LDPromptDeletePermanently
                    message:LDLocalized(@"Everything inside these folders will be deleted permanently. The folders themselves are kept.")
                      paths:[self displayPathsForNodes:folders]]) {
     return;
@@ -341,6 +350,7 @@
   NSData *systemTrash = [LDFileOperations systemTrashPath];
   if (systemTrash) {
     if (![self confirmAction:LDLocalized(@"Empty Trash")
+                      prompt:LDPromptEmptyTrash
                      message:LDLocalized(@"Finder will permanently delete everything in the Trash.")
                        paths:@[[self stringForPathData:systemTrash]]]) {
       return;
@@ -364,7 +374,10 @@
   for (NSData *trash in trashes) {
     [paths addObject:[self stringForPathData:trash]];
   }
-  if (![self confirmAction:LDLocalized(@"Empty Trash") message:LDLocalized(@"Everything in these trash folders will be deleted permanently.") paths:paths]) {
+  if (![self confirmAction:LDLocalized(@"Empty Trash")
+                    prompt:LDPromptEmptyTrash
+                   message:LDLocalized(@"Everything in these trash folders will be deleted permanently.")
+                     paths:paths]) {
     return;
   }
   NSMutableArray *refresh = [NSMutableArray array];
@@ -489,6 +502,133 @@
     return;
   }
   [self refreshNodes:[self selectedNodes]];
+}
+
+#pragma mark - Remove Empty Folders, Change Folder Dates
+
+// WinDirStat 2.7's OnCleanupRemoveEmpty: the empty folders in the selection,
+// deepest first, after one confirmation listing them; then the remaining
+// parents are refreshed.
+- (void)removeEmptyFolders:(id)sender
+{
+  (void)sender;
+  if (![self selectionAllows:LDCommandRemoveEmptyFolders]) {
+    return;
+  }
+  NSArray *folders = [LDCommandRules emptyFoldersIn:[self selectedNodes] rootNode:_rootNode];
+  if ([folders count] == 0) {
+    [self showStatus:LDLocalized(@"There are no empty folders in the selection")];
+    return;
+  }
+  if (![self confirmAction:LDLocalized(@"Remove Empty Folders")
+                    prompt:LDPromptRemoveEmptyFolders
+                   message:LDLocalized(@"These empty folders will be removed.")
+                     paths:[self displayPathsForNodes:folders]]) {
+    return;
+  }
+  NSMutableArray *paths = [NSMutableArray array];
+  for (LDFileNode *folder in folders) {
+    [paths addObject:[folder pathData]];
+  }
+  // The parents left standing are refreshed, which drops what was removed.
+  NSMutableArray *parents = [NSMutableArray array];
+  for (LDFileNode *folder in folders) {
+    LDFileNode *parent = [folder parent];
+    if (parent && [folders indexOfObjectIdenticalTo:parent] == NSNotFound && [parents indexOfObjectIdenticalTo:parent] == NSNotFound) {
+      [parents addObject:parent];
+    }
+  }
+  [self performFileOperation:LDLocalized(@"Removing empty folders")
+                       paths:paths
+                   operation:^BOOL(NSData *path, NSError **error) {
+    return [LDFileOperations removeEmptyFolder:path error:error];
+  }
+              thenRefreshing:parents];
+}
+
+// WinDirStat 2.7's OnToolsSetDates: each folder in the selection (the whole
+// tree when nothing is selected) gets its Last Change as its date.
+- (void)setFolderDates:(id)sender
+{
+  (void)sender;
+  if (!_rootNode || [self isBusy]) {
+    return;
+  }
+  NSArray *folders = [LDCommandRules foldersForDatesIn:[self selectedNodes] rootNode:_rootNode];
+  if ([folders count] == 0) {
+    return;
+  }
+  if (![self confirmAction:LDLocalized(@"Change Folder Dates to Last Change")
+                    prompt:LDPromptSetFolderDates
+                   message:LDLocalized(@"Each folder's date will be set to the newest change below it.")
+                     paths:@[]]) {
+    return;
+  }
+  NSMutableDictionary *times = [NSMutableDictionary dictionary];
+  NSMutableArray *paths = [NSMutableArray array];
+  for (LDFileNode *folder in folders) {
+    [paths addObject:[folder pathData]];
+    [times setObject:@([folder aggregateModificationTime]) forKey:[folder pathData]];
+  }
+  [self performFileOperation:LDLocalized(@"Changing folder dates")
+                       paths:paths
+                   operation:^BOOL(NSData *path, NSError **error) {
+    return [LDFileOperations setModificationTime:[[times objectForKey:path] doubleValue] ofFolder:path error:error];
+  }
+              thenRefreshing:@[]];
+}
+
+#pragma mark - Deduplicate with Hardlink
+
+// The pairs the Duplicates list's selection gives; none elsewhere.
+- (NSArray *)hardLinkPairs
+{
+  if ([self activeFileList] != _duplicatesTable || [self isBusy]) {
+    return @[];
+  }
+  return [LDCommandRules hardLinkPairsForSelection:[self selectedNodes] groups:_duplicateGroups];
+}
+
+// WinDirStat 2.8's OnCreateHardlink: one confirmation listing the files to
+// replace (never the ones kept), then each becomes a link to its group's
+// kept file, and both are refreshed.
+- (void)deduplicateWithHardLinks:(id)sender
+{
+  (void)sender;
+  NSArray *pairs = [self hardLinkPairs];
+  if ([pairs count] == 0) {
+    return;
+  }
+  NSMutableArray *targets = [NSMutableArray array];
+  NSMutableArray *refresh = [NSMutableArray array];
+  NSMutableDictionary *sources = [NSMutableDictionary dictionary];
+  for (NSArray *pair in pairs) {
+    LDFileNode *source = [pair objectAtIndex:0];
+    LDFileNode *target = [pair objectAtIndex:1];
+    [targets addObject:target];
+    [sources setObject:[source pathData] forKey:[target pathData]];
+    for (LDFileNode *node in pair) {
+      if ([refresh indexOfObjectIdenticalTo:node] == NSNotFound) {
+        [refresh addObject:node];
+      }
+    }
+  }
+  if (![self confirmAction:LDLocalized(@"Deduplicate with Hardlink")
+                    prompt:LDPromptCreateHardLink
+                   message:LDLocalized(@"These files will be replaced by hard links to an identical copy, which is kept.")
+                     paths:[self displayPathsForNodes:targets]]) {
+    return;
+  }
+  NSMutableArray *paths = [NSMutableArray array];
+  for (LDFileNode *target in targets) {
+    [paths addObject:[target pathData]];
+  }
+  [self performFileOperation:LDLocalized(@"Creating hard links")
+                       paths:paths
+                   operation:^BOOL(NSData *path, NSError **error) {
+    return [LDFileOperations replaceFile:path withHardLinkTo:[sources objectForKey:path] error:error];
+  }
+              thenRefreshing:refresh];
 }
 
 #pragma mark - Add to Exclusion Filter

@@ -28,7 +28,9 @@
 
 - (void)testDefaultsFollowWinDirStat
 {
-  XCTAssertTrue([_preferences showDeleteWarning]);
+  for (NSNumber *prompt in [LDPreferences prompts]) {
+    XCTAssertTrue([_preferences showsPrompt:(LDPrompt)[prompt intValue]]);
+  }
   XCTAssertTrue([_preferences pacmanAnimation]);
   XCTAssertEqual((NSUInteger)50, [_preferences largeFileCount]);
   XCTAssertEqual((NSUInteger)4, [_preferences scanningThreads]);
@@ -172,6 +174,29 @@
   [stored setRecurseIntoSubdirectories:YES];
   [stored normalize];
   XCTAssertTrue([stored waitForCompletion]);
+}
+
+// WinDirStat 2.6 split the delete warning into one prompt per operation.
+- (void)testPromptsAreSeparate
+{
+  [_preferences setShowsPrompt:NO forPrompt:LDPromptMoveToTrash];
+  XCTAssertFalse([_preferences showsPrompt:LDPromptMoveToTrash]);
+  XCTAssertTrue([_preferences showsPrompt:LDPromptDeletePermanently]);
+  XCTAssertFalse([_defaults boolForKey:@"ShowDeleteToRecycleBinWarning"]);
+  XCTAssertEqual((NSUInteger)6, [[LDPreferences prompts] count]);
+}
+
+// A pre-0.1.5 "Warn before deleting" that was turned off turns off the
+// prompts it covered, once, and the old key goes away.
+- (void)testOldDeleteWarningCarriesOver
+{
+  [_defaults setBool:NO forKey:@"ShowDeleteWarning"];
+  LDPreferences *migrated = [[LDPreferences alloc] initWithUserDefaults:_defaults];
+  XCTAssertFalse([migrated showsPrompt:LDPromptDeletePermanently]);
+  XCTAssertFalse([migrated showsPrompt:LDPromptMoveToTrash]);
+  XCTAssertFalse([migrated showsPrompt:LDPromptEmptyTrash]);
+  XCTAssertTrue([migrated showsPrompt:LDPromptRemoveEmptyFolders]);
+  XCTAssertNil([_defaults objectForKey:@"ShowDeleteWarning"]);
 }
 
 @end

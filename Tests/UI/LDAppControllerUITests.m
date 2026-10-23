@@ -1,15 +1,19 @@
 #import <AppKit/AppKit.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 #import <XCTest/XCTest.h>
 #if defined(GNUSTEP)
 #import <GNUstepGUI/GSFontInfo.h>
 #endif
 #import "AppController.h"
 #import "AppController+Private.h"
+#import "LDCommandRules.h"
 #import "LDExtensionStats.h"
 #import "LDFileOperations.h"
 #import "LDFileWatcher.h"
 #import "LDHardLinks.h"
 #import "LDPreferences.h"
+#import "LDOptionsWindowController.h"
 #import "LDScanSession.h"
 #import "LDSearch.h"
 #import "LDSizeFormatter.h"
@@ -230,8 +234,10 @@
   [NSApplication sharedApplication];
   LDPreferences *preferences = [LDPreferences sharedPreferences];
   [preferences resetAll];
-  // The delete warning is a modal panel.
-  [preferences setShowDeleteWarning:NO];
+  // Confirmations are modal panels.
+  for (NSNumber *prompt in [LDPreferences prompts]) {
+    [preferences setShowsPrompt:NO forPrompt:(LDPrompt)[prompt intValue]];
+  }
 
   // TMPDIR itself: gnustep-base's NSTemporaryDirectory() may pick another.
   NSString *temporary = [[[NSProcessInfo processInfo] environment] objectForKey:@"TMPDIR"];
@@ -561,6 +567,38 @@
   XCTAssertEqualObjects(@[[self node:@"c.bin"]], [_controller selectedNodes]);
 }
 
+// WinDirStat 2.8: a whole duplicate group selected keeps the first copy and
+// makes the others hard links to it; only from the Duplicates list.
+- (void)testDeduplicateWithHardlink
+{
+  if (!_controller) {
+    return;
+  }
+  [self writeFile:@"dup-one.dat" size:8000 seed:9];
+  [self writeFile:@"a/dup-two.dat" size:8000 seed:9];
+  [[LDPreferences sharedPreferences] setScanForDuplicates:YES];
+  if (![self scanTree]) {
+    return;
+  }
+  LDUITestController *controller = _controller;
+  XCTAssertTrue([self waitFor:^BOOL { return ![controller isFindingDuplicates]; } seconds:20.0]);
+  [self selectInTree:@[[self node:@"dup-one.dat"], [self node:@"a/dup-two.dat"]]];
+  XCTAssertFalse([_controller validateAction:@selector(deduplicateWithHardLinks:)]);
+
+  [[_controller fileTabs] selectTabViewItem:[_controller duplicatesTab]];
+  [self selectRow:0 inList:[_controller duplicatesTable]];
+  XCTAssertTrue([_controller validateAction:@selector(deduplicateWithHardLinks:)]);
+  [_controller deduplicateWithHardLinks:nil];
+  if (![self waitUntilIdle]) {
+    return;
+  }
+  struct stat one, two;
+  XCTAssertEqual(0, stat([[self pathOf:@"dup-one.dat"] fileSystemRepresentation], &one));
+  XCTAssertEqual(0, stat([[self pathOf:@"a/dup-two.dat"] fileSystemRepresentation], &two));
+  XCTAssertEqual(one.st_ino, two.st_ino);
+  XCTAssertEqual((nlink_t)2, one.st_nlink);
+}
+
 - (void)testDuplicateGroupDrivesTreemapAndSelection
 {
   if (!_controller) {
@@ -709,6 +747,76 @@
   CGFloat title = [header cellSize].width;
   CGFloat indicator = NSWidth([header sortIndicatorRectForBounds:NSMakeRect(0, 0, title, 24)]);
   XCTAssertTrue([percent width] >= title + indicator, @"%g < %g + %g", [percent width], title, indicator);
+}
+
+// WinDirStat 2.7: Remove Empty Folders goes bottom-up and keeps folders
+// holding files; Change Folder Dates sets each folder to its Last Change.
+- (void)testRemoveEmptyFoldersAndChangeFolderDates
+{
+  if (!_controller) {
+    return;
+  }
+  NSFileManager *files = [NSFileManager defaultManager];
+  [files createDirectoryAtPath:[self pathOf:@"e1/e2/e3"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  [files createDirectoryAtPath:[self pathOf:@"a/empty"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  // A folder holding only one the scan could not read is not empty: its
+  // rmdir would fail.
+  [files createDirectoryAtPath:[self pathOf:@"u/locked"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  chmod([[self pathOf:@"u/locked"] fileSystemRepresentation], 0);
+  if (![self scanTree]) {
+    chmod([[self pathOf:@"u/locked"] fileSystemRepresentation], 0755);
+    return;
+  }
+  chmod([[self pathOf:@"u/locked"] fileSystemRepresentation], 0755);
+  if ([[self node:@"u/locked"] error] != LDFileNodeErrorNone) {
+    XCTAssertEqualObjects(@[], [LDCommandRules emptyFoldersIn:@[[self node:@"u"]] rootNode:[_controller root]]);
+  }
+  [self selectInTree:@[[self node:@"e1"], [self node:@"a"]]];
+  XCTAssertTrue([_controller validateAction:@selector(removeEmptyFolders:)]);
+  [_controller removeEmptyFolders:nil];
+  if (![self waitUntilIdle]) {
+    return;
+  }
+  XCTAssertFalse([files fileExistsAtPath:[self pathOf:@"e1"]]);
+  XCTAssertFalse([files fileExistsAtPath:[self pathOf:@"a/empty"]]);
+  XCTAssertTrue([files fileExistsAtPath:[self pathOf:@"a/sub/deep.txt"]]);
+  XCTAssertNil([self node:@"e1"]);
+  XCTAssertNil([self node:@"a/empty"]);
+  XCTAssertNotNil([self node:@"a/sub"]);
+
+  LDFileNode *a = [self node:@"a"];
+  [self selectInTree:@[a]];
+  XCTAssertTrue([_controller validateAction:@selector(setFolderDates:)]);
+  NSTimeInterval newest = [a aggregateModificationTime];
+  struct timeval old[2] = {{1000000000, 0}, {1000000000, 0}};
+  utimes([[self pathOf:@"a"] fileSystemRepresentation], old);
+  [_controller setFolderDates:nil];
+  if (![self waitUntilIdle]) {
+    return;
+  }
+  struct stat info;
+  XCTAssertEqual(0, stat([[self pathOf:@"a"] fileSystemRepresentation], &info));
+  XCTAssertEqual((time_t)newest, info.st_mtime);
+}
+
+// WinDirStat 2.6: leaving changed filter settings scans again with them.
+- (void)testChangedFiltersScanAgain
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setIncludedFolderPatterns:[self pathOf:@"a"]];
+  [preferences setExcludedFilePatterns:@"*.log"];
+  LDUITestController *controller = _controller;
+  NSUInteger before = [controller scansFinished];
+  [[NSNotificationCenter defaultCenter] postNotificationName:LDOptionsFiltersDidChangeNotification object:nil];
+  XCTAssertTrue([self waitFor:^BOOL { return [controller scansFinished] > before && ![controller isBusy]; } seconds:20.0]);
+  XCTAssertNotNil([self node:@"a/a1.txt"]);
+  XCTAssertNotNil([self node:@"a/sub/deep.txt"]);
+  XCTAssertNil([self node:@"a/a2.log"]);
+  XCTAssertNil([self node:@"b"]);
+  XCTAssertNil([self node:@"c.bin"]);
 }
 
 - (void)testRefreshSelectedUpdatesTotalsAndKeepsExpansionAndSelection

@@ -83,6 +83,12 @@ The Largest, Duplicates and Search lists are the same tree-list class and show t
 
 ### 1.4 Command semantics
 
+*Later upstream (v2.7, `262a1b94`, `489323a5`; v2.9.0 `WinDirStatModel.Actions.cpp`):*
+- **Clean Up › Remove Empty Folders** (also in the tree's context menu, between Delete to Recycle Bin and Empty Folder): available for drives and folders, several at a time, not while scanning. It collects every folder in the selection whose subtree holds no files (`GetFilesCount() == 0`), never the root, never entering reparse points. It confirms once, listing them (`ShowRemoveEmptyFoldersPrompt`), then removes them deepest first with `RemoveDirectory` and refreshes the parents left standing.
+- **Tools › Change Folder Dates to Last Change** (`ShowSetDatesPrompt`): every folder in the selection (or the whole tree when nothing is selected) gets its Last Change, the newest time below it, as its modification time.
+- **LinDirStat:** both commands never go through a symlink (checked on disk) and skip mount points and unreadable folders, whose contents the tree does not show. Folders are removed with `rmdir(2)`, which cannot remove anything that is not empty: a folder holding filtered-out or hidden entries fails and is reported. Dates are set with `utimensat` on the folder itself, leaving its access time.
+- **On macOS** neither command enters a package (an app, a bundle, a Photos or Final Cut library: `NSURLIsPackageKey`) unless that package is itself selected. Such packages keep intentionally empty folders, and their layout is part of what makes them work. Finder leaves `.DS_Store` files in folders it has shown, so most folders that look empty there are not empty on disk, and they are kept. A folder counts as empty only when every child is an empty folder that is listed too, so one holding a skipped package, a link, a mount point or a folder the scan could not read is kept (upstream would list it, and its `RemoveDirectory` would fail).
+
 **Open (`WMA:795-801`, `WM:353-387`)**
 Runs the default shell verb on each selected item. For MyComputer it opens "This PC". Reserved items are skipped. *Linux:* `NSWorkspace openFile:` once per item.
 
@@ -321,6 +327,13 @@ Substitution goes through `>`-markers so a `%` inside a filename is safe. Paths 
 
 ## 6. Duplicates tab (`Controls/FileDupeControl.cpp`, `ItemDupe.cpp`)
 
+*Later upstream (v2.8, `71143eb4`, with `860d840d`'s per-group fix):*
+- **Deduplicate with Hardlink** (`ShowCreateHardlinkPrompt`): from the Duplicates list, with at least two files selected on one volume and the scan settled.
+- Within each hash group, the first selected file stays and every other selected file in that group is replaced: a hard link to the source under a GUID-suffixed temporary name, then `MoveFileEx(…, MOVEFILE_REPLACE_EXISTING)` over the target. The temporary link is removed on failure.
+- The confirmation lists only the targets.
+- **LinDirStat:** only regular files (never symlinks) on one filesystem (`EXDEV` otherwise). An already-linked pair is a no-op. Before replacing, each target is compared byte for byte with its source, so a file changed since the duplicate search is refused (`ECANCELED`) and left alone. The swap is `link()` to `<target>.ldhl-XXXXXX` and then `rename()`, which is atomic. The target takes the source's permissions and owner, as any hard link does.
+  - Each replaced file also gives up its own metadata for the kept file's: extended attributes, and on macOS Finder tags, the quarantine flag, ACLs and the creation date. Comparing reads both files whole, so on macOS iCloud "Optimize Mac Storage" placeholders are downloaded first; the duplicate search reads them too. APFS clones are linked like any copy, saving nothing there. A clone-based variant for Apple is a possible later addition.
+
 **Opt-in**
 - Requires `ScanForDuplicates` (the Select Drives checkbox, default off; also settable by CLI flags, `WinDirStat.cpp:399-400`). · The tab is visible only when that option is on and a root exists (`FileTabbedView.cpp:87-88`). · There is **no minimum-size option**. 0-byte files are grouped too.
 
@@ -359,6 +372,15 @@ Default sort: Physical Size, descending.
 ---
 
 ## 7. Search (`Dialogs/SearchDlg.cpp`, `Controls/FileSearchControl.cpp`, `ItemSearch.cpp`)
+
+*Later upstream (v2.6–v2.7, `7bfc8ccb`, `b7edc158`, `eea69dfc`; v2.9.0 `SearchDlg.cpp`, `FileSearchControl.cpp`):*
+- **Folders can match:** "Files" and "Folders" checkboxes (`SearchIncludeFiles`/`SearchIncludeFolders`, both on). The searched root is never a result.
+- **Size ranges:** logical and physical, each min–max with a unit (`SearchSizeMinimum/Maximum`, `SearchSizeUnits` default MiB; `SearchPhysical…`). A folder's sizes are its subtree's. The ranges are checked before the name.
+- **Owner:** a case-insensitive part of the owner's name (`SearchOwner`), checked last because it is the costly test.
+- **Empty term:** matches every name.
+- **History:** the term box keeps a history (`SearchHistory`, `SearchHistoryCount` default 10). Picking an entry restores its Regex/Whole Phrase/Case.
+- **Totals:** the results show logical and physical totals, a match inside another counted once.
+- **LinDirStat:** the totals, in the current metric, go into the status text with the count. The history is stored as dictionaries rather than upstream's `\x1f`-flagged lines.
 
 **Dialog (`7da9c724:windirstat.rc:635-647`)**
 - A "Search Term:" field. · Three checkboxes, all default off and persisted (`7da9c724:Options.cpp:48-51,132`): Use Regular Expressions; Case Sensitive Search; Search Whole Phrase. · OK and Cancel. OK is disabled while the term is empty or the regex is invalid. · Opened with Edit › Search... (Ctrl+F) or the toolbar. Disabled while a scan runs.
@@ -449,6 +471,25 @@ Enabled only when the Duplicates tab is visible.
 | "File name patterns to exclude:" | "" | Matched against the **file name only** (`Item.cpp:1164-1166`, `Filtering.cpp:282-287`). |
 | "Use regular expression instead of glob patterns" | off | Globs become anchored `^…$` regexes; `*` and `?` never cross `\ / :`. |
 | "Exclude files less than:" N + unit (bytes, KiB, MiB, GiB, TiB) | 0, bytes | Files whose **logical** size is under the threshold are skipped (`Filtering.cpp:199-200`, `Filtering.cpp:268-273`). |
+
+*Later upstream (v2.6–v2.9.0, `db7c9e04`, `f28e1b5f`, `b30b874c`, `80022cfe`, `fbaf5458`, `5e3dcd0e`; `Filtering.cpp`):*
+- **Folder patterns match the folder and everything below it.** This applies to both exclude and include patterns (`MatchDirectoryAndDescendants`: `(?:pat)(?:\\.*)?`, with a trailing unescaped `$` dropped).
+- **"Folder paths to include:" and "File name patterns to include:"** (`FilteringIncludeDirs`/`FilteringIncludeFiles`).
+  - With folder includes, only files below an included folder are kept.
+  - A folder is entered only when it is included, or when it is on the way to an include's fixed leading folder (`ExtractIncludeAnchor`). An include starting with a wildcard prunes no folder.
+  - With file includes, only matching names are kept.
+  - Exclusions win.
+- **Size:** "Exclude files by size:" gets a `<`/`>` choice (`FilteringSizeComparison`, 0 = `<`).
+- **Age:** a new "Exclude files by age (0 = disabled):" N days, with `<`/`>` (`FilteringMaxAgeDays`, `FilteringMaxAgeComparison`, default 1 = `>`, which leaves out files older than N days). It is measured against the last write time.
+- **Changing filters refreshes everything** (`5e3dcd0e`). This replaces "Changing a filter does not rescan" below.
+
+LinDirStat follows this, with three differences:
+- **Glob includes are followed component by component.** For example, `/data/*/src` goes through `/data` and `/data/x`. Upstream prunes everything below an include's fixed leading folder, so it finds nothing for such a pattern. Regex includes prune only off their leading folder.
+- **When the rescan happens:** the Preferences window applies changes live, so the rescan happens when the Filtering page is left or the window closes (with valid filters, and not for results loaded from a file).
+- **The size and age filters apply to regular files**, as before.
+- **Folder patterns match the path as shown in the tree.** On macOS the app standardizes a scan root (`/private/tmp/x` is scanned and shown as `/tmp/x`), so `/private/...` patterns match nothing there; exclusions always behaved this way.
+
+The post-v2.9.0 fixes are Windows path handling (`864a22cb`, `b2963623`), a speed-up (`7b04b45e`, done here independently: files in an included folder skip the path check) and newline names (`f4a131f8`; POSIX `.` already matches newlines). None was copied; v2.9.2 and later are GPL-3.
 
 **Pattern handling**
 - Trailing `\r` and `\` are trimmed. · A bad pattern reports "Invalid filter: <token>" (`Filtering.cpp:177-196`). · Tooltip examples (`RC:35-38`): glob `C:\Windows\Sys*` or `*.exe`; regex `C:\\Windows\\Sys.*` or `.*\.exe`.
@@ -543,10 +584,12 @@ Keep the "add as a leaf, don't descend" behaviour for unfollowed links and mount
 
 | Setting | Default | Notes |
 |---|---|---|
-| Warn before deleting | on | |
+| Warn before deleting | on | Split in v2.6, below |
 | Elevation prompt | on | *Windows-only* |
 | Cloud-links warning during duplicate detection | on | |
 | Microsoft progress dialogs | off | *Windows-only* |
+
+*Later upstream (v2.6, `581c609d`):* "Warn before deleting" becomes one "Show confirmation before: <operation>" switch per destructive operation (`IDS_PAGE_PROMPTS_OPERATION_CONFIRMATIONs`), each defaulting on: Delete Permanently (`ShowDeletePermanentlyWarning`), Delete to Recycle Bin (`ShowDeleteToRecycleBinWarning`), Empty Recycle Bin (`ShowEmptyRecycleBinPrompt`), Deduplicate with Hardlink (`ShowCreateHardlinkPrompt`), Change Folder Dates (`ShowSetDatesPrompt`) and Remove Empty Folders (`ShowRemoveEmptyFoldersPrompt`), plus Windows-only ones (MOTW, hibernate, shadow copies, DISM). `ConfirmOperation` asks only when its switch is on, and "Do not show this message again" turns off that switch alone. LinDirStat keeps those keys, with the trash in place of the Recycle Bin. Empty Folder uses the Delete Permanently switch. An old `ShowDeleteWarning` carries over once to the delete, trash and empty-trash switches.
 
 ### Advanced (`RC:580-619`)
 
