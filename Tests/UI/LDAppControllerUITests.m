@@ -61,6 +61,7 @@
 @interface LDUITestController : AppController
 {
   NSUInteger _scansFinished;
+  NSUInteger _idleBeforeAdoption;
 }
 @end
 
@@ -68,11 +69,16 @@
 
 - (void)finishAsyncScan
 {
+  // The session has finished but its tree is not adopted yet.
+  if (![self isBusy]) {
+    _idleBeforeAdoption++;
+  }
   [super finishAsyncScan];
   _scansFinished++;
 }
 
 - (NSUInteger)scansFinished { return _scansFinished; }
+- (NSUInteger)idleBeforeAdoption { return _idleBeforeAdoption; }
 - (NSWindow *)window { return _window; }
 - (LDOutlineView *)tree { return _directoryTable; }
 - (NSTableView *)extensionTable { return _extensionTable; }
@@ -260,6 +266,9 @@
 
 - (void)tearDown
 {
+  // Commands stay disabled until a finished scan's tree is adopted, so a
+  // quick click never acts on the old tree's nodes.
+  XCTAssertEqual((NSUInteger)0, [_controller idleBeforeAdoption]);
   [_controller tearDownForTest];
   // The app never releases its controller; releasing one that holds a
   // scanned tree crashes while the views and the tree are torn down, so the
