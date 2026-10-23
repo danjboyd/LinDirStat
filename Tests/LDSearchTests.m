@@ -293,7 +293,7 @@
 
 - (void)testScanRootsUnderThisComputerNeverMatch
 {
-  LDFileNode *computer = [LDFileNode computerNode];
+  LDFileNode *computer = [LDComputerNode computerNode];
   LDFileNode *volume = [LDFileNode nodeWithPath:@"/data" kind:LDFileNodeKindDirectory size:0];
   [volume addChild:[LDFileNode nodeWithName:@"data-notes.txt" kind:LDFileNodeKindFile size:1 allocatedSize:1]];
   [computer addChild:volume];
