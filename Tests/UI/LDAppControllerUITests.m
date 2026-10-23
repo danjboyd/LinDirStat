@@ -755,6 +755,7 @@
   }
   NSOutlineView *tree = [_controller tree];
   NSTableColumn *percent = [tree tableColumnWithIdentifier:@"percent"];
+  [tree setSortDescriptors:@[[percent sortDescriptorPrototype]]];
   NSTableHeaderCell *header = (NSTableHeaderCell *)[percent headerCell];
   CGFloat title = [header cellSize].width;
   CGFloat indicator = NSWidth([header sortIndicatorRectForBounds:NSMakeRect(0, 0, title, 24)]);

@@ -126,27 +126,29 @@
   }
 }
 
-// SetColumnVisible's sorting fallback.
-- (void)stopSortingByColumn:(NSString *)identifier
+// SetColumnVisible's sorting fallback: sorted by a hidden column, the list
+// sorts by the first column instead; a hidden secondary sort column is
+// dropped.
+- (NSArray *)sortDescriptorsWithoutHiddenColumns:(NSArray *)descriptors
 {
-  NSArray *descriptors = [_table sortDescriptors];
-  if ([descriptors count] == 0) {
-    return;
+  NSMutableSet *hidden = [NSMutableSet set];
+  for (NSTableColumn *column in _columns) {
+    if (![self isPresent:column]) {
+      [hidden addObject:[column identifier]];
+    }
   }
-  NSArray *sorted;
-  if ([[[descriptors objectAtIndex:0] key] isEqualToString:identifier]) {
+  if ([descriptors count] == 0 || [hidden count] == 0) {
+    return descriptors;
+  }
+  if ([hidden containsObject:[[descriptors objectAtIndex:0] key]]) {
     NSSortDescriptor *first = [[_columns objectAtIndex:0] sortDescriptorPrototype];
-    sorted = first ? @[first] : @[];
-  } else {
-    NSPredicate *others = [NSPredicate predicateWithBlock:^BOOL(NSSortDescriptor *descriptor, NSDictionary *bindings) {
-      (void)bindings;
-      return ![[descriptor key] isEqualToString:identifier];
-    }];
-    sorted = [descriptors filteredArrayUsingPredicate:others];
+    return first ? @[first] : @[];
   }
-  if (![sorted isEqualToArray:descriptors]) {
-    [_table setSortDescriptors:sorted];
-  }
+  NSPredicate *shown = [NSPredicate predicateWithBlock:^BOOL(NSSortDescriptor *descriptor, NSDictionary *bindings) {
+    (void)bindings;
+    return ![hidden containsObject:[descriptor key]];
+  }];
+  return [descriptors filteredArrayUsingPredicate:shown];
 }
 
 - (BOOL)applyPreferences
@@ -155,6 +157,8 @@
   if (!table) {
     return NO;
   }
+  // Before any column goes: AppKit drops a removed column's sort itself.
+  NSArray *descriptors = [table sortDescriptors];
   BOOL changed = NO;
   for (NSTableColumn *column in _columns) {
     BOOL shown = [self isColumnShown:[column identifier]];
@@ -170,10 +174,9 @@
   }
   // Also when the list was sorted by a hidden column before (its default
   // sort, at launch: OnColumnsInserted).
-  for (NSTableColumn *column in _columns) {
-    if (![self isPresent:column]) {
-      [self stopSortingByColumn:[column identifier]];
-    }
+  NSArray *sorted = [self sortDescriptorsWithoutHiddenColumns:descriptors];
+  if (![sorted isEqualToArray:[table sortDescriptors]]) {
+    [table setSortDescriptors:sorted];
   }
   if (changed && _changeHandler) {
     _changeHandler();
