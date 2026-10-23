@@ -24,6 +24,7 @@
 "Cushion shading" = "Minder Gölgelendirme";
 "Custom Cleanup" = "Özel Temizlik";
 "Custom Cleanup #%lu" = "Özel Temizlik #%lu";
+"Deduplicate with Hardlink" = "Sabit bağlantılarla yinelemeleri kaldır";
 "Delete Permanently" = "Kalıcı Olarak Sil";
 "Delete Permanently…" = "Kalıcı Olarak Sil…";
 "Deleted" = "Silindi";
@@ -154,7 +155,6 @@
 "Use regular expressions (POSIX extended)" = "Regex Kullan";
 "Use regular expressions instead of glob patterns" = "Glob pattern yerine regex kullanın";
 "Wait for completion" = "Tamamlanmasını Bekleyin";
-"Warn before deleting" = "Dosyaları silmeden önce uyarı mesajı göster";
 "Works For" = "Şunun için geçerli";
 "Zoom In" = "Yakınlaştır";
 "Zoom Out" = "Uzaklaştır";

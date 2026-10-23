@@ -23,6 +23,7 @@
 "Cushion shading" = "Kuddskuggning";
 "Custom Cleanup" = "Anpassad rensning";
 "Custom Cleanup #%lu" = "Anpassad rensning #%lu";
+"Deduplicate with Hardlink" = "Avduplicera med hårda länkar";
 "Delete Permanently" = "Ta bort permanent";
 "Delete Permanently…" = "Ta bort permanent…";
 "Deleted" = "Borttagen";
@@ -152,7 +153,6 @@
 "Use regular expressions (POSIX extended)" = "Använd reguljära uttryck";
 "Use regular expressions instead of glob patterns" = "Använd reguljärt uttryck i stället för jokertecken";
 "Wait for completion" = "Vänta på slutförandet";
-"Warn before deleting" = "Visa varningsmeddelande innan du tar bort filer";
 "Works For" = "Fungerar för";
 "Zoom In" = "Zooma in";
 "Zoom Out" = "Zooma ut";

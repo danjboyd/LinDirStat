@@ -24,6 +24,7 @@
 "Cushion shading" = "Подушковість";
 "Custom Cleanup" = "Користувацьке очищення";
 "Custom Cleanup #%lu" = "Вибіркове очищення #%lu";
+"Deduplicate with Hardlink" = "Усунення дублікатів за допомогою жорстких посилань";
 "Delete Permanently" = "Видалити (без можливості відновлення!)";
 "Delete Permanently…" = "Видалити (без можливості відновлення!)…";
 "Deleted" = "Видалено";
@@ -154,7 +155,6 @@
 "Use regular expressions (POSIX extended)" = "Використовувати регулярні вирази";
 "Use regular expressions instead of glob patterns" = "Використовувати регулярні вирази замість глобальних шаблонів";
 "Wait for completion" = "Чекати завершення";
-"Warn before deleting" = "Показувати попереджувальне повідомлення перед видаленням файлів";
 "Works For" = "Застосувати до";
 "Zoom In" = "Збільшити";
 "Zoom Out" = "Зменшити";

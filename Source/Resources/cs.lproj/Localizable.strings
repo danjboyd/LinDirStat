@@ -23,6 +23,7 @@
 "Cushion shading" = "Polštářové stínování";
 "Custom Cleanup" = "Uživatelský čisticí nástroj";
 "Custom Cleanup #%lu" = "Uživatelský čisticí nástroj #%lu";
+"Deduplicate with Hardlink" = "Deduplikovat pomocí pevných odkazů";
 "Delete Permanently" = "Odstranit (bez možnosti obnovení!)";
 "Delete Permanently…" = "Trvale odstranit…";
 "Deleted" = "Smazáno";
@@ -153,7 +154,6 @@
 "Use regular expressions (POSIX extended)" = "Použít regulární výrazy";
 "Use regular expressions instead of glob patterns" = "Namísto zástupných znaků použít regulární výraz";
 "Wait for completion" = "Vyčkat na dokončení";
-"Warn before deleting" = "Před odstraněním souborů zobrazit upozornění";
 "Works For" = "Pracuje s";
 "Zoom In" = "Přiblížit";
 "Zoom Out" = "Oddálit";

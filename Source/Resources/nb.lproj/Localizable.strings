@@ -23,6 +23,7 @@
 "Cushion shading" = "Skjermingsskygge";
 "Custom Cleanup" = "Egendefinert opprydding";
 "Custom Cleanup #%lu" = "Egendefinert opprydding #%lu";
+"Deduplicate with Hardlink" = "Fjern duplikater med hardkoblinger";
 "Delete Permanently" = "Slett permanent";
 "Delete Permanently…" = "Slett permanent…";
 "Deleted" = "Slettet";
@@ -152,7 +153,6 @@
 "Use regular expressions (POSIX extended)" = "Bruk regulære uttrykk";
 "Use regular expressions instead of glob patterns" = "Bruk regulære uttrykk i stedet for glob-mønstre";
 "Wait for completion" = "Vent til oppgaven er fullført";
-"Warn before deleting" = "Vis advarsel før sletting av filer";
 "Works For" = "Oppgaven påvirker";
 "Zoom In" = "Zoom inn";
 "Zoom Out" = "Zoom ut";

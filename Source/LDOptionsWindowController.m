@@ -715,13 +715,21 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
     @(LDPromptSetFolderDates): LDLocalized(@"Change Folder Dates to Last Change"),
     @(LDPromptRemoveEmptyFolders): LDLocalized(@"Remove Empty Folders"),
   };
+  // Only operations LinDirStat has get a switch; the others' settings wait
+  // for theirs (#61, #63).
+  NSArray *shown = @[@(LDPromptDeletePermanently), @(LDPromptMoveToTrash), @(LDPromptEmptyTrash)];
   _promptChecks = [NSMutableArray array];
   for (NSNumber *prompt in [LDPreferences prompts]) {
+    if (![shown containsObject:prompt]) {
+      continue;
+    }
     NSString *title = [NSString stringWithFormat:LDLocalized(@"Show confirmation before: %@"), [operations objectForKey:prompt]];
     NSButton *check = [self addCheckbox:title action:@selector(promptsChanged:)];
     [check setTag:[prompt integerValue]];
     [_promptChecks addObject:check];
   }
+  [self addNote:LDLocalized(@"Empty Folder deletes permanently, so it asks under Delete Permanently.")
+          color:[NSColor secondaryLabelColor] lines:1];
 }
 
 - (void)buildAdvancedPage

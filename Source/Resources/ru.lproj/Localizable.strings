@@ -23,6 +23,7 @@
 "Cushion shading" = "Подушечность";
 "Custom Cleanup" = "Пользовательская очистка";
 "Custom Cleanup #%lu" = "Выборочная очистка #%lu";
+"Deduplicate with Hardlink" = "Удаление дубликатов с помощью жёстких ссылок";
 "Delete Permanently" = "Удалить (без возможности восстановления!)";
 "Delete Permanently…" = "Удалить (без возможности восстановления!)…";
 "Deleted" = "Удалено";
@@ -153,7 +154,6 @@
 "Use regular expressions (POSIX extended)" = "Использовать регулярные выражения";
 "Use regular expressions instead of glob patterns" = "Использовать регулярные выражения вместо глобальных шаблонов";
 "Wait for completion" = "Ожидать завершения";
-"Warn before deleting" = "Показывать предупреждающее сообщение перед удалением файлов";
 "Works For" = "Применить к";
 "Zoom In" = "Увеличить";
 "Zoom Out" = "Уменьшить";

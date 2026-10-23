@@ -24,6 +24,7 @@
 "Cushion shading" = "坐垫着色";
 "Custom Cleanup" = "自定义清理";
 "Custom Cleanup #%lu" = "自定义清理 #%lu";
+"Deduplicate with Hardlink" = "使用硬链接去重";
 "Delete Permanently" = "永久删除";
 "Delete Permanently…" = "永久删除…";
 "Deleted" = "已删除";
@@ -154,7 +155,6 @@
 "Use regular expressions (POSIX extended)" = "使用正则表达式";
 "Use regular expressions instead of glob patterns" = "使用正则表达式代替全局模式";
 "Wait for completion" = "等待完成";
-"Warn before deleting" = "在删除文件之前显示警告消息";
 "Works For" = "适用于";
 "Zoom In" = "放大";
 "Zoom Out" = "缩小";

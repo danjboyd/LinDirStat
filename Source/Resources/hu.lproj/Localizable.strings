@@ -24,6 +24,7 @@
 "Cushion shading" = "Párnaárnyék";
 "Custom Cleanup" = "\"Felhasználó által megadott takarítás";
 "Custom Cleanup #%lu" = "Felhasználói takarítás #%lu";
+"Deduplicate with Hardlink" = "Deduplikálás hard linkekkel";
 "Delete Permanently" = "Törlés (nem állítható vissza!)";
 "Delete Permanently…" = "Törlés (véglegesen!)…";
 "Deleted" = "Törölve";
@@ -154,7 +155,6 @@
 "Use regular expressions (POSIX extended)" = "Reguláris kifejezések használata";
 "Use regular expressions instead of glob patterns" = "Használjon reguláris kifejezést globális minták helyett";
 "Wait for completion" = "Befejezésre vár";
-"Warn before deleting" = "Figyelmeztető üzenet megjelenítése a fájlok törlése előtt";
 "Works For" = "Munkaterület";
 "Zoom In" = "Nagyít";
 "Zoom Out" = "Kicsinyít";
