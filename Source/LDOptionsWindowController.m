@@ -591,6 +591,7 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
 + (NSDictionary *)columnTitles
 {
   return @{
+    LDColumnPercentage: LDLocalized(@"Percentage"),
     LDColumnPhysicalSize: LDLocalized(@"Physical Size"),
     LDColumnLogicalSize: LDLocalized(@"Logical Size"),
     LDColumnItems: LDLocalized(@"Items"),

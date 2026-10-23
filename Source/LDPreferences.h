@@ -7,6 +7,7 @@
 FOUNDATION_EXPORT NSString *const LDPreferencesDidChangeNotification;
 
 // Optional directory tree columns, in WinDirStat's fixed order.
+FOUNDATION_EXPORT NSString *const LDColumnPercentage;
 FOUNDATION_EXPORT NSString *const LDColumnPhysicalSize;
 FOUNDATION_EXPORT NSString *const LDColumnLogicalSize;
 FOUNDATION_EXPORT NSString *const LDColumnItems;
@@ -15,6 +16,16 @@ FOUNDATION_EXPORT NSString *const LDColumnFolders;
 FOUNDATION_EXPORT NSString *const LDColumnLastChange;
 FOUNDATION_EXPORT NSString *const LDColumnAttributes;
 FOUNDATION_EXPORT NSString *const LDColumnOwner;
+
+// The lists whose columns can be hidden from their header (WinDirStat 2.6's
+// per-list ColumnVisibility settings).
+FOUNDATION_EXPORT NSString *const LDColumnListFolders;
+FOUNDATION_EXPORT NSString *const LDColumnListExtensions;
+FOUNDATION_EXPORT NSString *const LDColumnListLargest;
+FOUNDATION_EXPORT NSString *const LDColumnListDuplicates;
+FOUNDATION_EXPORT NSString *const LDColumnListSearch;
+FOUNDATION_EXPORT NSString *const LDColumnListWatcher;
+FOUNDATION_EXPORT NSString *const LDColumnListDrives;
 
 typedef enum {
   LDSelectTargetAllLocalDrives = 0,
@@ -136,6 +147,11 @@ typedef enum {
 - (BOOL)isColumnShown:(NSString *)column;
 - (void)setColumn:(NSString *)column shown:(BOOL)shown;
 + (NSArray *)optionalColumns;
+// Column visibility per list. The folder list uses the columns above (the
+// Folder List page's settings); in the other lists every column is shown
+// until it is hidden.
+- (BOOL)isColumn:(NSString *)column shownInList:(NSString *)list;
+- (void)setColumn:(NSString *)column shown:(BOOL)shown inList:(NSString *)list;
 // The Size Proportion bar colours by depth (WinDirStat's FileTreeColor0-7)
 // and how many of them are used in turn (FileTreeColorCount, 1-8). Colours
 // are 0xRRGGBB; the defaults are GNOME's palette in WinDirStat's order.

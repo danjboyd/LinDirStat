@@ -1,4 +1,5 @@
 #import "LDSelectTargetPanel.h"
+#import "LDColumnChooser.h"
 #import "LDLocalization.h"
 #import "LDPreferences.h"
 #import "LDSelectTargetRules.h"
@@ -99,6 +100,7 @@ typedef enum {
   NSButton *_individualRadio;
   NSButton *_folderRadio;
   NSTableView *_table;
+  LDColumnChooser *_columnChooser;
   NSComboBox *_folderCombo;
   NSButton *_browseButton;
   NSButton *_duplicatesCheckbox;
@@ -165,6 +167,19 @@ typedef enum {
   [column setSortDescriptorPrototype:[[NSSortDescriptor alloc] initWithKey:identifier ascending:ascending]];
   [_table addTableColumn:column];
   return column;
+}
+
+- (void)fitNameColumn
+{
+  NSTableColumn *name = [_table tableColumnWithIdentifier:LDSelectTargetColumnName];
+  CGFloat others = 0.0;
+  for (NSTableColumn *column in [_table tableColumns]) {
+    if (column != name) {
+      others += [column width] + [_table intercellSpacing].width;
+    }
+  }
+  CGFloat available = [[_table enclosingScrollView] contentSize].width;
+  [name setWidth:MAX(120.0, floor(available - others - [_table intercellSpacing].width))];
 }
 
 - (void)buildPanel
@@ -269,11 +284,22 @@ typedef enum {
   NSTableColumn *used = [self addColumn:LDSelectTargetColumnUsed title:LDLocalized(@"Used") width:110.0 right:NO ascending:NO];
   [used setDataCell:[[LDVolumeUsageCell alloc] init]];
   [self addColumn:LDSelectTargetColumnPercent title:LDLocalized(@"% Used") width:70.0 right:YES ascending:NO];
+  // WinDirStat 2.6's header column chooser; Name takes the room a hidden
+  // column leaves (or gives it back).
+  _columnChooser = [[LDColumnChooser alloc] initWithTable:_table
+                                                     list:LDColumnListDrives
+                                          requiredColumns:nil
+                                              preferences:[LDPreferences sharedPreferences]];
+  __weak LDSelectTargetController *weakSelf = self;
+  [_columnChooser setChangeHandler:^{
+    [weakSelf fitNameColumn];
+  }];
   [_table setDataSource:self];
   [_table setDelegate:self];
   [_table setTarget:self];
   [_table setDoubleAction:@selector(tableDoubleClicked:)];
   [scroll setDocumentView:_table];
+  [_columnChooser applyPreferences];
   // Overlay scrollbars: a corner view would hide the last column's title.
   [_table setCornerView:nil];
   [content addSubview:scroll];

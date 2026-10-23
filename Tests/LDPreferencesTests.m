@@ -45,6 +45,67 @@
   XCTAssertEqualWithAccuracy(16.0, [_preferences sizeProportionIndent], 0.01);
 }
 
+// WinDirStat 2.6 (db7af300) makes Percentage optional, shown by default.
+- (void)testPercentageColumnIsOptional
+{
+  XCTAssertEqualObjects(LDColumnPercentage, [[LDPreferences optionalColumns] firstObject]);
+  XCTAssertTrue([_preferences isColumnShown:LDColumnPercentage]);
+  [_preferences setColumn:LDColumnPercentage shown:NO];
+  XCTAssertFalse([_defaults boolForKey:@"ShowColumnPercentage"]);
+  XCTAssertFalse([_preferences isColumnShown:LDColumnPercentage]);
+}
+
+// The folder list's header chooser and Preferences > Folder List share the
+// ShowColumn settings.
+- (void)testFolderListVisibilityIsTheFolderListPage
+{
+  XCTAssertTrue([_preferences isColumn:LDColumnFiles shownInList:LDColumnListFolders]);
+  XCTAssertFalse([_preferences isColumn:LDColumnOwner shownInList:LDColumnListFolders]);
+  [_preferences setColumn:LDColumnFiles shown:NO inList:LDColumnListFolders];
+  XCTAssertFalse([_preferences isColumnShown:LDColumnFiles]);
+  [_preferences setColumn:LDColumnOwner shown:YES];
+  XCTAssertTrue([_preferences isColumn:LDColumnOwner shownInList:LDColumnListFolders]);
+  XCTAssertEqual((NSUInteger)0, [[_defaults dictionaryForKey:@"HiddenColumns"] count]);
+}
+
+// The other lists show every column until one is hidden, each list on its own.
+- (void)testOtherListsKeepTheirOwnVisibility
+{
+  XCTAssertTrue([_preferences isColumn:@"lastChange" shownInList:LDColumnListLargest]);
+  [_preferences setColumn:@"lastChange" shown:NO inList:LDColumnListLargest];
+  XCTAssertFalse([_preferences isColumn:@"lastChange" shownInList:LDColumnListLargest]);
+  XCTAssertTrue([_preferences isColumn:@"lastChange" shownInList:LDColumnListSearch]);
+  XCTAssertTrue([_preferences isColumnShown:LDColumnLastChange]);
+
+  LDPreferences *reloaded = [[LDPreferences alloc] initWithUserDefaults:_defaults];
+  XCTAssertFalse([reloaded isColumn:@"lastChange" shownInList:LDColumnListLargest]);
+
+  [_preferences setColumn:@"lastChange" shown:YES inList:LDColumnListLargest];
+  XCTAssertTrue([_preferences isColumn:@"lastChange" shownInList:LDColumnListLargest]);
+  XCTAssertEqualObjects(@{}, [_defaults dictionaryForKey:@"HiddenColumns"]);
+}
+
+- (void)testHiddenColumnsResetAndChangeNotifications
+{
+  __block NSUInteger changes = 0;
+  id observer = [[NSNotificationCenter defaultCenter] addObserverForName:LDPreferencesDidChangeNotification
+                                                                  object:_preferences
+                                                                   queue:nil
+                                                              usingBlock:^(NSNotification *note) {
+    (void)note;
+    changes++;
+  }];
+  [_preferences setColumn:@"files" shown:NO inList:LDColumnListExtensions];
+  XCTAssertEqual((NSUInteger)1, changes);
+  // Already hidden: nothing to change.
+  [_preferences setColumn:@"files" shown:NO inList:LDColumnListExtensions];
+  XCTAssertEqual((NSUInteger)1, changes);
+  [[NSNotificationCenter defaultCenter] removeObserver:observer];
+
+  [_preferences resetAll];
+  XCTAssertTrue([_preferences isColumn:@"files" shownInList:LDColumnListExtensions]);
+}
+
 - (void)testAbsolutePercentagesPersist
 {
   [_preferences setUseAbsolutePercentages:NO];
