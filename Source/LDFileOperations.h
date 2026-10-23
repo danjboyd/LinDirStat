@@ -38,6 +38,9 @@
 // YES for a folder macOS shows as one item: an app, a bundle or a document
 // package such as a Photos library (NSURLIsPackageKey). Always NO on Linux.
 + (BOOL)isPackage:(NSData *)path;
+// The names (filesystem bytes) of a folder's entries on disk, without "."
+// and "..", or nil when it cannot be read.
++ (NSSet *)entryNamesOfFolder:(NSData *)path;
 // WinDirStat 2.8's Deduplicate with Hardlink (71143eb4): replaces target
 // with a hard link to source. Both must be regular files (no symlinks) on
 // one filesystem with the same contents, compared byte for byte now, so a
