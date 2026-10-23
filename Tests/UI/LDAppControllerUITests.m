@@ -783,8 +783,13 @@
                         [LDCommandRules emptyFoldersIn:@[[self node:@"s"]] rootNode:[_controller root]]);
   [self selectInTree:@[[self node:@"e1"], [self node:@"a"]]];
   XCTAssertTrue([_controller validateAction:@selector(removeEmptyFolders:)]);
+  // e1's parent is the scan root, so the tree is scanned again afterwards:
+  // wait for the new tree, not just for the scan session to finish.
+  LDUITestController *controller = _controller;
+  NSUInteger before = [controller scansFinished];
   [_controller removeEmptyFolders:nil];
-  if (![self waitUntilIdle]) {
+  if (![self waitFor:^BOOL { return [controller scansFinished] > before && ![controller isBusy]; } seconds:20.0]) {
+    XCTFail(@"the scan after Remove Empty Folders finished");
     return;
   }
   XCTAssertFalse([files fileExistsAtPath:[self pathOf:@"e1"]]);
