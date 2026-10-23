@@ -12,7 +12,7 @@
 "Brightness" = "亮度";
 "Bytes" = "字节";
 "Cancel" = "取消";
-"Case sensitive" = "区分大小写搜索";
+"Case Sensitive Search" = "区分大小写搜索";
 "Clean Up" = "清理";
 "Cleanups" = "清理";
 "Collapse" = "折叠";
@@ -44,7 +44,6 @@
 "Files" = "文件";
 "Files without an extension" = "无扩展名";
 "Filtering" = "过滤";
-"Find files whose name contains:" = "搜索词:";
 "Folder List" = "文件夹列表";
 "Folder history entries" = "文件夹历史数";
 "Folder paths to exclude:" = "要排除的文件夹路径:";
@@ -71,7 +70,7 @@
 "Load Results From CSV" = "从 CSV 加载结果";
 "Load Results From CSV…" = "从 CSV 加载结果…";
 "Logical Size" = "逻辑大小";
-"Match the whole name" = "搜索整个短语";
+"Logical Size:" = "逻辑大小:";
 "Memory: %@" = "内存占用：%@";
 "Modified" = "已修改";
 "Move Down" = "下移";
@@ -86,9 +85,11 @@
 "Optional Columns" = "可选列";
 "Options" = "选项";
 "Owner" = "所有者";
+"Owner:" = "所有者:";
 "Pacman animation" = "吞噬动画";
 "Percentage" = "百分比";
 "Physical Size" = "物理大小";
+"Physical Size:" = "物理大小:";
 "Preferences" = "设置";
 "Prompts" = "提示";
 "Properties" = "属性";
@@ -120,6 +121,8 @@
 "Scanning threads" = "每个驱动器的线程数";
 "Search" = "搜索";
 "Search Results" = "搜索结果";
+"Search Term:" = "搜索词:";
+"Search Whole Phrase" = "搜索整个短语";
 "Search…" = "搜索…";
 "Select Parent" = "选择父项";
 "Select Target" = "选择目标";
@@ -151,7 +154,7 @@
 "Total" = "总计";
 "Treemap" = "树状图";
 "Use Logical Size" = "使用逻辑大小";
-"Use regular expressions (POSIX extended)" = "使用正则表达式";
+"Use Regular Expressions" = "使用正则表达式";
 "Use regular expressions instead of glob patterns" = "使用正则表达式代替全局模式";
 "Wait for completion" = "等待完成";
 "Warn before deleting" = "在删除文件之前显示警告消息";

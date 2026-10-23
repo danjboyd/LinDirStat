@@ -11,7 +11,7 @@
 "Automatically resize columns" = "Ändra storlek på kolumner automatiskt";
 "Brightness" = "Ljusstyrka";
 "Cancel" = "Avbryt";
-"Case sensitive" = "Skiftlägeskänslig sökning";
+"Case Sensitive Search" = "Skiftlägeskänslig sökning";
 "Clean Up" = "Rensa upp";
 "Cleanups" = "Rensningar";
 "Collapse" = "Dra samman";
@@ -43,7 +43,6 @@
 "Files" = "Filer";
 "Files without an extension" = "Inget filnamnstillägg";
 "Filtering" = "Filtrering";
-"Find files whose name contains:" = "Sökterm:";
 "Folder List" = "Mapplista";
 "Folder history entries" = "Mapphistorik antal";
 "Folder paths to exclude:" = "Mappsökvägar att utesluta:";
@@ -70,7 +69,7 @@
 "Load Results From CSV" = "Ladda resultat från CSV";
 "Load Results From CSV…" = "Ladda resultat från CSV…";
 "Logical Size" = "Logisk storlek";
-"Match the whole name" = "Sök hela frasen";
+"Logical Size:" = "Logisk storlek:";
 "Memory: %@" = "Minnesanvändning: %@";
 "Modified" = "Ändrad";
 "Move Down" = "Ner";
@@ -85,9 +84,11 @@
 "Optional Columns" = "Valfria kolumner";
 "Options" = "Alternativ";
 "Owner" = "Ägare";
+"Owner:" = "Ägare:";
 "Pacman animation" = "Pacman-animation";
 "Percentage" = "Procent";
 "Physical Size" = "Fysisk storlek";
+"Physical Size:" = "Fysisk storlek:";
 "Preferences" = "Inställningar";
 "Prompts" = "Promptar";
 "Properties" = "Egenskaper";
@@ -119,6 +120,8 @@
 "Scanning threads" = "Trådar per enhet";
 "Search" = "Sök";
 "Search Results" = "Sökresultat";
+"Search Term:" = "Sökterm:";
+"Search Whole Phrase" = "Sök hela frasen";
 "Search…" = "Sök…";
 "Select Parent" = "Välj överordnad mapp";
 "Select Target" = "Välj mål";
@@ -149,7 +152,7 @@
 "Total" = "Totalt";
 "Treemap" = "Trädkarta";
 "Use Logical Size" = "Använd logisk storlek";
-"Use regular expressions (POSIX extended)" = "Använd reguljära uttryck";
+"Use Regular Expressions" = "Använd reguljära uttryck";
 "Use regular expressions instead of glob patterns" = "Använd reguljärt uttryck i stället för jokertecken";
 "Wait for completion" = "Vänta på slutförandet";
 "Warn before deleting" = "Visa varningsmeddelande innan du tar bort filer";

@@ -1,6 +1,8 @@
 #import "LDSearch.h"
 #import "LDNodeRanking.h"
+#import "LDFileAttributes.h"
 
+#include <limits.h>
 #include <locale.h>
 #include <regex.h>
 #include <string.h>
@@ -132,6 +134,16 @@ static BOOL LDIsValidUTF8(const unsigned char *bytes)
   return options;
 }
 
+- (id)init
+{
+  self = [super init];
+  if (self) {
+    _includesFiles = YES;
+    _includesFolders = YES;
+  }
+  return self;
+}
+
 - (id)copyWithZone:(NSZone *)zone
 {
   LDSearchOptions *copy = [[[self class] allocWithZone:zone] init];
@@ -139,6 +151,13 @@ static BOOL LDIsValidUTF8(const unsigned char *bytes)
   [copy setUsesRegex:_usesRegex];
   [copy setCaseSensitive:_caseSensitive];
   [copy setWholePhrase:_wholePhrase];
+  [copy setIncludesFiles:_includesFiles];
+  [copy setIncludesFolders:_includesFolders];
+  [copy setOwner:_owner];
+  [copy setLogicalMinimum:_logicalMinimum];
+  [copy setLogicalMaximum:_logicalMaximum];
+  [copy setPhysicalMinimum:_physicalMinimum];
+  [copy setPhysicalMaximum:_physicalMaximum];
   return copy;
 }
 
@@ -150,7 +169,25 @@ static BOOL LDIsValidUTF8(const unsigned char *bytes)
 - (void)setCaseSensitive:(BOOL)flag { _caseSensitive = flag; }
 - (BOOL)wholePhrase { return _wholePhrase; }
 - (void)setWholePhrase:(BOOL)flag { _wholePhrase = flag; }
+- (BOOL)includesFiles { return _includesFiles; }
+- (void)setIncludesFiles:(BOOL)flag { _includesFiles = flag; }
+- (BOOL)includesFolders { return _includesFolders; }
+- (void)setIncludesFolders:(BOOL)flag { _includesFolders = flag; }
+- (NSString *)owner { return _owner ? _owner : @""; }
+- (void)setOwner:(NSString *)owner { _owner = [owner copy]; }
+- (NSNumber *)logicalMinimum { return _logicalMinimum; }
+- (void)setLogicalMinimum:(NSNumber *)bytes { _logicalMinimum = bytes; }
+- (NSNumber *)logicalMaximum { return _logicalMaximum; }
+- (void)setLogicalMaximum:(NSNumber *)bytes { _logicalMaximum = bytes; }
+- (NSNumber *)physicalMinimum { return _physicalMinimum; }
+- (void)setPhysicalMinimum:(NSNumber *)bytes { _physicalMinimum = bytes; }
+- (NSNumber *)physicalMaximum { return _physicalMaximum; }
+- (void)setPhysicalMaximum:(NSNumber *)bytes { _physicalMaximum = bytes; }
 
+@end
+
+@interface LDSearchResult (Totals)
+- (void)setTotalLogicalSize:(unsigned long long)logical physical:(unsigned long long)physical;
 @end
 
 @implementation LDSearchResult
@@ -167,6 +204,13 @@ static BOOL LDIsValidUTF8(const unsigned char *bytes)
 
 - (NSArray *)nodes { return _nodes; }
 - (NSUInteger)matchCount { return _matchCount; }
+- (unsigned long long)totalLogicalSize { return _totalLogicalSize; }
+- (unsigned long long)totalPhysicalSize { return _totalPhysicalSize; }
+- (void)setTotalLogicalSize:(unsigned long long)logical physical:(unsigned long long)physical
+{
+  _totalLogicalSize = logical;
+  _totalPhysicalSize = physical;
+}
 - (BOOL)isCapped { return _matchCount > [_nodes count]; }
 
 @end
@@ -208,13 +252,27 @@ static BOOL LDIsValidUTF8(const unsigned char *bytes)
   return [NSError errorWithDomain:LDSearchErrorDomain code:code userInfo:info];
 }
 
+// Upstream: an empty term is ".*", so the other conditions alone decide.
 + (LDNameMatcher *)matcherForOptions:(LDSearchOptions *)options error:(NSError **)error
 {
-  if ([[options term] length] == 0) {
+  if (![options includesFiles] && ![options includesFolders]) {
     if (error) {
-      *error = [self errorWithCode:LDSearchErrorEmptyTerm description:@"The search term is empty."];
+      *error = [self errorWithCode:LDSearchErrorNoItemTypes description:@"Choose files, folders or both."];
     }
     return nil;
+  }
+  NSNumber *ranges[2][2] = {{[options logicalMinimum], [options logicalMaximum]},
+                            {[options physicalMinimum], [options physicalMaximum]}};
+  for (int i = 0; i < 2; i++) {
+    if (ranges[i][0] && ranges[i][1] && [ranges[i][0] unsignedLongLongValue] > [ranges[i][1] unsignedLongLongValue]) {
+      if (error) {
+        *error = [self errorWithCode:LDSearchErrorInvalidRange description:@"A size minimum is above its maximum."];
+      }
+      return nil;
+    }
+  }
+  if ([[options term] length] == 0) {
+    return [[LDNameMatcher alloc] initWithPattern:@".*" caseSensitive:NO errorMessage:NULL];
   }
   NSString *message = nil;
   LDNameMatcher *matcher = [[LDNameMatcher alloc] initWithPattern:[self regexPatternForOptions:options]
@@ -231,6 +289,45 @@ static BOOL LDIsValidUTF8(const unsigned char *bytes)
   return [self matcherForOptions:options error:error] != nil;
 }
 
++ (NSArray *)history:(NSArray *)history byAdding:(LDSearchOptions *)options limit:(NSUInteger)limit
+{
+  NSMutableArray *result = [NSMutableArray array];
+  NSString *term = [options term];
+  if ([term length] > 0 && limit > 0) {
+    [result addObject:@{@"Term": term, @"Regex": @([options usesRegex]),
+                        @"WholePhrase": @([options wholePhrase]), @"Case": @([options caseSensitive])}];
+  }
+  for (NSDictionary *entry in history) {
+    if ([result count] >= limit) {
+      break;
+    }
+    NSString *old = [entry isKindOfClass:[NSDictionary class]] ? [entry objectForKey:@"Term"] : nil;
+    if ([old isKindOfClass:[NSString class]] && [old length] > 0 && ![old isEqualToString:term]) {
+      [result addObject:entry];
+    }
+  }
+  return result;
+}
+
++ (id)bytesForSizeField:(NSString *)text unit:(NSInteger)unit
+{
+  NSString *trimmed = [text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+  if ([trimmed length] == 0) {
+    return nil;
+  }
+  int shift = 10 * (int)MAX(0, MIN(4, unit));
+  unsigned long long limit = ULLONG_MAX >> shift;
+  unsigned long long value = 0;
+  for (NSUInteger i = 0; i < [trimmed length]; i++) {
+    unichar c = [trimmed characterAtIndex:i];
+    if (c < '0' || c > '9' || value > (limit - (c - '0')) / 10) {
+      return [NSNull null];
+    }
+    value = value * 10 + (c - '0');
+  }
+  return @(value << shift);
+}
+
 + (BOOL)termImpliesWholePhrase:(NSString *)term
 {
   return [term rangeOfString:@"*"].location != NSNotFound;
@@ -245,12 +342,55 @@ static BOOL LDIsValidUTF8(const unsigned char *bytes)
     return nil;
   }
   LDTopNodeCollector *collector = [[LDTopNodeCollector alloc] initWithLimit:maxResults == 0 ? NSUIntegerMax : maxResults];
+  BOOL files = [options includesFiles];
+  BOOL folders = [options includesFolders];
+  NSString *owner = [options owner];
+  NSNumber *logicalMinimum = [options logicalMinimum], *logicalMaximum = [options logicalMaximum];
+  NSNumber *physicalMinimum = [options physicalMinimum], *physicalMaximum = [options physicalMaximum];
   LDVisitNodes(root, ^(LDFileNode *node) {
-    if ([node kind] != LDFileNodeKindDirectory && ![node isSpaceItem] && [matcher matchesName:[node nameBytes]]) {
-      [collector offerNode:node size:[node size]];
+    if (node == root || [node isSpaceItem] || [node isComputer]) {
+      return;
     }
+    BOOL folder = [node kind] == LDFileNodeKindDirectory;
+    if (folder ? !folders : !files) {
+      return;
+    }
+    unsigned long long logical = [node aggregateSize];
+    unsigned long long physical = [node aggregateAllocatedSize];
+    if ((logicalMinimum && logical < [logicalMinimum unsignedLongLongValue])
+        || (logicalMaximum && logical > [logicalMaximum unsignedLongLongValue])
+        || (physicalMinimum && physical < [physicalMinimum unsignedLongLongValue])
+        || (physicalMaximum && physical > [physicalMaximum unsignedLongLongValue])) {
+      return;
+    }
+    if (![matcher matchesName:[node nameBytes]]) {
+      return;
+    }
+    if ([owner length] > 0) {
+      NSString *nodeOwner = [LDFileAttributes ownerOfPath:[node pathData]];
+      if (!nodeOwner || [nodeOwner rangeOfString:owner options:NSCaseInsensitiveSearch].location == NSNotFound) {
+        return;
+      }
+    }
+    [collector offerNode:node size:logical];
   });
-  return [[LDSearchResult alloc] initWithNodes:[collector sortedNodes] matchCount:[collector offeredCount]];
+  NSArray *nodes = [collector sortedNodes];
+  LDSearchResult *result = [[LDSearchResult alloc] initWithNodes:nodes matchCount:[collector offeredCount]];
+  // Only the outermost matches count toward the totals.
+  NSSet *matched = [NSSet setWithArray:nodes];
+  unsigned long long logicalTotal = 0, physicalTotal = 0;
+  for (LDFileNode *node in nodes) {
+    LDFileNode *ancestor = [node parent];
+    while (ancestor && ![matched containsObject:ancestor]) {
+      ancestor = [ancestor parent];
+    }
+    if (!ancestor) {
+      logicalTotal += [node aggregateSize];
+      physicalTotal += [node aggregateAllocatedSize];
+    }
+  }
+  [result setTotalLogicalSize:logicalTotal physical:physicalTotal];
+  return result;
 }
 
 @end

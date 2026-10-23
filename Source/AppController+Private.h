@@ -80,11 +80,21 @@
 
 @interface LDSearchPanel : NSObject
 {
-  NSTextField *_termField;
+  NSComboBox *_termField;   // the term, with the search history in its list
+  NSArray *_history;
   NSTextField *_errorLabel;
   NSButton *_regexBox;
   NSButton *_caseBox;
   NSButton *_wholeBox;
+  NSButton *_filesBox;
+  NSButton *_foldersBox;
+  NSTextField *_ownerField;
+  NSTextField *_logicalMinimum;
+  NSTextField *_logicalMaximum;
+  NSPopUpButton *_logicalUnit;
+  NSTextField *_physicalMinimum;
+  NSTextField *_physicalMaximum;
+  NSPopUpButton *_physicalUnit;
   NSButton *_okButton;
 }
 // Returns the options to search with, or nil if cancelled.

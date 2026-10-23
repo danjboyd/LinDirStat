@@ -11,7 +11,7 @@
 "Automatically resize columns" = "Kolommen automatisch aanpassen";
 "Brightness" = "Helderheid";
 "Cancel" = "Annuleren";
-"Case sensitive" = "Hoofdlettergevoelig zoeken";
+"Case Sensitive Search" = "Hoofdlettergevoelig zoeken";
 "Clean Up" = "Opschonen";
 "Cleanups" = "Opschoonbewerkingen";
 "Collapse" = "Samenvouwen";
@@ -43,7 +43,6 @@
 "Files" = "Bestanden";
 "Files without an extension" = "Zonder Extensie";
 "Filtering" = "Filteren";
-"Find files whose name contains:" = "Zoekterm:";
 "Folder List" = "Mappenlijst";
 "Folder history entries" = "Mapgeschiedenis aantal";
 "Folder paths to exclude:" = "Map paden om uit te sluiten:";
@@ -68,7 +67,7 @@
 "Load Results From CSV" = "Resultaten laden vanuit CSV";
 "Load Results From CSV…" = "Resultaten laden vanuit CSV…";
 "Logical Size" = "Logische Grootte";
-"Match the whole name" = "Zoek hele zin";
+"Logical Size:" = "Logische Grootte:";
 "Memory: %@" = "Geheugengebruik: %@";
 "Modified" = "Gewijzigd";
 "Move Down" = "Omlaag";
@@ -83,8 +82,10 @@
 "Optional Columns" = "Optionele kolommen";
 "Options" = "Opties";
 "Owner" = "Eigenaar";
+"Owner:" = "Eigenaar:";
 "Pacman animation" = "Pacman animatie";
 "Physical Size" = "Fysieke Grootte";
+"Physical Size:" = "Fysieke Grootte:";
 "Preferences" = "Instellingen";
 "Prompts" = "Meldingen";
 "Properties" = "Eigenschappen";
@@ -116,6 +117,8 @@
 "Scanning threads" = "Threads per schijf";
 "Search" = "Zoeken";
 "Search Results" = "Zoekresultaten";
+"Search Term:" = "Zoekterm:";
+"Search Whole Phrase" = "Zoek hele zin";
 "Search…" = "Zoeken…";
 "Select Parent" = "Bovenliggende selecteren";
 "Select Target" = "Doel selecteren";
@@ -146,7 +149,7 @@
 "Tools" = "Hulpmiddelen";
 "Total" = "Totaal";
 "Use Logical Size" = "Logische grootte gebruiken";
-"Use regular expressions (POSIX extended)" = "Reguliere expressies gebruiken";
+"Use Regular Expressions" = "Reguliere expressies gebruiken";
 "Use regular expressions instead of glob patterns" = "Gebruik reguliere expressie in plaats van glob-patronen";
 "Wait for completion" = "Wachten op voltooiing";
 "Warn before deleting" = "Toon waarschuwingsbericht voordat bestanden worden verwijderd";

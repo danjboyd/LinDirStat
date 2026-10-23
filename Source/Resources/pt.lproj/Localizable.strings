@@ -9,7 +9,7 @@
 "Automatically resize columns" = "Redimensione automaticamente as colunas";
 "Brightness" = "Brilho";
 "Cancel" = "Cancelar";
-"Case sensitive" = "Pesquisa sensível a maiúsculas e minúsculas";
+"Case Sensitive Search" = "Pesquisa sensível a maiúsculas e minúsculas";
 "Clean Up" = "Limpeza";
 "Cleanups" = "Limpeza";
 "Collapse" = "Reduzir";
@@ -41,7 +41,6 @@
 "Files" = "Arquivos";
 "Files without an extension" = "Sem Extensão";
 "Filtering" = "Filtragem";
-"Find files whose name contains:" = "Termo de pesquisa:";
 "Folder List" = "Lista de diretórios";
 "Folder history entries" = "Histórico de pastas";
 "Folder paths to exclude:" = "Caminhos de pastas para excluir:";
@@ -68,7 +67,7 @@
 "Load Results From CSV" = "Carregar resultados de CSV";
 "Load Results From CSV…" = "Carregar resultados de CSV…";
 "Logical Size" = "Tamanho Lógico";
-"Match the whole name" = "Pesquisar frase inteira";
+"Logical Size:" = "Tamanho Lógico:";
 "Memory: %@" = "Uso de Memória: %@";
 "Modified" = "Modificado";
 "Move Down" = "Para Baixo";
@@ -83,9 +82,11 @@
 "Optional Columns" = "Colunas opcionais";
 "Options" = "Opções";
 "Owner" = "Proprietário";
+"Owner:" = "Proprietário:";
 "Pacman animation" = "Animação do Pacman";
 "Percentage" = "Percentual";
 "Physical Size" = "Tamanho Físico";
+"Physical Size:" = "Tamanho Físico:";
 "Preferences" = "Configurações";
 "Prompts" = "Avisos";
 "Properties" = "Propriedades";
@@ -117,6 +118,8 @@
 "Scanning threads" = "Threads por unidade";
 "Search" = "Pesquisa";
 "Search Results" = "Resultados da pesquisa";
+"Search Term:" = "Termo de pesquisa:";
+"Search Whole Phrase" = "Pesquisar frase inteira";
 "Search…" = "Pesquisar…";
 "Select Parent" = "Selecionar Pai";
 "Select Target" = "Selecionar Destino";
@@ -147,7 +150,7 @@
 "Tools" = "Ferramentas";
 "Treemap" = "Mapa de Árvore";
 "Use Logical Size" = "Usar tamanho lógico";
-"Use regular expressions (POSIX extended)" = "Usar expressões regulares";
+"Use Regular Expressions" = "Usar expressões regulares";
 "Use regular expressions instead of glob patterns" = "Use expressões regulares em vez de padrões glob";
 "Wait for completion" = "Aguardar finalização";
 "Warn before deleting" = "Mostrar mensagem de aviso antes de excluir arquivos";

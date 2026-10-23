@@ -12,7 +12,7 @@
 "Brightness" = "Luminosità";
 "Bytes" = "Byte";
 "Cancel" = "Annulla";
-"Case sensitive" = "Ricerca sensibile alle maiuscole";
+"Case Sensitive Search" = "Ricerca sensibile alle maiuscole";
 "Clean Up" = "Ripulisci";
 "Cleanups" = "Ripulire";
 "Collapse" = "Comprimi";
@@ -43,7 +43,6 @@
 "Files" = "File";
 "Files without an extension" = "Senza Estensione";
 "Filtering" = "Filtraggio";
-"Find files whose name contains:" = "Termine di ricerca:";
 "Folder List" = "Elenco directory";
 "Folder history entries" = "Cronologia cartelle";
 "Folder paths to exclude:" = "Percorsi di cartelle da escludere:";
@@ -70,7 +69,7 @@
 "Load Results From CSV" = "Carica Risultati da CSV";
 "Load Results From CSV…" = "Carica Risultati da CSV…";
 "Logical Size" = "Dimensione Logica";
-"Match the whole name" = "Cerca l’intera frase";
+"Logical Size:" = "Dimensione Logica:";
 "Memory: %@" = "Utilizzo della RAM: %@";
 "Modified" = "Modificato";
 "Move Down" = "Giù";
@@ -85,9 +84,11 @@
 "Optional Columns" = "Colonne facoltative";
 "Options" = "Opzioni";
 "Owner" = "Proprietario";
+"Owner:" = "Proprietario:";
 "Pacman animation" = "Animazione Pacman";
 "Percentage" = "Percentuale";
 "Physical Size" = "Dimensione Fisica";
+"Physical Size:" = "Dimensione Fisica:";
 "Preferences" = "Configura LinDirStat";
 "Prompts" = "Prompt";
 "Properties" = "Proprietà";
@@ -119,6 +120,8 @@
 "Scanning threads" = "Thread per unità";
 "Search" = "Ricerca";
 "Search Results" = "Risultati di ricerca";
+"Search Term:" = "Termine di ricerca:";
+"Search Whole Phrase" = "Cerca l’intera frase";
 "Search…" = "Cerca…";
 "Select Parent" = "Seleziona primario";
 "Select Target" = "Seleziona obiettivo";
@@ -149,7 +152,7 @@
 "Tools" = "Strumenti";
 "Total" = "Totale";
 "Use Logical Size" = "Usa dimensione logica";
-"Use regular expressions (POSIX extended)" = "Usa espressioni regolari";
+"Use Regular Expressions" = "Usa espressioni regolari";
 "Use regular expressions instead of glob patterns" = "Usa espressioni regolari anziché modelli glob";
 "Wait for completion" = "Attendere completamento";
 "Warn before deleting" = "Mostra un messaggio di avviso prima di eliminare i file";

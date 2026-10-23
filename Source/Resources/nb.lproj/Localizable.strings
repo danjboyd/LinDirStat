@@ -11,7 +11,7 @@
 "Automatically resize columns" = "Endre størrelsen på kolonnene automatisk";
 "Brightness" = "Lyshet";
 "Cancel" = "Avbryt";
-"Case sensitive" = "Skill mellom store og små bokstaver";
+"Case Sensitive Search" = "Skill mellom store og små bokstaver";
 "Clean Up" = "Opprydning";
 "Cleanups" = "Egendefinerte oppryddinger";
 "Collapse" = "Slukk";
@@ -43,7 +43,6 @@
 "Files" = "Filer";
 "Files without an extension" = "Ingen filtype";
 "Filtering" = "Filtrering";
-"Find files whose name contains:" = "Søkeord:";
 "Folder List" = "Mappeoversikt";
 "Folder history entries" = "Mappehistorikk antall";
 "Folder paths to exclude:" = "Mappebaner som skal utelates:";
@@ -70,7 +69,7 @@
 "Load Results From CSV" = "Importer visning fra CSV";
 "Load Results From CSV…" = "Importer visning fra CSV…";
 "Logical Size" = "Størrelse";
-"Match the whole name" = "Søk etter hele uttrykket";
+"Logical Size:" = "Størrelse:";
 "Memory: %@" = "Minnebruk: %@";
 "Modified" = "Endret";
 "Move Down" = "Flytt ned";
@@ -85,9 +84,11 @@
 "Optional Columns" = "Valgfrie kolonner";
 "Options" = "Innstillinger";
 "Owner" = "Eier";
+"Owner:" = "Eier:";
 "Pacman animation" = "Vis Pacman animasjon";
 "Percentage" = "Prosent";
 "Physical Size" = "Diskbruk";
+"Physical Size:" = "Diskbruk:";
 "Preferences" = "Innstillinger";
 "Prompts" = "Varsler";
 "Properties" = "Egenskaper";
@@ -119,6 +120,8 @@
 "Scanning threads" = "Tråder per stasjon";
 "Search" = "Søk";
 "Search Results" = "Søkeresultater";
+"Search Term:" = "Søkeord:";
+"Search Whole Phrase" = "Søk etter hele uttrykket";
 "Search…" = "Søk…";
 "Select Parent" = "Velg element";
 "Select Target" = "Velg mål";
@@ -149,7 +152,7 @@
 "Tools" = "Verktøy";
 "Treemap" = "Trekart";
 "Use Logical Size" = "Bruk logisk størrelse";
-"Use regular expressions (POSIX extended)" = "Bruk regulære uttrykk";
+"Use Regular Expressions" = "Bruk regulære uttrykk";
 "Use regular expressions instead of glob patterns" = "Bruk regulære uttrykk i stedet for glob-mønstre";
 "Wait for completion" = "Vent til oppgaven er fullført";
 "Warn before deleting" = "Vis advarsel før sletting av filer";

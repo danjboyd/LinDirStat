@@ -357,6 +357,15 @@ Default sort: Physical Size, descending.
 
 ## 7. Search (`Dialogs/SearchDlg.cpp`, `Controls/FileSearchControl.cpp`, `ItemSearch.cpp`)
 
+*Later upstream (v2.6–v2.7, `7bfc8ccb`, `b7edc158`, `eea69dfc`; v2.9.0 `SearchDlg.cpp`, `FileSearchControl.cpp`):*
+- **Folders can match:** "Files" and "Folders" checkboxes (`SearchIncludeFiles`/`SearchIncludeFolders`, both on). The searched root is never a result.
+- **Size ranges:** logical and physical, each min–max with a unit (`SearchSizeMinimum/Maximum`, `SearchSizeUnits` default MiB; `SearchPhysical…`). A folder's sizes are its subtree's. The ranges are checked before the name.
+- **Owner:** a case-insensitive part of the owner's name (`SearchOwner`), checked last because it is the costly test.
+- **Empty term:** matches every name.
+- **History:** the term box keeps a history (`SearchHistory`, `SearchHistoryCount` default 10). Picking an entry restores its Regex/Whole Phrase/Case.
+- **Totals:** the results show logical and physical totals, a match inside another counted once.
+- **LinDirStat:** the totals, in the current metric, go into the status text with the count. The history is stored as dictionaries rather than upstream's `\x1f`-flagged lines.
+
 **Dialog (`RC:635-647`)**
 - A "Search Term:" field. · Three checkboxes, all default off and persisted (`OPT:48-51,132`): Use Regular Expressions; Case Sensitive Search; Search Whole Phrase. · OK and Cancel. OK is disabled while the term is empty or the regex is invalid. · Opened with Edit › Search... (Ctrl+F) or the toolbar. Disabled while a scan runs.
 

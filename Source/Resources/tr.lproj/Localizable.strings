@@ -12,7 +12,7 @@
 "Brightness" = "Parlaklık";
 "Bytes" = "Byte";
 "Cancel" = "İptal";
-"Case sensitive" = "Büyük/Küçük Harfe Duyarlı Arama";
+"Case Sensitive Search" = "Büyük/Küçük Harfe Duyarlı Arama";
 "Clean Up" = "Temizle";
 "Cleanups" = "Temizlikler";
 "Collapse" = "Daralt";
@@ -44,7 +44,6 @@
 "Files" = "Dosyalar";
 "Files without an extension" = "Uzantı Yok";
 "Filtering" = "Filtreleme";
-"Find files whose name contains:" = "Arama Terimi:";
 "Folder List" = "Klasör Listesi";
 "Folder history entries" = "Klasör geçmişi sayısı";
 "Folder paths to exclude:" = "Hariç tutulacak dizin yolları:";
@@ -71,7 +70,7 @@
 "Load Results From CSV" = "CSV Dosyasından Sonuç Yükle";
 "Load Results From CSV…" = "CSV Dosyasından Sonuç Yükle…";
 "Logical Size" = "Mantıksal Boyut";
-"Match the whole name" = "İfadenin tümünü ara";
+"Logical Size:" = "Mantıksal Boyut:";
 "Memory: %@" = "Hafıza Kullanımı: %@";
 "Modified" = "Değiştirildi";
 "Move Down" = "Aşağı";
@@ -86,9 +85,11 @@
 "Optional Columns" = "İsteğe bağlı sütunlar";
 "Options" = "Seçenekler";
 "Owner" = "Sahip";
+"Owner:" = "Sahip:";
 "Pacman animation" = "Pacman Animasyonu";
 "Percentage" = "Yüzde";
 "Physical Size" = "Fiziksel Boyut";
+"Physical Size:" = "Fiziksel Boyut:";
 "Preferences" = "Ayarlar";
 "Prompts" = "İstemler";
 "Properties" = "Özellikler";
@@ -120,6 +121,8 @@
 "Scanning threads" = "Sürücü başına iş parçacığı sayısı";
 "Search" = "Arama";
 "Search Results" = "Arama Sonuçları";
+"Search Term:" = "Arama Terimi:";
+"Search Whole Phrase" = "İfadenin tümünü ara";
 "Search…" = "Ara…";
 "Select Parent" = "Üst seçimi yeniden yap";
 "Select Target" = "Hedef Seç";
@@ -151,7 +154,7 @@
 "Total" = "Toplam";
 "Treemap" = "Ağaç Haritası";
 "Use Logical Size" = "Mantıksal Boyut Kullan";
-"Use regular expressions (POSIX extended)" = "Regex Kullan";
+"Use Regular Expressions" = "Regex Kullan";
 "Use regular expressions instead of glob patterns" = "Glob pattern yerine regex kullanın";
 "Wait for completion" = "Tamamlanmasını Bekleyin";
 "Warn before deleting" = "Dosyaları silmeden önce uyarı mesajı göster";

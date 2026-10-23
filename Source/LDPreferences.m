@@ -201,6 +201,17 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"SearchRegex": @NO,
     @"SearchCase": @NO,
     @"SearchWholePhrase": @NO,
+    @"SearchIncludeFiles": @YES,
+    @"SearchIncludeFolders": @YES,
+    @"SearchOwner": @"",
+    @"SearchSizeMinimum": @"",
+    @"SearchSizeMaximum": @"",
+    @"SearchPhysicalMinimum": @"",
+    @"SearchPhysicalMaximum": @"",
+    @"SearchSizeUnits": @2,
+    @"SearchPhysicalUnits": @2,
+    @"SearchHistory": @[],
+    @"SearchHistoryCount": @10,
     @"SearchTerm": @"",
     @"SelectDrivesRadio": @(LDSelectTargetFolder),
     @"SelectDrivesDrives": @[],
@@ -460,6 +471,29 @@ static uint32_t LDColorValue(NSInteger value)
 - (void)setSearchUsesRegex:(BOOL)flag { [self setBool:flag forKey:@"SearchRegex"]; }
 - (BOOL)searchCaseSensitive { return [self boolForKey:@"SearchCase"]; }
 - (void)setSearchCaseSensitive:(BOOL)flag { [self setBool:flag forKey:@"SearchCase"]; }
+- (BOOL)searchIncludesFiles { return [self boolForKey:@"SearchIncludeFiles"]; }
+- (void)setSearchIncludesFiles:(BOOL)flag { [self setBool:flag forKey:@"SearchIncludeFiles"]; }
+- (BOOL)searchIncludesFolders { return [self boolForKey:@"SearchIncludeFolders"]; }
+- (void)setSearchIncludesFolders:(BOOL)flag { [self setBool:flag forKey:@"SearchIncludeFolders"]; }
+- (NSString *)searchOwner { return [self stringForKey:@"SearchOwner"]; }
+- (void)setSearchOwner:(NSString *)owner { [self setString:owner forKey:@"SearchOwner"]; }
+- (NSString *)searchSizeField:(NSString *)key { return [self stringForKey:key]; }
+- (void)setSearchSizeField:(NSString *)value forKey:(NSString *)key { [self setString:value forKey:key]; }
+- (NSInteger)searchSizeUnits { return LDClamp([self integerForKey:@"SearchSizeUnits"], 0, 4); }
+- (void)setSearchSizeUnits:(NSInteger)unit { [self setInteger:LDClamp(unit, 0, 4) forKey:@"SearchSizeUnits"]; }
+- (NSInteger)searchPhysicalUnits { return LDClamp([self integerForKey:@"SearchPhysicalUnits"], 0, 4); }
+- (void)setSearchPhysicalUnits:(NSInteger)unit { [self setInteger:LDClamp(unit, 0, 4) forKey:@"SearchPhysicalUnits"]; }
+- (NSArray *)searchHistory
+{
+  id history = [_defaults objectForKey:@"SearchHistory"];
+  return [history isKindOfClass:[NSArray class]] ? history : @[];
+}
+- (void)setSearchHistory:(NSArray *)history
+{
+  [_defaults setObject:history ?: @[] forKey:@"SearchHistory"];
+  [self changed];
+}
+- (NSUInteger)searchHistoryCount { return (NSUInteger)LDClamp([self integerForKey:@"SearchHistoryCount"], 0, 100); }
 - (BOOL)searchWholePhrase { return [self boolForKey:@"SearchWholePhrase"]; }
 - (void)setSearchWholePhrase:(BOOL)flag { [self setBool:flag forKey:@"SearchWholePhrase"]; }
 - (NSString *)lastSearchTerm { return [self stringForKey:@"SearchTerm"]; }

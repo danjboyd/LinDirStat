@@ -11,7 +11,7 @@
 "Automatically resize columns" = "Автоматически изменять размер столбцов";
 "Brightness" = "Яркость";
 "Cancel" = "Отмена";
-"Case sensitive" = "Учитывать регистр";
+"Case Sensitive Search" = "Учитывать регистр";
 "Clean Up" = "Очистка";
 "Cleanups" = "Очистка";
 "Collapse" = "Свернуть";
@@ -43,7 +43,6 @@
 "Files" = "Файлы";
 "Files without an extension" = "Нет Расширение";
 "Filtering" = "Фильтрация";
-"Find files whose name contains:" = "Поисковый запрос:";
 "Folder List" = "Список каталогов";
 "Folder history entries" = "История папок";
 "Folder paths to exclude:" = "Пути к папкам для исключения:";
@@ -70,7 +69,7 @@
 "Load Results From CSV" = "Загрузить результаты из CSV";
 "Load Results From CSV…" = "Загрузить результаты из CSV…";
 "Logical Size" = "Логический размер";
-"Match the whole name" = "Искать всю фразу";
+"Logical Size:" = "Логический размер:";
 "Memory: %@" = "Использование RAM: %@";
 "Modified" = "Изменено";
 "Move Down" = "Вниз";
@@ -85,9 +84,11 @@
 "Optional Columns" = "Дополнительные столбцы";
 "Options" = "Настройки";
 "Owner" = "Имя";
+"Owner:" = "Имя:";
 "Pacman animation" = "Анимация 'Pacman";
 "Percentage" = "Доля";
 "Physical Size" = "Физический размер";
+"Physical Size:" = "Физический размер:";
 "Preferences" = "Настроить LinDirStat";
 "Prompts" = "Подсказки";
 "Properties" = "Свойства";
@@ -119,6 +120,8 @@
 "Scanning threads" = "Потоки на диск";
 "Search" = "Поиск";
 "Search Results" = "Результаты поиска";
+"Search Term:" = "Поисковый запрос:";
+"Search Whole Phrase" = "Искать всю фразу";
 "Search…" = "Поиск…";
 "Select Parent" = "Перейти на уровень вверх";
 "Select Target" = "Выбрать цель";
@@ -150,7 +153,7 @@
 "Total" = "Всего";
 "Treemap" = "Карта каталогов";
 "Use Logical Size" = "Использовать логический размер";
-"Use regular expressions (POSIX extended)" = "Использовать регулярные выражения";
+"Use Regular Expressions" = "Использовать регулярные выражения";
 "Use regular expressions instead of glob patterns" = "Использовать регулярные выражения вместо глобальных шаблонов";
 "Wait for completion" = "Ожидать завершения";
 "Warn before deleting" = "Показывать предупреждающее сообщение перед удалением файлов";
