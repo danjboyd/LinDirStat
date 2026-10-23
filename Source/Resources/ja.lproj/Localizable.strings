@@ -153,11 +153,12 @@
 "Show sizes in human-readable format" = "GiB/MiB/KiB/バイト形式でサイズを表示";
 "Show stripes" = "ストライプを表示";
 "Show time spent during scan" = "スキャン中の所要時間を表示";
+"Size Proportion" = "サイズ比率";
+"Size Proportion Color" = "サイズ比率の色";
+"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "スキャン全体に占めるサイズの割合：%.1f%%\n親フォルダーに占めるサイズの割合：%.1f%%";
 "Start File Watcher" = "ファイル監視を開始";
 "Stop" = "停止";
 "Style" = "スタイル";
-"Subtree Percentage" = "サブツリー割合";
-"Subtree Percentage Colors" = "サブツリー割合の色";
 "Suspend" = "一時停止";
 "Suspend Scan" = "一時停止";
 "Time" = "時刻";

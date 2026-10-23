@@ -11,7 +11,7 @@ reference taken from the WinDirStat source for step D.
 
 Step C:
 
-- The tree is shown while scanning. Each directory's children are published once as a complete array (`-[LDDirectoryNode publishChildren:]`), totals grow by atomic upward adds, and the arrays replaced by the final sort are released on the main thread. Pending-read counts drive WinDirStat's pacman (or "[N Read Jobs]") in the Subtree Percentage column; the root's Percentage shows the elapsed time.
+- The tree is shown while scanning. Each directory's children are published once as a complete array (`-[LDDirectoryNode publishChildren:]`), totals grow by atomic upward adds, and the arrays replaced by the final sort are released on the main thread. Pending-read counts drive WinDirStat's pacman (or "[N Read Jobs]") in the Size Proportion column; the root's Percentage shows the elapsed time.
 - Optional columns (Physical/Logical Size, Items, Files, Folders, Last Change, Attributes, Owner) are chosen in Preferences › Folder List.
 
 Step D:

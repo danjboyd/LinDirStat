@@ -152,11 +152,12 @@
 "Show sizes in human-readable format" = "Visa storlekar i format GiB/MiB/KiB/bytes";
 "Show stripes" = "Visa ränder";
 "Show time spent during scan" = "Visa tid tillbringad under sökningen";
+"Size Proportion" = "Storleksandel";
+"Size Proportion Color" = "Färg för storleksandel";
+"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Storleksandel av hela genomsökningen: %.1f%%\nStorleksandel av den överordnade mappen: %.1f%%";
 "Start File Watcher" = "Starta filövervakning";
 "Stop" = "Stoppa";
 "Style" = "Stil";
-"Subtree Percentage" = "Delträdsprocent";
-"Subtree Percentage Colors" = "Underträdets procentfärger";
 "Suspend" = "Pausa";
 "Suspend Scan" = "Pausa";
 "Time" = "Tid";

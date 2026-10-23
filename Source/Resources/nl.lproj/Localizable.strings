@@ -149,11 +149,12 @@
 "Show sizes in human-readable format" = "Bestandsgrootte in GiB/MiB/KiB/bytes formaat weergeven";
 "Show stripes" = "Strepen weergeven";
 "Show time spent during scan" = "Bestede tijd tijdens scan weergeven";
+"Size Proportion" = "Grootteverhouding";
+"Size Proportion Color" = "Kleur van grootteverhouding";
+"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Grootteverhouding ten opzichte van de volledige scan: %.1f%%\nGrootteverhouding ten opzichte van de bovenliggende map: %.1f%%";
 "Start File Watcher" = "Bestandsbewaking starten";
 "Stop" = "Stoppen";
 "Style" = "Stijl";
-"Subtree Percentage" = "Percentage onderliggende tree";
-"Subtree Percentage Colors" = "Kleuren onderliggende percentages van tree";
 "Suspend" = "Onderbreken";
 "Suspend Scan" = "Onderbreken";
 "Time" = "Tijd";

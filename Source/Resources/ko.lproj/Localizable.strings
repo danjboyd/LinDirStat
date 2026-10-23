@@ -153,11 +153,12 @@
 "Show sizes in human-readable format" = "GiB/MiB/KiB/바이트 형식으로 크기 표시";
 "Show stripes" = "줄무늬 표시";
 "Show time spent during scan" = "검색하는 동안 소요 시간 표시";
+"Size Proportion" = "크기 비율";
+"Size Proportion Color" = "크기 비율 색상";
+"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "전체 검사에서 차지하는 크기 비율: %.1f%%\n상위 폴더에서 차지하는 크기 비율: %.1f%%";
 "Start File Watcher" = "파일 감시 시작";
 "Stop" = "중지";
 "Style" = "스타일";
-"Subtree Percentage" = "하위 트리 비율";
-"Subtree Percentage Colors" = "하위 트리 퍼센트 색상";
 "Suspend" = "일시 중단";
 "Suspend Scan" = "일시 중단";
 "Time" = "시간";

@@ -42,6 +42,7 @@ MANUAL = {
     # Not mapped: Show in Finder/Files and Open Terminal Here, whose
     # WinDirStat strings name Explorer and the Command Prompt.
     "Open": "IDS_CLEANUP_OPEN_SELECTED",
+    "Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%": "IDS_SIZE_PROPORTION_TOOLTIPss",
     "Move to Trash": "IDS_MENU_DELETE_BIN",
     "Delete Permanently…": "IDS_MENU_DELETE",
     "Empty Folder…": "IDS_MENU_EMPTY_FOLDER",
@@ -160,7 +161,8 @@ def normalized(text):
 
 def translate(key, wds_english, wds_text):
     """WinDirStat's translation shaped like key, or None when they do not fit."""
-    value = plain(wds_text)
+    # A key of several lines keeps them all (plain keeps a tooltip's label).
+    value = wds_text.strip() if "\n" in key else plain(wds_text)
     specs = [s for s in SPEC.findall(key) if s != "%%"]
     holes = value.count("{}")
     if holes == 0 and len(specs) == 1 and key.endswith(": " + specs[0]):
@@ -168,6 +170,9 @@ def translate(key, wds_english, wds_text):
         holes = 1
     if holes != len(specs) or SPEC.search(value):
         return None
+    # A literal percent sign, as in "{}%", is "%%" in a format key.
+    if "%%" in key:
+        value = value.replace("%", "%%")
     for spec in specs:
         value = value.replace("{}", spec, 1)
     if key.endswith("…") and not value.endswith("…"):
@@ -193,7 +198,9 @@ def main():
         by_text.setdefault(normalized(text), string_id)
     ids = {}
     for key in keys:
-        string_id = MANUAL.get(key) or by_text.get(normalized(key))
+        string_id = MANUAL.get(key)
+        if string_id not in english:
+            string_id = by_text.get(normalized(key))
         if string_id and string_id in english:
             ids[key] = string_id
     # Keys the pin lacks, resolved against the older commits: (revision, id).

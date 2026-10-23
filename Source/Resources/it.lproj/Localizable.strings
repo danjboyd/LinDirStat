@@ -152,11 +152,12 @@
 "Show sizes in human-readable format" = "Visualizza dimensioni in formato GiB/MiB/KiB/byte";
 "Show stripes" = "Visualizza strisce";
 "Show time spent during scan" = "In scansione visualizza tempo trascorso";
+"Size Proportion" = "Proporzione dimensioni";
+"Size Proportion Color" = "Colore proporzione dimensionale";
+"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Proporzione delle dimensioni rispetto all'intera scansione: %.1f%%\nProporzione delle dimensioni rispetto alla cartella superiore: %.1f%%";
 "Start File Watcher" = "Avvia monitor file";
 "Stop" = "Interrompi";
 "Style" = "Stile";
-"Subtree Percentage" = "Percentuale sottoalbero";
-"Subtree Percentage Colors" = "Colori percentuale sottoalbero";
 "Suspend" = "Sospendi";
 "Suspend Scan" = "Sospendi";
 "Time" = "Orario";

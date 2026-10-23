@@ -136,7 +136,7 @@ typedef enum {
 - (BOOL)isColumnShown:(NSString *)column;
 - (void)setColumn:(NSString *)column shown:(BOOL)shown;
 + (NSArray *)optionalColumns;
-// The Subtree Percentage bar colours by depth (WinDirStat's FileTreeColor0-7)
+// The Size Proportion bar colours by depth (WinDirStat's FileTreeColor0-7)
 // and how many of them are used in turn (FileTreeColorCount, 1-8). Colours
 // are 0xRRGGBB; the defaults are GNOME's palette in WinDirStat's order.
 + (NSUInteger)fileTreeColorSlots;
@@ -179,6 +179,9 @@ typedef enum {
 // WinDirStat 2.6's UseAbsolutePercentages (default on): the Percentage
 // column shows each row's share of the whole scan, not of its parent.
 - (BOOL)useAbsolutePercentages;
+// WinDirStat 2.6's SizeProportionIndent: points the Size Proportion bar is
+// indented per tree level (0..1000, default 16). No control, as upstream.
+- (CGFloat)sizeProportionIndent;
 - (void)setUseAbsolutePercentages:(BOOL)flag;
 
 // Filtering (PageFiltering). Patterns are one per line.

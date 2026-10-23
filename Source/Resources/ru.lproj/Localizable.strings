@@ -152,11 +152,12 @@
 "Show sizes in human-readable format" = "Показывать размеры в формате ГБ/МБ/кБ/байт";
 "Show stripes" = "Показывать полосы";
 "Show time spent during scan" = "Показывать время, прошедшее с начала сканирования";
+"Size Proportion" = "Соотношение размера";
+"Size Proportion Color" = "Цвет соотношения размера";
+"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Доля от общего объёма просканированных данных: %.1f%%\nДоля от объёма родительской папки: %.1f%%";
 "Start File Watcher" = "Запустить наблюдение за файлами";
 "Stop" = "Остановить";
 "Style" = "Стиль";
-"Subtree Percentage" = "Подкаталоги, %";
-"Subtree Percentage Colors" = "Пропорциональное окрашивание подкаталогов";
 "Suspend" = "Приостановить";
 "Suspend Scan" = "Приостановить";
 "Time" = "Время";

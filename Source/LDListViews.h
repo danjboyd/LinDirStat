@@ -14,6 +14,9 @@
 // selected the row.
 - (BOOL)listView:(NSTableView *)view hasLinkAtRow:(NSInteger)row column:(NSInteger)column;
 - (void)listView:(NSTableView *)view followLinkAtRow:(NSInteger)row column:(NSInteger)column;
+// A tooltip for a cell, or nil for none (WinDirStat's Size Proportion
+// tooltip). Asked when the tooltip is about to show.
+- (NSString *)listView:(NSTableView *)view toolTipAtRow:(NSInteger)row column:(NSInteger)column;
 @end
 
 @interface LDOutlineView : NSOutlineView

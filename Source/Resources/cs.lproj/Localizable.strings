@@ -153,11 +153,12 @@
 "Show sizes in human-readable format" = "Zobrazovat velikosti ve formátu GiB/MiB/KiB/bajty";
 "Show stripes" = "Zobrazovat pruhy";
 "Show time spent during scan" = "Zobrazit čas potřebný pro načtení";
+"Size Proportion" = "Poměr velikosti";
+"Size Proportion Color" = "Barva poměru velikosti";
+"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Podíl na celkové velikosti prohledaných dat: %.1f%%\nPodíl na velikosti nadřazené složky: %.1f%%";
 "Start File Watcher" = "Spustit sledování souborů";
 "Stop" = "Zastavit";
 "Style" = "Styl";
-"Subtree Percentage" = "Podíl podstromu";
-"Subtree Percentage Colors" = "Úrovňové barvy";
 "Suspend" = "Přerušit";
 "Suspend Scan" = "Přerušit";
 "Time" = "Čas";

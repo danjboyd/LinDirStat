@@ -153,11 +153,12 @@
 "Show sizes in human-readable format" = "Näita suurust GiB/MiB/KiB/baiti vormingus";
 "Show stripes" = "Näita varjundis";
 "Show time spent during scan" = "Näita ajakulgu skaneerimisel";
+"Size Proportion" = "Suuruse osakaal";
+"Size Proportion Color" = "Suuruse osakaalu värv";
+"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Osakaal skannitud andmete kogumahust: %.1f%%\nOsakaal ülemkausta mahust: %.1f%%";
 "Start File Watcher" = "Käivita failijälgija";
 "Stop" = "Peata";
 "Style" = "Stiil";
-"Subtree Percentage" = "Alampuu protsent";
-"Subtree Percentage Colors" = "Alampuu esitus värvides";
 "Suspend" = "Peata";
 "Suspend Scan" = "Peata";
 "Time" = "Aeg";

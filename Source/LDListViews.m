@@ -84,6 +84,33 @@ static void LDAddLinkCursorRects(NSTableView *view, id<LDListViewCommands> targe
   }
 }
 
+// libs-gui does not ask the delegate for cell tooltips, so each visible row
+// gets a tooltip rect whose text comes from the row under the pointer when
+// it shows, which stays right after a scroll moved the rows.
+static void LDAddToolTipRects(NSTableView *view, id<LDListViewCommands> target)
+{
+  [view removeAllToolTips];
+  if (![(id)target respondsToSelector:@selector(listView:toolTipAtRow:column:)]) {
+    return;
+  }
+  NSRect visible = [view visibleRect];
+  NSRange rows = [view rowsInRect:visible];
+  NSUInteger row = 0;
+  for (row = rows.location; row < NSMaxRange(rows); row++) {
+    [view addToolTipRect:NSIntersectionRect([view rectOfRow:(NSInteger)row], visible) owner:view userData:NULL];
+  }
+}
+
+static NSString *LDToolTipAtPoint(NSTableView *view, id<LDListViewCommands> target, NSPoint point)
+{
+  NSInteger row = [view rowAtPoint:point];
+  NSInteger column = [view columnAtPoint:point];
+  if (row < 0 || column < 0 || ![(id)target respondsToSelector:@selector(listView:toolTipAtRow:column:)]) {
+    return nil;
+  }
+  return [target listView:view toolTipAtRow:row column:column];
+}
+
 @implementation LDOutlineView
 
 - (void)setCommandTarget:(id<LDListViewCommands>)target { _commandTarget = target; }
@@ -92,6 +119,38 @@ static void LDAddLinkCursorRects(NSTableView *view, id<LDListViewCommands> targe
 {
   [super resetCursorRects];
   LDAddLinkCursorRects(self, _commandTarget);
+  LDAddToolTipRects(self, _commandTarget);
+}
+
+- (NSString *)view:(NSView *)view stringForToolTip:(NSToolTipTag)tag point:(NSPoint)point userData:(void *)data
+{
+  return LDToolTipAtPoint(self, _commandTarget, point);
+}
+
+// The link cursors and tooltip rects cover the visible rows only, so they
+// are rebuilt whenever the clip view scrolls.
+- (void)viewDidMoveToWindow
+{
+  [super viewDidMoveToWindow];
+  NSClipView *clip = [[self enclosingScrollView] contentView];
+  [[NSNotificationCenter defaultCenter] removeObserver:self name:NSViewBoundsDidChangeNotification object:nil];
+  if ([self window] && clip) {
+    [clip setPostsBoundsChangedNotifications:YES];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(clipViewDidScroll:)
+                                                 name:NSViewBoundsDidChangeNotification
+                                               object:clip];
+  }
+}
+
+- (void)clipViewDidScroll:(NSNotification *)notification
+{
+  [[self window] invalidateCursorRectsForView:self];
+}
+
+- (void)dealloc
+{
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 - (void)reloadData

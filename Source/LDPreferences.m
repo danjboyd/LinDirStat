@@ -183,6 +183,7 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"TreeMapHighlightColor": @0xffffff,
     @"UseLogicalSize": @NO,
     @"UseAbsolutePercentages": @YES,
+    @"SizeProportionIndent": @16,
     @"FilteringExcludeDirs": @"",
     @"FilteringExcludeFiles": @"",
     @"FilteringUseRegex": @NO,
@@ -424,6 +425,7 @@ static uint32_t LDColorValue(NSInteger value)
 
 - (BOOL)useLogicalSize { return [self boolForKey:@"UseLogicalSize"]; }
 - (void)setUseLogicalSize:(BOOL)flag { [self setBool:flag forKey:@"UseLogicalSize"]; }
+- (CGFloat)sizeProportionIndent { return (CGFloat)LDClamp([self integerForKey:@"SizeProportionIndent"], 0, 1000); }
 - (BOOL)useAbsolutePercentages { return [self boolForKey:@"UseAbsolutePercentages"]; }
 - (void)setUseAbsolutePercentages:(BOOL)flag { [self setBool:flag forKey:@"UseAbsolutePercentages"]; }
 

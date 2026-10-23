@@ -971,7 +971,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [_directoryTable setOutlineTableColumn:name];
   [self setSortPrototypeForColumn:name ascending:YES];
 
-  NSTableColumn *subtree = [self addColumn:@"subtree" title:LDLocalized(@"Subtree Percentage") width:130 right:NO toTable:_directoryTable];
+  NSTableColumn *subtree = [self addColumn:@"subtree" title:LDLocalized(@"Size Proportion") width:130 right:NO toTable:_directoryTable];
   [subtree setDataCell:[[LDPercentageBarCell alloc] init]];
   [self setSortPrototypeForColumn:subtree ascending:NO];
   NSTableColumn *percent = [self addColumn:@"percent" title:LDLocalized(@"Percentage") width:105 right:YES toTable:_directoryTable];
@@ -2324,7 +2324,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   if ([identifier isEqualToString:LDColumnLogicalSize]) {
     return LDTreeSortKeyLogicalSize;
   }
-  // Size, Subtree Percentage and Percentage sort by the size the treemap uses.
+  // Size, Size Proportion and Percentage sort by the size the treemap uses.
   return _sizeMetric == LDSizeMetricLogical ? LDTreeSortKeyLogicalSize : LDTreeSortKeyPhysicalSize;
 }
 
@@ -2557,10 +2557,27 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   return item && [[self displayChildrenOfNode:item] count] > 0;
 }
 
-// A node's share of its parent, as the Subtree Percentage bar shows it.
+// A node's share of its parent, as the Size Proportion bar shows it.
 - (double)fractionOfParentForNode:(LDFileNode *)node
 {
   return [node fractionOfParentForMetric:_sizeMetric];
+}
+
+// WinDirStat 2.6's Size Proportion tooltip (IDS_SIZE_PROPORTION_TOOLTIPss).
+- (NSString *)sizeProportionToolTipForNode:(LDFileNode *)node
+{
+  return [NSString stringWithFormat:LDLocalized(@"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%"),
+                   [node fractionOfRootForMetric:_sizeMetric] * 100.0, [self fractionOfParentForNode:node] * 100.0];
+}
+
+- (NSString *)listView:(NSTableView *)view toolTipAtRow:(NSInteger)row column:(NSInteger)column
+{
+  if (view != (NSTableView *)_directoryTable || column >= (NSInteger)[[view tableColumns] count]
+      || ![[[[view tableColumns] objectAtIndex:(NSUInteger)column] identifier] isEqualToString:@"subtree"]) {
+    return nil;
+  }
+  LDFileNode *node = [_directoryTable itemAtRow:row];
+  return node && ![node isScanPending] ? [self sizeProportionToolTipForNode:node] : nil;
 }
 
 // The Percentage column: the share of the whole scan, or of the parent with
@@ -2642,7 +2659,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   NSString *identifier = [tableColumn identifier];
   if ([identifier isEqualToString:@"subtree"]) {
     LDPercentageBarCell *bar = cell;
-    [bar setFraction:[self fractionOfParentForNode:node] depth:[node depth]];
+    [bar setFraction:[self fractionOfParentForNode:node]
+        absoluteFraction:[node fractionOfRootForMetric:_sizeMetric]
+                   depth:[node depth]];
     BOOL pending = [node isScanPending];
     BOOL animate = [[LDPreferences sharedPreferences] pacmanAnimation];
     NSTimeInterval time = [self pacmanTime];

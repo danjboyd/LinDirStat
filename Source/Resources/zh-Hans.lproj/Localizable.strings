@@ -153,11 +153,12 @@
 "Show sizes in human-readable format" = "以 GiB/MiB/KiB/字节展示大小";
 "Show stripes" = "显示条纹底色";
 "Show time spent during scan" = "显示扫描耗时";
+"Size Proportion" = "空间占比";
+"Size Proportion Color" = "空间占比配色";
+"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "占整个扫描的大小比例：%.1f%%\n占父文件夹的大小比例：%.1f%%";
 "Start File Watcher" = "启动文件监控";
 "Stop" = "停止";
 "Style" = "样式";
-"Subtree Percentage" = "子树百分比";
-"Subtree Percentage Colors" = "子树百分比颜色";
 "Suspend" = "暂停";
 "Suspend Scan" = "暂停";
 "Time" = "时间";

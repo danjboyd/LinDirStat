@@ -153,11 +153,12 @@
 "Show sizes in human-readable format" = "Näytä koot Gt/Mt/kt/tavua -muodossa";
 "Show stripes" = "Näytä raidat";
 "Show time spent during scan" = "Näytä tarkistukseen käytetty aika";
+"Size Proportion" = "Koon osuus";
+"Size Proportion Color" = "Koon osuuden väri";
+"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Osuus skannauksen kokonaiskoosta: %.1f%%\nOsuus yläkansion koosta: %.1f%%";
 "Start File Watcher" = "Käynnistä tiedostovalvonta";
 "Stop" = "Pysäytä";
 "Style" = "Tyyli";
-"Subtree Percentage" = "Osuuskuvaaja";
-"Subtree Percentage Colors" = "Osuuskuvaajien värit";
 "Suspend" = "Keskeytä";
 "Suspend Scan" = "Keskeytä";
 "Time" = "Aika";

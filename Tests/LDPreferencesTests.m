@@ -42,6 +42,7 @@
   XCTAssertFalse([_preferences showFreeSpace]);
   XCTAssertFalse([_preferences showUnknown]);
   XCTAssertTrue([_preferences useAbsolutePercentages]);
+  XCTAssertEqualWithAccuracy(16.0, [_preferences sizeProportionIndent], 0.01);
 }
 
 - (void)testAbsolutePercentagesPersist

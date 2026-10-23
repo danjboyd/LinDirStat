@@ -153,11 +153,12 @@
 "Show sizes in human-readable format" = "Boyutları GiB/MiB/KiB/bayt biçiminde göster";
 "Show stripes" = "Çizgileri Göster";
 "Show time spent during scan" = "Tarama sırasında harcanan zamanı göster";
+"Size Proportion" = "Boyut Oranı";
+"Size Proportion Color" = "Boyut Oranı Rengi";
+"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Toplam taranan boyuta oranı: %.1f%%\nÜst klasörün boyutuna oranı: %.1f%%";
 "Start File Watcher" = "Dosya izleyiciyi başlat";
 "Stop" = "Durdur";
 "Style" = "Stil";
-"Subtree Percentage" = "Alt Ağaç Yüzdesi";
-"Subtree Percentage Colors" = "Alt Ağaç Yüzde Renkleri";
 "Suspend" = "Askıya al";
 "Suspend Scan" = "Askıya al";
 "Time" = "Zaman";
