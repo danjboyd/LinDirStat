@@ -195,18 +195,26 @@
   }
   // A folder is empty when it holds no files and every child is an empty
   // folder listed before it: a skipped package, link or mount point inside
-  // would make its rmdir fail.
+  // would make its rmdir fail. So would what the tree leaves out (symbolic
+  // links, hidden files, filtered entries) or what appeared since the
+  // scan, so the folder's entries on disk must be those children too.
   NSHashTable *listed = [NSHashTable hashTableWithOptions:NSPointerFunctionsObjectPointerPersonality];
   for (LDFileNode *node in [visited reverseObjectEnumerator]) {
     if (node == root || [self isVolumeNode:node rootNode:root] || [node fileCount] != 0) {
       continue;
     }
     BOOL empty = YES;
+    NSMutableSet *names = [NSMutableSet set];
     for (LDFileNode *child in [node children]) {
       if (![listed containsObject:child]) {
         empty = NO;
         break;
       }
+      [names addObject:[NSData dataWithBytes:[child nameBytes] length:strlen([child nameBytes])]];
+    }
+    if (empty) {
+      NSSet *onDisk = [LDFileOperations entryNamesOfFolder:[node pathData]];
+      empty = onDisk && [onDisk isSubsetOfSet:names];
     }
     if (empty) {
       [listed addObject:node];
