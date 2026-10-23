@@ -24,6 +24,7 @@
 "Cushion shading" = "Kohovarjostus";
 "Custom Cleanup" = "Käyttäjän oma toiminto";
 "Custom Cleanup #%lu" = "Käyttäjän oma toiminto #%lu";
+"Deduplicate with Hardlink" = "Poista kaksoiskappaleet kovilla linkeillä";
 "Delete Permanently" = "Poista pysyvästi";
 "Delete Permanently…" = "Poista pysyvästi…";
 "Deleted" = "Poistettu";
@@ -154,7 +155,6 @@
 "Use regular expressions (POSIX extended)" = "Käytä säännöllisiä lausekkeita";
 "Use regular expressions instead of glob patterns" = "Käytä säännöllisiä lausekkeita glob-mallien sijaan";
 "Wait for completion" = "Odota valmistumista";
-"Warn before deleting" = "Näytä varoitusviesti ennen tiedostojen poistamista";
 "Works For" = "Käytettävissä";
 "Zoom In" = "Suurenna";
 "Zoom Out" = "Pienennä";

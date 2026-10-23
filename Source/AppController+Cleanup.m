@@ -166,16 +166,21 @@
 
 #pragma mark - Delete, trash, empty folder, move
 
-- (BOOL)confirmAction:(NSString *)action message:(NSString *)message paths:(NSArray *)paths
+// WinDirStat's ConfirmOperation: asks unless the operation's prompt is off;
+// "Don't ask again" turns off that prompt only.
+- (BOOL)confirmAction:(NSString *)action
+               prompt:(LDPrompt)prompt
+              message:(NSString *)message
+                paths:(NSArray *)paths
 {
   LDPreferences *preferences = [LDPreferences sharedPreferences];
-  if (![preferences showDeleteWarning]) {
+  if (![preferences showsPrompt:prompt]) {
     return YES;
   }
   BOOL dontAskAgain = NO;
   BOOL confirmed = [LDDialogs confirmDestructiveAction:action message:message paths:paths dontAskAgain:&dontAskAgain];
   if (confirmed && dontAskAgain) {
-    [preferences setShowDeleteWarning:NO];
+    [preferences setShowsPrompt:NO forPrompt:prompt];
   }
   return confirmed;
 }
@@ -220,7 +225,10 @@
   NSString *message = permanently
     ? LDLocalized(@"These items will be deleted permanently. They cannot be recovered.")
     : LDLocalized(@"These items will be moved to the trash.");
-  if (![self confirmAction:action message:message paths:[self displayPathsForNodes:nodes]]) {
+  if (![self confirmAction:action
+                    prompt:permanently ? LDPromptDeletePermanently : LDPromptMoveToTrash
+                   message:message
+                     paths:[self displayPathsForNodes:nodes]]) {
     return;
   }
   NSMutableArray *paths = [NSMutableArray array];
@@ -266,6 +274,7 @@
   }
   NSArray *folders = [LDCommandRules topmostNodes:[self selectedNodes]];
   if (![self confirmAction:LDLocalized(@"Empty Folder")
+                    prompt:LDPromptDeletePermanently
                    message:LDLocalized(@"Everything inside these folders will be deleted permanently. The folders themselves are kept.")
                      paths:[self displayPathsForNodes:folders]]) {
     return;
@@ -341,6 +350,7 @@
   NSData *systemTrash = [LDFileOperations systemTrashPath];
   if (systemTrash) {
     if (![self confirmAction:LDLocalized(@"Empty Trash")
+                      prompt:LDPromptEmptyTrash
                      message:LDLocalized(@"Finder will permanently delete everything in the Trash.")
                        paths:@[[self stringForPathData:systemTrash]]]) {
       return;
@@ -364,7 +374,10 @@
   for (NSData *trash in trashes) {
     [paths addObject:[self stringForPathData:trash]];
   }
-  if (![self confirmAction:LDLocalized(@"Empty Trash") message:LDLocalized(@"Everything in these trash folders will be deleted permanently.") paths:paths]) {
+  if (![self confirmAction:LDLocalized(@"Empty Trash")
+                    prompt:LDPromptEmptyTrash
+                   message:LDLocalized(@"Everything in these trash folders will be deleted permanently.")
+                     paths:paths]) {
     return;
   }
   NSMutableArray *refresh = [NSMutableArray array];

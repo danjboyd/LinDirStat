@@ -24,6 +24,7 @@
 "Cushion shading" = "Blazinasto Senčenje";
 "Custom Cleanup" = "Počiščenje po meri";
 "Custom Cleanup #%lu" = "Počiščenje po meri #%lu";
+"Deduplicate with Hardlink" = "Odstrani podvojitve s trdimi povezavami";
 "Delete Permanently" = "Trajno izbriši";
 "Delete Permanently…" = "Trajno izbriši…";
 "Deleted" = "Izbrisano";
@@ -154,7 +155,6 @@
 "Use regular expressions (POSIX extended)" = "Uporabi regularne izraze";
 "Use regular expressions instead of glob patterns" = "Uporabi regularne izraze namesto vzorcev glob";
 "Wait for completion" = "Počakaj na dokončanje";
-"Warn before deleting" = "Pokaži opozorilno sporočilo pred brisanjem datotek";
 "Works For" = "Deluje za";
 "Zoom In" = "Povečaj (+)";
 "Zoom Out" = "Pomanjšaj (-)";

@@ -22,6 +22,7 @@
 "Cushion shading" = "Contraste Sombra";
 "Custom Cleanup" = "Limpieza definida por el Usuario";
 "Custom Cleanup #%lu" = "Limpieza definida por el Usuario #%lu";
+"Deduplicate with Hardlink" = "Deduplicar con enlaces duros";
 "Delete Permanently" = "Borrar el Item Seleccionado (¡sin posibilidad de recuperación!).\\\\Borrar (¡sin posibilidad de recuperación!)";
 "Delete Permanently…" = "Borrar (¡sin posibilidad de recuperación!)…";
 "Deleted" = "Eliminado";
@@ -149,7 +150,6 @@
 "Use regular expressions (POSIX extended)" = "Usar expresiones regulares";
 "Use regular expressions instead of glob patterns" = "Usar expresión regular en lugar de patrones glob";
 "Wait for completion" = "Esperar que Termine";
-"Warn before deleting" = "Mostrar mensaje de advertencia antes de eliminar archivos";
 "Works For" = "Trabaja para";
 "Zoom In" = "Acercar";
 "Zoom Out" = "Alejar";

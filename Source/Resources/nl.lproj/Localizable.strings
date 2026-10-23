@@ -23,6 +23,7 @@
 "Cushion shading" = "Kussenschaduw";
 "Custom Cleanup" = "Aangepaste opschoonbewerking";
 "Custom Cleanup #%lu" = "Aangepaste opschoonbewerking #%lu";
+"Deduplicate with Hardlink" = "Ontdubbelen met hardlinks";
 "Delete Permanently" = "Verwijderen (ongedaan maken onmogelijk!)";
 "Delete Permanently…" = "Permanent verwijderen (ongedaan maken onmogelijk!)…";
 "Deleted" = "Verwijderd";
@@ -149,7 +150,6 @@
 "Use regular expressions (POSIX extended)" = "Reguliere expressies gebruiken";
 "Use regular expressions instead of glob patterns" = "Gebruik reguliere expressie in plaats van glob-patronen";
 "Wait for completion" = "Wachten op voltooiing";
-"Warn before deleting" = "Toon waarschuwingsbericht voordat bestanden worden verwijderd";
 "Works For" = "Werkt op";
 "Zoom In" = "Inzoomen";
 "Zoom Out" = "Uitzoomen";

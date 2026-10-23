@@ -22,6 +22,7 @@
 "Cushion shading" = "Varjustus";
 "Custom Cleanup" = "Kasutaja määratud puhastus";
 "Custom Cleanup #%lu" = "Kasutaja määratud puhastus #%lu";
+"Deduplicate with Hardlink" = "Dubleeri eemaldamine kõvalinkidega";
 "Delete Permanently" = "Delete (no way to undelete!)";
 "Delete Permanently…" = "Kustuta (puudub ennistamine!)…";
 "Deleted" = "Kustutatud";
@@ -152,7 +153,6 @@
 "Use regular expressions (POSIX extended)" = "Kasuta regulaaravaldisi";
 "Use regular expressions instead of glob patterns" = "Kasuta regulaaravaldisi glob mustrite asemel";
 "Wait for completion" = "Oota lõpuleviimist";
-"Warn before deleting" = "Kuva hoiatusteade enne failide kustutamist";
 "Works For" = "Tööd";
 "Zoom In" = "Suurenda";
 "Zoom Out" = "Vähenda";

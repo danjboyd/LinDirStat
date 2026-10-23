@@ -24,6 +24,7 @@
 "Cushion shading" = "クッション影";
 "Custom Cleanup" = "カスタムクリーンアップ";
 "Custom Cleanup #%lu" = "カスタムクリーンアップ #%lu";
+"Deduplicate with Hardlink" = "ハードリンクで重複排除";
 "Delete Permanently" = "完全削除";
 "Delete Permanently…" = "完全削除…";
 "Deleted" = "削除";
@@ -154,7 +155,6 @@
 "Use regular expressions (POSIX extended)" = "正規表現を使用する";
 "Use regular expressions instead of glob patterns" = "globパターンの代わりに正規表現を使用";
 "Wait for completion" = "完了を待機";
-"Warn before deleting" = "ファイル削除前に警告メッセージを表示";
 "Works For" = "適用対象";
 "Zoom In" = "拡大";
 "Zoom Out" = "縮小";

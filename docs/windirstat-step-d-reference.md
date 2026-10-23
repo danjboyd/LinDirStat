@@ -540,10 +540,12 @@ Keep the "add as a leaf, don't descend" behaviour for unfollowed links and mount
 
 | Setting | Default | Notes |
 |---|---|---|
-| Warn before deleting | on | |
+| Warn before deleting | on | Split in v2.6, below |
 | Elevation prompt | on | *Windows-only* |
 | Cloud-links warning during duplicate detection | on | |
 | Microsoft progress dialogs | off | *Windows-only* |
+
+*Later upstream (v2.6, `581c609d`):* "Warn before deleting" becomes one "Show confirmation before: <operation>" switch per destructive operation (`IDS_PAGE_PROMPTS_OPERATION_CONFIRMATIONs`), each defaulting on: Delete Permanently (`ShowDeletePermanentlyWarning`), Delete to Recycle Bin (`ShowDeleteToRecycleBinWarning`), Empty Recycle Bin (`ShowEmptyRecycleBinPrompt`), Deduplicate with Hardlink (`ShowCreateHardlinkPrompt`), Change Folder Dates (`ShowSetDatesPrompt`) and Remove Empty Folders (`ShowRemoveEmptyFoldersPrompt`), plus Windows-only ones (MOTW, hibernate, shadow copies, DISM). `ConfirmOperation` asks only when its switch is on, and "Do not show this message again" turns off that switch alone. LinDirStat keeps those keys, with the trash in place of the Recycle Bin. Empty Folder uses the Delete Permanently switch. An old `ShowDeleteWarning` carries over once to the delete, trash and empty-trash switches.
 
 ### Advanced (`RC:573-602`)
 

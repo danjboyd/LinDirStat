@@ -24,6 +24,7 @@
 "Cushion shading" = "咕𠱸陰影";
 "Custom Cleanup" = "自訂清理";
 "Custom Cleanup #%lu" = "自訂清理 #%lu";
+"Deduplicate with Hardlink" = "使用硬連結去除重複";
 "Delete Permanently" = "永久刪除";
 "Delete Permanently…" = "永久刪除…";
 "Deleted" = "已刪除";
@@ -154,7 +155,6 @@
 "Use regular expressions (POSIX extended)" = "使用正則表達式";
 "Use regular expressions instead of glob patterns" = "使用正規表達式 (regular expression) 取代 glob 模式";
 "Wait for completion" = "等待完成";
-"Warn before deleting" = "在刪除檔案之前顯示警告訊息";
 "Works For" = "適用於";
 "Zoom In" = "放大";
 "Zoom Out" = "縮細";

@@ -24,6 +24,7 @@
 "Cushion shading" = "쿠션음영";
 "Custom Cleanup" = "사용자 지정 정리";
 "Custom Cleanup #%lu" = "사용자 지정 정리 #%lu";
+"Deduplicate with Hardlink" = "하드 링크로 중복 제거";
 "Delete Permanently" = "영구 삭제";
 "Delete Permanently…" = "영구 삭제…";
 "Deleted" = "삭제됨";
@@ -154,7 +155,6 @@
 "Use regular expressions (POSIX extended)" = "정규식 사용";
 "Use regular expressions instead of glob patterns" = "전역 패턴 대신 정규식 사용";
 "Wait for completion" = "완료 대기";
-"Warn before deleting" = "파일 삭제 전 경고 메시지 표시";
 "Works For" = "작업 대상";
 "Zoom In" = "확대";
 "Zoom Out" = "축소";
