@@ -32,20 +32,27 @@ ditto "$app_source" "$stage_root/app/LinDirStat.app"
 licenses="$stage_root/metadata/licenses"
 {
   printf 'LinDirStat, a disk usage viewer inspired by WinDirStat\n'
-  printf 'License: GPL-2.0-or-later\nSource: https://github.com/danjboyd/LinDirStat\n'
+  printf 'License: GPL-3.0-or-later\nSource: https://github.com/danjboyd/LinDirStat\n'
   if [[ -f "$repo_root/COPYING" ]]; then
     printf '\n'
     cat "$repo_root/COPYING"
   else
-    printf '\nSee https://www.gnu.org/licenses/old-licenses/gpl-2.0.html for the license text.\n'
+    printf '\nSee https://www.gnu.org/licenses/gpl-3.0.html for the license text.\n'
   fi
 } > "$licenses/LinDirStat.txt"
 cat > "$licenses/WinDirStat-reference.txt" <<'NOTICE'
-WinDirStat (GPL-2.0-or-later, https://github.com/windirstat/windirstat):
+WinDirStat (GPL-3.0-or-later since 2.9.2, GPL-2.0-or-later before;
+https://github.com/windirstat/windirstat):
 LinDirStat's translations (Resources/*.lproj) are generated from WinDirStat's
 language files. Its source code is kept under references/WinDirStat as
 reference material and is not compiled into LinDirStat.
 NOTICE
+{
+  printf 'Adwaita icon theme: the symbolic icons in LinDirStat.app/Contents/Resources, (C) the GNOME Project\n'
+  printf 'License: LGPL-3.0-or-later OR CC-BY-SA-3.0 (US); the LGPL-3.0 text follows, and it builds on the GPL-3.0 in LinDirStat.txt\n'
+  printf 'Source: https://gitlab.gnome.org/GNOME/adwaita-icon-theme\n\n'
+  cat "$repo_root/packaging/linux/licenses/adwaita-icon-theme-LGPL-3"
+} > "$licenses/Adwaita-icons.txt"
 
 archs="$(lipo -archs "$stage_root/app/LinDirStat.app/Contents/MacOS/LinDirStat")"
 cat > "$stage_root/metadata/stage-summary.json" <<SUMMARY

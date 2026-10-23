@@ -49,5 +49,5 @@ plus English. About half of LinDirStat's text has a WinDirStat counterpart
 
 ## License
 
-WinDirStat's translations are GPL-2.0-or-later, and so is LinDirStat (see
+WinDirStat's translations are GPL-3.0-or-later (since WinDirStat 2.9.2; older ones GPL-2.0-or-later), and LinDirStat is GPL-3.0-or-later (see
 `COPYING`).
