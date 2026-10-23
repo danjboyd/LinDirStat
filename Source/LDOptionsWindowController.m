@@ -584,7 +584,7 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
   [days setFrameSize:NSMakeSize(MAX(NSWidth([_minimumSizeUnit frame]), NSWidth([days frame])), NSHeight([days frame]))];
   [self addRow:LDLocalized(@"Exclude files by age (0 = disabled):") controls:@[_ageComparison, _maximumAge, days]];
   _y += LDOptionsSectionSpacing - LDOptionsRowSpacing;
-  [self addNote:LDLocalized(@"LinDirStat scans again when you leave this page or close Preferences.")
+  [self addNote:LDLocalized(@"LinDirStat scans again when you leave this page or close this window.")
           color:[NSColor secondaryLabelColor] lines:1];
 }
 

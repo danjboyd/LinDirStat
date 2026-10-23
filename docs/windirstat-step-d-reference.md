@@ -462,6 +462,7 @@ LinDirStat follows this, with three differences:
 - **Glob includes are followed component by component.** For example, `/data/*/src` goes through `/data` and `/data/x`. Upstream prunes everything below an include's fixed leading folder, so it finds nothing for such a pattern. Regex includes prune only off their leading folder.
 - **When the rescan happens:** the Preferences window applies changes live, so the rescan happens when the Filtering page is left or the window closes (with valid filters, and not for results loaded from a file).
 - **The size and age filters apply to regular files**, as before.
+- **Folder patterns match the path as shown in the tree.** On macOS the app standardizes a scan root (`/private/tmp/x` is scanned and shown as `/tmp/x`), so `/private/...` patterns match nothing there; exclusions always behaved this way.
 
 The post-v2.9.0 fixes are Windows path handling (`864a22cb`, `b2963623`), a speed-up (`7b04b45e`, done here independently: files in an included folder skip the path check) and newline names (`f4a131f8`; POSIX `.` already matches newlines). None was copied; v2.9.2 and later are GPL-3.
 
