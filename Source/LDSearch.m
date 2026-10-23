@@ -348,7 +348,8 @@ static BOOL LDIsValidUTF8(const unsigned char *bytes)
   NSNumber *logicalMinimum = [options logicalMinimum], *logicalMaximum = [options logicalMaximum];
   NSNumber *physicalMinimum = [options physicalMinimum], *physicalMaximum = [options physicalMaximum];
   LDVisitNodes(root, ^(LDFileNode *node) {
-    if (node == root || [node isSpaceItem] || [node isComputer]) {
+    // Never a scan root: the one searched, or each under "This Computer".
+    if (node == root || [node isSpaceItem] || [node isComputer] || [[node parent] isComputer]) {
       return;
     }
     BOOL folder = [node kind] == LDFileNodeKindDirectory;

@@ -41,7 +41,8 @@ typedef enum {
 - (BOOL)wholePhrase;
 - (void)setWholePhrase:(BOOL)flag;
 // WinDirStat 2.6-2.7 (7bfc8ccb, b7edc158): files and folders (both YES by
-// default) can match, never the root searched; an owner (a case-insensitive
+// default) can match, never a scan root (the root searched, or each one
+// under "This Computer"); an owner (a case-insensitive
 // part of the owning user's name, empty for any); and logical and physical
 // size ranges in bytes (nil: no bound), a folder's being its subtree's.
 - (BOOL)includesFiles;

@@ -291,4 +291,15 @@
   XCTAssertEqualObjects([NSNull null], [LDSearch bytesForSizeField:@"99999999999999" unit:4]);
 }
 
+- (void)testScanRootsUnderThisComputerNeverMatch
+{
+  LDFileNode *computer = [LDFileNode computerNode];
+  LDFileNode *volume = [LDFileNode nodeWithPath:@"/data" kind:LDFileNodeKindDirectory size:0];
+  [volume addChild:[LDFileNode nodeWithName:@"data-notes.txt" kind:LDFileNodeKindFile size:1 allocatedSize:1]];
+  [computer addChild:volume];
+  LDSearchResult *result = [LDSearch searchNode:computer options:[LDSearchOptions optionsWithTerm:@"data"] maxResults:0];
+  XCTAssertEqual((NSUInteger)1, [[result nodes] count]);
+  XCTAssertEqualObjects(@"data-notes.txt", [[[result nodes] firstObject] displayName]);
+}
+
 @end
