@@ -312,4 +312,77 @@
   XCTAssertFalse(complete);
 }
 
+#pragma mark - Folder tools
+
+- (void)testRemoveEmptyFolderOnlyRemovesEmptyRealFolders
+{
+  NSFileManager *files = [NSFileManager defaultManager];
+  NSString *empty = [_temporaryRoot stringByAppendingPathComponent:@"data/empty"];
+  NSString *full = [_temporaryRoot stringByAppendingPathComponent:@"data/full"];
+  NSString *link = [_temporaryRoot stringByAppendingPathComponent:@"data/link"];
+  [files createDirectoryAtPath:empty withIntermediateDirectories:YES attributes:nil error:NULL];
+  [files createDirectoryAtPath:full withIntermediateDirectories:YES attributes:nil error:NULL];
+  [@"x" writeToFile:[full stringByAppendingPathComponent:@"f"] atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  [files createSymbolicLinkAtPath:link withDestinationPath:empty error:NULL];
+
+  NSError *error = nil;
+  XCTAssertFalse([LDFileOperations removeEmptyFolder:[self bytesOf:link] error:&error]);
+  XCTAssertEqual(ENOTDIR, [error code]);
+  XCTAssertFalse([LDFileOperations removeEmptyFolder:[self bytesOf:full] error:&error]);
+  XCTAssertEqual(ENOTEMPTY, [error code]);
+  XCTAssertTrue([files fileExistsAtPath:[full stringByAppendingPathComponent:@"f"]]);
+  XCTAssertTrue([LDFileOperations removeEmptyFolder:[self bytesOf:empty] error:&error]);
+  XCTAssertFalse([files fileExistsAtPath:empty]);
+}
+
+- (void)testSetFolderModificationTime
+{
+  NSString *folder = [_temporaryRoot stringByAppendingPathComponent:@"data/dated"];
+  [[NSFileManager defaultManager] createDirectoryAtPath:folder withIntermediateDirectories:YES attributes:nil error:NULL];
+  NSError *error = nil;
+  XCTAssertTrue([LDFileOperations setModificationTime:1600000000 ofFolder:[self bytesOf:folder] error:&error]);
+  struct stat info;
+  XCTAssertEqual(0, stat([folder fileSystemRepresentation], &info));
+  XCTAssertEqual((time_t)1600000000, info.st_mtime);
+  NSString *file = [_temporaryRoot stringByAppendingPathComponent:@"data/plain"];
+  [@"x" writeToFile:file atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  XCTAssertFalse([LDFileOperations setModificationTime:1600000000 ofFolder:[self bytesOf:file] error:&error]);
+  XCTAssertEqual(ENOTDIR, [error code]);
+}
+
+#pragma mark - Hard links
+
+- (void)testReplaceFileWithHardLinkOnlyForIdenticalRegularFiles
+{
+  NSString *source = [self dataPath:@"source.bin"];
+  NSString *same = [self dataPath:@"same.bin"];
+  NSString *different = [self dataPath:@"different.bin"];
+  NSString *link = [self dataPath:@"link.bin"];
+  [@"identical contents" writeToFile:source atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  [@"identical contents" writeToFile:same atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  [@"identical content!" writeToFile:different atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  [[NSFileManager defaultManager] createSymbolicLinkAtPath:link withDestinationPath:same error:NULL];
+
+  NSError *error = nil;
+  // Changed since the search: refused, and left as it was.
+  XCTAssertFalse([LDFileOperations replaceFile:[self bytesOf:different] withHardLinkTo:[self bytesOf:source] error:&error]);
+  XCTAssertEqual(ECANCELED, [error code]);
+  XCTAssertEqualObjects(@"identical content!", [NSString stringWithContentsOfFile:different encoding:NSUTF8StringEncoding error:NULL]);
+  XCTAssertFalse([LDFileOperations replaceFile:[self bytesOf:link] withHardLinkTo:[self bytesOf:source] error:&error]);
+  XCTAssertEqual(EINVAL, [error code]);
+
+  XCTAssertTrue([LDFileOperations replaceFile:[self bytesOf:same] withHardLinkTo:[self bytesOf:source] error:&error]);
+  struct stat a, b;
+  stat([source fileSystemRepresentation], &a);
+  stat([same fileSystemRepresentation], &b);
+  XCTAssertEqual(a.st_ino, b.st_ino);
+  // Already linked: nothing to do.
+  XCTAssertTrue([LDFileOperations replaceFile:[self bytesOf:same] withHardLinkTo:[self bytesOf:source] error:&error]);
+  // No temporary links left behind.
+  NSArray *names = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[_temporaryRoot stringByAppendingPathComponent:@"data"] error:NULL];
+  for (NSString *name in names) {
+    XCTAssertFalse([name containsString:@".ldhl-"], @"%@", name);
+  }
+}
+
 @end

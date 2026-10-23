@@ -127,6 +127,32 @@ static NSString *LDToolTipAtPoint(NSTableView *view, id<LDListViewCommands> targ
   return LDToolTipAtPoint(self, _commandTarget, point);
 }
 
+// The link cursors and tooltip rects cover the visible rows only, so they
+// are rebuilt whenever the clip view scrolls.
+- (void)viewDidMoveToWindow
+{
+  [super viewDidMoveToWindow];
+  NSClipView *clip = [[self enclosingScrollView] contentView];
+  [[NSNotificationCenter defaultCenter] removeObserver:self name:NSViewBoundsDidChangeNotification object:nil];
+  if ([self window] && clip) {
+    [clip setPostsBoundsChangedNotifications:YES];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(clipViewDidScroll:)
+                                                 name:NSViewBoundsDidChangeNotification
+                                               object:clip];
+  }
+}
+
+- (void)clipViewDidScroll:(NSNotification *)notification
+{
+  [[self window] invalidateCursorRectsForView:self];
+}
+
+- (void)dealloc
+{
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
+}
+
 - (void)reloadData
 {
   [super reloadData];

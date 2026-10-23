@@ -7,6 +7,7 @@
 @class LDScanSession;
 @class LDScanOptions;
 @class LDPathFilter;
+@class LDScanFilter;
 @class LDDuplicateCollector;
 @class LDHardLinkTable;
 
@@ -24,8 +25,7 @@
   NSMutableArray *_arenas;
   NSUInteger _activeWorkers;
   LDScanOptions *_options;
-  LDPathFilter *_folderFilter;
-  LDPathFilter *_fileFilter;
+  LDScanFilter *_filter;  // nil when no filter is set
   LDSizeMetric _sortMetric;
   NSUInteger _threadCount;
   NSMutableArray *_retiredArrays;

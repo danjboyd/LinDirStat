@@ -159,7 +159,8 @@ cp "$repo_root/Source/Resources/LinDirStat.png" "$stage_root/metadata/icons/lind
 
 licenses="$stage_root/metadata/licenses"
 cat > "$licenses/WinDirStat-reference.txt" <<'EOF'
-WinDirStat (GPL-2.0-or-later, https://github.com/windirstat/windirstat):
+WinDirStat (GPL-3.0-or-later since 2.9.2, GPL-2.0-or-later before;
+https://github.com/windirstat/windirstat):
 LinDirStat's translations (Resources/*.lproj) are generated from WinDirStat's
 language files. Its source code is kept under references/WinDirStat as
 reference material and is not compiled into LinDirStat.
@@ -180,11 +181,11 @@ notice() {
 # The runtime's license texts, copied from upstream into the repository: the
 # gnustep-cli-new install does not carry them.
 license_texts="$repo_root/packaging/linux/licenses"
-notice LinDirStat.txt "LinDirStat, a disk usage viewer inspired by WinDirStat" "GPL-2.0-or-later" \
+notice LinDirStat.txt "LinDirStat, a disk usage viewer inspired by WinDirStat" "GPL-3.0-or-later" \
   "https://github.com/danjboyd/LinDirStat" "$repo_root/COPYING"
 notice GNUstep-base.txt "GNUstep Base (libgnustep-base)" "LGPL-2.1-or-later" \
   "https://github.com/gnustep/libs-base" "$license_texts/libs-base-COPYING.LIB"
-notice GNUstep-gui.txt "GNUstep GUI (libgnustep-gui)" "LGPL-2.1-or-later" \
+notice GNUstep-gui.txt "GNUstep GUI (libgnustep-gui; its GSIconManager.m is GPL-3.0-or-later)" "LGPL-2.1-or-later AND GPL-3.0-or-later" \
   "https://github.com/gnustep/libs-gui" "$license_texts/libs-gui-COPYING.LIB"
 notice GNUstep-back.txt "GNUstep Back (libgnustep-back)" "LGPL-2.1-or-later" \
   "https://github.com/gnustep/libs-back" "$license_texts/libs-back-COPYING.LIB"
@@ -196,6 +197,14 @@ notice Adwaita-theme.txt "Adwaita GNUstep theme (plugins-themes-adwaita)" "LGPL-
   "https://github.com/danjboyd/plugins-themes-Adwaita" "$adwaita_theme/../COPYING.LIB"
 notice gnustep-packager-updater.txt "gnustep-packager updater (GPUpdaterCore, GPUpdaterUI, gp-update-helper)" "MIT" \
   "https://github.com/danjboyd/gnustep-packager" "$repo_root/vendor/gnustep-packager-updater/LICENSE"
+notice URW-fonts.txt "URW Nimbus Sans L 1.05 (GNUstep Back's Fonts/Helvetica.nfont), (URW)++ 1999" \
+  "GPL, as the fonts say: \"See the file COPYING (GNU General Public License)\", with an exception for embedding them in documents; GNUstep Back's COPYING follows" \
+  "https://github.com/gnustep/libs-back" "$license_texts/libs-back-COPYING"
+notice Adwaita-icons.txt "Adwaita icon theme: the symbolic icons in LinDirStat.app/Resources/Icons, (C) the GNOME Project" \
+  "LGPL-3.0-or-later OR CC-BY-SA-3.0 (US); the LGPL-3.0 text follows, and it builds on the GPL-3.0 in LinDirStat.txt" \
+  "https://gitlab.gnome.org/GNOME/adwaita-icon-theme" "$license_texts/adwaita-icon-theme-LGPL-3"
+notice AppImage-runtime.txt "AppImage runtime (type2-runtime, from appimagetool 1.9.1)" "MIT" \
+  "https://github.com/AppImage/type2-runtime" "$license_texts/appimage-type2-runtime-LICENSE"
 notice Monocypher.txt "Monocypher 4.0.2 (in gp-update-helper)" "BSD-2-Clause OR CC0-1.0" \
   "https://monocypher.org" "$repo_root/vendor/gnustep-packager-updater/gp-update-helper/Source/monocypher/LICENCE.md"
 

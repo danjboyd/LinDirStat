@@ -93,6 +93,15 @@ typedef enum {
 
 @end
 
+typedef enum {
+  LDPromptDeletePermanently = 0,  // Delete Permanently, Empty Folder
+  LDPromptMoveToTrash,
+  LDPromptEmptyTrash,
+  LDPromptCreateHardLink,
+  LDPromptSetFolderDates,
+  LDPromptRemoveEmptyFolders
+} LDPrompt;
+
 @interface LDPreferences : NSObject
 {
   NSUserDefaults *_defaults;
@@ -187,6 +196,18 @@ typedef enum {
 - (LDSizeUnit)minimumFileSizeUnit;
 - (void)setMinimumFileSizeUnit:(LDSizeUnit)unit;
 - (unsigned long long)minimumFileSizeInBytes;
+// WinDirStat 2.6: include patterns, "<"/">" for the size and age filters,
+// and the age filter (days, 0 = off).
+- (NSString *)includedFolderPatterns;
+- (void)setIncludedFolderPatterns:(NSString *)patterns;
+- (NSString *)includedFilePatterns;
+- (void)setIncludedFilePatterns:(NSString *)patterns;
+- (BOOL)filterExcludesLargerFiles;        // FilteringSizeComparison: NO "<" (default), YES ">"
+- (void)setFilterExcludesLargerFiles:(BOOL)flag;
+- (NSUInteger)filterMaximumAgeDays;       // 0..36500
+- (void)setFilterMaximumAgeDays:(NSUInteger)days;
+- (BOOL)filterExcludesNewerFiles;         // FilteringMaxAgeComparison: NO ">" older (default), YES "<" newer
+- (void)setFilterExcludesNewerFiles:(BOOL)flag;
 
 // Advanced: scan exclusions and limits.
 - (BOOL)excludeMountPoints;              // YES: do not enter other filesystems
@@ -207,9 +228,12 @@ typedef enum {
 - (BOOL)scanForDuplicates;               // default NO
 - (void)setScanForDuplicates:(BOOL)flag;
 
-// Prompts
-- (BOOL)showDeleteWarning;
-- (void)setShowDeleteWarning:(BOOL)flag;
+// Prompts (WinDirStat 2.6's per-operation confirmations, 581c609d): one
+// "Show confirmation before" switch per destructive operation, each on by
+// default. "Don't ask again" in a confirmation turns off only its own.
++ (NSArray *)prompts;                    // LDPrompt values, as NSNumbers, in page order
+- (BOOL)showsPrompt:(LDPrompt)prompt;
+- (void)setShowsPrompt:(BOOL)flag forPrompt:(LDPrompt)prompt;
 
 // Search dialog
 - (BOOL)searchUsesRegex;
@@ -220,6 +244,25 @@ typedef enum {
 - (void)setSearchWholePhrase:(BOOL)flag;
 - (NSString *)lastSearchTerm;
 - (void)setLastSearchTerm:(NSString *)term;
+// WinDirStat 2.6-2.7's search settings, under its keys: item types, owner,
+// the size range fields as typed (digits, empty for no bound) with their
+// unit (0 bytes .. 4 TiB, default MiB), and the history: dictionaries with
+// Term, Regex, WholePhrase and Case, newest first.
+- (BOOL)searchIncludesFiles;
+- (void)setSearchIncludesFiles:(BOOL)flag;
+- (BOOL)searchIncludesFolders;
+- (void)setSearchIncludesFolders:(BOOL)flag;
+- (NSString *)searchOwner;
+- (void)setSearchOwner:(NSString *)owner;
+- (NSString *)searchSizeField:(NSString *)key;   // SearchSizeMinimum, SearchSizeMaximum, SearchPhysicalMinimum, SearchPhysicalMaximum
+- (void)setSearchSizeField:(NSString *)value forKey:(NSString *)key;
+- (NSInteger)searchSizeUnits;
+- (void)setSearchSizeUnits:(NSInteger)unit;
+- (NSInteger)searchPhysicalUnits;
+- (void)setSearchPhysicalUnits:(NSInteger)unit;
+- (NSArray *)searchHistory;
+- (void)setSearchHistory:(NSArray *)history;
+- (NSUInteger)searchHistoryCount;        // 0..100, default 10
 
 // Select Target dialog
 - (LDSelectTargetMode)selectTargetMode;

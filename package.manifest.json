@@ -11,7 +11,7 @@
     "version": "0.1.4",
     "manufacturer": "Daniel Boyd",
     "summary": "GNUstep disk usage viewer inspired by WinDirStat.",
-    "license": "GPL-2.0-or-later",
+    "license": "GPL-3.0-or-later",
     "homepage": "https://github.com/danjboyd/LinDirStat"
   },
   "pipeline": {
@@ -146,14 +146,14 @@
       {
         "name": "LinDirStat",
         "version": "0.1.4",
-        "license": "GPL-2.0-or-later",
+        "license": "GPL-3.0-or-later",
         "source": "LinDirStat application source",
         "homepage": "https://github.com/danjboyd/LinDirStat",
         "stageRelativePath": "metadata/licenses/LinDirStat.txt"
       },
       {
         "name": "WinDirStat Reference Source",
-        "license": "GPL-2.0-or-later",
+        "license": "GPL-3.0-or-later",
         "source": "Translations generated from WinDirStat's language files; source kept as reference only",
         "homepage": "https://github.com/windirstat/windirstat",
         "stageRelativePath": "metadata/licenses/WinDirStat-reference.txt"
@@ -167,7 +167,7 @@
       },
       {
         "name": "GNUstep GUI",
-        "license": "LGPL-2.1-or-later",
+        "license": "LGPL-2.1-or-later AND GPL-3.0-or-later",
         "source": "runtime/lib/libgnustep-gui.so.0.32",
         "homepage": "https://github.com/gnustep/libs-gui",
         "stageRelativePath": "metadata/licenses/GNUstep-gui.txt"
@@ -221,6 +221,27 @@
         "license": "Various; see host-libraries/ copyright files",
         "source": "Debian packages listed in host-libraries.txt",
         "stageRelativePath": "metadata/licenses/host-libraries.txt"
+      },
+      {
+        "name": "Adwaita icon theme (symbolic icons in LinDirStat.app)",
+        "license": "LGPL-3.0-or-later OR CC-BY-SA-3.0",
+        "source": "Icons rendered into LinDirStat.app's Resources/Icons (scripts/generate-symbolic-icons.py)",
+        "homepage": "https://gitlab.gnome.org/GNOME/adwaita-icon-theme",
+        "stageRelativePath": "metadata/licenses/Adwaita-icons.txt"
+      },
+      {
+        "name": "URW Nimbus Sans L (GNUstep Back's Helvetica.nfont)",
+        "license": "GPL (no version named) with a font-embedding exception; GNUstep Back ships the GPL-3.0 text as its COPYING",
+        "source": "runtime/System/Library/Fonts/Helvetica.nfont",
+        "homepage": "https://github.com/gnustep/libs-back",
+        "stageRelativePath": "metadata/licenses/URW-fonts.txt"
+      },
+      {
+        "name": "AppImage runtime (type2-runtime, via appimagetool 1.9.1)",
+        "license": "MIT",
+        "source": "The AppImage's ELF header and runtime",
+        "homepage": "https://github.com/AppImage/type2-runtime",
+        "stageRelativePath": "metadata/licenses/AppImage-runtime.txt"
       }
     ]
   },
@@ -278,17 +299,24 @@
           {
             "name": "LinDirStat",
             "version": "0.1.4",
-            "license": "GPL-2.0-or-later",
+            "license": "GPL-3.0-or-later",
             "source": "LinDirStat application source",
             "homepage": "https://github.com/danjboyd/LinDirStat",
             "stageRelativePath": "metadata/licenses/LinDirStat.txt"
           },
           {
             "name": "WinDirStat Reference Source",
-            "license": "GPL-2.0-or-later",
+            "license": "GPL-3.0-or-later",
             "source": "Local reference source only; not linked into LinDirStat",
             "homepage": "https://github.com/windirstat/windirstat",
             "stageRelativePath": "metadata/licenses/WinDirStat-reference.txt"
+          },
+          {
+            "name": "Adwaita icon theme (symbolic icons in LinDirStat.app)",
+            "license": "LGPL-3.0-or-later OR CC-BY-SA-3.0",
+            "source": "Icons rendered into LinDirStat.app's Resources/Icons (scripts/generate-symbolic-icons.py)",
+            "homepage": "https://gitlab.gnome.org/GNOME/adwaita-icon-theme",
+            "stageRelativePath": "metadata/licenses/Adwaita-icons.txt"
           }
         ]
       },

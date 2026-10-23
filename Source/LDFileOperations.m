@@ -678,4 +678,150 @@ static void LDMeasureTree(int directoryFD, unsigned long long *bytes, NSUInteger
   return emptied;
 }
 
+#pragma mark - Folder tools
+
++ (BOOL)isRealFolder:(NSData *)path
+{
+  struct stat info;
+  return lstat([LDTerminated(path) bytes], &info) == 0 && S_ISDIR(info.st_mode);
+}
+
++ (BOOL)isPackage:(NSData *)path
+{
+#if defined(__APPLE__)
+  NSString *string = [[NSFileManager defaultManager] stringWithFileSystemRepresentation:[path bytes] length:[path length]];
+  NSNumber *package = nil;
+  return string && [[NSURL fileURLWithPath:string isDirectory:YES] getResourceValue:&package forKey:NSURLIsPackageKey error:NULL]
+    && [package boolValue];
+#else
+  (void)path;
+  return NO;
+#endif
+}
+
++ (BOOL)removeEmptyFolder:(NSData *)path error:(NSError **)error
+{
+  if (![self isRealFolder:path]) {
+    return LDFail(error, ENOTDIR, @"Removing the empty folder");
+  }
+  if (rmdir([LDTerminated(path) bytes]) != 0) {
+    return LDFail(error, errno, @"Removing the empty folder");
+  }
+  return YES;
+}
+
++ (BOOL)setModificationTime:(NSTimeInterval)seconds ofFolder:(NSData *)path error:(NSError **)error
+{
+  if (![self isRealFolder:path]) {
+    return LDFail(error, ENOTDIR, @"Changing the folder's date");
+  }
+  struct timespec times[2];
+  times[0].tv_sec = 0;
+  times[0].tv_nsec = UTIME_OMIT;
+  times[1].tv_sec = (time_t)seconds;
+  times[1].tv_nsec = 0;
+  if (utimensat(AT_FDCWD, [LDTerminated(path) bytes], times, AT_SYMLINK_NOFOLLOW) != 0) {
+    return LDFail(error, errno, @"Changing the folder's date");
+  }
+  return YES;
+}
+
+#pragma mark - Hard links
+
+// YES when both open files hold the same bytes.
+static BOOL LDSameContents(int first, int second, NSError **error)
+{
+  enum { LDCompareChunk = 1 << 16 };
+  char *a = malloc(LDCompareChunk);
+  char *b = malloc(LDCompareChunk);
+  BOOL same = YES;
+  for (;;) {
+    ssize_t readA = read(first, a, LDCompareChunk);
+    if (readA < 0) {
+      same = LDFail(error, errno, @"Comparing the files");
+      break;
+    }
+    ssize_t readB = 0;
+    while (readB < readA) {
+      ssize_t got = read(second, b + readB, (size_t)(readA - readB));
+      if (got <= 0) {
+        break;
+      }
+      readB += got;
+    }
+    if (readB != readA || memcmp(a, b, (size_t)readA) != 0) {
+      same = LDFail(error, ECANCELED, @"The files differ now");
+      break;
+    }
+    if (readA == 0) {
+      char extra;
+      if (read(second, &extra, 1) != 0) {
+        same = LDFail(error, ECANCELED, @"The files differ now");
+      }
+      break;
+    }
+  }
+  free(a);
+  free(b);
+  return same;
+}
+
++ (BOOL)replaceFile:(NSData *)target withHardLinkTo:(NSData *)source error:(NSError **)error
+{
+  NSMutableData *targetPath = LDTerminated(target);
+  NSMutableData *sourcePath = LDTerminated(source);
+  struct stat targetInfo, sourceInfo;
+  if (lstat([targetPath bytes], &targetInfo) != 0 || lstat([sourcePath bytes], &sourceInfo) != 0) {
+    return LDFail(error, errno, @"Reading the files");
+  }
+  if (!S_ISREG(targetInfo.st_mode) || !S_ISREG(sourceInfo.st_mode)) {
+    return LDFail(error, EINVAL, @"Only regular files can be linked");
+  }
+  if (targetInfo.st_dev != sourceInfo.st_dev) {
+    return LDFail(error, EXDEV, @"Linking across filesystems");
+  }
+  if (targetInfo.st_ino == sourceInfo.st_ino) {
+    return YES;
+  }
+  if (targetInfo.st_size != sourceInfo.st_size) {
+    return LDFail(error, ECANCELED, @"The files differ now");
+  }
+  int sourceFD = open([sourcePath bytes], O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+  int targetFD = sourceFD < 0 ? -1 : open([targetPath bytes], O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
+  if (sourceFD < 0 || targetFD < 0) {
+    int code = errno;
+    if (sourceFD >= 0) {
+      close(sourceFD);
+    }
+    return LDFail(error, code, @"Opening the files");
+  }
+  BOOL same = LDSameContents(sourceFD, targetFD, error);
+  close(sourceFD);
+  close(targetFD);
+  if (!same) {
+    return NO;
+  }
+
+  // A temporary name next to the target: "<target>.ldhl-XXXXXX".
+  NSMutableData *temporary = [NSMutableData dataWithData:target];
+  for (int attempt = 0; attempt < 100; attempt++) {
+    char suffix[24];
+    snprintf(suffix, sizeof suffix, ".ldhl-%06x", (unsigned)arc4random_uniform(0x1000000));
+    [temporary setLength:[target length]];
+    [temporary appendBytes:suffix length:strlen(suffix) + 1];
+    if (link([sourcePath bytes], [temporary bytes]) == 0) {
+      if (rename([temporary bytes], [targetPath bytes]) == 0) {
+        return YES;
+      }
+      int code = errno;
+      unlink([temporary bytes]);
+      return LDFail(error, code, @"Replacing the file with the link");
+    }
+    if (errno != EEXIST) {
+      return LDFail(error, errno, @"Creating the hard link");
+    }
+  }
+  return LDFail(error, EEXIST, @"Creating the hard link");
+}
+
 @end

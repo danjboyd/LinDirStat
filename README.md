@@ -138,8 +138,10 @@ see. **Help › Report a Bug…** in the app opens the same page.
 
 ## License
 
-LinDirStat is free software under the GNU General Public License, version 2
-or (at your option) any later version. See [COPYING](COPYING).
+LinDirStat is free software under the GNU General Public License, version 3
+or (at your option) any later version. See [COPYING](COPYING). Up to 0.1.4
+it was GPL-2.0-or-later; it moved to GPL-3.0-or-later in 0.1.5 because it
+follows WinDirStat, which is GPL-3.0-or-later since 2.9.2.
 
 LinDirStat is an independent project, not affiliated with the WinDirStat
 team. It reuses WinDirStat's translations, which are GPL as well. The

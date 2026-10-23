@@ -1,5 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <XCTest/XCTest.h>
+
+#include <sys/time.h>
 #import "LDFileNode.h"
 #import "LDExtensionStats.h"
 #import "LDScanner.h"
@@ -416,6 +418,84 @@
 
 #endif
 #pragma mark - Filters and exclusions
+
+- (void)testIncludedFoldersKeepOnlyTheirFiles
+{
+  NSString *root = [self makeDirectory:@"root"];
+  [self makeDirectory:@"root/proj1/src"];
+  [self makeDirectory:@"root/other"];
+  [self writeFile:@"root/top.txt" bytes:100];
+  [self writeFile:@"root/proj1/a.c" bytes:200];
+  [self writeFile:@"root/proj1/src/b.c" bytes:400];
+  [self writeFile:@"root/other/c.c" bytes:800];
+
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setIncludedFolderPatterns:@[[root stringByAppendingPathComponent:@"proj*"]]];
+  LDFileNode *scanned = [self scan:root options:options session:nil];
+
+  XCTAssertNil([self childNamed:@"other" of:scanned]);
+  XCTAssertNil([self childNamed:@"top.txt" of:scanned]);
+  XCTAssertEqual((unsigned long long)600, [scanned aggregateSize]);
+  XCTAssertNotNil([self childNamed:@"b.c" of:[self childNamed:@"src" of:[self childNamed:@"proj1" of:scanned]]]);
+}
+
+- (void)testIncludeGlobWithAWildcardFolderFindsEveryMatch
+{
+  NSString *root = [self makeDirectory:@"root"];
+  [self makeDirectory:@"root/app1/src"];
+  [self makeDirectory:@"root/app2/src/deep"];
+  [self makeDirectory:@"root/app2/docs"];
+  [self writeFile:@"root/app1/src/a.c" bytes:100];
+  [self writeFile:@"root/app2/src/deep/b.c" bytes:200];
+  [self writeFile:@"root/app2/docs/c.txt" bytes:400];
+  [self writeFile:@"root/app2/top.c" bytes:800];
+
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setIncludedFolderPatterns:@[[root stringByAppendingPathComponent:@"*/src"]]];
+  LDFileNode *scanned = [self scan:root options:options session:nil];
+  XCTAssertEqual((unsigned long long)300, [scanned aggregateSize]);
+  XCTAssertNil([self childNamed:@"docs" of:[self childNamed:@"app2" of:scanned]]);
+}
+
+- (void)testIncludedFileNamesAgeAndLargerFiles
+{
+  NSString *root = [self makeDirectory:@"root"];
+  [self writeFile:@"root/keep.c" bytes:300];
+  [self writeFile:@"root/big.c" bytes:5000];
+  [self writeFile:@"root/notes.txt" bytes:300];
+  NSString *old = [self writeFile:@"root/old.c" bytes:300];
+  struct timeval times[2] = {{0, 0}, {0, 0}};
+  times[0].tv_sec = times[1].tv_sec = time(NULL) - 40 * 86400;
+  utimes([old fileSystemRepresentation], times);
+
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setIncludedFilePatterns:@[@"*.c"]];
+  [options setMinimumFileSize:1000];
+  [options setExcludesLargerFiles:YES];
+  [options setMaximumAgeDays:30];
+  LDFileNode *scanned = [self scan:root options:options session:nil];
+
+  XCTAssertNotNil([self childNamed:@"keep.c" of:scanned]);
+  XCTAssertNil([self childNamed:@"big.c" of:scanned]);
+  XCTAssertNil([self childNamed:@"notes.txt" of:scanned]);
+  XCTAssertNil([self childNamed:@"old.c" of:scanned]);
+  XCTAssertEqual((NSUInteger)1, [scanned fileCount]);
+}
+
+- (void)testExcludedFolderPatternCoversNestedFolders
+{
+  NSString *root = [self makeDirectory:@"root"];
+  [self makeDirectory:@"root/build/deep/deeper"];
+  [self writeFile:@"root/build/deep/deeper/x.o" bytes:100];
+  [self writeFile:@"root/main.c" bytes:10];
+
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setExcludedFolderPatterns:@[[root stringByAppendingPathComponent:@"build"]]];
+  LDFileNode *scanned = [self scan:root options:options session:nil];
+  XCTAssertNil([self childNamed:@"build" of:scanned]);
+  XCTAssertEqual((unsigned long long)10, [scanned aggregateSize]);
+}
+
 
 - (NSString *)makeDirectory:(NSString *)relativePath
 {

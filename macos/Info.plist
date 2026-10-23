@@ -35,6 +35,6 @@
 	<key>NSAppleEventsUsageDescription</key>
 	<string>LinDirStat asks Finder to empty the Trash.</string>
 	<key>NSHumanReadableCopyright</key>
-	<string>Copyright © 2026 Daniel Boyd. Released under the GNU General Public License, version 2 or later.</string>
+	<string>Copyright © 2026 Daniel Boyd. Released under the GNU General Public License, version 3 or later.</string>
 </dict>
 </plist>

@@ -407,7 +407,10 @@ static NSString *const LDTabWatcher = @"watcher";
   [self setTab:_searchTab shown:YES];
   [_searchTable reloadData];
   [_fileTabs selectTabViewItem:_searchTab];
-  [self showStatus:[NSString stringWithFormat:LDLocalized(@"Found %@ files matching “%@”"), count, [options term]]];
+  // WinDirStat 2.7 shows the matches' totals (a match inside another once).
+  unsigned long long total = _sizeMetric == LDSizeMetricLogical ? [result totalLogicalSize] : [result totalPhysicalSize];
+  [self showStatus:[NSString stringWithFormat:LDLocalized(@"Found %@ items matching “%@”  ·  %@"),
+                    count, [options term], [LDSizeFormatter stringForBytes:total]]];
 }
 
 #pragma mark - File watcher
@@ -850,9 +853,9 @@ static NSString *const LDTabWatcher = @"watcher";
 // the regular expression is invalid.
 @implementation LDSearchPanel
 
-- (NSButton *)checkbox:(NSString *)title y:(CGFloat)y state:(BOOL)state in:(NSView *)content
+- (NSButton *)checkbox:(NSString *)title frame:(NSRect)frame state:(BOOL)state in:(NSView *)content
 {
-  NSButton *box = [[NSButton alloc] initWithFrame:NSMakeRect(18, y, 400, 22)];
+  NSButton *box = [[NSButton alloc] initWithFrame:frame];
   [box setButtonType:NSSwitchButton];
   [box setTitle:title];
   [box setState:state ? NSOnState : NSOffState];
@@ -874,9 +877,52 @@ static NSString *const LDTabWatcher = @"watcher";
   return button;
 }
 
+- (NSTextField *)label:(NSString *)text frame:(NSRect)frame in:(NSView *)content
+{
+  NSTextField *label = [[NSTextField alloc] initWithFrame:frame];
+  [label setStringValue:text];
+  [label setBezeled:NO];
+  [label setDrawsBackground:NO];
+  [label setEditable:NO];
+  [label setSelectable:NO];
+  [content addSubview:label];
+  return label;
+}
+
+- (NSTextField *)field:(NSString *)value frame:(NSRect)frame in:(NSView *)content
+{
+  NSTextField *field = [[NSTextField alloc] initWithFrame:frame];
+  [field setStringValue:value ?: @""];
+  [field setDelegate:(id)self];
+  [content addSubview:field];
+  return field;
+}
+
+- (NSPopUpButton *)unitsPopUp:(NSInteger)selected frame:(NSRect)frame in:(NSView *)content
+{
+  NSPopUpButton *popUp = [[NSPopUpButton alloc] initWithFrame:frame pullsDown:NO];
+  [popUp addItemsWithTitles:@[@"bytes", @"KiB", @"MiB", @"GiB", @"TiB"]];
+  [popUp selectItemAtIndex:selected];
+  [popUp setTarget:self];
+  [popUp setAction:@selector(optionsChanged:)];
+  [content addSubview:popUp];
+  return popUp;
+}
+
 + (LDSearchOptions *)runSearchPanel
 {
   return [[[LDSearchPanel alloc] init] run];
+}
+
+// Each size bound, or nil; NO when a field is not a whole number.
+- (BOOL)readBound:(NSTextField *)field unit:(NSPopUpButton *)unit into:(NSNumber **)bound
+{
+  id bytes = [LDSearch bytesForSizeField:[field stringValue] unit:[unit indexOfSelectedItem]];
+  if (bytes == [NSNull null]) {
+    return NO;
+  }
+  *bound = bytes;
+  return YES;
 }
 
 - (LDSearchOptions *)currentOptions
@@ -885,24 +931,56 @@ static NSString *const LDTabWatcher = @"watcher";
   [options setUsesRegex:[_regexBox state] == NSOnState];
   [options setCaseSensitive:[_caseBox state] == NSOnState];
   [options setWholePhrase:[_wholeBox state] == NSOnState];
+  [options setIncludesFiles:[_filesBox state] == NSOnState];
+  [options setIncludesFolders:[_foldersBox state] == NSOnState];
+  [options setOwner:[[_ownerField stringValue] stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]]];
+  NSNumber *bound = nil;
+  if (![self readBound:_logicalMinimum unit:_logicalUnit into:&bound]) return nil;
+  [options setLogicalMinimum:bound];
+  bound = nil;
+  if (![self readBound:_logicalMaximum unit:_logicalUnit into:&bound]) return nil;
+  [options setLogicalMaximum:bound];
+  bound = nil;
+  if (![self readBound:_physicalMinimum unit:_physicalUnit into:&bound]) return nil;
+  [options setPhysicalMinimum:bound];
+  bound = nil;
+  if (![self readBound:_physicalMaximum unit:_physicalUnit into:&bound]) return nil;
+  [options setPhysicalMaximum:bound];
   return options;
 }
 
 - (void)validate
 {
+  LDSearchOptions *options = [self currentOptions];
   NSError *error = nil;
-  BOOL valid = [LDSearch validateOptions:[self currentOptions] error:&error];
+  BOOL valid = options && [LDSearch validateOptions:options error:&error];
   [_okButton setEnabled:valid];
-  [_errorLabel setStringValue:(valid || [[_termField stringValue] length] == 0) ? @"" : ([error localizedDescription] ?: @"")];
+  NSString *message = options ? [error localizedDescription] : LDLocalized(@"Sizes are whole numbers.");
+  [_errorLabel setStringValue:valid ? @"" : (message ?: @"")];
 }
 
 - (void)controlTextDidChange:(NSNotification *)notification
 {
-  (void)notification;
   // Typing '*' as a glob implies matching the whole name.
-  if ([_regexBox state] != NSOnState && [LDSearch termImpliesWholePhrase:[_termField stringValue]]) {
+  if ([notification object] == _termField && [_regexBox state] != NSOnState
+      && [LDSearch termImpliesWholePhrase:[_termField stringValue]]) {
     [_wholeBox setState:NSOnState];
   }
+  [self validate];
+}
+
+// A term from the history brings back the switches it was searched with.
+- (void)comboBoxSelectionDidChange:(NSNotification *)notification
+{
+  NSInteger index = [_termField indexOfSelectedItem];
+  if (index < 0 || index >= (NSInteger)[_history count]) {
+    return;
+  }
+  NSDictionary *entry = [_history objectAtIndex:(NSUInteger)index];
+  [_regexBox setState:[[entry objectForKey:@"Regex"] boolValue] ? NSOnState : NSOffState];
+  [_wholeBox setState:[[entry objectForKey:@"WholePhrase"] boolValue] ? NSOnState : NSOffState];
+  [_caseBox setState:[[entry objectForKey:@"Case"] boolValue] ? NSOnState : NSOffState];
+  (void)notification;
   [self validate];
 }
 
@@ -917,40 +995,85 @@ static NSString *const LDTabWatcher = @"watcher";
   [NSApp stopModalWithCode:[sender tag]];
 }
 
+// WinDirStat 2.7's Search dialog: the term with its history, the name
+// switches beside the item types, then owner and the two size ranges.
 - (LDSearchOptions *)run
 {
   LDPreferences *preferences = [LDPreferences sharedPreferences];
-  NSPanel *panel = [[NSPanel alloc] initWithContentRect:NSMakeRect(0, 0, 460, 236)
+  NSPanel *panel = [[NSPanel alloc] initWithContentRect:NSMakeRect(0, 0, 500, 360)
                                               styleMask:NSTitledWindowMask
                                                 backing:NSBackingStoreBuffered
                                                   defer:NO];
   [panel setTitle:LDLocalized(@"Search")];
   [panel setReleasedWhenClosed:NO];
   NSView *content = [panel contentView];
+  const CGFloat left = 18, labelWidth = 120, fieldLeft = left + labelWidth + 8, right = 482;
 
-  NSTextField *label = [[NSTextField alloc] initWithFrame:NSMakeRect(18, 194, 424, 20)];
-  [label setStringValue:LDLocalized(@"Find files whose name contains:")];
-  [label setBezeled:NO];
-  [label setDrawsBackground:NO];
-  [label setEditable:NO];
-  [content addSubview:label];
-  _termField = [[NSTextField alloc] initWithFrame:NSMakeRect(18, 160, 424, 28)];
+  [self label:LDLocalized(@"Search Term:") frame:NSMakeRect(left, 312, labelWidth, 22) in:content];
+  _termField = [[NSComboBox alloc] initWithFrame:NSMakeRect(fieldLeft, 308, right - fieldLeft, 30)];
+  _history = [preferences searchHistory];
+  for (NSDictionary *entry in _history) {
+    NSString *term = [entry isKindOfClass:[NSDictionary class]] ? [entry objectForKey:@"Term"] : nil;
+    if ([term isKindOfClass:[NSString class]]) {
+      [_termField addItemWithObjectValue:term];
+    }
+  }
+  [_termField setNumberOfVisibleItems:10];
+  [_termField setCompletes:NO];
   [_termField setStringValue:[preferences lastSearchTerm]];
   [_termField setDelegate:(id)self];
   [content addSubview:_termField];
-  _regexBox = [self checkbox:LDLocalized(@"Use regular expressions (POSIX extended)") y:128 state:[preferences searchUsesRegex] in:content];
-  _caseBox = [self checkbox:LDLocalized(@"Case sensitive") y:104 state:[preferences searchCaseSensitive] in:content];
-  _wholeBox = [self checkbox:LDLocalized(@"Match the whole name") y:80 state:[preferences searchWholePhrase] in:content];
-  _errorLabel = [[NSTextField alloc] initWithFrame:NSMakeRect(18, 56, 424, 20)];
-  [_errorLabel setBezeled:NO];
-  [_errorLabel setDrawsBackground:NO];
-  [_errorLabel setEditable:NO];
+
+  CGFloat column = fieldLeft + 220;
+  _regexBox = [self checkbox:LDLocalized(@"Use Regular Expressions") frame:NSMakeRect(fieldLeft, 274, 216, 22)
+                       state:[preferences searchUsesRegex] in:content];
+  _wholeBox = [self checkbox:LDLocalized(@"Search Whole Phrase") frame:NSMakeRect(fieldLeft, 250, 216, 22)
+                       state:[preferences searchWholePhrase] in:content];
+  _caseBox = [self checkbox:LDLocalized(@"Case Sensitive Search") frame:NSMakeRect(fieldLeft, 226, 216, 22)
+                      state:[preferences searchCaseSensitive] in:content];
+  _filesBox = [self checkbox:LDLocalized(@"Files") frame:NSMakeRect(column, 274, right - column, 22)
+                       state:[preferences searchIncludesFiles] in:content];
+  _foldersBox = [self checkbox:LDLocalized(@"Folders") frame:NSMakeRect(column, 250, right - column, 22)
+                         state:[preferences searchIncludesFolders] in:content];
+
+  [self label:LDLocalized(@"Owner:") frame:NSMakeRect(left, 186, labelWidth, 22) in:content];
+  _ownerField = [self field:[preferences searchOwner] frame:NSMakeRect(fieldLeft, 182, right - fieldLeft, 30) in:content];
+
+  CGFloat fieldWidth = 90, dashWidth = 16;
+  NSArray *rows = @[@[LDLocalized(@"Logical Size:"), @142, @"SearchSizeMinimum", @"SearchSizeMaximum"],
+                    @[LDLocalized(@"Physical Size:"), @102, @"SearchPhysicalMinimum", @"SearchPhysicalMaximum"]];
+  for (NSArray *row in rows) {
+    CGFloat y = [[row objectAtIndex:1] doubleValue];
+    [self label:[row objectAtIndex:0] frame:NSMakeRect(left, y + 4, labelWidth, 22) in:content];
+    NSTextField *minimum = [self field:[preferences searchSizeField:[row objectAtIndex:2]]
+                                 frame:NSMakeRect(fieldLeft, y, fieldWidth, 30) in:content];
+    [minimum setPlaceholderString:@"0"];
+    NSTextField *dash = [self label:@"–" frame:NSMakeRect(fieldLeft + fieldWidth, y + 4, dashWidth, 22) in:content];
+    [dash setAlignment:NSCenterTextAlignment];
+    NSTextField *maximum = [self field:[preferences searchSizeField:[row objectAtIndex:3]]
+                                 frame:NSMakeRect(fieldLeft + fieldWidth + dashWidth, y, fieldWidth, 30) in:content];
+    [maximum setPlaceholderString:@"∞"];
+    CGFloat unitLeft = fieldLeft + 2 * fieldWidth + dashWidth + 8;
+    BOOL logical = (row == [rows objectAtIndex:0]);
+    NSPopUpButton *unit = [self unitsPopUp:logical ? [preferences searchSizeUnits] : [preferences searchPhysicalUnits]
+                                     frame:NSMakeRect(unitLeft, y, right - unitLeft, 30) in:content];
+    if (logical) {
+      _logicalMinimum = minimum;
+      _logicalMaximum = maximum;
+      _logicalUnit = unit;
+    } else {
+      _physicalMinimum = minimum;
+      _physicalMaximum = maximum;
+      _physicalUnit = unit;
+    }
+  }
+
+  _errorLabel = [self label:@"" frame:NSMakeRect(left, 60, right - left, 20) in:content];
   [_errorLabel setTextColor:[NSColor disabledControlTextColor]];
   [_errorLabel setFont:[NSFont systemFontOfSize:[NSFont smallSystemFontSize]]];
-  [content addSubview:_errorLabel];
-  NSButton *cancel = [self button:LDLocalized(@"Cancel") frame:NSMakeRect(232, 14, 100, 34) tag:0 in:content];
+  NSButton *cancel = [self button:LDLocalized(@"Cancel") frame:NSMakeRect(right - 210, 14, 100, 34) tag:0 in:content];
   [cancel setKeyEquivalent:@"\e"];
-  _okButton = [self button:LDLocalized(@"Search") frame:NSMakeRect(342, 14, 100, 34) tag:1 in:content];
+  _okButton = [self button:LDLocalized(@"Search") frame:NSMakeRect(right - 100, 14, 100, 34) tag:1 in:content];
   [_okButton setKeyEquivalent:@"\r"];
   [self validate];
 
@@ -959,14 +1082,24 @@ static NSString *const LDTabWatcher = @"watcher";
   [panel makeFirstResponder:_termField];
   NSInteger result = [NSApp runModalForWindow:panel];
   [panel orderOut:nil];
-  if (result != 1) {
+  LDSearchOptions *options = result == 1 ? [self currentOptions] : nil;
+  if (!options) {
     return nil;
   }
-  LDSearchOptions *options = [self currentOptions];
   [preferences setLastSearchTerm:[options term]];
   [preferences setSearchUsesRegex:[options usesRegex]];
   [preferences setSearchCaseSensitive:[options caseSensitive]];
   [preferences setSearchWholePhrase:[options wholePhrase]];
+  [preferences setSearchIncludesFiles:[options includesFiles]];
+  [preferences setSearchIncludesFolders:[options includesFolders]];
+  [preferences setSearchOwner:[options owner]];
+  [preferences setSearchSizeField:[_logicalMinimum stringValue] forKey:@"SearchSizeMinimum"];
+  [preferences setSearchSizeField:[_logicalMaximum stringValue] forKey:@"SearchSizeMaximum"];
+  [preferences setSearchSizeField:[_physicalMinimum stringValue] forKey:@"SearchPhysicalMinimum"];
+  [preferences setSearchSizeField:[_physicalMaximum stringValue] forKey:@"SearchPhysicalMaximum"];
+  [preferences setSearchSizeUnits:[_logicalUnit indexOfSelectedItem]];
+  [preferences setSearchPhysicalUnits:[_physicalUnit indexOfSelectedItem]];
+  [preferences setSearchHistory:[LDSearch history:_history byAdding:options limit:[preferences searchHistoryCount]]];
   return options;
 }
 
