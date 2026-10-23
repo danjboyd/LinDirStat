@@ -335,6 +335,20 @@
   XCTAssertFalse([files fileExistsAtPath:empty]);
 }
 
+- (void)testEntryNamesOfFolder
+{
+  NSFileManager *files = [NSFileManager defaultManager];
+  NSString *folder = [_temporaryRoot stringByAppendingPathComponent:@"data/listed"];
+  [files createDirectoryAtPath:[folder stringByAppendingPathComponent:@"sub"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  [@"x" writeToFile:[folder stringByAppendingPathComponent:@".hidden"] atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  NSSet *names = [LDFileOperations entryNamesOfFolder:[self bytesOf:folder]];
+  NSSet *expected = [NSSet setWithObjects:[@"sub" dataUsingEncoding:NSUTF8StringEncoding],
+                                          [@".hidden" dataUsingEncoding:NSUTF8StringEncoding], nil];
+  XCTAssertEqualObjects(expected, names);
+  XCTAssertEqualObjects([NSSet set], [LDFileOperations entryNamesOfFolder:[self bytesOf:[folder stringByAppendingPathComponent:@"sub"]]]);
+  XCTAssertNil([LDFileOperations entryNamesOfFolder:[self bytesOf:[folder stringByAppendingPathComponent:@"missing"]]]);
+}
+
 - (void)testSetFolderModificationTime
 {
   NSString *folder = [_temporaryRoot stringByAppendingPathComponent:@"data/dated"];

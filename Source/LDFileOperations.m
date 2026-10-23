@@ -699,6 +699,23 @@ static void LDMeasureTree(int directoryFD, unsigned long long *bytes, NSUInteger
 #endif
 }
 
++ (NSSet *)entryNamesOfFolder:(NSData *)path
+{
+  DIR *dir = opendir([LDTerminated(path) bytes]);
+  if (!dir) {
+    return nil;
+  }
+  NSMutableSet *names = [NSMutableSet set];
+  struct dirent *entry;
+  while ((entry = readdir(dir)) != NULL) {
+    if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+      [names addObject:[NSData dataWithBytes:entry->d_name length:strlen(entry->d_name)]];
+    }
+  }
+  closedir(dir);
+  return names;
+}
+
 + (BOOL)removeEmptyFolder:(NSData *)path error:(NSError **)error
 {
   if (![self isRealFolder:path]) {

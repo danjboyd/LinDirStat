@@ -763,6 +763,8 @@
   // rmdir would fail.
   [files createDirectoryAtPath:[self pathOf:@"u/locked"] withIntermediateDirectories:YES attributes:nil error:NULL];
   chmod([[self pathOf:@"u/locked"] fileSystemRepresentation], 0);
+  [files createDirectoryAtPath:[self pathOf:@"s/inner"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  [files createDirectoryAtPath:[self pathOf:@"n"] withIntermediateDirectories:YES attributes:nil error:NULL];
   if (![self scanTree]) {
     chmod([[self pathOf:@"u/locked"] fileSystemRepresentation], 0755);
     return;
@@ -771,10 +773,23 @@
   if ([[self node:@"u/locked"] error] != LDFileNodeErrorNone) {
     XCTAssertEqualObjects(@[], [LDCommandRules emptyFoldersIn:@[[self node:@"u"]] rootNode:[_controller root]]);
   }
+  // Nor is one holding what the tree does not show, such as a symbolic
+  // link or a file made since the scan.
+  [files createSymbolicLinkAtPath:[self pathOf:@"s/inner/link"] withDestinationPath:[self pathOf:@"c.bin"] error:NULL];
+  [@"x" writeToFile:[self pathOf:@"n/new.txt"] atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  XCTAssertEqualObjects(@[], [LDCommandRules emptyFoldersIn:(@[[self node:@"s"], [self node:@"n"]]) rootNode:[_controller root]]);
+  XCTAssertTrue([files removeItemAtPath:[self pathOf:@"s/inner/link"] error:NULL]);
+  XCTAssertEqualObjects((@[[self node:@"s/inner"], [self node:@"s"]]),
+                        [LDCommandRules emptyFoldersIn:@[[self node:@"s"]] rootNode:[_controller root]]);
   [self selectInTree:@[[self node:@"e1"], [self node:@"a"]]];
   XCTAssertTrue([_controller validateAction:@selector(removeEmptyFolders:)]);
+  // e1's parent is the scan root, so the tree is scanned again afterwards:
+  // wait for the new tree, not just for the scan session to finish.
+  LDUITestController *controller = _controller;
+  NSUInteger before = [controller scansFinished];
   [_controller removeEmptyFolders:nil];
-  if (![self waitUntilIdle]) {
+  if (![self waitFor:^BOOL { return [controller scansFinished] > before && ![controller isBusy]; } seconds:20.0]) {
+    XCTFail(@"the scan after Remove Empty Folders finished");
     return;
   }
   XCTAssertFalse([files fileExistsAtPath:[self pathOf:@"e1"]]);
