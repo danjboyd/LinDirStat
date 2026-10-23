@@ -12,7 +12,7 @@
 "Brightness" = "Svetlost";
 "Bytes" = "Bajti";
 "Cancel" = "Prekliči";
-"Case sensitive" = "Iskanje z občutljivostjo na velikost črk";
+"Case Sensitive Search" = "Iskanje z občutljivostjo na velikost črk";
 "Clean Up" = "Počisti";
 "Cleanups" = "Čiščenja";
 "Collapse" = "Zloži";
@@ -44,7 +44,6 @@
 "Files" = "Datoteke";
 "Files without an extension" = "Brez končnice";
 "Filtering" = "Filtriranje";
-"Find files whose name contains:" = "Iskalni niz:";
 "Folder List" = "Seznam map";
 "Folder history entries" = "Število vnosov v zgodovini map";
 "Folder paths to exclude:" = "Poti map za izključitev:";
@@ -71,7 +70,7 @@
 "Load Results From CSV" = "Naloži rezultate iz CSV";
 "Load Results From CSV…" = "Naloži rezultate iz CSV…";
 "Logical Size" = "Logična velikost";
-"Match the whole name" = "Išči celoten stavek";
+"Logical Size:" = "Logična velikost:";
 "Memory: %@" = "Uporaba pomnilnika: %@";
 "Modified" = "Spremenjeno";
 "Move Down" = "Dol";
@@ -86,9 +85,11 @@
 "Optional Columns" = "Izbirni stolpci";
 "Options" = "Možnosti";
 "Owner" = "Lastnik";
+"Owner:" = "Lastnik:";
 "Pacman animation" = "Animacija Pacman";
 "Percentage" = "Odstotek";
 "Physical Size" = "Fizična velikost";
+"Physical Size:" = "Fizična velikost:";
 "Preferences" = "Nastavitve";
 "Prompts" = "Pozivi";
 "Properties" = "Lastnosti";
@@ -120,6 +121,8 @@
 "Scanning threads" = "Niti na pogon";
 "Search" = "Iskanje";
 "Search Results" = "Rezultati iskanja";
+"Search Term:" = "Iskalni niz:";
+"Search Whole Phrase" = "Išči celoten stavek";
 "Search…" = "Išči…";
 "Select Parent" = "Izberi nadrejenega";
 "Select Target" = "Izberi cilj";
@@ -151,7 +154,7 @@
 "Total" = "Skupaj";
 "Treemap" = "Drevesna karta";
 "Use Logical Size" = "Uporabi logično velikost";
-"Use regular expressions (POSIX extended)" = "Uporabi regularne izraze";
+"Use Regular Expressions" = "Uporabi regularne izraze";
 "Use regular expressions instead of glob patterns" = "Uporabi regularne izraze namesto vzorcev glob";
 "Wait for completion" = "Počakaj na dokončanje";
 "Works For" = "Deluje za";

@@ -10,7 +10,7 @@
 "Attributes" = "Attributter";
 "Automatically resize columns" = "Tilpas automatisk størrelsen på kolonner";
 "Brightness" = "Lysstyrkehed";
-"Case sensitive" = "Søgning med forskel på store og små bogstaver";
+"Case Sensitive Search" = "Søgning med forskel på store og små bogstaver";
 "Clean Up" = "Ryd op";
 "Cleanups" = "Oprydninger";
 "Collapse" = "Begrænse";
@@ -42,7 +42,6 @@
 "Files" = "Filer";
 "Files without an extension" = "Ingen forlængelse";
 "Filtering" = "Filtrering";
-"Find files whose name contains:" = "Søgeord:";
 "Folder List" = "Mappeliste";
 "Folder history entries" = "Antal poster i mappehistorikken";
 "Folder paths to exclude:" = "Mappestier, der skal udelades:";
@@ -69,7 +68,7 @@
 "Load Results From CSV" = "Indlæs resultater fra CSV";
 "Load Results From CSV…" = "Indlæs resultater fra CSV…";
 "Logical Size" = "Logisk størrelse";
-"Match the whole name" = "Søg hele sætningen";
+"Logical Size:" = "Logisk størrelse:";
 "Memory: %@" = "Hukommelsesforbrug: %@";
 "Modified" = "Ændret";
 "Move Down" = "Ned";
@@ -84,9 +83,11 @@
 "Optional Columns" = "Valgfrie kolonner";
 "Options" = "Indstillinger";
 "Owner" = "Ejer";
+"Owner:" = "Ejer:";
 "Pacman animation" = "Pacman-animation";
 "Percentage" = "Procent";
 "Physical Size" = "Fysisk størrelse";
+"Physical Size:" = "Fysisk størrelse:";
 "Preferences" = "Indstillinger";
 "Prompts" = "Prompter";
 "Properties" = "Egenskaber";
@@ -117,6 +118,8 @@
 "Scanning threads" = "Tråde pr. drev";
 "Search" = "Søge";
 "Search Results" = "Søgeresultater";
+"Search Term:" = "Søgeord:";
+"Search Whole Phrase" = "Søg hele sætningen";
 "Search…" = "Søg…";
 "Select Parent" = "Vælg Overordnet";
 "Select Target" = "Vælg mål";
@@ -146,7 +149,7 @@
 "Tools" = "Værktøjer";
 "Treemap" = "Træstruktur";
 "Use Logical Size" = "Brug Logisk størrelse";
-"Use regular expressions (POSIX extended)" = "Brug regulære udtryk";
+"Use Regular Expressions" = "Brug regulære udtryk";
 "Use regular expressions instead of glob patterns" = "Brug regulære udtryk i stedet for glob-mønstre";
 "Wait for completion" = "Vent på færdiggørelse";
 "Works For" = "Arbejder for";

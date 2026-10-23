@@ -12,7 +12,7 @@
 "Brightness" = "Jasność";
 "Bytes" = "Bajtów";
 "Cancel" = "Anuluj";
-"Case sensitive" = "Wyszukiwanie z rozróżnianiem wielkości liter";
+"Case Sensitive Search" = "Wyszukiwanie z rozróżnianiem wielkości liter";
 "Clean Up" = "Porządkowanie";
 "Cleanups" = "Porządkowanie";
 "Collapse" = "Zwiń";
@@ -44,7 +44,6 @@
 "Files" = "Plików";
 "Files without an extension" = "Bez Rozszerzenia";
 "Filtering" = "Filtrowanie";
-"Find files whose name contains:" = "Szukane hasło:";
 "Folder List" = "Lista Katalogów";
 "Folder history entries" = "Historia folderów";
 "Folder paths to exclude:" = "Ścieżki folderów do wykluczenia:";
@@ -71,7 +70,7 @@
 "Load Results From CSV" = "Wczytaj wyniki z pliku CSV";
 "Load Results From CSV…" = "Wczytaj wyniki z pliku CSV…";
 "Logical Size" = "Rozmiar logiczny";
-"Match the whole name" = "Szukaj całego wyrażenia";
+"Logical Size:" = "Rozmiar logiczny:";
 "Memory: %@" = "Użycie RAM: %@";
 "Modified" = "Zmieniono";
 "Move Down" = "Dół";
@@ -86,9 +85,11 @@
 "Optional Columns" = "Opcjonalne kolumny";
 "Options" = "Opcje";
 "Owner" = "Właściciel";
+"Owner:" = "Właściciel:";
 "Pacman animation" = "Animacja Pacman";
 "Percentage" = "Procentowo";
 "Physical Size" = "Rozmiar fizyczny";
+"Physical Size:" = "Rozmiar fizyczny:";
 "Preferences" = "Konfiguracja LinDirStat";
 "Prompts" = "Monity";
 "Properties" = "Właściwości";
@@ -120,6 +121,8 @@
 "Scanning threads" = "Wątki na dysk";
 "Search" = "Wyszukiwanie";
 "Search Results" = "Wyniki wyszukiwania";
+"Search Term:" = "Szukane hasło:";
+"Search Whole Phrase" = "Szukaj całego wyrażenia";
 "Search…" = "Szukaj…";
 "Select Parent" = "Skocz poziom wyżej";
 "Select Target" = "Zaznacz cel";
@@ -151,7 +154,7 @@
 "Total" = "Pojemność";
 "Treemap" = "Mapa drzewa";
 "Use Logical Size" = "Użyj rozmiaru logicznego";
-"Use regular expressions (POSIX extended)" = "Użyj wyrażeń regularnych";
+"Use Regular Expressions" = "Użyj wyrażeń regularnych";
 "Use regular expressions instead of glob patterns" = "Użyj wyrażeń regularnych zamiast wzorców glob";
 "Wait for completion" = "Czekaj na zakończenie";
 "Works For" = "Zastosuj do";

@@ -11,7 +11,7 @@
 "Automatically resize columns" = "Spaltenbreite automatisch anpassen";
 "Brightness" = "Helligkeit";
 "Cancel" = "Abbruch";
-"Case sensitive" = "Groß-/Kleinschreibung beachten";
+"Case Sensitive Search" = "Groß-/Kleinschreibung beachten";
 "Clean Up" = "Aufräumen";
 "Cleanups" = "Aktionen";
 "Collapse" = "Reduzieren";
@@ -43,7 +43,6 @@
 "Files" = "Dateien";
 "Files without an extension" = "Ohne Dateityp";
 "Filtering" = "Filter";
-"Find files whose name contains:" = "Suchbegriff:";
 "Folder List" = "Verzeichnisliste";
 "Folder history entries" = "Anzahl Ordnerverlauf";
 "Folder paths to exclude:" = "Auszuschließende Ordnerpfade:";
@@ -70,7 +69,7 @@
 "Load Results From CSV" = "Ergebnisse aus CSV laden";
 "Load Results From CSV…" = "Ergebnisse aus CSV laden…";
 "Logical Size" = "Logische Größe";
-"Match the whole name" = "Ganze Phrase suchen";
+"Logical Size:" = "Logische Größe:";
 "Memory: %@" = "Speichernutzung: %@";
 "Modified" = "Geändert";
 "Move Down" = "Ab";
@@ -84,9 +83,11 @@
 "Optional Columns" = "Optionale Spalten";
 "Options" = "Optionen";
 "Owner" = "Eigentümer";
+"Owner:" = "Eigentümer:";
 "Pacman animation" = "Pacman-Animation";
 "Percentage" = "Anteil";
 "Physical Size" = "Physische Größe";
+"Physical Size:" = "Physische Größe:";
 "Preferences" = "LinDirStat konfigurieren";
 "Prompts" = "Eingabeaufforderungen";
 "Properties" = "Eigenschaften";
@@ -118,6 +119,8 @@
 "Scanning threads" = "Threads pro Laufwerk";
 "Search" = "Suche";
 "Search Results" = "Suchergebnisse";
+"Search Term:" = "Suchbegriff:";
+"Search Whole Phrase" = "Ganze Phrase suchen";
 "Search…" = "Suchen…";
 "Select Parent" = "Zum Elternelement";
 "Select Target" = "Ziel auswählen";
@@ -149,7 +152,7 @@
 "Total" = "Gesamt";
 "Treemap" = "Baumkarte";
 "Use Logical Size" = "Logische Größe verwenden";
-"Use regular expressions (POSIX extended)" = "Reguläre Ausdrücke verwenden";
+"Use Regular Expressions" = "Reguläre Ausdrücke verwenden";
 "Use regular expressions instead of glob patterns" = "Reguläre Ausdrücke anstelle von Glob-Mustern verwenden";
 "Wait for completion" = "Auf Beendigung warten";
 "Works For" = "Anwendbar auf";

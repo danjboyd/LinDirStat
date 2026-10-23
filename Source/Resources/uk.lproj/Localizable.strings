@@ -12,7 +12,7 @@
 "Brightness" = "Яскравість";
 "Bytes" = "Байти";
 "Cancel" = "Скасувати";
-"Case sensitive" = "Враховувати регістр";
+"Case Sensitive Search" = "Враховувати регістр";
 "Clean Up" = "Очищення";
 "Cleanups" = "Очищення";
 "Collapse" = "Згорнути";
@@ -44,7 +44,6 @@
 "Files" = "Файли";
 "Files without an extension" = "Немає розширення";
 "Filtering" = "Фільтрація";
-"Find files whose name contains:" = "Пошуковий запит:";
 "Folder List" = "Список каталогів";
 "Folder history entries" = "Історія папок";
 "Folder paths to exclude:" = "Шляхи до папок для виключення:";
@@ -71,7 +70,7 @@
 "Load Results From CSV" = "Завантажити результати з CSV";
 "Load Results From CSV…" = "Завантажити результати з CSV…";
 "Logical Size" = "Логічний розмір";
-"Match the whole name" = "Шукати всю фразу";
+"Logical Size:" = "Логічний розмір:";
 "Memory: %@" = "Використання RAM: %@";
 "Modified" = "Змінено";
 "Move Down" = "Вниз";
@@ -86,9 +85,11 @@
 "Optional Columns" = "Додаткові стовпці";
 "Options" = "Налаштування";
 "Owner" = "Власник";
+"Owner:" = "Власник:";
 "Pacman animation" = "Анімація Pacman";
 "Percentage" = "Частка";
 "Physical Size" = "Фізичний розмір";
+"Physical Size:" = "Фізичний розмір:";
 "Preferences" = "Налаштувати LinDirStat";
 "Prompts" = "Підказки";
 "Properties" = "Властивості";
@@ -120,6 +121,8 @@
 "Scanning threads" = "Потоків на диск";
 "Search" = "Пошук";
 "Search Results" = "Результати пошуку";
+"Search Term:" = "Пошуковий запит:";
+"Search Whole Phrase" = "Шукати всю фразу";
 "Search…" = "Пошук…";
 "Select Parent" = "Перейти на рівень вгору";
 "Select Target" = "Вибрати ціль";
@@ -151,7 +154,7 @@
 "Total" = "Всього";
 "Treemap" = "Карта каталогів";
 "Use Logical Size" = "Використовувати логічний розмір";
-"Use regular expressions (POSIX extended)" = "Використовувати регулярні вирази";
+"Use Regular Expressions" = "Використовувати регулярні вирази";
 "Use regular expressions instead of glob patterns" = "Використовувати регулярні вирази замість глобальних шаблонів";
 "Wait for completion" = "Чекати завершення";
 "Works For" = "Застосувати до";

@@ -12,7 +12,7 @@
 "Brightness" = "Fényerő";
 "Bytes" = "Bájt";
 "Cancel" = "Mégse";
-"Case sensitive" = "Nagybetűérzékeny keresés";
+"Case Sensitive Search" = "Nagybetűérzékeny keresés";
 "Clean Up" = "Kitakarítás";
 "Cleanups" = "Takarítások";
 "Collapse" = "Bezár";
@@ -44,7 +44,6 @@
 "Files" = "Fájlok";
 "Files without an extension" = "Nincs kiterjesztés";
 "Filtering" = "Szűrés";
-"Find files whose name contains:" = "Keresési kifejezés:";
 "Folder List" = "Könyvtárlista";
 "Folder history entries" = "Mappaelőzmények bejegyzéseinek száma";
 "Folder paths to exclude:" = "Mappa elérési utak kizárása:";
@@ -71,7 +70,7 @@
 "Load Results From CSV" = "Eredmények betöltése CSV-ből";
 "Load Results From CSV…" = "Eredmények betöltése CSV-ből…";
 "Logical Size" = "Logikai méret";
-"Match the whole name" = "Teljes kifejezés keresése";
+"Logical Size:" = "Logikai méret:";
 "Memory: %@" = "RAM használat: %@";
 "Modified" = "Módosítva";
 "Move Down" = "Le";
@@ -86,9 +85,11 @@
 "Optional Columns" = "Megjelenítendő oszlopok";
 "Options" = "Beállítások";
 "Owner" = "Tulajdonos";
+"Owner:" = "Tulajdonos:";
 "Pacman animation" = "Pacman animáció";
 "Percentage" = "Százalék";
 "Physical Size" = "Fizikai méret";
+"Physical Size:" = "Fizikai méret:";
 "Preferences" = "LinDirStat beállítása";
 "Prompts" = "Kérdések";
 "Properties" = "Tulajdonságok";
@@ -120,6 +121,8 @@
 "Scanning threads" = "Szálak meghajtónként";
 "Search" = "Keresés";
 "Search Results" = "Keresési eredmények";
+"Search Term:" = "Keresési kifejezés:";
+"Search Whole Phrase" = "Teljes kifejezés keresése";
 "Search…" = "Keresés…";
 "Select Parent" = "Szülő kijelölése";
 "Select Target" = "Cél kijelölése";
@@ -151,7 +154,7 @@
 "Total" = "Teljes";
 "Treemap" = "Térképfa";
 "Use Logical Size" = "Logikai méret használata";
-"Use regular expressions (POSIX extended)" = "Reguláris kifejezések használata";
+"Use Regular Expressions" = "Reguláris kifejezések használata";
 "Use regular expressions instead of glob patterns" = "Használjon reguláris kifejezést globális minták helyett";
 "Wait for completion" = "Befejezésre vár";
 "Works For" = "Munkaterület";
