@@ -137,11 +137,11 @@
 "Show sizes in human-readable format" = "Vis størrelser i GiB/MiB/KiB/byte format";
 "Show stripes" = "Vis med kantstriper";
 "Show time spent during scan" = "Vis tid brukt under skanning";
+"Size Proportion" = "Undermappeprosent";
+"Size Proportion Color" = "Farger for undermappeprosent";
 "Start File Watcher" = "Start filovervåking";
 "Stop" = "Stopp";
 "Style" = "Stil";
-"Subtree Percentage" = "Undermappeprosent";
-"Subtree Percentage Colors" = "Farger for undermappeprosent";
 "Suspend" = "Pause";
 "Suspend Scan" = "Pause";
 "Time" = "Tid";

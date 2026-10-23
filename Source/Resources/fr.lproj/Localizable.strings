@@ -135,10 +135,10 @@
 "Show sizes in human-readable format" = "Montrer la taille des fichiers en Go/Mo/Ko/octets";
 "Show stripes" = "Afficher des rayures";
 "Show time spent during scan" = "Montrer le temps passé à parcourir les répertoires";
+"Size Proportion" = "Pourcentage (graphique)";
+"Size Proportion Color" = "Couleurs des pourcentages de l'arbre";
 "Start File Watcher" = "Démarrer le surveillant de fichiers";
 "Stop" = "Arrêter";
-"Subtree Percentage" = "Pourcentage (graphique)";
-"Subtree Percentage Colors" = "Couleurs des pourcentages de l'arbre";
 "Suspend" = "Suspendre";
 "Suspend Scan" = "Suspendre";
 "Time" = "Heure";

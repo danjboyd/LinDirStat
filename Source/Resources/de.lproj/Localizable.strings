@@ -136,11 +136,11 @@
 "Show sizes in human-readable format" = "Größen im GiB/MiB/KiB/Bytes-Format anzeigen";
 "Show stripes" = "Streifen";
 "Show time spent during scan" = "Verbrauchte Zeit während des Einlesens anzeigen";
+"Size Proportion" = "Teilbaum-Anteil";
+"Size Proportion Color" = "Teilbaumanteil-Farben";
 "Start File Watcher" = "Dateiüberwachung starten";
 "Stop" = "Stoppen";
 "Style" = "Stil";
-"Subtree Percentage" = "Teilbaum-Anteil";
-"Subtree Percentage Colors" = "Teilbaumanteil-Farben";
 "Suspend" = "Anhalten";
 "Suspend Scan" = "Anhalten";
 "Time" = "Zeit";

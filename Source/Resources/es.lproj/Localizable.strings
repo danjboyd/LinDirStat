@@ -134,11 +134,11 @@
 "Show sizes in human-readable format" = "Mostrar Tamaños en Formato GiB/MiB/KiB/bytes";
 "Show stripes" = "Mostrar Bandas";
 "Show time spent during scan" = "Mostrar Tiempo utilizado durante el Recorrido";
+"Size Proportion" = "Porcentaje de Subárbol";
+"Size Proportion Color" = "Colores de Porcentaje de Subárbol";
 "Start File Watcher" = "Iniciar monitor de archivos";
 "Stop" = "Detener";
 "Style" = "Estilo";
-"Subtree Percentage" = "Porcentaje de Subárbol";
-"Subtree Percentage Colors" = "Colores de Porcentaje de Subárbol";
 "Suspend" = "Suspender";
 "Suspend Scan" = "Suspender";
 "Time" = "Hora";

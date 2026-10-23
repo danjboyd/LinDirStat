@@ -555,8 +555,8 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   }
   _y = bottom;
 
-  // WinDirStat's Subtree Percentage colours: one per level, used in turn.
-  [self addSectionTitle:LDLocalized(@"Subtree Percentage Colors")];
+  // WinDirStat's Size Proportion colours: one per level, used in turn.
+  [self addSectionTitle:LDLocalized(@"Size Proportion Color")];
   NSMutableArray *wells = [NSMutableArray array];
   for (NSUInteger i = 0; i < [LDPreferences fileTreeColorSlots]; i++) {
     NSColorWell *well = [self colorWellWithAction:@selector(levelColorChanged:)];

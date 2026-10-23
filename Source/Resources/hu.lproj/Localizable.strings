@@ -138,11 +138,11 @@
 "Show sizes in human-readable format" = "Méretek GiB/MiB/KiB/bájt formátumban";
 "Show stripes" = "Sávok mutatása";
 "Show time spent during scan" = "Vizsgálat alatt eltelt idő mutatása";
+"Size Proportion" = "Részfa százalék";
+"Size Proportion Color" = "Részfák arányainak színei";
 "Start File Watcher" = "Fájlfelügyelő indítása";
 "Stop" = "Leállítás";
 "Style" = "Stílus";
-"Subtree Percentage" = "Részfa százalék";
-"Subtree Percentage Colors" = "Részfák arányainak színei";
 "Suspend" = "Felfüggesztés";
 "Suspend Scan" = "Felfüggesztés";
 "Time" = "Idő";

@@ -14,6 +14,7 @@
 #import "LDSearch.h"
 #import "LDSizeFormatter.h"
 #import "LDSpaceItems.h"
+#import "LDTreeCells.h"
 #import "LDTreemapView.h"
 
 #include <fcntl.h>
@@ -1222,6 +1223,56 @@
   XCTAssertEqualObjects(@"100.0%", shown(deep));
   XCTAssertEqualObjects(formatted([[deep parent] fractionOfParentForMetric:metric]), shown([deep parent]));
   XCTAssertNotEqualObjects(shown([deep parent]), formatted([[deep parent] fractionOfRootForMetric:metric]));
+}
+
+// WinDirStat 2.6's Size Proportion column (5be7353c): the share of the
+// parent with the share of the scan inside it, a tooltip giving both, and
+// SizeProportionIndent points of indent per level.
+- (void)testSizeProportionBarAndToolTip
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSOutlineView *tree = [_controller tree];
+  NSTableColumn *column = [tree tableColumnWithIdentifier:@"subtree"];
+  XCTAssertEqualObjects(@"Size Proportion", [[column headerCell] stringValue]);
+  LDFileNode *deep = [self node:@"a/sub/deep.txt"];
+  LDSizeMetric metric = [[LDPreferences sharedPreferences] useLogicalSize] ? LDSizeMetricLogical : LDSizeMetricPhysical;
+  LDFileNode *sub = [deep parent];
+
+  LDPercentageBarCell *bar = [[LDPercentageBarCell alloc] init];
+  [(id)_controller outlineView:tree willDisplayCell:bar forTableColumn:column item:sub];
+  XCTAssertEqualWithAccuracy([sub fractionOfParentForMetric:metric], [bar fraction], 1e-9);
+  XCTAssertEqualWithAccuracy([sub fractionOfRootForMetric:metric], [bar absoluteFraction], 1e-9);
+  XCTAssertTrue([bar absoluteFraction] < [bar fraction]);
+
+  NSMutableArray *ancestors = [NSMutableArray array];
+  for (LDFileNode *node = [sub parent]; node; node = [node parent]) {
+    [ancestors insertObject:node atIndex:0];
+  }
+  for (LDFileNode *node in ancestors) {
+    [tree expandItem:node];
+  }
+  NSInteger row = [tree rowForItem:sub];
+  NSInteger index = [[tree tableColumns] indexOfObject:column];
+  XCTAssertTrue(row >= 0);
+  NSString *expected = [NSString stringWithFormat:@"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%",
+                                 [sub fractionOfRootForMetric:metric] * 100.0, [sub fractionOfParentForMetric:metric] * 100.0];
+  XCTAssertEqualObjects(expected, [_controller listView:tree toolTipAtRow:row column:index]);
+  XCTAssertNil([_controller listView:tree toolTipAtRow:row column:0]);
+
+  // 16 points per level by default, clamped to 0..1000, and never so far
+  // that the bar has no room.
+  NSRect frame = NSMakeRect(0, 0, 400, 18);
+  CGFloat x0 = NSMinX([LDPercentageBarCell barRectForCellFrame:frame depth:0]);
+  XCTAssertEqualWithAccuracy(x0 + 32.0, NSMinX([LDPercentageBarCell barRectForCellFrame:frame depth:2]), 0.01);
+  [[NSUserDefaults standardUserDefaults] setInteger:0 forKey:@"SizeProportionIndent"];
+  XCTAssertEqualWithAccuracy(x0, NSMinX([LDPercentageBarCell barRectForCellFrame:frame depth:5]), 0.01);
+  [[NSUserDefaults standardUserDefaults] setInteger:5000 forKey:@"SizeProportionIndent"];
+  XCTAssertEqualWithAccuracy(1000.0, [[LDPreferences sharedPreferences] sizeProportionIndent], 0.01);
+  XCTAssertFalse(NSIsEmptyRect([LDPercentageBarCell barRectForCellFrame:frame depth:3]));
+  XCTAssertTrue(NSMaxX([LDPercentageBarCell barRectForCellFrame:frame depth:3]) <= NSMaxX(frame));
+  [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"SizeProportionIndent"];
 }
 
 - (void)testUseLogicalSizeResortsAndKeepsSelection

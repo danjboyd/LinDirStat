@@ -138,11 +138,11 @@
 "Show sizes in human-readable format" = "Näytä koot Gt/Mt/kt/tavua -muodossa";
 "Show stripes" = "Näytä raidat";
 "Show time spent during scan" = "Näytä tarkistuksen käytetty aika";
+"Size Proportion" = "Osuuskuvaaja";
+"Size Proportion Color" = "Osuuskuvaajien värit";
 "Start File Watcher" = "Käynnistä tiedostovalvonta";
 "Stop" = "Pysäytä";
 "Style" = "Tyyli";
-"Subtree Percentage" = "Osuuskuvaaja";
-"Subtree Percentage Colors" = "Osuuskuvaajien värit";
 "Suspend" = "Keskeytä";
 "Suspend Scan" = "Keskeytä";
 "Time" = "Aika";

@@ -138,11 +138,11 @@
 "Show sizes in human-readable format" = "Показувати розміри у форматі ГіБ/МіБ/КіБ/байт";
 "Show stripes" = "Показувати смуги";
 "Show time spent during scan" = "Показувати час, що минув з початку сканування";
+"Size Proportion" = "Підкаталоги, %";
+"Size Proportion Color" = "Пропорційне забарвлення підкаталогів";
 "Start File Watcher" = "Запустити спостереження за файлами";
 "Stop" = "Зупинити";
 "Style" = "Стиль";
-"Subtree Percentage" = "Підкаталоги, %";
-"Subtree Percentage Colors" = "Пропорційне забарвлення підкаталогів";
 "Suspend" = "Призупинити";
 "Suspend Scan" = "Призупинити";
 "Time" = "Час";

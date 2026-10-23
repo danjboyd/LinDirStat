@@ -138,11 +138,11 @@
 "Show sizes in human-readable format" = "Prikaži velikosti v formatu GiB/MiB/KiB/bajti";
 "Show stripes" = "Pokaži črte";
 "Show time spent during scan" = "Prikaži porabljen čas med skeniranjem";
+"Size Proportion" = "Odstotek poddrevesa";
+"Size Proportion Color" = "Barve odstotka poddrevesa";
 "Start File Watcher" = "Zaženi nadzor datotek";
 "Stop" = "Ustavi";
 "Style" = "Slog";
-"Subtree Percentage" = "Odstotek poddrevesa";
-"Subtree Percentage Colors" = "Barve odstotka poddrevesa";
 "Suspend" = "Prekini";
 "Suspend Scan" = "Prekini";
 "Time" = "Čas";

@@ -137,11 +137,11 @@
 "Show sizes in human-readable format" = "Visa storlekar i format GiB/MiB/KiB/bytes";
 "Show stripes" = "Visa ränder";
 "Show time spent during scan" = "Visa tid tillbringad under sökningen";
+"Size Proportion" = "Delträdsprocent";
+"Size Proportion Color" = "Underträdets procentfärger";
 "Start File Watcher" = "Starta filövervakning";
 "Stop" = "Stoppa";
 "Style" = "Stil";
-"Subtree Percentage" = "Delträdsprocent";
-"Subtree Percentage Colors" = "Underträdets procentfärger";
 "Suspend Scan" = "Suspend";
 "Time" = "Tid";
 "Title" = "Titel";

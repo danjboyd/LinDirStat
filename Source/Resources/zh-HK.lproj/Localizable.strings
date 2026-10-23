@@ -138,11 +138,11 @@
 "Show sizes in human-readable format" = "以 GiB/MiB/KiB/位元組格式顯示大小";
 "Show stripes" = "顯示間條";
 "Show time spent during scan" = "掃描時顯示所需時間";
+"Size Proportion" = "子分支百份比";
+"Size Proportion Color" = "子樹狀分支百份比的顏色";
 "Start File Watcher" = "啟動檔案監視";
 "Stop" = "停止";
 "Style" = "風格";
-"Subtree Percentage" = "子分支百份比";
-"Subtree Percentage Colors" = "子樹狀分支百份比的顏色";
 "Suspend" = "暫停";
 "Suspend Scan" = "暫停";
 "Time" = "時間";

@@ -138,11 +138,11 @@
 "Show sizes in human-readable format" = "Boyutları GiB/MiB/KiB/bayt biçiminde göster";
 "Show stripes" = "Çizgileri Göster";
 "Show time spent during scan" = "Tarama sırasında harcanan zamanı göster";
+"Size Proportion" = "Alt Ağaç Yüzdesi";
+"Size Proportion Color" = "Alt Ağaç Yüzde Renkleri";
 "Start File Watcher" = "Dosya izleyiciyi başlat";
 "Stop" = "Durdur";
 "Style" = "Stil";
-"Subtree Percentage" = "Alt Ağaç Yüzdesi";
-"Subtree Percentage Colors" = "Alt Ağaç Yüzde Renkleri";
 "Suspend" = "Askıya al";
 "Suspend Scan" = "Askıya al";
 "Time" = "Zaman";

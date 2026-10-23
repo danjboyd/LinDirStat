@@ -138,11 +138,11 @@
 "Show sizes in human-readable format" = "以 GiB/MiB/KiB/字节格式显示大小";
 "Show stripes" = "显示条纹";
 "Show time spent during scan" = "显示扫描时间花费";
+"Size Proportion" = "子树百分比";
+"Size Proportion Color" = "子树百分比颜色";
 "Start File Watcher" = "启动文件监视";
 "Stop" = "停止";
 "Style" = "风格";
-"Subtree Percentage" = "子树百分比";
-"Subtree Percentage Colors" = "子树百分比颜色";
 "Suspend" = "暂停";
 "Suspend Scan" = "暂停";
 "Time" = "时间";

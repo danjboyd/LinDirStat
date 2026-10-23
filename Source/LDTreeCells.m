@@ -25,7 +25,6 @@ uint32_t LDRGBFromColor(NSColor *color)
 static const CGFloat LDBarHeight = 8.0;
 static const CGFloat LDBarHorizontalInset = 6.0;
 // WinDirStat indents the graph by a tenth of its width per level.
-static const NSUInteger LDMaxIndentLevels = 8;
 
 @implementation LDPercentageBarCell
 
@@ -36,8 +35,30 @@ static const NSUInteger LDMaxIndentLevels = 8;
 
 - (void)setFraction:(double)fraction depth:(NSUInteger)depth
 {
+  [self setFraction:fraction absoluteFraction:fraction depth:depth];
+}
+
+- (void)setFraction:(double)fraction absoluteFraction:(double)absolute depth:(NSUInteger)depth
+{
   _fraction = MAX(0.0, MIN(1.0, fraction));
+  _absoluteFraction = MAX(0.0, MIN(1.0, absolute));
   _depth = depth;
+}
+
+- (double)fraction { return _fraction; }
+- (double)absoluteFraction { return _absoluteFraction; }
+
++ (NSRect)barRectForCellFrame:(NSRect)cellFrame depth:(NSUInteger)depth
+{
+  NSRect track = NSInsetRect(cellFrame, LDBarHorizontalInset, 0.0);
+  // WinDirStat's GetIndent() * SizeProportionIndent, leaving the bar room.
+  CGFloat indent = MIN((CGFloat)depth * [[LDPreferences sharedPreferences] sizeProportionIndent],
+                       MAX(0.0, track.size.width - 4.0 * LDBarHeight));
+  track.origin.x += floor(indent);
+  track.size.width -= floor(indent);
+  track.origin.y = floor(NSMidY(cellFrame) - LDBarHeight / 2.0);
+  track.size.height = LDBarHeight;
+  return track.size.width > LDBarHeight ? track : NSZeroRect;
 }
 
 - (void)setReadJobs:(NSUInteger)readJobs
@@ -158,13 +179,8 @@ static CGFloat LDBounce(double travelled, BOOL *rising)
        withAttributes:attributes];
     return;
   }
-  NSRect track = NSInsetRect(cellFrame, LDBarHorizontalInset, 0.0);
-  CGFloat indent = floor(track.size.width * MIN(_depth, LDMaxIndentLevels) / 10.0);
-  track.origin.x += indent;
-  track.size.width -= indent;
-  track.origin.y = floor(NSMidY(cellFrame) - LDBarHeight / 2.0);
-  track.size.height = LDBarHeight;
-  if (track.size.width <= LDBarHeight) {
+  NSRect track = [LDPercentageBarCell barRectForCellFrame:cellFrame depth:_depth];
+  if (NSIsEmptyRect(track)) {
     return;
   }
 
@@ -174,14 +190,27 @@ static CGFloat LDBounce(double travelled, BOOL *rising)
   [[text colorWithAlphaComponent:0.15] set];
   [[NSBezierPath bezierPathWithRoundedRect:track xRadius:radius yRadius:radius] fill];
 
+  // The share of the parent: the level's colour, lightened over the track.
+  NSColor *color = [[LDPercentageBarCell colorForDepth:_depth] colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
   CGFloat filled = floor(track.size.width * _fraction);
   if (filled < 1.0) {
     return;
   }
   NSRect fill = track;
   fill.size.width = MAX(filled, LDBarHeight);
-  [[LDPercentageBarCell colorForDepth:_depth] set];
+  [[color colorWithAlphaComponent:0.45] set];
   [[NSBezierPath bezierPathWithRoundedRect:fill xRadius:radius yRadius:radius] fill];
+
+  // Inside it, the share of the whole scan in the full colour.
+  CGFloat absolute = floor(track.size.width * MIN(_fraction, _absoluteFraction));
+  if (absolute < 1.0) {
+    return;
+  }
+  NSRect inner = NSInsetRect(track, 0.0, 1.5);
+  inner.size.width = MAX(absolute, inner.size.height);
+  CGFloat innerRadius = inner.size.height / 2.0;
+  [color set];
+  [[NSBezierPath bezierPathWithRoundedRect:inner xRadius:innerRadius yRadius:innerRadius] fill];
 }
 
 @end
