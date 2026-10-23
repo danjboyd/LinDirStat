@@ -49,6 +49,11 @@
   [preferences setFilterUsesRegex:YES];
   [preferences setMinimumFileSize:2];
   [preferences setMinimumFileSizeUnit:LDSizeUnitKiB];
+  [preferences setIncludedFolderPatterns:@"/home/*\n"];
+  [preferences setIncludedFilePatterns:@"*.c\n*.h"];
+  [preferences setFilterExcludesLargerFiles:YES];
+  [preferences setFilterMaximumAgeDays:30];
+  [preferences setFilterExcludesNewerFiles:YES];
   [preferences setExcludeHiddenEntries:YES];
   [preferences setExcludeSymbolicLinks:NO];
   [preferences setExcludeMountPoints:NO];
@@ -63,6 +68,13 @@
   XCTAssertEqualObjects([NSArray arrayWithObject:@"*.o"], [options excludedFilePatterns]);
   XCTAssertTrue([options usesRegex]);
   XCTAssertEqual((unsigned long long)2048, [options minimumFileSize]);
+  XCTAssertEqualObjects(@[@"/home/*"], [options includedFolderPatterns]);
+  XCTAssertEqualObjects((@[@"*.c", @"*.h"]), [options includedFilePatterns]);
+  XCTAssertTrue([options excludesLargerFiles]);
+  XCTAssertEqual((NSUInteger)30, [options maximumAgeDays]);
+  XCTAssertTrue([options excludesNewerFiles]);
+  XCTAssertEqualObjects(@[@"/home/*"], [[options copy] includedFolderPatterns]);
+  XCTAssertEqual((NSUInteger)30, [[options copy] maximumAgeDays]);
   XCTAssertTrue([options excludeHidden]);
   XCTAssertFalse([options excludeSymbolicLinks]);
   XCTAssertFalse([options excludeMountPoints]);
@@ -169,6 +181,156 @@
   LDScanOptions *options = [[LDScanOptions alloc] init];
   [options setExcludedFilePatterns:[NSArray arrayWithObjects:@"(unclosed", @"[z-a]", @"a{2", nil]];
   XCTAssertTrue([options validateWithError:NULL]);
+}
+
+#pragma mark - WinDirStat 2.6 filtering
+
+- (void)testFolderPatternsMatchTheFolderAndBelow
+{
+  LDPathFilter *globs = [[LDPathFilter alloc] initWithPatterns:@[@"/data/cache"] usesRegex:NO descendants:YES];
+  XCTAssertTrue([globs matchesBytes:"/data/cache"]);
+  XCTAssertTrue([globs matchesBytes:"/data/CACHE/x/y.bin"]);
+  XCTAssertTrue([globs matchesBytes:"/data/cache/line\nbreak"]);
+  XCTAssertFalse([globs matchesBytes:"/data/cached"]);
+  XCTAssertFalse([globs matchesBytes:"/data"]);
+  // A regex's own "$" no longer stops it at the folder.
+  LDPathFilter *regex = [[LDPathFilter alloc] initWithPatterns:@[@"/data/c.che$"] usesRegex:YES descendants:YES];
+  XCTAssertTrue([regex matchesBytes:"/data/cache/x"]);
+  LDPathFilter *escaped = [[LDPathFilter alloc] initWithPatterns:@[@"/data/cost\\$"] usesRegex:YES descendants:YES];
+  XCTAssertTrue([escaped matchesBytes:"/data/cost$"]);
+  XCTAssertTrue([escaped matchesBytes:"/data/cost$/x"]);
+}
+
+- (void)testIncludeAnchorsAreTheFixedLeadingFolder
+{
+  XCTAssertEqualObjects(@"/data", [LDScanFilter anchorForIncludePattern:@"/data/proj*" usesRegex:NO]);
+  XCTAssertEqualObjects(@"/data/proj", [LDScanFilter anchorForIncludePattern:@"/data/proj" usesRegex:NO]);
+  XCTAssertEqualObjects(@"", [LDScanFilter anchorForIncludePattern:@"*/src" usesRegex:NO]);
+  XCTAssertEqualObjects(@"/", [LDScanFilter anchorForIncludePattern:@"/*" usesRegex:NO]);
+  XCTAssertEqualObjects(@"/data/a.b", [LDScanFilter anchorForIncludePattern:@"^/data/a\\.b$" usesRegex:YES]);
+  XCTAssertEqualObjects(@"/data", [LDScanFilter anchorForIncludePattern:@"/data/(x|y)" usesRegex:YES]);
+}
+
+- (LDScanFilter *)filterWith:(void (^)(LDScanOptions *options))configure
+{
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  configure(options);
+  return [[LDScanFilter alloc] initWithOptions:options now:1000000000];
+}
+
+- (void)testFolderIncludesEnterOnlyIncludedFoldersAndTheWayThere
+{
+  LDScanFilter *filter = [self filterWith:^(LDScanOptions *options) {
+    [options setIncludedFolderPatterns:@[@"/data/proj*"]];
+  }];
+  XCTAssertTrue([filter isActive]);
+  XCTAssertFalse([filter excludesFolderAtPath:"/"]);
+  XCTAssertFalse([filter excludesFolderAtPath:"/data"]);
+  XCTAssertFalse([filter excludesFolderAtPath:"/data/project1"]);
+  XCTAssertFalse([filter excludesFolderAtPath:"/data/project1/src"]);
+  XCTAssertTrue([filter excludesFolderAtPath:"/data/other"]);
+  XCTAssertTrue([filter excludesFolderAtPath:"/home"]);
+  XCTAssertTrue([filter excludesFolderAtPath:"/database"]);
+  // Files: only below an included folder.
+  XCTAssertFalse([filter includesFilesInFolderAtPath:"/data"]);
+  XCTAssertTrue([filter includesFilesInFolderAtPath:"/data/project1"]);
+  XCTAssertTrue([filter excludesFileNamed:"a.txt" atPath:"/data/a.txt" folderIncluded:NO size:1 mtime:0 checkSizeAndAge:YES]);
+  XCTAssertFalse([filter excludesFileNamed:"a.txt" atPath:"/data/project1/a.txt" folderIncluded:YES size:1 mtime:0 checkSizeAndAge:YES]);
+  // A pattern can match a file's own path.
+  XCTAssertFalse([filter excludesFileNamed:"proj.txt" atPath:"/data/proj.txt" folderIncluded:NO size:1 mtime:0 checkSizeAndAge:YES]);
+}
+
+// Upstream prunes everything below an include's fixed leading folder; a
+// glob here is followed component by component, so "/data/*/src" works.
+- (void)testGlobIncludesAreFollowedComponentByComponent
+{
+  LDScanFilter *filter = [self filterWith:^(LDScanOptions *options) {
+    [options setIncludedFolderPatterns:@[@"/data/*/src"]];
+  }];
+  XCTAssertEqualObjects((@[@"/", @"/data", @"/data/*"]), [LDScanFilter prefixesOfIncludeGlob:@"/data/*/src"]);
+  XCTAssertFalse([filter excludesFolderAtPath:"/data"]);
+  XCTAssertFalse([filter excludesFolderAtPath:"/data/app"]);
+  XCTAssertFalse([filter excludesFolderAtPath:"/data/app/src"]);
+  XCTAssertFalse([filter excludesFolderAtPath:"/data/app/src/deep"]);
+  XCTAssertTrue([filter excludesFolderAtPath:"/data/app/docs"]);
+  XCTAssertTrue([filter excludesFolderAtPath:"/home"]);
+  XCTAssertTrue([filter excludesFileNamed:"a.c" atPath:"/data/app/a.c" folderIncluded:NO size:1 mtime:0 checkSizeAndAge:YES]);
+  XCTAssertTrue([filter includesFilesInFolderAtPath:"/data/app/src"]);
+}
+
+// A regex include cannot be split into components: below its fixed leading
+// folder nothing is pruned, and one starting with a wildcard prunes nothing.
+- (void)testRegexIncludesPruneOnlyOffTheirLeadingFolder
+{
+  LDScanFilter *anchored = [self filterWith:^(LDScanOptions *options) {
+    [options setUsesRegex:YES];
+    [options setIncludedFolderPatterns:@[@"/data/.*/src"]];
+  }];
+  XCTAssertFalse([anchored excludesFolderAtPath:"/data/app/docs"]);
+  XCTAssertTrue([anchored excludesFolderAtPath:"/home"]);
+  XCTAssertTrue([anchored excludesFileNamed:"a.c" atPath:"/data/app/docs/a.c" folderIncluded:NO size:1 mtime:0 checkSizeAndAge:YES]);
+  LDScanFilter *anywhere = [self filterWith:^(LDScanOptions *options) {
+    [options setUsesRegex:YES];
+    [options setIncludedFolderPatterns:@[@".*/src"]];
+  }];
+  XCTAssertFalse([anywhere excludesFolderAtPath:"/home"]);
+  XCTAssertTrue([anywhere includesFilesInFolderAtPath:"/home/x/src"]);
+}
+
+- (void)testExclusionsWinOverInclusions
+{
+  LDScanFilter *filter = [self filterWith:^(LDScanOptions *options) {
+    [options setIncludedFolderPatterns:@[@"/data"]];
+    [options setExcludedFolderPatterns:@[@"/data/tmp"]];
+    [options setIncludedFilePatterns:@[@"*.c"]];
+    [options setExcludedFilePatterns:@[@"skip*"]];
+  }];
+  XCTAssertFalse([filter excludesFolderAtPath:"/data/src"]);
+  XCTAssertTrue([filter excludesFolderAtPath:"/data/tmp/x"]);
+  XCTAssertFalse([filter excludesFileNamed:"main.c" atPath:"/data/main.c" folderIncluded:YES size:1 mtime:0 checkSizeAndAge:YES]);
+  XCTAssertTrue([filter excludesFileNamed:"main.h" atPath:"/data/main.h" folderIncluded:YES size:1 mtime:0 checkSizeAndAge:YES]);
+  XCTAssertTrue([filter excludesFileNamed:"skip.c" atPath:"/data/skip.c" folderIncluded:YES size:1 mtime:0 checkSizeAndAge:YES]);
+}
+
+- (void)testSizeAndAgeComparisons
+{
+  time_t now = 1000000000;
+  LDScanFilter *smaller = [self filterWith:^(LDScanOptions *options) {
+    [options setMinimumFileSize:100];
+  }];
+  XCTAssertTrue([smaller excludesFileNamed:"a" atPath:"/a" folderIncluded:YES size:99 mtime:now checkSizeAndAge:YES]);
+  XCTAssertFalse([smaller excludesFileNamed:"a" atPath:"/a" folderIncluded:YES size:100 mtime:now checkSizeAndAge:YES]);
+  // Not stat'ed, not a regular file: no size or age to judge.
+  XCTAssertFalse([smaller excludesFileNamed:"a" atPath:"/a" folderIncluded:YES size:0 mtime:0 checkSizeAndAge:NO]);
+  LDScanFilter *larger = [self filterWith:^(LDScanOptions *options) {
+    [options setMinimumFileSize:100];
+    [options setExcludesLargerFiles:YES];
+  }];
+  XCTAssertTrue([larger excludesFileNamed:"a" atPath:"/a" folderIncluded:YES size:101 mtime:now checkSizeAndAge:YES]);
+  XCTAssertFalse([larger excludesFileNamed:"a" atPath:"/a" folderIncluded:YES size:99 mtime:now checkSizeAndAge:YES]);
+
+  LDScanFilter *older = [self filterWith:^(LDScanOptions *options) {
+    [options setMaximumAgeDays:10];
+  }];
+  XCTAssertTrue([older excludesFileNamed:"a" atPath:"/a" folderIncluded:YES size:1 mtime:now - 11 * 86400 checkSizeAndAge:YES]);
+  XCTAssertFalse([older excludesFileNamed:"a" atPath:"/a" folderIncluded:YES size:1 mtime:now - 9 * 86400 checkSizeAndAge:YES]);
+  LDScanFilter *newer = [self filterWith:^(LDScanOptions *options) {
+    [options setMaximumAgeDays:10];
+    [options setExcludesNewerFiles:YES];
+  }];
+  XCTAssertTrue([newer excludesFileNamed:"a" atPath:"/a" folderIncluded:YES size:1 mtime:now - 9 * 86400 checkSizeAndAge:YES]);
+  XCTAssertFalse([newer excludesFileNamed:"a" atPath:"/a" folderIncluded:YES size:1 mtime:now - 11 * 86400 checkSizeAndAge:YES]);
+  XCTAssertFalse([[self filterWith:^(LDScanOptions *options) { (void)options; }] isActive]);
+}
+
+- (void)testInvalidIncludePatternIsReported
+{
+  LDScanOptions *options = [[LDScanOptions alloc] init];
+  [options setUsesRegex:YES];
+  [options setIncludedFilePatterns:@[@"(bad"]];
+  NSError *error = nil;
+  XCTAssertFalse([options validateWithError:&error]);
+  XCTAssertTrue([[error localizedDescription] hasSuffix:@"(bad"]);
 }
 
 @end

@@ -256,13 +256,11 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
 
 #pragma mark - Filters
 
-- (LDPathFilter *)compiledFilterForPatterns:(NSArray *)patterns
+// The age filter counts from the start of the scan.
+- (LDScanFilter *)compiledFilter
 {
-  if ([patterns count] == 0) {
-    return nil;
-  }
-  LDPathFilter *filter = [[LDPathFilter alloc] initWithPatterns:patterns usesRegex:[_options usesRegex]];
-  return [filter count] > 0 ? filter : nil;
+  LDScanFilter *filter = [[LDScanFilter alloc] initWithOptions:_options now:time(NULL)];
+  return [filter isActive] ? filter : nil;
 }
 
 // Decides what a symlink entry becomes. A link is followed by replacing info
@@ -303,8 +301,7 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   _activeWorkers = 0;
   _readDuration = 0;
   _finishDuration = 0;
-  _folderFilter = [self compiledFilterForPatterns:[_options excludedFolderPatterns]];
-  _fileFilter = [self compiledFilterForPatterns:[_options excludedFilePatterns]];
+  _filter = [self compiledFilter];
 }
 
 // The node for a scan root, following a symlink at the root. The root is
@@ -454,9 +451,12 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
   // An entry the filters now exclude is gone, as it would be from a scan of
   // its folder (Add to Exclusion Filter refreshes what it excluded).
   if (([_options excludeHidden] && name[0] == '.')
-      || (directoryLike && _folderFilter && [_folderFilter matchesBytes:path])
-      || (!directoryLike && ((_fileFilter && [_fileFilter matchesBytes:name])
-                             || (kind == LDFileNodeKindFile && (unsigned long long)info.st_size < [_options minimumFileSize])))) {
+      || (_filter && directoryLike && [_filter excludesFolderAtPath:path])
+      || (_filter && !directoryLike
+          && [_filter excludesFileNamed:name atPath:path
+                         folderIncluded:[_filter includesFilesInFolderAtPath:[parentTerminated bytes]]
+                                   size:(unsigned long long)info.st_size mtime:info.st_mtime
+                        checkSizeAndAge:kind == LDFileNodeKindFile])) {
     [session markComplete];
     return nil;
   }
@@ -624,12 +624,14 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
     [directoryNode finishPendingScan];
     return nil;
   }
+  // Files here skip the folder-include check when the folder is included.
+  LDScanFilter *filter = _filter;
+  BOOL folderIncluded = !filter || [filter includesFilesInFolderAtPath:path];
   path[prefixLength - 1] = '/';
   char *nameSlot = path + prefixLength;
 
   BOOL excludeHidden = [_options excludeHidden];
   BOOL crossesFilesystems = ![_options excludeMountPoints];
-  unsigned long long minimumFileSize = [_options minimumFileSize];
   int directoryFD = dirfd(directory);
   NSMutableArray *subdirectories = [NSMutableArray array];
   NSMutableArray *children = [NSMutableArray array];
@@ -658,9 +660,11 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
     }
 
     size_t nameLength = strlen(name);
+    memcpy(nameSlot, name, nameLength + 1);
     struct stat info;
     if (fstatat(directoryFD, name, &info, AT_SYMLINK_NOFOLLOW) != 0) {
-      if (_fileFilter && [_fileFilter matchesBytes:name]) {
+      if (filter && [filter excludesFileNamed:name atPath:path folderIncluded:folderIncluded
+                                         size:0 mtime:0 checkSizeAndAge:NO]) {
         continue;
       }
       LDFileNode *failed = [LDFileNode nodeWithNameBytes:name length:nameLength arena:arena
@@ -684,14 +688,13 @@ static LDScanJob *LDMakeScanJob(LDFileNode *node, NSData *path, dev_t rootDevice
         kind = [self kindForMode:info.st_mode];
       }
     }
-    if (directoryLike) {
-      memcpy(nameSlot, name, nameLength + 1);
-      if (_folderFilter && [_folderFilter matchesBytes:path]) {
+    if (filter) {
+      if (directoryLike ? [filter excludesFolderAtPath:path]
+                        : [filter excludesFileNamed:name atPath:path folderIncluded:folderIncluded
+                                               size:(unsigned long long)info.st_size mtime:info.st_mtime
+                                    checkSizeAndAge:kind == LDFileNodeKindFile]) {
         continue;
       }
-    } else if ((_fileFilter && [_fileFilter matchesBytes:name])
-               || (kind == LDFileNodeKindFile && (unsigned long long)info.st_size < minimumFileSize)) {
-      continue;
     }
 
     unsigned long long size = 0;

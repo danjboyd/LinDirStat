@@ -13,6 +13,7 @@
 #import "LDFileWatcher.h"
 #import "LDHardLinks.h"
 #import "LDPreferences.h"
+#import "LDOptionsWindowController.h"
 #import "LDScanSession.h"
 #import "LDSearch.h"
 #import "LDSizeFormatter.h"
@@ -796,6 +797,26 @@
   struct stat info;
   XCTAssertEqual(0, stat([[self pathOf:@"a"] fileSystemRepresentation], &info));
   XCTAssertEqual((time_t)newest, info.st_mtime);
+}
+
+// WinDirStat 2.6: leaving changed filter settings scans again with them.
+- (void)testChangedFiltersScanAgain
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setIncludedFolderPatterns:[self pathOf:@"a"]];
+  [preferences setExcludedFilePatterns:@"*.log"];
+  LDUITestController *controller = _controller;
+  NSUInteger before = [controller scansFinished];
+  [[NSNotificationCenter defaultCenter] postNotificationName:LDOptionsFiltersDidChangeNotification object:nil];
+  XCTAssertTrue([self waitFor:^BOOL { return [controller scansFinished] > before && ![controller isBusy]; } seconds:20.0]);
+  XCTAssertNotNil([self node:@"a/a1.txt"]);
+  XCTAssertNotNil([self node:@"a/sub/deep.txt"]);
+  XCTAssertNil([self node:@"a/a2.log"]);
+  XCTAssertNil([self node:@"b"]);
+  XCTAssertNil([self node:@"c.bin"]);
 }
 
 - (void)testRefreshSelectedUpdatesTotalsAndKeepsExpansionAndSelection

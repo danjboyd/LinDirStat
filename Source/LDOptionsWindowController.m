@@ -4,6 +4,7 @@
 #import "LDPlatformUI.h"
 #import "LDFilterPatterns.h"
 #import "LDPreferences.h"
+#import "LDScanOptions.h"
 #import "LDTreeCells.h"
 #import "LDTreemapPreview.h"
 
@@ -48,6 +49,13 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   // Filtering
   NSTextView *_folderPatterns;
   NSTextView *_filePatterns;
+  NSTextView *_includedFolderPatterns;
+  NSTextView *_includedFilePatterns;
+  NSPopUpButton *_sizeComparison;
+  NSTextField *_maximumAge;
+  NSPopUpButton *_ageComparison;
+  BOOL _filtersChanged;
+  NSInteger _shownPage;
   NSButton *_filterRegex;
   NSTextField *_filterError;
   NSTextField *_minimumSize;
@@ -113,6 +121,8 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
 }
 @end
 
+NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidChangeNotification";
+
 @implementation LDOptionsWindowController
 
 + (LDOptionsWindowController *)sharedController
@@ -147,6 +157,11 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
                                              selector:@selector(preferencesDidChange:)
                                                  name:LDPreferencesDidChangeNotification
                                                object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(windowWillClose:)
+                                                 name:NSWindowWillCloseNotification
+                                               object:window];
+    _shownPage = -1;
   }
   return self;
 }
@@ -183,9 +198,34 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   return (LDOptionsPage)[_tabView indexOfTabViewItem:[_tabView selectedTabViewItem]];
 }
 
+// Filter changes take effect when the Filtering page is left or the window
+// closes, not on every keystroke.
+- (void)announceFilterChanges
+{
+  if (!_filtersChanged) {
+    return;
+  }
+  NSError *error = nil;
+  if (![[LDScanOptions optionsFromPreferences:[LDPreferences sharedPreferences]] validateWithError:&error]) {
+    return;
+  }
+  _filtersChanged = NO;
+  [[NSNotificationCenter defaultCenter] postNotificationName:LDOptionsFiltersDidChangeNotification object:self];
+}
+
+- (void)windowWillClose:(NSNotification *)notification
+{
+  (void)notification;
+  [self announceFilterChanges];
+}
+
 - (void)tabView:(NSTabView *)tabView didSelectTabViewItem:(NSTabViewItem *)item
 {
   NSInteger page = [tabView indexOfTabViewItem:item];
+  if (_shownPage == LDOptionsPageFiltering && page != LDOptionsPageFiltering) {
+    [self announceFilterChanges];
+  }
+  _shownPage = page;
   if (page != NSNotFound && page != [[LDPreferences sharedPreferences] lastOptionsPage]) {
     [self apply:^(LDPreferences *preferences) {
       [preferences setLastOptionsPage:page];
@@ -431,6 +471,23 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   return textView;
 }
 
+// Two pattern editors side by side, each with its label above.
+- (NSArray *)addPatternEditors:(NSString *)leftTitle :(NSString *)rightTitle height:(CGFloat)height
+{
+  CGFloat left = _left, right = _right, top = _y;
+  CGFloat middle = floor((left + right) / 2.0);
+  _right = middle - LDOptionsControlSpacing / 2.0;
+  NSTextView *first = [self addPatternEditor:leftTitle height:height];
+  CGFloat bottom = _y;
+  _y = top;
+  _left = middle + LDOptionsControlSpacing / 2.0;
+  _right = right;
+  NSTextView *second = [self addPatternEditor:rightTitle height:height];
+  _left = left;
+  _y = MAX(bottom, _y);
+  return @[first, second];
+}
+
 - (NSTextField *)addNote:(NSString *)text color:(NSColor *)color lines:(NSUInteger)lines
 {
   NSTextField *note = [self labelWithString:text];
@@ -496,22 +553,39 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
 - (void)buildFilteringPage
 {
   [self beginPage:LDLocalized(@"Filtering")];
-  _folderPatterns = [self addPatternEditor:LDLocalized(@"Folder paths to exclude:") height:84.0];
+  // WinDirStat 2.6's page: excludes over includes, two to a row.
+  NSArray *excludes = [self addPatternEditors:LDLocalized(@"Folder paths to exclude:")
+                                             :LDLocalized(@"File name patterns to exclude:") height:72.0];
+  _folderPatterns = [excludes objectAtIndex:0];
+  _filePatterns = [excludes objectAtIndex:1];
   _y += LDOptionsSectionSpacing - LDOptionsRowSpacing;
-  _filePatterns = [self addPatternEditor:LDLocalized(@"File name patterns to exclude:") height:84.0];
+  NSArray *includes = [self addPatternEditors:LDLocalized(@"Folder paths to include:")
+                                             :LDLocalized(@"File name patterns to include:") height:72.0];
+  _includedFolderPatterns = [includes objectAtIndex:0];
+  _includedFilePatterns = [includes objectAtIndex:1];
   _filterRegex = [self addCheckbox:LDLocalized(@"Use regular expressions instead of glob patterns") action:@selector(filterRegexChanged:)];
   _filterError = [self labelWithString:@" "];
   [_filterError setTextColor:[NSColor systemRedColor]];
   [[_filterError cell] setLineBreakMode:NSLineBreakByTruncatingTail];
   [self addFullWidthView:_filterError height:NSHeight([_filterError frame])];
 
+  // "<" leaves out what is below the value, ">" what is above it.
+  _sizeComparison = [self popUpWithTitles:@[@"<", @">"] action:@selector(sizeComparisonChanged:)];
   _minimumSize = [self numberFieldWithAction:@selector(minimumSizeEntered:)];
   [_minimumSize setFrameSize:NSMakeSize(100, NSHeight([_minimumSize frame]))];
   _minimumSizeUnit = [self popUpWithTitles:@[@"bytes", @"KiB", @"MiB", @"GiB", @"TiB"]
                                     action:@selector(minimumSizeUnitChanged:)];
-  [self addRow:LDLocalized(@"Exclude files smaller than") controls:@[_minimumSize, _minimumSizeUnit]];
+  [self addRow:LDLocalized(@"Exclude files by size:") controls:@[_sizeComparison, _minimumSize, _minimumSizeUnit]];
+  _ageComparison = [self popUpWithTitles:@[@"<", @">"] action:@selector(ageComparisonChanged:)];
+  _maximumAge = [self numberFieldWithAction:@selector(maximumAgeEntered:)];
+  [_maximumAge setFrameSize:NSMakeSize(100, NSHeight([_maximumAge frame]))];
+  NSTextField *days = [self labelWithString:LDLocalized(@"days")];
+  [days sizeToFit];
+  [days setFrameSize:NSMakeSize(MAX(NSWidth([_minimumSizeUnit frame]), NSWidth([days frame])), NSHeight([days frame]))];
+  [self addRow:LDLocalized(@"Exclude files by age (0 = disabled):") controls:@[_ageComparison, _maximumAge, days]];
   _y += LDOptionsSectionSpacing - LDOptionsRowSpacing;
-  [self addNote:LDLocalized(@"Changes apply to the next scan or refresh.") color:[NSColor secondaryLabelColor] lines:1];
+  [self addNote:LDLocalized(@"LinDirStat scans again when you leave this page or close this window.")
+          color:[NSColor secondaryLabelColor] lines:1];
 }
 
 + (NSDictionary *)columnTitles
@@ -798,9 +872,14 @@ static NSInteger LDState(BOOL flag)
 
   [self setText:[preferences excludedFolderPatterns] ofTextView:_folderPatterns];
   [self setText:[preferences excludedFilePatterns] ofTextView:_filePatterns];
+  [self setText:[preferences includedFolderPatterns] ofTextView:_includedFolderPatterns];
+  [self setText:[preferences includedFilePatterns] ofTextView:_includedFilePatterns];
   [_filterRegex setState:LDState([preferences filterUsesRegex])];
+  [_sizeComparison selectItemAtIndex:[preferences filterExcludesLargerFiles] ? 1 : 0];
   [self setString:[NSString stringWithFormat:@"%llu", [preferences minimumFileSize]] ofField:_minimumSize];
   [_minimumSizeUnit selectItemAtIndex:[preferences minimumFileSizeUnit]];
+  [_ageComparison selectItemAtIndex:[preferences filterExcludesNewerFiles] ? 0 : 1];
+  [self setString:[NSString stringWithFormat:@"%lu", (unsigned long)[preferences filterMaximumAgeDays]] ofField:_maximumAge];
   [self validateFilters];
 
   [_pacman setState:LDState([preferences pacmanAnimation])];
@@ -993,9 +1072,12 @@ static NSInteger LDState(BOOL flag)
 - (void)validateFilters
 {
   BOOL regex = [_filterRegex state] == NSOnState;
-  NSString *invalid = [LDFilterPatterns firstInvalidPatternInString:[_folderPatterns string] usesRegex:regex];
-  if (!invalid) {
-    invalid = [LDFilterPatterns firstInvalidPatternInString:[_filePatterns string] usesRegex:regex];
+  NSString *invalid = nil;
+  for (NSTextView *editor in @[_folderPatterns, _filePatterns, _includedFolderPatterns, _includedFilePatterns]) {
+    invalid = [LDFilterPatterns firstInvalidPatternInString:[editor string] usesRegex:regex];
+    if (invalid) {
+      break;
+    }
   }
   [_filterError setStringValue:invalid ? [NSString stringWithFormat:LDLocalized(@"Invalid filter: %@"), invalid] : @""];
 }
@@ -1009,8 +1091,13 @@ static NSInteger LDState(BOOL flag)
       [preferences setExcludedFolderPatterns:text];
     } else if (textView == self->_filePatterns) {
       [preferences setExcludedFilePatterns:text];
+    } else if (textView == self->_includedFolderPatterns) {
+      [preferences setIncludedFolderPatterns:text];
+    } else if (textView == self->_includedFilePatterns) {
+      [preferences setIncludedFilePatterns:text];
     }
   }];
+  _filtersChanged = YES;
   [self validateFilters];
 }
 
@@ -1020,12 +1107,16 @@ static NSInteger LDState(BOOL flag)
   [self apply:^(LDPreferences *preferences) {
     [preferences setFilterUsesRegex:on];
   }];
+  _filtersChanged = YES;
   [self validateFilters];
 }
 
 - (void)applyMinimumSizeReformat:(BOOL)reformat
 {
   long long value = MAX(0LL, [[_minimumSize stringValue] longLongValue]);
+  if ((unsigned long long)value != [[LDPreferences sharedPreferences] minimumFileSize]) {
+    _filtersChanged = YES;
+  }
   [self apply:^(LDPreferences *preferences) {
     [preferences setMinimumFileSize:(unsigned long long)value];
   }];
@@ -1046,6 +1137,45 @@ static NSInteger LDState(BOOL flag)
   [self apply:^(LDPreferences *preferences) {
     [preferences setMinimumFileSizeUnit:unit];
   }];
+  _filtersChanged = YES;
+}
+
+- (void)sizeComparisonChanged:(id)sender
+{
+  BOOL larger = [sender indexOfSelectedItem] == 1;
+  [self apply:^(LDPreferences *preferences) {
+    [preferences setFilterExcludesLargerFiles:larger];
+  }];
+  _filtersChanged = YES;
+}
+
+- (void)ageComparisonChanged:(id)sender
+{
+  BOOL newer = [sender indexOfSelectedItem] == 0;
+  [self apply:^(LDPreferences *preferences) {
+    [preferences setFilterExcludesNewerFiles:newer];
+  }];
+  _filtersChanged = YES;
+}
+
+- (void)applyMaximumAgeReformat:(BOOL)reformat
+{
+  NSUInteger days = (NSUInteger)MIN(36500LL, MAX(0LL, [[_maximumAge stringValue] longLongValue]));
+  if (days != [[LDPreferences sharedPreferences] filterMaximumAgeDays]) {
+    _filtersChanged = YES;
+  }
+  [self apply:^(LDPreferences *preferences) {
+    [preferences setFilterMaximumAgeDays:days];
+  }];
+  if (reformat) {
+    [self setString:[NSString stringWithFormat:@"%lu", (unsigned long)days] ofField:_maximumAge];
+  }
+}
+
+- (void)maximumAgeEntered:(id)sender
+{
+  (void)sender;
+  [self applyMaximumAgeReformat:YES];
 }
 
 #pragma mark - Treemap
@@ -1327,6 +1457,8 @@ static NSInteger LDState(BOOL flag)
     }
   } else if (field == _minimumSize) {
     [self applyMinimumSizeReformat:YES];
+  } else if (field == _maximumAge) {
+    [self applyMaximumAgeReformat:YES];
   } else if (field == _largeFileCount || field == _historyCount) {
     [self applyCountFromField:field reformat:YES];
   }
