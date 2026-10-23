@@ -12,7 +12,7 @@
 "Brightness" = "Světlost";
 "Bytes" = "Bajty";
 "Cancel" = "Zrušit";
-"Case sensitive" = "Rozlišovat velká a malá písmena";
+"Case Sensitive Search" = "Rozlišovat velká a malá písmena";
 "Clean Up" = "Vyčistit";
 "Cleanups" = "Čištění";
 "Collapse" = "Sbalit";
@@ -43,7 +43,6 @@
 "Files" = "Soubory";
 "Files without an extension" = "Bez přípony";
 "Filtering" = "Filtrování";
-"Find files whose name contains:" = "Hledaný výraz:";
 "Folder List" = "Seznam složek";
 "Folder history entries" = "Počet položek historie složek";
 "Folder paths to exclude:" = "Cesty ke složkám k vyloučení:";
@@ -70,7 +69,7 @@
 "Load Results From CSV" = "Načíst výsledky z CSV";
 "Load Results From CSV…" = "Načíst výsledky z CSV…";
 "Logical Size" = "Logická velikost";
-"Match the whole name" = "Hledat celou frázi";
+"Logical Size:" = "Logická velikost:";
 "Memory: %@" = "Využití paměti: %@";
 "Modified" = "Změněno";
 "Move Down" = "Dolů";
@@ -85,9 +84,11 @@
 "Optional Columns" = "Volitelné sloupce";
 "Options" = "Možnosti";
 "Owner" = "Vlastník";
+"Owner:" = "Vlastník:";
 "Pacman animation" = "Pacman animace";
 "Percentage" = "Podíl";
 "Physical Size" = "Fyzická velikost";
+"Physical Size:" = "Fyzická velikost:";
 "Preferences" = "Nastavení";
 "Prompts" = "Výzvy";
 "Properties" = "Vlastnosti";
@@ -119,6 +120,8 @@
 "Scanning threads" = "Vlákna na jednotku";
 "Search" = "Hledání";
 "Search Results" = "Výsledky hledání";
+"Search Term:" = "Hledaný výraz:";
+"Search Whole Phrase" = "Hledat celou frázi";
 "Search…" = "Hledat…";
 "Select Parent" = "Vybrat rodiče";
 "Select Target" = "Vybrat cíl";
@@ -150,7 +153,7 @@
 "Total" = "Celkem";
 "Treemap" = "Stromová mapa";
 "Use Logical Size" = "Použít logickou velikost";
-"Use regular expressions (POSIX extended)" = "Použít regulární výrazy";
+"Use Regular Expressions" = "Použít regulární výrazy";
 "Use regular expressions instead of glob patterns" = "Namísto zástupných znaků použít regulární výraz";
 "Wait for completion" = "Vyčkat na dokončení";
 "Works For" = "Pracuje s";

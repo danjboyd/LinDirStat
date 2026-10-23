@@ -241,6 +241,25 @@ typedef enum {
 - (void)setSearchWholePhrase:(BOOL)flag;
 - (NSString *)lastSearchTerm;
 - (void)setLastSearchTerm:(NSString *)term;
+// WinDirStat 2.6-2.7's search settings, under its keys: item types, owner,
+// the size range fields as typed (digits, empty for no bound) with their
+// unit (0 bytes .. 4 TiB, default MiB), and the history: dictionaries with
+// Term, Regex, WholePhrase and Case, newest first.
+- (BOOL)searchIncludesFiles;
+- (void)setSearchIncludesFiles:(BOOL)flag;
+- (BOOL)searchIncludesFolders;
+- (void)setSearchIncludesFolders:(BOOL)flag;
+- (NSString *)searchOwner;
+- (void)setSearchOwner:(NSString *)owner;
+- (NSString *)searchSizeField:(NSString *)key;   // SearchSizeMinimum, SearchSizeMaximum, SearchPhysicalMinimum, SearchPhysicalMaximum
+- (void)setSearchSizeField:(NSString *)value forKey:(NSString *)key;
+- (NSInteger)searchSizeUnits;
+- (void)setSearchSizeUnits:(NSInteger)unit;
+- (NSInteger)searchPhysicalUnits;
+- (void)setSearchPhysicalUnits:(NSInteger)unit;
+- (NSArray *)searchHistory;
+- (void)setSearchHistory:(NSArray *)history;
+- (NSUInteger)searchHistoryCount;        // 0..100, default 10
 
 // Select Target dialog
 - (LDSelectTargetMode)selectTargetMode;

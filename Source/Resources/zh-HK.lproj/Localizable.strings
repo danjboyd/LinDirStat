@@ -12,7 +12,7 @@
 "Brightness" = "亮度";
 "Bytes" = "位元組";
 "Cancel" = "取消";
-"Case sensitive" = "區分大小寫搜尋";
+"Case Sensitive Search" = "區分大小寫搜尋";
 "Clean Up" = "清理";
 "Cleanups" = "清理";
 "Collapse" = "收起";
@@ -44,7 +44,6 @@
 "Files" = "檔案數目";
 "Files without an extension" = "沒有副檔名";
 "Filtering" = "篩選";
-"Find files whose name contains:" = "搜尋詞語:";
 "Folder List" = "資料夾列表";
 "Folder history entries" = "資料夾歷史數量";
 "Folder paths to exclude:" = "要排除的資料夾路徑:";
@@ -71,7 +70,7 @@
 "Load Results From CSV" = "從 CSV 檔案載入掃描結果";
 "Load Results From CSV…" = "從 CSV 檔案載入掃描結果…";
 "Logical Size" = "邏輯大小";
-"Match the whole name" = "搜尋整個詞組";
+"Logical Size:" = "邏輯大小:";
 "Memory: %@" = "記憶體使用：%@";
 "Modified" = "已修改";
 "Move Down" = "向下移動";
@@ -86,9 +85,11 @@
 "Optional Columns" = "可選擇的欄位";
 "Options" = "選項";
 "Owner" = "擁有者";
+"Owner:" = "擁有者:";
 "Pacman animation" = "Pacman 動畫";
 "Percentage" = "百份比";
 "Physical Size" = "實際大小";
+"Physical Size:" = "實際大小:";
 "Preferences" = "設定";
 "Prompts" = "提示";
 "Properties" = "內容";
@@ -120,6 +121,8 @@
 "Scanning threads" = "每個磁碟機的執行緒數目";
 "Search" = "搜尋";
 "Search Results" = "搜尋結果";
+"Search Term:" = "搜尋詞語:";
+"Search Whole Phrase" = "搜尋整個詞組";
 "Search…" = "搜尋…";
 "Select Parent" = "選取檔案所在的資料夾";
 "Select Target" = "選取目標";
@@ -151,7 +154,7 @@
 "Total" = "總共";
 "Treemap" = "樹狀圖";
 "Use Logical Size" = "使用邏輯大小";
-"Use regular expressions (POSIX extended)" = "使用正則表達式";
+"Use Regular Expressions" = "使用正則表達式";
 "Use regular expressions instead of glob patterns" = "使用正規表達式 (regular expression) 取代 glob 模式";
 "Wait for completion" = "等待完成";
 "Works For" = "適用於";

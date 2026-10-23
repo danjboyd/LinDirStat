@@ -12,7 +12,7 @@
 "Brightness" = "밝기";
 "Bytes" = "바이트";
 "Cancel" = "취소";
-"Case sensitive" = "대소문자 구분 검색";
+"Case Sensitive Search" = "대소문자 구분 검색";
 "Clean Up" = "정리";
 "Cleanups" = "정리";
 "Collapse" = "접기";
@@ -44,7 +44,6 @@
 "Files" = "파일";
 "Files without an extension" = "확장자 없음";
 "Filtering" = "필터링";
-"Find files whose name contains:" = "검색어:";
 "Folder List" = "폴더 목록";
 "Folder history entries" = "폴더 기록 수";
 "Folder paths to exclude:" = "제외할 폴더 경로:";
@@ -71,7 +70,7 @@
 "Load Results From CSV" = "CSV에서 결과 불러오기";
 "Load Results From CSV…" = "CSV에서 결과 불러오기…";
 "Logical Size" = "논리적 크기";
-"Match the whole name" = "전체 구문 검색";
+"Logical Size:" = "논리적 크기:";
 "Memory: %@" = "메모리 사용량: %@";
 "Modified" = "수정됨";
 "Move Down" = "아래로";
@@ -86,9 +85,11 @@
 "Optional Columns" = "선택적 열";
 "Options" = "옵션";
 "Owner" = "소유자";
+"Owner:" = "소유자:";
 "Pacman animation" = "팩맨 애니메이션";
 "Percentage" = "비율";
 "Physical Size" = "물리적 크기";
+"Physical Size:" = "물리적 크기:";
 "Preferences" = "설정";
 "Prompts" = "프롬프트";
 "Properties" = "속성";
@@ -120,6 +121,8 @@
 "Scanning threads" = "드라이브당 스레드";
 "Search" = "검색";
 "Search Results" = "검색 결과";
+"Search Term:" = "검색어:";
+"Search Whole Phrase" = "전체 구문 검색";
 "Search…" = "검색…";
 "Select Parent" = "부모 선택";
 "Select Target" = "대상 선택";
@@ -151,7 +154,7 @@
 "Total" = "전체";
 "Treemap" = "트리맵";
 "Use Logical Size" = "논리 크기 사용";
-"Use regular expressions (POSIX extended)" = "정규식 사용";
+"Use Regular Expressions" = "정규식 사용";
 "Use regular expressions instead of glob patterns" = "전역 패턴 대신 정규식 사용";
 "Wait for completion" = "완료 대기";
 "Works For" = "작업 대상";

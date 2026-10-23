@@ -12,7 +12,7 @@
 "Brightness" = "Luminosité";
 "Bytes" = "Octets";
 "Cancel" = "Annuler";
-"Case sensitive" = "Recherche sensible à la casse";
+"Case Sensitive Search" = "Recherche sensible à la casse";
 "Clean Up" = "Nettoyer";
 "Cleanups" = "Nettoyage";
 "Collapse" = "Réduire";
@@ -42,7 +42,6 @@
 "Files" = "Fichiers";
 "Files without an extension" = "Sans Extension";
 "Filtering" = "Filtrage";
-"Find files whose name contains:" = "Terme de recherche:";
 "Folder List" = "Liste des répertoires";
 "Folder history entries" = "Historique des dossiers";
 "Folder paths to exclude:" = "Chemins de dossiers à exclure:";
@@ -69,7 +68,7 @@
 "Load Results From CSV" = "Charger les résultats depuis un fichier CSV";
 "Load Results From CSV…" = "Charger les résultats depuis un fichier CSV…";
 "Logical Size" = "Taille Logique";
-"Match the whole name" = "Rechercher la phrase entière";
+"Logical Size:" = "Taille Logique:";
 "Memory: %@" = "Utilisation de la mémoire RAM: %@";
 "Modified" = "Modifié";
 "Move Down" = "Descendre";
@@ -83,9 +82,11 @@
 "Operation" = "Opération";
 "Optional Columns" = "Colonnes facultatives";
 "Owner" = "Propriétaire";
+"Owner:" = "Propriétaire:";
 "Pacman animation" = "Animation \"\"Pacman\"\"";
 "Percentage" = "Pourcentage";
 "Physical Size" = "Taille Physique";
+"Physical Size:" = "Taille Physique:";
 "Preferences" = "Paramètres";
 "Prompts" = "Invites";
 "Properties" = "Propriétés";
@@ -117,6 +118,8 @@
 "Scanning threads" = "Threads par lecteur";
 "Search" = "Recherche";
 "Search Results" = "Résultats de recherche";
+"Search Term:" = "Terme de recherche:";
+"Search Whole Phrase" = "Rechercher la phrase entière";
 "Search…" = "Rechercher…";
 "Select Parent" = "Sélectionner le dossier parent";
 "Select Target" = "Sélectionner la cible";
@@ -145,7 +148,7 @@
 "Title" = "Titre";
 "Tools" = "Outils";
 "Use Logical Size" = "Utiliser la taille logique";
-"Use regular expressions (POSIX extended)" = "Utiliser des expressions régulières";
+"Use Regular Expressions" = "Utiliser des expressions régulières";
 "Use regular expressions instead of glob patterns" = "Utiliser des expressions régulières au lieu de modèles glob";
 "Wait for completion" = "Attendre la fin de la tâche";
 "Works For" = "Traitement de";

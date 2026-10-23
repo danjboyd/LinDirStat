@@ -11,7 +11,7 @@
 "Brightness" = "Heledus";
 "Bytes" = "Bait-id";
 "Cancel" = "Loobu";
-"Case sensitive" = "Tõstutundlik otsing";
+"Case Sensitive Search" = "Tõstutundlik otsing";
 "Clean Up" = "Puhastus";
 "Cleanups" = "Puhasramine";
 "Collapse" = "Taandama";
@@ -42,7 +42,6 @@
 "Files" = "Failid";
 "Files without an extension" = "Ei Laiend";
 "Filtering" = "Filtreerimine";
-"Find files whose name contains:" = "Otsingusõna:";
 "Folder List" = "Kausta leht";
 "Folder history entries" = "Kaustaloos arv";
 "Folder paths to exclude:" = "Kaustade teed, mida välistada:";
@@ -69,7 +68,7 @@
 "Load Results From CSV" = "Laadi tulemused CSV-failist";
 "Load Results From CSV…" = "Laadi tulemused CSV-failist…";
 "Logical Size" = "Loogiline suurus";
-"Match the whole name" = "Otsi tervet fraasi";
+"Logical Size:" = "Loogiline suurus:";
 "Memory: %@" = "RAM kasutus: %@";
 "Modified" = "Muudetud";
 "Move Down" = "Alla";
@@ -84,9 +83,11 @@
 "Optional Columns" = "Valikulised veerud";
 "Options" = "Seaded";
 "Owner" = "Omanik";
+"Owner:" = "Omanik:";
 "Pacman animation" = "Kakuke animeeritult";
 "Percentage" = "Protsent";
 "Physical Size" = "Füüsiline suurus";
+"Physical Size:" = "Füüsiline suurus:";
 "Preferences" = "Seaded";
 "Prompts" = "Küsimisviisid";
 "Properties" = "Seaded";
@@ -118,6 +119,8 @@
 "Scanning threads" = "Ajamite lõimed";
 "Search" = "Otsing";
 "Search Results" = "Otsingutulemused";
+"Search Term:" = "Otsingusõna:";
+"Search Whole Phrase" = "Otsi tervet fraasi";
 "Search…" = "Otsi…";
 "Select Parent" = "Vali kõrgem tasand";
 "Select Target" = "Vali sihtkoht";
@@ -149,7 +152,7 @@
 "Total" = "Kogusumma";
 "Treemap" = "Puukaart";
 "Use Logical Size" = "Kasuta loogilist suurust";
-"Use regular expressions (POSIX extended)" = "Kasuta regulaaravaldisi";
+"Use Regular Expressions" = "Kasuta regulaaravaldisi";
 "Use regular expressions instead of glob patterns" = "Kasuta regulaaravaldisi glob mustrite asemel";
 "Wait for completion" = "Oota lõpuleviimist";
 "Works For" = "Tööd";

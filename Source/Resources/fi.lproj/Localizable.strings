@@ -12,7 +12,7 @@
 "Brightness" = "Kirkkaus";
 "Bytes" = "Tavua";
 "Cancel" = "Peruuta";
-"Case sensitive" = "Kirjainkoon huomioiva haku";
+"Case Sensitive Search" = "Kirjainkoon huomioiva haku";
 "Clean Up" = "Siivoa";
 "Cleanups" = "Toiminnot";
 "Collapse" = "Palauta";
@@ -44,7 +44,6 @@
 "Files" = "Tiedostoja";
 "Files without an extension" = "Ei Pääte";
 "Filtering" = "Suodatus";
-"Find files whose name contains:" = "Hakusana:";
 "Folder List" = "Kansiolista";
 "Folder history entries" = "Kansiohistorian määrä";
 "Folder paths to exclude:" = "Kansiopolut, jotka suljetaan pois:";
@@ -71,7 +70,7 @@
 "Load Results From CSV" = "Lataa tulokset CSV-tiedostosta";
 "Load Results From CSV…" = "Lataa tulokset CSV-tiedostosta…";
 "Logical Size" = "Looginen koko";
-"Match the whole name" = "Hae koko ilmaus";
+"Logical Size:" = "Looginen koko:";
 "Memory: %@" = "Muistinkäyttö: %@";
 "Modified" = "Muokattu";
 "Move Down" = "Alas";
@@ -86,9 +85,11 @@
 "Optional Columns" = "Valinnaiset sarakkeet";
 "Options" = "Valinnat";
 "Owner" = "Omistaja";
+"Owner:" = "Omistaja:";
 "Pacman animation" = "Pacman-animaatio";
 "Percentage" = "Osuus";
 "Physical Size" = "Fyysinen koko";
+"Physical Size:" = "Fyysinen koko:";
 "Preferences" = "Asetukset";
 "Prompts" = "Kehotteet";
 "Properties" = "Ominaisuudet";
@@ -120,6 +121,8 @@
 "Scanning threads" = "Säikeitä per asema";
 "Search" = "Haku";
 "Search Results" = "Hakutulokset";
+"Search Term:" = "Hakusana:";
+"Search Whole Phrase" = "Hae koko ilmaus";
 "Search…" = "Etsi…";
 "Select Parent" = "Valitse yläkohde";
 "Select Target" = "Valitse kohde";
@@ -151,7 +154,7 @@
 "Total" = "Yhteensä";
 "Treemap" = "Kuvaaja";
 "Use Logical Size" = "Käytä loogista kokoa";
-"Use regular expressions (POSIX extended)" = "Käytä säännöllisiä lausekkeita";
+"Use Regular Expressions" = "Käytä säännöllisiä lausekkeita";
 "Use regular expressions instead of glob patterns" = "Käytä säännöllisiä lausekkeita glob-mallien sijaan";
 "Wait for completion" = "Odota valmistumista";
 "Works For" = "Käytettävissä";
