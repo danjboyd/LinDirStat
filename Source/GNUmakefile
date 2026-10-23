@@ -29,6 +29,7 @@ LinDirStat_OBJC_FILES = \
   LDCustomCleanupRunner.m \
   LDDialogs.m \
   LDListViews.m \
+  LDColumnChooser.m \
   AppController+Cleanup.m \
   AppController+FileLists.m \
   AppController+HardLinks.m \

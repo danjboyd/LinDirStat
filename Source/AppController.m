@@ -2,6 +2,7 @@
 #import "LDLocalization.h"
 #import "AppController+Private.h"
 #import "LDCommandLine.h"
+#import "LDColumnChooser.h"
 #import "LDCommandRules.h"
 #import "LDPreferences.h"
 #import "LDFileAttributes.h"
@@ -974,11 +975,11 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   NSTableColumn *subtree = [self addColumn:@"subtree" title:LDLocalized(@"Size Proportion") width:130 right:NO toTable:_directoryTable];
   [subtree setDataCell:[[LDPercentageBarCell alloc] init]];
   [self setSortPrototypeForColumn:subtree ascending:NO];
-  NSTableColumn *percent = [self addColumn:@"percent" title:LDLocalized(@"Percentage") width:105 right:YES toTable:_directoryTable];
-  [self setSortPrototypeForColumn:percent ascending:NO];
 
-  // WinDirStat's optional columns, shown per Preferences > Folder List.
+  // WinDirStat's optional columns, shown per Preferences > Folder List or
+  // the header's column chooser.
   NSDictionary *specs = @{
+    LDColumnPercentage: @[LDLocalized(@"Percentage"), @105, @YES],
     LDColumnPhysicalSize: @[LDLocalized(@"Physical Size"), @90, @YES],
     LDColumnLogicalSize: @[LDLocalized(@"Logical Size"), @90, @YES],
     LDColumnItems: @[LDLocalized(@"Items"), @70, @YES],
@@ -988,7 +989,6 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     LDColumnAttributes: @[LDLocalized(@"Attributes"), @80, @NO],
     LDColumnOwner: @[LDLocalized(@"Owner"), @110, @NO],
   };
-  _optionalColumns = [[NSMutableDictionary alloc] init];
   for (NSString *identifier in [LDPreferences optionalColumns]) {
     NSArray *spec = [specs objectForKey:identifier];
     NSTableColumn *column = [self addColumn:identifier
@@ -997,10 +997,17 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
                                       right:[[spec objectAtIndex:2] boolValue]
                                     toTable:_directoryTable];
     if (![identifier isEqualToString:LDColumnAttributes] && ![identifier isEqualToString:LDColumnOwner]) {
-      [self setSortPrototypeForColumn:column ascending:[identifier isEqualToString:LDColumnLastChange]];
+      BOOL ascending = [identifier isEqualToString:LDColumnLastChange];
+      [self setSortPrototypeForColumn:column ascending:ascending];
     }
-    [_optionalColumns setObject:column forKey:identifier];
   }
+
+  // Before the saved layout is restored: the chooser keeps this order.
+  __weak AppController *weakSelf = self;
+  [self addColumnChooserForTable:_directoryTable list:LDColumnListFolders required:@[@"name", @"subtree"] changed:^{
+    [weakSelf fitFlexibleColumns];
+    [weakSelf reloadTreeKeepingSelection];
+  }];
 
   [name setMinWidth:160.0];
   [_directoryTable setColumnAutoresizingStyle:NSTableViewNoColumnAutoresizing];
@@ -1011,40 +1018,37 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [_directoryTable setAutosaveTableColumns:YES];
   [_directoryTable setDataSource:self];
   [_directoryTable setDelegate:self];
-  [_directoryTable setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"percent" ascending:NO]]];
-  [self applyColumnVisibility];
+  // FileTreeView.cpp sorts by Size Proportion, which cannot be hidden.
+  [_directoryTable setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"subtree" ascending:NO]]];
 }
 
-// WinDirStat's CreateColumns: the optional columns that are on, in their
-// fixed order after Percentage.
-- (void)applyColumnVisibility
+// WinDirStat 2.6's header menu for a list, made once the list's columns are
+// added and before its saved layout is restored (the chooser keeps the
+// columns' first order). A list that loses or regains a column refits its
+// flexible column (and does whatever else changed asks).
+- (LDColumnChooser *)addColumnChooserForTable:(NSTableView *)table
+                                         list:(NSString *)list
+                                     required:(NSArray *)required
+                                      changed:(void (^)(void))changed
 {
-  LDPreferences *preferences = [LDPreferences sharedPreferences];
-  BOOL changed = NO;
-  for (NSString *identifier in [LDPreferences optionalColumns]) {
-    NSTableColumn *column = [_optionalColumns objectForKey:identifier];
-    BOOL shown = [preferences isColumnShown:identifier];
-    BOOL present = [[_directoryTable tableColumns] indexOfObjectIdenticalTo:column] != NSNotFound;
-    if (shown != present) {
-      changed = YES;
+  LDColumnChooser *chooser = [[LDColumnChooser alloc] initWithTable:table
+                                                               list:list
+                                                    requiredColumns:required
+                                                        preferences:[LDPreferences sharedPreferences]];
+  __weak AppController *weakSelf = self;
+  [chooser setChangeHandler:^{
+    if (changed) {
+      changed();
+    } else {
+      [weakSelf fitFlexibleColumns];
     }
+  }];
+  [chooser applyPreferences];
+  if (!_columnChoosers) {
+    _columnChoosers = [[NSMutableArray alloc] init];
   }
-  if (!changed) {
-    return;
-  }
-  for (NSString *identifier in [LDPreferences optionalColumns]) {
-    NSTableColumn *column = [_optionalColumns objectForKey:identifier];
-    if ([[_directoryTable tableColumns] indexOfObjectIdenticalTo:column] != NSNotFound) {
-      [_directoryTable removeTableColumn:column];
-    }
-  }
-  for (NSString *identifier in [LDPreferences optionalColumns]) {
-    if ([preferences isColumnShown:identifier]) {
-      [_directoryTable addTableColumn:[_optionalColumns objectForKey:identifier]];
-    }
-  }
-  [self fitFlexibleColumns];
-  [self reloadTreeKeepingSelection];
+  [_columnChoosers addObject:chooser];
+  return chooser;
 }
 
 // Applies settings that change how things look (Preferences window). Any
@@ -1067,7 +1071,11 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     [table setGridStyleMask:[preferences listGrid] ? (NSTableViewSolidVerticalGridLineMask | NSTableViewSolidHorizontalGridLineMask) : NSTableViewGridNone];
     [table setNeedsDisplay:YES];
   }
-  [self applyColumnVisibility];
+  // The choosers also follow the preferences on their own; whichever comes
+  // first, the columns change while the selection is kept here.
+  for (LDColumnChooser *chooser in _columnChoosers) {
+    [chooser applyPreferences];
+  }
   if (_mainSplit) {
     [self applyPaneVisibility];
     [self applyChromeVisibility];
@@ -1122,6 +1130,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   // GNUstep's autoresizing styles shrink every column; the description is
   // fitted by hand instead (-fitExtensionDescriptionColumn).
   [description setMinWidth:60.0];
+  [self addColumnChooserForTable:_extensionTable list:LDColumnListExtensions required:nil changed:nil];
   [_extensionTable setColumnAutoresizingStyle:NSTableViewNoColumnAutoresizing];
 
   [_extensionTable setAllowsMultipleSelection:NO];

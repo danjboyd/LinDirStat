@@ -1,6 +1,7 @@
 #import "AppController.h"
 #import "LDListViews.h"
 
+@class LDColumnChooser;
 @class LDScanSession;
 @class LDSearchOptions;
 
@@ -34,6 +35,10 @@
                        right:(BOOL)rightAligned
                      toTable:(NSTableView *)table;
 - (void)setSortPrototypeForColumn:(NSTableColumn *)column ascending:(BOOL)ascending;
+- (LDColumnChooser *)addColumnChooserForTable:(NSTableView *)table
+                                         list:(NSString *)list
+                                     required:(NSArray *)required
+                                      changed:(void (^)(void))changed;
 - (NSScrollView *)scrollViewWithDocumentView:(NSView *)view;
 - (NSString *)describeNode:(LDFileNode *)node;
 - (void)revealNodeInTree:(LDFileNode *)node;

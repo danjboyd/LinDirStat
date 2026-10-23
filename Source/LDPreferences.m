@@ -5,6 +5,7 @@
 
 NSString *const LDPreferencesDidChangeNotification = @"LDPreferencesDidChangeNotification";
 
+NSString *const LDColumnPercentage = @"percent";
 NSString *const LDColumnPhysicalSize = @"physicalSize";
 NSString *const LDColumnLogicalSize = @"logicalSize";
 NSString *const LDColumnItems = @"items";
@@ -13,6 +14,14 @@ NSString *const LDColumnFolders = @"folders";
 NSString *const LDColumnLastChange = @"lastChange";
 NSString *const LDColumnAttributes = @"attributes";
 NSString *const LDColumnOwner = @"owner";
+
+NSString *const LDColumnListFolders = @"FileTree";
+NSString *const LDColumnListExtensions = @"ExtView";
+NSString *const LDColumnListLargest = @"TopView";
+NSString *const LDColumnListDuplicates = @"DupeView";
+NSString *const LDColumnListSearch = @"Search";
+NSString *const LDColumnListWatcher = @"Watcher";
+NSString *const LDColumnListDrives = @"DriveSelect";
 
 static const NSUInteger LDCustomCleanupSlots = 10;
 enum { LDFileTreeColorSlots = 8 };
@@ -161,6 +170,7 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"FileTreeColorCount": @8,
     @"PacmanAnimation": @YES,
     @"ShowTimeSpent": @YES,
+    @"ShowColumnPercentage": @YES,
     // WinDirStat shows Physical and Logical Size; at GNOME's metrics only
     // one size column fits beside the extension list, so Logical is off.
     @"ShowColumnSizePhysical": @YES,
@@ -171,6 +181,7 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"ShowColumnLastChange": @YES,
     @"ShowColumnAttributes": @NO,
     @"ShowColumnOwner": @NO,
+    @"HiddenColumns": @{},
     @"TreeMapStyle": @0,
     @"TreeMapGrid": @NO,
     @"TreeMapBrightness": @88,
@@ -305,7 +316,7 @@ static NSInteger LDClamp(NSInteger value, NSInteger low, NSInteger high)
 
 + (NSArray *)optionalColumns
 {
-  return @[LDColumnPhysicalSize, LDColumnLogicalSize, LDColumnItems, LDColumnFiles,
+  return @[LDColumnPercentage, LDColumnPhysicalSize, LDColumnLogicalSize, LDColumnItems, LDColumnFiles,
            LDColumnFolders, LDColumnLastChange, LDColumnAttributes, LDColumnOwner];
 }
 
@@ -349,6 +360,7 @@ static uint32_t LDColorValue(NSInteger value)
 + (NSString *)keyForColumn:(NSString *)column
 {
   NSDictionary *keys = @{
+    LDColumnPercentage: @"ShowColumnPercentage",
     LDColumnPhysicalSize: @"ShowColumnSizePhysical",
     LDColumnLogicalSize: @"ShowColumnSizeLogical",
     LDColumnItems: @"ShowColumnItems",
@@ -373,6 +385,42 @@ static uint32_t LDColorValue(NSInteger value)
   if (key) {
     [self setBool:shown forKey:key];
   }
+}
+
+// The other lists' hidden columns: {list: [identifier, ...]}.
+- (BOOL)isColumn:(NSString *)column shownInList:(NSString *)list
+{
+  if ([list isEqualToString:LDColumnListFolders]) {
+    return [self isColumnShown:column];
+  }
+  NSArray *hidden = [[_defaults dictionaryForKey:@"HiddenColumns"] objectForKey:list];
+  return ![hidden isKindOfClass:[NSArray class]] || ![hidden containsObject:column];
+}
+
+- (void)setColumn:(NSString *)column shown:(BOOL)shown inList:(NSString *)list
+{
+  if ([list isEqualToString:LDColumnListFolders]) {
+    [self setColumn:column shown:shown];
+    return;
+  }
+  if (!column || !list || [self isColumn:column shownInList:list] == shown) {
+    return;
+  }
+  NSMutableDictionary *lists = [NSMutableDictionary dictionaryWithDictionary:[_defaults dictionaryForKey:@"HiddenColumns"] ?: @{}];
+  id stored = [lists objectForKey:list];
+  NSMutableArray *hidden = [NSMutableArray arrayWithArray:[stored isKindOfClass:[NSArray class]] ? stored : @[]];
+  if (shown) {
+    [hidden removeObject:column];
+  } else {
+    [hidden addObject:column];
+  }
+  if ([hidden count] > 0) {
+    [lists setObject:hidden forKey:list];
+  } else {
+    [lists removeObjectForKey:list];
+  }
+  [_defaults setObject:lists forKey:@"HiddenColumns"];
+  [self changed];
 }
 
 - (NSInteger)treemapStyle { return LDClamp([self integerForKey:@"TreeMapStyle"], 0, 1); }

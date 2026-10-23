@@ -47,7 +47,8 @@
   // finished on its own thread a moment before finishAsyncScan runs.
   BOOL _scanAwaitingAdoption;
   NSMenu *_cleanupMenu;
-  NSMutableDictionary *_optionalColumns;
+  // One per list: its header's column chooser.
+  NSMutableArray *_columnChoosers;
   NSMapTable *_ownerCache;
   NSTabView *_fileTabs;
   NSTabViewItem *_allFilesTab;

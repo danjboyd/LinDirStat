@@ -27,7 +27,10 @@ static NSString *const LDTabWatcher = @"watcher";
 
 #pragma mark - Building
 
-- (NSTableView *)fileListTable:(BOOL)outline nameTitle:(NSString *)nameTitle autosaveName:(NSString *)autosaveName
+- (NSTableView *)fileListTable:(BOOL)outline
+                     nameTitle:(NSString *)nameTitle
+                  autosaveName:(NSString *)autosaveName
+                    columnList:(NSString *)list
 {
   NSTableView *table = outline
     ? [[LDOutlineView alloc] initWithFrame:NSMakeRect(0, 0, 700, 300)]
@@ -49,6 +52,7 @@ static NSString *const LDTabWatcher = @"watcher";
   }
   NSTableColumn *lastChange = [self addColumn:@"lastChange" title:LDLocalized(@"Last Change") width:140 right:NO toTable:table];
   [self setSortPrototypeForColumn:lastChange ascending:YES];
+  [self addColumnChooserForTable:table list:list required:nil changed:nil];
   [table setColumnAutoresizingStyle:NSTableViewNoColumnAutoresizing];
   [table setAllowsMultipleSelection:YES];
   [table setAllowsColumnSelection:NO];
@@ -69,11 +73,11 @@ static NSString *const LDTabWatcher = @"watcher";
 
 - (NSView *)buildFileTabs
 {
-  _largestTable = (LDTableView *)[self fileListTable:NO nameTitle:LDLocalized(@"Name") autosaveName:@"LinDirStatLargestFiles"];
+  _largestTable = (LDTableView *)[self fileListTable:NO nameTitle:LDLocalized(@"Name") autosaveName:@"LinDirStatLargestFiles" columnList:LDColumnListLargest];
   [_largestTable setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"physicalSize" ascending:NO]]];
-  _searchTable = (LDTableView *)[self fileListTable:NO nameTitle:LDLocalized(@"Name") autosaveName:@"LinDirStatSearchResults"];
+  _searchTable = (LDTableView *)[self fileListTable:NO nameTitle:LDLocalized(@"Name") autosaveName:@"LinDirStatSearchResults" columnList:LDColumnListSearch];
   [_searchTable setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"logicalSize" ascending:NO]]];
-  _duplicatesTable = (LDOutlineView *)[self fileListTable:YES nameTitle:LDLocalized(@"Hash Prefix / Name") autosaveName:@"LinDirStatDuplicates"];
+  _duplicatesTable = (LDOutlineView *)[self fileListTable:YES nameTitle:LDLocalized(@"Hash Prefix / Name") autosaveName:@"LinDirStatDuplicates" columnList:LDColumnListDuplicates];
   [_duplicatesTable setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"physicalSize" ascending:NO]]];
   _largestFiles = @[];
   _duplicateGroups = @[];
@@ -427,6 +431,7 @@ static NSString *const LDTabWatcher = @"watcher";
   [self setSortPrototypeForColumn:[self addColumn:@"time" title:LDLocalized(@"Time") width:150 right:NO toTable:table] ascending:NO];
   [self setSortPrototypeForColumn:[self addColumn:@"operation" title:LDLocalized(@"Operation") width:120 right:NO toTable:table] ascending:YES];
   [self setSortPrototypeForColumn:[self addColumn:@"logicalSize" title:LDLocalized(@"Logical Size") width:90 right:YES toTable:table] ascending:NO];
+  [self addColumnChooserForTable:table list:LDColumnListWatcher required:nil changed:nil];
   [table setColumnAutoresizingStyle:NSTableViewNoColumnAutoresizing];
   [table setAllowsMultipleSelection:YES];
   [table setAllowsColumnSelection:NO];

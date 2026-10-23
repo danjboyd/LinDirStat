@@ -7,6 +7,7 @@
 #endif
 #import "AppController.h"
 #import "AppController+Private.h"
+#import "LDColumnChooser.h"
 #import "LDCommandRules.h"
 #import "LDExtensionStats.h"
 #import "LDFileOperations.h"
@@ -119,6 +120,7 @@
   [_fileWatcher stop];
   _fileWatcher = nil;
   [_duplicateFinder cancel];
+  [_columnChoosers makeObjectsPerformSelector:@selector(invalidate)];
   [[NSNotificationCenter defaultCenter] removeObserver:self];
   [_window orderOut:nil];
 }
@@ -753,6 +755,7 @@
   }
   NSOutlineView *tree = [_controller tree];
   NSTableColumn *percent = [tree tableColumnWithIdentifier:@"percent"];
+  [tree setSortDescriptors:@[[percent sortDescriptorPrototype]]];
   NSTableHeaderCell *header = (NSTableHeaderCell *)[percent headerCell];
   CGFloat title = [header cellSize].width;
   CGFloat indicator = NSWidth([header sortIndicatorRectForBounds:NSMakeRect(0, 0, title, 24)]);
@@ -1320,6 +1323,189 @@
   [preferences setColumn:LDColumnFiles shown:NO];
   XCTAssertNil([tree tableColumnWithIdentifier:LDColumnFiles]);
   XCTAssertEqualObjects(@[a], [self treeSelection]);
+}
+
+// A list header's column chooser menu as a right click shows it.
+- (NSArray *)columnMenuItemsOfTable:(NSTableView *)table
+{
+  NSMenu *menu = [[table headerView] menu];
+  XCTAssertNotNil(menu);
+  [(id)[menu delegate] menuNeedsUpdate:menu];
+  return [menu itemArray];
+}
+
+- (NSMenuItem *)columnMenuItem:(NSString *)identifier ofTable:(NSTableView *)table
+{
+  for (NSMenuItem *item in [self columnMenuItemsOfTable:table]) {
+    if ([[item representedObject] isEqual:identifier]) {
+      return item;
+    }
+  }
+  return nil;
+}
+
+- (void)chooseColumn:(NSString *)identifier ofTable:(NSTableView *)table
+{
+  NSMenuItem *item = [self columnMenuItem:identifier ofTable:table];
+  XCTAssertNotNil(item);
+  XCTAssertTrue([item isEnabled]);
+  [NSApp sendAction:[item action] to:[item target] from:item];
+}
+
+- (NSArray *)columnIdentifiersOfTable:(NSTableView *)table
+{
+  return [[table tableColumns] valueForKey:@"identifier"];
+}
+
+// WinDirStat 2.6 (db7af300): the tree header lists every column in order,
+// checked when shown; Name and Size Proportion cannot be hidden.
+- (void)testTreeHeaderColumnChooserListsColumns
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSOutlineView *tree = [_controller tree];
+  NSArray *items = [self columnMenuItemsOfTable:tree];
+  NSMutableArray *expected = [NSMutableArray arrayWithObjects:@"name", @"subtree", nil];
+  [expected addObjectsFromArray:[LDPreferences optionalColumns]];
+  XCTAssertEqualObjects(expected, [items valueForKey:@"representedObject"]);
+  NSMenuItem *name = [items objectAtIndex:0];
+  NSMenuItem *subtree = [items objectAtIndex:1];
+  XCTAssertEqualObjects(@"Name", [name title]);
+  XCTAssertFalse([name isEnabled]);
+  XCTAssertFalse([subtree isEnabled]);
+  XCTAssertEqual(NSOnState, [name state]);
+  XCTAssertEqual(NSOnState, [subtree state]);
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  for (NSString *identifier in [LDPreferences optionalColumns]) {
+    NSMenuItem *item = [self columnMenuItem:identifier ofTable:tree];
+    XCTAssertTrue([item isEnabled]);
+    XCTAssertEqual([preferences isColumnShown:identifier] ? NSOnState : NSOffState, [item state]);
+    XCTAssertEqual([preferences isColumnShown:identifier], [tree tableColumnWithIdentifier:identifier] != nil);
+  }
+}
+
+// Percentage becomes optional; the menu and Preferences > Folder List share
+// the setting, and the column comes back where it was.
+- (void)testTreeHeaderHidesAndRestoresPercentage
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  LDFileNode *a = [self node:@"a"];
+  [self selectInTree:@[a]];
+  NSOutlineView *tree = [_controller tree];
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  XCTAssertTrue([preferences isColumnShown:LDColumnPercentage]);
+  NSUInteger position = [[self columnIdentifiersOfTable:tree] indexOfObject:LDColumnPercentage];
+  XCTAssertEqual((NSUInteger)2, position);
+
+  [self chooseColumn:LDColumnPercentage ofTable:tree];
+  XCTAssertFalse([preferences isColumnShown:LDColumnPercentage]);
+  XCTAssertNil([tree tableColumnWithIdentifier:LDColumnPercentage]);
+  XCTAssertEqual(NSOffState, [[self columnMenuItem:LDColumnPercentage ofTable:tree] state]);
+  XCTAssertEqualObjects(@[a], [self treeSelection]);
+
+  // Preferences > Folder List turns it back on.
+  [preferences setColumn:LDColumnPercentage shown:YES];
+  XCTAssertEqual(position, [[self columnIdentifiersOfTable:tree] indexOfObject:LDColumnPercentage]);
+  XCTAssertEqual(NSOnState, [[self columnMenuItem:LDColumnPercentage ofTable:tree] state]);
+  XCTAssertEqualObjects(@[a], [self treeSelection]);
+}
+
+// A column shown again goes after the column before it, wherever the user
+// has dragged that one.
+- (void)testShownColumnFollowsItsNeighbourAfterAReorder
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSOutlineView *tree = [_controller tree];
+  NSArray *before = [self columnIdentifiersOfTable:tree];
+  NSInteger physical = [tree columnWithIdentifier:LDColumnPhysicalSize];
+  XCTAssertTrue(physical > 0);
+  // Physical Size dragged to the end.
+  [tree moveColumn:physical toColumn:[tree numberOfColumns] - 1];
+  [self chooseColumn:LDColumnLogicalSize ofTable:tree];
+  NSArray *after = [self columnIdentifiersOfTable:tree];
+  XCTAssertEqual([after count], [before count] + 1);
+  XCTAssertEqualObjects(LDColumnPhysicalSize, [after objectAtIndex:[after count] - 2]);
+  XCTAssertEqualObjects(LDColumnLogicalSize, [after lastObject]);
+}
+
+// SetColumnVisible: hiding the sort column sorts by Name instead.
+- (void)testHidingTheSortColumnSortsByName
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSOutlineView *tree = [_controller tree];
+  XCTAssertEqualObjects(@"subtree", [[[tree sortDescriptors] firstObject] key]);
+  [tree setSortDescriptors:@[[[tree tableColumnWithIdentifier:LDColumnFiles] sortDescriptorPrototype]]];
+  XCTAssertEqualObjects(LDColumnFiles, [[[tree sortDescriptors] firstObject] key]);
+  [self chooseColumn:LDColumnFiles ofTable:tree];
+  XCTAssertNil([tree tableColumnWithIdentifier:LDColumnFiles]);
+  NSSortDescriptor *sorted = [[tree sortDescriptors] firstObject];
+  XCTAssertEqualObjects(@"name", [sorted key]);
+  XCTAssertTrue([sorted ascending]);
+  // The tree really is in name order now: a before b.
+  LDFileNode *first = [_controller outlineView:tree child:0 ofItem:[_controller outlineView:tree child:0 ofItem:nil]];
+  XCTAssertEqualObjects(@"a", [first displayName]);
+}
+
+// Largest Files sorts by Physical Size; hidden, it sorts by Name, and a
+// default sort on a hidden column (at launch) is replaced the same way.
+- (void)testListIsNeverSortedByAHiddenColumn
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSTableView *largest = [_controller largestTable];
+  XCTAssertEqualObjects(@"physicalSize", [[[largest sortDescriptors] firstObject] key]);
+  [self chooseColumn:@"physicalSize" ofTable:largest];
+  XCTAssertEqualObjects(@"path", [[[largest sortDescriptors] firstObject] key]);
+  XCTAssertTrue([[[largest sortDescriptors] firstObject] ascending]);
+
+  [largest setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"physicalSize" ascending:NO]]];
+  [[LDPreferences sharedPreferences] setListGrid:NO];
+  XCTAssertEqualObjects(@"path", [[[largest sortDescriptors] firstObject] key]);
+}
+
+// Every other list has its own chooser and its own setting.
+- (void)testOtherListsHaveTheirOwnColumnChoosers
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  NSDictionary *lists = @{
+    LDColumnListExtensions: @[[_controller extensionTable], @"extension", @"description"],
+    LDColumnListLargest: @[[_controller largestTable], @"path", @"lastChange"],
+    LDColumnListSearch: @[[_controller searchTable], @"path", @"logicalSize"],
+    LDColumnListDuplicates: @[[_controller duplicatesTable], @"path", @"items"],
+    LDColumnListWatcher: @[[_controller watcherTable], @"path", @"operation"],
+  };
+  for (NSString *list in lists) {
+    NSArray *spec = [lists objectForKey:list];
+    NSTableView *table = [spec objectAtIndex:0];
+    NSString *first = [spec objectAtIndex:1];
+    NSString *optional = [spec objectAtIndex:2];
+    XCTAssertFalse([[self columnMenuItem:first ofTable:table] isEnabled], @"%@", list);
+    XCTAssertEqual(NSOnState, [[self columnMenuItem:optional ofTable:table] state], @"%@", list);
+    [self chooseColumn:optional ofTable:table];
+    XCTAssertNil([table tableColumnWithIdentifier:optional], @"%@", list);
+    XCTAssertFalse([preferences isColumn:optional shownInList:list], @"%@", list);
+    XCTAssertEqual(NSOffState, [[self columnMenuItem:optional ofTable:table] state], @"%@", list);
+  }
+  // The folder list's settings are untouched.
+  XCTAssertTrue([preferences isColumnShown:LDColumnLastChange]);
+  XCTAssertNotNil([[_controller tree] tableColumnWithIdentifier:LDColumnLastChange]);
+
+  for (NSString *list in lists) {
+    NSArray *spec = [lists objectForKey:list];
+    [self chooseColumn:[spec objectAtIndex:2] ofTable:[spec objectAtIndex:0]];
+    XCTAssertNotNil([[spec objectAtIndex:0] tableColumnWithIdentifier:[spec objectAtIndex:2]], @"%@", list);
+  }
 }
 
 - (void)testAbsolutePercentagesToggle
