@@ -350,4 +350,39 @@
   XCTAssertEqual(ENOTDIR, [error code]);
 }
 
+#pragma mark - Hard links
+
+- (void)testReplaceFileWithHardLinkOnlyForIdenticalRegularFiles
+{
+  NSString *source = [self dataPath:@"source.bin"];
+  NSString *same = [self dataPath:@"same.bin"];
+  NSString *different = [self dataPath:@"different.bin"];
+  NSString *link = [self dataPath:@"link.bin"];
+  [@"identical contents" writeToFile:source atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  [@"identical contents" writeToFile:same atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  [@"identical content!" writeToFile:different atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  [[NSFileManager defaultManager] createSymbolicLinkAtPath:link withDestinationPath:same error:NULL];
+
+  NSError *error = nil;
+  // Changed since the search: refused, and left as it was.
+  XCTAssertFalse([LDFileOperations replaceFile:[self bytesOf:different] withHardLinkTo:[self bytesOf:source] error:&error]);
+  XCTAssertEqual(ECANCELED, [error code]);
+  XCTAssertEqualObjects(@"identical content!", [NSString stringWithContentsOfFile:different encoding:NSUTF8StringEncoding error:NULL]);
+  XCTAssertFalse([LDFileOperations replaceFile:[self bytesOf:link] withHardLinkTo:[self bytesOf:source] error:&error]);
+  XCTAssertEqual(EINVAL, [error code]);
+
+  XCTAssertTrue([LDFileOperations replaceFile:[self bytesOf:same] withHardLinkTo:[self bytesOf:source] error:&error]);
+  struct stat a, b;
+  stat([source fileSystemRepresentation], &a);
+  stat([same fileSystemRepresentation], &b);
+  XCTAssertEqual(a.st_ino, b.st_ino);
+  // Already linked: nothing to do.
+  XCTAssertTrue([LDFileOperations replaceFile:[self bytesOf:same] withHardLinkTo:[self bytesOf:source] error:&error]);
+  // No temporary links left behind.
+  NSArray *names = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[_temporaryRoot stringByAppendingPathComponent:@"data"] error:NULL];
+  for (NSString *name in names) {
+    XCTAssertFalse([name containsString:@".ldhl-"], @"%@", name);
+  }
+}
+
 @end

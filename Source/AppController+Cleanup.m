@@ -578,6 +578,59 @@
               thenRefreshing:@[]];
 }
 
+#pragma mark - Deduplicate with Hardlink
+
+// The pairs the Duplicates list's selection gives; none elsewhere.
+- (NSArray *)hardLinkPairs
+{
+  if ([self activeFileList] != _duplicatesTable || [self isBusy]) {
+    return @[];
+  }
+  return [LDCommandRules hardLinkPairsForSelection:[self selectedNodes] groups:_duplicateGroups];
+}
+
+// WinDirStat 2.8's OnCreateHardlink: one confirmation listing the files to
+// replace (never the ones kept), then each becomes a link to its group's
+// kept file, and both are refreshed.
+- (void)deduplicateWithHardLinks:(id)sender
+{
+  (void)sender;
+  NSArray *pairs = [self hardLinkPairs];
+  if ([pairs count] == 0) {
+    return;
+  }
+  NSMutableArray *targets = [NSMutableArray array];
+  NSMutableArray *refresh = [NSMutableArray array];
+  NSMutableDictionary *sources = [NSMutableDictionary dictionary];
+  for (NSArray *pair in pairs) {
+    LDFileNode *source = [pair objectAtIndex:0];
+    LDFileNode *target = [pair objectAtIndex:1];
+    [targets addObject:target];
+    [sources setObject:[source pathData] forKey:[target pathData]];
+    for (LDFileNode *node in pair) {
+      if ([refresh indexOfObjectIdenticalTo:node] == NSNotFound) {
+        [refresh addObject:node];
+      }
+    }
+  }
+  if (![self confirmAction:LDLocalized(@"Deduplicate with Hardlink")
+                    prompt:LDPromptCreateHardLink
+                   message:LDLocalized(@"These files will be replaced by hard links to an identical copy, which is kept.")
+                     paths:[self displayPathsForNodes:targets]]) {
+    return;
+  }
+  NSMutableArray *paths = [NSMutableArray array];
+  for (LDFileNode *target in targets) {
+    [paths addObject:[target pathData]];
+  }
+  [self performFileOperation:LDLocalized(@"Creating hard links")
+                       paths:paths
+                   operation:^BOOL(NSData *path, NSError **error) {
+    return [LDFileOperations replaceFile:path withHardLinkTo:[sources objectForKey:path] error:error];
+  }
+              thenRefreshing:refresh];
+}
+
 #pragma mark - Add to Exclusion Filter
 
 // WinDirStat's OnFilterExcludeItem (a874bcf4, c9501507): a file's name goes to

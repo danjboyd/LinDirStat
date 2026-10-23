@@ -38,6 +38,15 @@
 // YES for a folder macOS shows as one item: an app, a bundle or a document
 // package such as a Photos library (NSURLIsPackageKey). Always NO on Linux.
 + (BOOL)isPackage:(NSData *)path;
+// WinDirStat 2.8's Deduplicate with Hardlink (71143eb4): replaces target
+// with a hard link to source. Both must be regular files (no symlinks) on
+// one filesystem with the same contents, compared byte for byte now, so a
+// file changed since the duplicate search is never lost (ECANCELED). The
+// link is made under a temporary name in target's folder and renamed over
+// target, so a failure leaves target as it was. Already the same file:
+// nothing to do. The target takes source's permissions and owner, as any
+// hard link does.
++ (BOOL)replaceFile:(NSData *)target withHardLinkTo:(NSData *)source error:(NSError **)error;
 
 // The trash directories (each containing files/ and info/) that exist for
 // this user: the home trash and the per-volume trashes of mounted

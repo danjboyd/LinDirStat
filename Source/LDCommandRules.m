@@ -1,5 +1,6 @@
 #import "LDCommandRules.h"
 #import "LDFileOperations.h"
+#import "LDDuplicateFinder.h"
 #import "LDLocalization.h"
 #import "LDSizeFormatter.h"
 #import "LDPreferences.h"
@@ -242,6 +243,25 @@
     }
   }
   return found;
+}
+
++ (NSArray *)hardLinkPairsForSelection:(NSArray *)selected groups:(NSArray *)groups
+{
+  NSMutableArray *pairs = [NSMutableArray array];
+  for (LDDuplicateGroup *group in groups) {
+    LDFileNode *source = nil;
+    for (LDFileNode *node in [group nodes]) {
+      if ([selected indexOfObjectIdenticalTo:node] == NSNotFound || [node kind] != LDFileNodeKindFile) {
+        continue;
+      }
+      if (!source) {
+        source = node;
+      } else {
+        [pairs addObject:@[source, node]];
+      }
+    }
+  }
+  return pairs;
 }
 
 + (NSArray *)topmostNodes:(NSArray *)nodes

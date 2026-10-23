@@ -715,10 +715,9 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
     @(LDPromptSetFolderDates): LDLocalized(@"Change Folder Dates to Last Change"),
     @(LDPromptRemoveEmptyFolders): LDLocalized(@"Remove Empty Folders"),
   };
-  // Only operations LinDirStat has get a switch; Deduplicate with Hardlink's
-  // waits for its operation (#63).
+  // Only operations LinDirStat has get a switch.
   NSArray *shown = @[@(LDPromptDeletePermanently), @(LDPromptMoveToTrash), @(LDPromptEmptyTrash),
-                     @(LDPromptSetFolderDates), @(LDPromptRemoveEmptyFolders)];
+                     @(LDPromptCreateHardLink), @(LDPromptSetFolderDates), @(LDPromptRemoveEmptyFolders)];
   _promptChecks = [NSMutableArray array];
   for (NSNumber *prompt in [LDPreferences prompts]) {
     if (![shown containsObject:prompt]) {

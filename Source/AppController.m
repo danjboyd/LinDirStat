@@ -483,6 +483,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [self addItemTo:menu title:LDLocalized(@"Remove Empty Folders") action:@selector(removeEmptyFolders:) key:nil target:self];
   [self addItemTo:menu title:LDLocalized(@"Empty Folder…") action:@selector(emptyFolder:) key:nil target:self];
   [self addItemTo:menu title:LDLocalized(@"Move To…") action:@selector(moveItemsTo:) key:isMainMenu ? @"m" : nil target:self];
+  [self addItemTo:menu title:LDLocalized(@"Deduplicate with Hardlink") action:@selector(deduplicateWithHardLinks:) key:nil target:self];
   [menu addItem:[NSMenuItem separatorItem]];
   NSMenuItem *custom = (NSMenuItem *)[menu addItemWithTitle:LDLocalized(@"Custom Cleanup") action:NULL keyEquivalent:@""];
   [custom setSubmenu:[self customCleanupMenu]];
@@ -759,6 +760,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   if (action == @selector(setFolderDates:)) {
     return _rootNode != nil && ![self isBusy] && !_loadedFile
       && [[LDCommandRules foldersForDatesIn:[self selectedNodes] rootNode:_rootNode] count] > 0;
+  }
+  if (action == @selector(deduplicateWithHardLinks:)) {
+    return [[self hardLinkPairs] count] > 0;
   }
   if (action == @selector(excludeExtension:)) {
     return _rootNode != nil && ![self isBusy] && [self exclusionPatternForSelectedExtension] != nil;

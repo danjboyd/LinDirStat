@@ -324,6 +324,13 @@ Substitution goes through `>`-markers so a `%` inside a filename is safe. Paths 
 
 ## 6. Duplicates tab (`Controls/FileDupeControl.cpp`, `ItemDupe.cpp`)
 
+*Later upstream (v2.8, `71143eb4`, with `860d840d`'s per-group fix):*
+- **Deduplicate with Hardlink** (`ShowCreateHardlinkPrompt`): from the Duplicates list, with at least two files selected on one volume and the scan settled.
+- Within each hash group, the first selected file stays and every other selected file in that group is replaced: a hard link to the source under a GUID-suffixed temporary name, then `MoveFileEx(…, MOVEFILE_REPLACE_EXISTING)` over the target. The temporary link is removed on failure.
+- The confirmation lists only the targets.
+- **LinDirStat:** only regular files (never symlinks) on one filesystem (`EXDEV` otherwise). An already-linked pair is a no-op. Before replacing, each target is compared byte for byte with its source, so a file changed since the duplicate search is refused (`ECANCELED`) and left alone. The swap is `link()` to `<target>.ldhl-XXXXXX` and then `rename()`, which is atomic. The target takes the source's permissions and owner, as any hard link does.
+  - Each replaced file also gives up its own metadata for the kept file's: extended attributes, and on macOS Finder tags, the quarantine flag, ACLs and the creation date. Comparing reads both files whole, so on macOS iCloud "Optimize Mac Storage" placeholders are downloaded first; the duplicate search reads them too. APFS clones are linked like any copy, saving nothing there. A clone-based variant for Apple is a possible later addition.
+
 **Opt-in**
 - Requires `ScanForDuplicates` (the Select Drives checkbox, default off; also settable by CLI flags, `WinDirStat.cpp:255-260`). · The tab is visible only when that option is on and a root exists (`FileTabbedView.cpp:58-59`). · There is **no minimum-size option**. 0-byte files are grouped too.
 
