@@ -763,7 +763,14 @@
   // rmdir would fail.
   [files createDirectoryAtPath:[self pathOf:@"u/locked"] withIntermediateDirectories:YES attributes:nil error:NULL];
   chmod([[self pathOf:@"u/locked"] fileSystemRepresentation], 0);
-  if (![self scanTree]) {
+  [files createDirectoryAtPath:[self pathOf:@"s/inner"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  [files createSymbolicLinkAtPath:[self pathOf:@"s/inner/link"] withDestinationPath:[self pathOf:@"c.bin"] error:NULL];
+  [files createDirectoryAtPath:[self pathOf:@"n"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  BOOL excludedLinks = [[LDPreferences sharedPreferences] excludeSymbolicLinks];
+  [[LDPreferences sharedPreferences] setExcludeSymbolicLinks:YES];
+  BOOL scanned = [self scanTree];
+  [[LDPreferences sharedPreferences] setExcludeSymbolicLinks:excludedLinks];
+  if (!scanned) {
     chmod([[self pathOf:@"u/locked"] fileSystemRepresentation], 0755);
     return;
   }
@@ -771,6 +778,14 @@
   if ([[self node:@"u/locked"] error] != LDFileNodeErrorNone) {
     XCTAssertEqualObjects(@[], [LDCommandRules emptyFoldersIn:@[[self node:@"u"]] rootNode:[_controller root]]);
   }
+  // Nor is one holding only what the tree leaves out (a symbolic link to a file, with
+  // Exclude Symbolic Links on by default), or something new since the scan.
+  XCTAssertNil([self node:@"s/inner/link"]);
+  [@"x" writeToFile:[self pathOf:@"n/new.txt"] atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  XCTAssertEqualObjects(@[], [LDCommandRules emptyFoldersIn:(@[[self node:@"s"], [self node:@"n"]]) rootNode:[_controller root]]);
+  XCTAssertTrue([files removeItemAtPath:[self pathOf:@"s/inner/link"] error:NULL]);
+  XCTAssertEqualObjects((@[[self node:@"s/inner"], [self node:@"s"]]),
+                        [LDCommandRules emptyFoldersIn:@[[self node:@"s"]] rootNode:[_controller root]]);
   [self selectInTree:@[[self node:@"e1"], [self node:@"a"]]];
   XCTAssertTrue([_controller validateAction:@selector(removeEmptyFolders:)]);
   [_controller removeEmptyFolders:nil];
