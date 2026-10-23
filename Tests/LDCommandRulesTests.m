@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <XCTest/XCTest.h>
 #import "LDCommandRules.h"
+#import "LDDuplicateFinder.h"
 #import "LDPreferences.h"
 
 @interface LDCommandRulesTests : XCTestCase
@@ -122,6 +123,24 @@
   [LDCommandRules countFiles:&files folders:&folders inNodes:@[a, c]];
   XCTAssertEqual((NSUInteger)2, files);
   XCTAssertEqual((NSUInteger)0, folders);
+}
+
+- (void)testHardLinkPairsKeepTheFirstSelectedOfEachGroup
+{
+  LDFileNode *a1 = [LDFileNode nodeWithName:@"a1" kind:LDFileNodeKindFile size:5 allocatedSize:5];
+  LDFileNode *a2 = [LDFileNode nodeWithName:@"a2" kind:LDFileNodeKindFile size:5 allocatedSize:5];
+  LDFileNode *a3 = [LDFileNode nodeWithName:@"a3" kind:LDFileNodeKindFile size:5 allocatedSize:5];
+  LDFileNode *b1 = [LDFileNode nodeWithName:@"b1" kind:LDFileNodeKindFile size:7 allocatedSize:7];
+  LDFileNode *b2 = [LDFileNode nodeWithName:@"b2" kind:LDFileNodeKindFile size:7 allocatedSize:7];
+  LDDuplicateGroup *groupA = [[LDDuplicateGroup alloc] initWithHashString:@"aa" logicalSize:5 nodes:@[a1, a2, a3] totalPhysicalSize:15];
+  LDDuplicateGroup *groupB = [[LDDuplicateGroup alloc] initWithHashString:@"bb" logicalSize:7 nodes:@[b1, b2] totalPhysicalSize:14];
+
+  NSArray *pairs = [LDCommandRules hardLinkPairsForSelection:@[a3, a2, b2, b1] groups:@[groupA, groupB]];
+  XCTAssertEqual((NSUInteger)2, [pairs count]);
+  XCTAssertEqualObjects((@[a2, a3]), [pairs objectAtIndex:0]);
+  XCTAssertEqualObjects((@[b1, b2]), [pairs objectAtIndex:1]);
+  // One file per group gives nothing to link.
+  XCTAssertEqual((NSUInteger)0, ([[LDCommandRules hardLinkPairsForSelection:@[a1, b1] groups:@[groupA, groupB]] count]));
 }
 
 - (void)testTopmostNodesDropDescendants

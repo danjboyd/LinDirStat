@@ -68,6 +68,11 @@ typedef enum {
 // whole tree when none are given), never through a symlink or into a macOS
 // package that was not selected, with a known last change.
 + (NSArray *)foldersForDatesIn:(NSArray *)nodes rootNode:(LDFileNode *)root;
+// Deduplicate with Hardlink (WinDirStat 2.8, 71143eb4 with 860d840d's fix):
+// within each duplicate group, the first selected file (in the group's
+// order) stays and every other selected one in that group is replaced by a
+// link to it; groups never mix. Returns @[source, target] node pairs.
++ (NSArray *)hardLinkPairsForSelection:(NSArray *)selected groups:(NSArray *)groups;
 
 // The folders a terminal opens in: each folder itself, a file's parent,
 // without repeats.

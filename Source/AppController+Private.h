@@ -127,6 +127,8 @@
 - (void)excludeItem:(id)sender;
 - (void)removeEmptyFolders:(id)sender;
 - (void)setFolderDates:(id)sender;
+- (void)deduplicateWithHardLinks:(id)sender;
+- (NSArray *)hardLinkPairs;
 - (void)excludeExtension:(id)sender;
 - (NSString *)exclusionPatternForSelectedExtension;
 - (LDFileNode *)nodeForPathData:(NSData *)pathData;

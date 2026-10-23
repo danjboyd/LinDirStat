@@ -566,6 +566,38 @@
   XCTAssertEqualObjects(@[[self node:@"c.bin"]], [_controller selectedNodes]);
 }
 
+// WinDirStat 2.8: a whole duplicate group selected keeps the first copy and
+// makes the others hard links to it; only from the Duplicates list.
+- (void)testDeduplicateWithHardlink
+{
+  if (!_controller) {
+    return;
+  }
+  [self writeFile:@"dup-one.dat" size:8000 seed:9];
+  [self writeFile:@"a/dup-two.dat" size:8000 seed:9];
+  [[LDPreferences sharedPreferences] setScanForDuplicates:YES];
+  if (![self scanTree]) {
+    return;
+  }
+  LDUITestController *controller = _controller;
+  XCTAssertTrue([self waitFor:^BOOL { return ![controller isFindingDuplicates]; } seconds:20.0]);
+  [self selectInTree:@[[self node:@"dup-one.dat"], [self node:@"a/dup-two.dat"]]];
+  XCTAssertFalse([_controller validateAction:@selector(deduplicateWithHardLinks:)]);
+
+  [[_controller fileTabs] selectTabViewItem:[_controller duplicatesTab]];
+  [self selectRow:0 inList:[_controller duplicatesTable]];
+  XCTAssertTrue([_controller validateAction:@selector(deduplicateWithHardLinks:)]);
+  [_controller deduplicateWithHardLinks:nil];
+  if (![self waitUntilIdle]) {
+    return;
+  }
+  struct stat one, two;
+  XCTAssertEqual(0, stat([[self pathOf:@"dup-one.dat"] fileSystemRepresentation], &one));
+  XCTAssertEqual(0, stat([[self pathOf:@"a/dup-two.dat"] fileSystemRepresentation], &two));
+  XCTAssertEqual(one.st_ino, two.st_ino);
+  XCTAssertEqual((nlink_t)2, one.st_nlink);
+}
+
 - (void)testDuplicateGroupDrivesTreemapAndSelection
 {
   if (!_controller) {
