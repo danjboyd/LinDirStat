@@ -7,6 +7,7 @@
 #endif
 #import "AppController.h"
 #import "AppController+Private.h"
+#import "LDCommandRules.h"
 #import "LDExtensionStats.h"
 #import "LDFileOperations.h"
 #import "LDFileWatcher.h"
@@ -725,8 +726,17 @@
   NSFileManager *files = [NSFileManager defaultManager];
   [files createDirectoryAtPath:[self pathOf:@"e1/e2/e3"] withIntermediateDirectories:YES attributes:nil error:NULL];
   [files createDirectoryAtPath:[self pathOf:@"a/empty"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  // A folder holding only one the scan could not read is not empty: its
+  // rmdir would fail.
+  [files createDirectoryAtPath:[self pathOf:@"u/locked"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  chmod([[self pathOf:@"u/locked"] fileSystemRepresentation], 0);
   if (![self scanTree]) {
+    chmod([[self pathOf:@"u/locked"] fileSystemRepresentation], 0755);
     return;
+  }
+  chmod([[self pathOf:@"u/locked"] fileSystemRepresentation], 0755);
+  if ([[self node:@"u/locked"] error] != LDFileNodeErrorNone) {
+    XCTAssertEqualObjects(@[], [LDCommandRules emptyFoldersIn:@[[self node:@"u"]] rootNode:[_controller root]]);
   }
   [self selectInTree:@[[self node:@"e1"], [self node:@"a"]]];
   XCTAssertTrue([_controller validateAction:@selector(removeEmptyFolders:)]);

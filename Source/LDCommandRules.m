@@ -178,14 +178,13 @@
       }
     }
   }
-  // Each folder is recorded before its children, so the reversed list is
+  // Each folder is visited before its children, so the reversed list is
   // deepest first.
+  NSMutableArray *visited = [NSMutableArray array];
   while ([stack count] > 0) {
     LDFileNode *node = [stack lastObject];
     [stack removeLastObject];
-    if (node != root && ![self isVolumeNode:node rootNode:root] && [node fileCount] == 0) {
-      [found addObject:node];
-    }
+    [visited addObject:node];
     for (LDFileNode *child in [node children]) {
       if ([self isWalkableFolder:child] && [LDFileOperations isRealFolder:[child pathData]]
           && ![LDFileOperations isPackage:[child pathData]]) {
@@ -193,7 +192,27 @@
       }
     }
   }
-  return [[found reverseObjectEnumerator] allObjects];
+  // A folder is empty when it holds no files and every child is an empty
+  // folder listed before it: a skipped package, link or mount point inside
+  // would make its rmdir fail.
+  NSHashTable *listed = [NSHashTable hashTableWithOptions:NSPointerFunctionsObjectPointerPersonality];
+  for (LDFileNode *node in [visited reverseObjectEnumerator]) {
+    if (node == root || [self isVolumeNode:node rootNode:root] || [node fileCount] != 0) {
+      continue;
+    }
+    BOOL empty = YES;
+    for (LDFileNode *child in [node children]) {
+      if (![listed containsObject:child]) {
+        empty = NO;
+        break;
+      }
+    }
+    if (empty) {
+      [listed addObject:node];
+      [found addObject:node];
+    }
+  }
+  return found;
 }
 
 + (NSArray *)foldersForDatesIn:(NSArray *)nodes rootNode:(LDFileNode *)root
