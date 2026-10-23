@@ -1,4 +1,5 @@
 #import "LDCommandRules.h"
+#import "LDFileOperations.h"
 #import "LDLocalization.h"
 #import "LDSizeFormatter.h"
 #import "LDPreferences.h"
@@ -98,6 +99,10 @@
       return [self allNodes:nodes satisfy:^BOOL(LDFileNode *node) {
         return removable(node) && [node kind] == LDFileNodeKindDirectory;
       }];
+    case LDCommandRemoveEmptyFolders:
+      return [self allNodes:nodes satisfy:^BOOL(LDFileNode *node) {
+        return notComputer(node) && [node kind] == LDFileNodeKindDirectory;
+      }];
     default:
       return NO;
   }
@@ -141,6 +146,81 @@
   if (folders) {
     *folders = folderTotal;
   }
+}
+
+// A node reached through a symlink, or not a real folder itself: its path
+// leads somewhere the tree does not show. Checks the node and its ancestors.
++ (BOOL)isReachedThroughLink:(LDFileNode *)node
+{
+  for (LDFileNode *cursor = node; cursor && ![self isComputerNode:cursor]; cursor = [cursor parent]) {
+    if (![LDFileOperations isRealFolder:[cursor pathData]]) {
+      return YES;
+    }
+  }
+  return NO;
+}
+
+// Folders whose contents are known: read, and not a mount point left out.
++ (BOOL)isWalkableFolder:(LDFileNode *)node
+{
+  return [node kind] == LDFileNodeKindDirectory && ![self isComputerNode:node] && [node error] == LDFileNodeErrorNone;
+}
+
++ (NSArray *)emptyFoldersIn:(NSArray *)nodes rootNode:(LDFileNode *)root
+{
+  NSMutableArray *found = [NSMutableArray array];
+  NSMutableArray *stack = [NSMutableArray array];
+  for (LDFileNode *node in [self topmostNodes:nodes]) {
+    NSArray *starts = [self isComputerNode:node] ? [node children] : @[node];
+    for (LDFileNode *start in starts) {
+      if ([self isWalkableFolder:start] && ![self isReachedThroughLink:start]) {
+        [stack addObject:start];
+      }
+    }
+  }
+  // Each folder is recorded before its children, so the reversed list is
+  // deepest first.
+  while ([stack count] > 0) {
+    LDFileNode *node = [stack lastObject];
+    [stack removeLastObject];
+    if (node != root && ![self isVolumeNode:node rootNode:root] && [node fileCount] == 0) {
+      [found addObject:node];
+    }
+    for (LDFileNode *child in [node children]) {
+      if ([self isWalkableFolder:child] && [LDFileOperations isRealFolder:[child pathData]]) {
+        [stack addObject:child];
+      }
+    }
+  }
+  return [[found reverseObjectEnumerator] allObjects];
+}
+
++ (NSArray *)foldersForDatesIn:(NSArray *)nodes rootNode:(LDFileNode *)root
+{
+  NSMutableArray *found = [NSMutableArray array];
+  NSMutableArray *stack = [NSMutableArray array];
+  NSArray *selection = [nodes count] > 0 ? [self topmostNodes:nodes] : (root ? @[root] : @[]);
+  for (LDFileNode *node in selection) {
+    NSArray *starts = [self isComputerNode:node] ? [node children] : @[node];
+    for (LDFileNode *start in starts) {
+      if ([self isWalkableFolder:start] && ![self isReachedThroughLink:start]) {
+        [stack addObject:start];
+      }
+    }
+  }
+  while ([stack count] > 0) {
+    LDFileNode *node = [stack lastObject];
+    [stack removeLastObject];
+    if ([node aggregateModificationTime] > 0) {
+      [found addObject:node];
+    }
+    for (LDFileNode *child in [node children]) {
+      if ([self isWalkableFolder:child] && [LDFileOperations isRealFolder:[child pathData]]) {
+        [stack addObject:child];
+      }
+    }
+  }
+  return found;
 }
 
 + (NSArray *)topmostNodes:(NSArray *)nodes

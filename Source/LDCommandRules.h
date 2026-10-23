@@ -18,7 +18,10 @@ typedef enum {
   LDCommandCustomCleanup,
   // Add to Exclusion Filter (WinDirStat 2.5.8): folders and files below the
   // scan roots, not while busy.
-  LDCommandExcludeItem
+  LDCommandExcludeItem,
+  // WinDirStat 2.7's Remove Empty Folders: folders, scan roots included
+  // (their empty folders go, never the root), not while busy.
+  LDCommandRemoveEmptyFolders
 } LDCommand;
 
 @class LDCustomCleanup;
@@ -53,6 +56,17 @@ typedef enum {
 // files and folders they hold, each counting itself. A node below another
 // selected one is counted once; "This Computer" is not a folder.
 + (void)countFiles:(NSUInteger *)files folders:(NSUInteger *)folders inNodes:(NSArray *)nodes;
+
+// Remove Empty Folders (WinDirStat 2.7, 262a1b94 and 489323a5): the folders
+// below and including the given ones whose subtree holds no file, deepest
+// first, so each is empty when its turn comes. Never the scan root, a mount
+// point, a folder that could not be read, or anything reached through a
+// symlink (checked on disk).
++ (NSArray *)emptyFoldersIn:(NSArray *)nodes rootNode:(LDFileNode *)root;
+// Change Folder Dates: every real folder in and below the given nodes (the
+// whole tree when none are given), never through a symlink, with a known
+// last change.
++ (NSArray *)foldersForDatesIn:(NSArray *)nodes rootNode:(LDFileNode *)root;
 
 // The folders a terminal opens in: each folder itself, a file's parent,
 // without repeats.

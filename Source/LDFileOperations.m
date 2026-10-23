@@ -678,4 +678,39 @@ static void LDMeasureTree(int directoryFD, unsigned long long *bytes, NSUInteger
   return emptied;
 }
 
+#pragma mark - Folder tools
+
++ (BOOL)isRealFolder:(NSData *)path
+{
+  struct stat info;
+  return lstat([LDTerminated(path) bytes], &info) == 0 && S_ISDIR(info.st_mode);
+}
+
++ (BOOL)removeEmptyFolder:(NSData *)path error:(NSError **)error
+{
+  if (![self isRealFolder:path]) {
+    return LDFail(error, ENOTDIR, @"Removing the empty folder");
+  }
+  if (rmdir([LDTerminated(path) bytes]) != 0) {
+    return LDFail(error, errno, @"Removing the empty folder");
+  }
+  return YES;
+}
+
++ (BOOL)setModificationTime:(NSTimeInterval)seconds ofFolder:(NSData *)path error:(NSError **)error
+{
+  if (![self isRealFolder:path]) {
+    return LDFail(error, ENOTDIR, @"Changing the folder's date");
+  }
+  struct timespec times[2];
+  times[0].tv_sec = 0;
+  times[0].tv_nsec = UTIME_OMIT;
+  times[1].tv_sec = (time_t)seconds;
+  times[1].tv_nsec = 0;
+  if (utimensat(AT_FDCWD, [LDTerminated(path) bytes], times, AT_SYMLINK_NOFOLLOW) != 0) {
+    return LDFail(error, errno, @"Changing the folder's date");
+  }
+  return YES;
+}
+
 @end
