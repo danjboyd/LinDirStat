@@ -1807,6 +1807,24 @@
   XCTAssertNotNil(firstPanel);
   XCTAssertTrue(samePanel);
 
+  // A connection that fails every session gives up as if cancelled, after
+  // a few tries, rather than spinning.
+  runs = 0;
+  [LDSelectTargetPanel setModalRunnerForTesting:^NSInteger(NSWindow *panel) {
+    (void)panel;
+    runs++;
+    [NSException raise:NSPortTimeoutException format:@"method request - port was invalidated"];
+    return NSModalResponseOK;
+  }];
+  @try {
+    paths = [LDSelectTargetPanel runWithInitialFolder:_tree];
+  }
+  @finally {
+    [LDSelectTargetPanel setModalRunnerForTesting:nil];
+  }
+  XCTAssertNil(paths);
+  XCTAssertEqual((NSUInteger)4, runs);
+
   // Anything else still propagates.
   [LDSelectTargetPanel setModalRunnerForTesting:^NSInteger(NSWindow *panel) {
     (void)panel;
