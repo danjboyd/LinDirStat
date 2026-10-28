@@ -7,7 +7,8 @@
 
 #include <stdlib.h>
 
-NSString *const LDExtensionGroupKey = @"<grouped>";
+// Never an extension key: names cannot contain "/".
+NSString *const LDExtensionGroupKey = @"/grouped";
 
 @implementation LDExtensionStats
 
