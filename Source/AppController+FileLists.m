@@ -8,6 +8,7 @@
 #import "LDFileWatcher.h"
 #import "LDHasher.h"
 #import "LDLargestFiles.h"
+#import "LDPlatformUI.h"
 #import "LDPreferences.h"
 #import "LDScanSession.h"
 #import "LDSearch.h"
@@ -93,7 +94,7 @@ static NSString *const LDTabWatcher = @"watcher";
   _watcherTable = [self buildWatcherTable];
   _watcherEvents = [[NSMutableArray alloc] init];
   _watcherRows = @[];
-  _watcherTab = [self tabItemWithIdentifier:LDTabWatcher label:LDLocalized(@"File Watcher") view:[self scrollViewWithDocumentView:_watcherTable]];
+  _watcherTab = [self tabItemWithIdentifier:LDTabWatcher label:LDLocalized(@"File Watcher") view:[self buildWatcherPane]];
   [_fileTabs addTabViewItem:_allFilesTab];
   [_fileTabs addTabViewItem:_largestTab];
   return _fileTabs;
@@ -477,6 +478,138 @@ static NSString *const LDTabWatcher = @"watcher";
   return table;
 }
 
+- (NSButton *)watcherButtonWithIcon:(NSString *)icon title:(NSString *)title action:(SEL)action
+{
+  NSButton *button = [[NSButton alloc] initWithFrame:NSMakeRect(0, 0, 32, 28)];
+  [button setTitle:@""];
+  [button setImage:[LDPlatformUI toolbarImageNamed:icon label:title]];
+  [button setImagePosition:NSImageOnly];
+  [button setBezelStyle:NSRoundedBezelStyle];
+  [button setToolTip:title];
+  [button setTarget:self];
+  [button setAction:action];
+  return button;
+}
+
+// WinDirStat 2.7 (5dc5a134, 329f9c91) shows Start, Pause, Auto Scroll, Clear
+// and a path filter in its toolbar while the File Watcher tab is active;
+// here they head the tab itself.
+- (NSView *)buildWatcherPane
+{
+  const CGFloat width = 700.0, height = 300.0, bar = 36.0, margin = 4.0;
+  NSView *pane = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, width, height)];
+  [pane setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+  NSScrollView *scroll = [self scrollViewWithDocumentView:_watcherTable];
+  [scroll setFrame:NSMakeRect(0, 0, width, height - bar)];
+  [scroll setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+  [pane addSubview:scroll];
+
+  _watcherStartButton = [self watcherButtonWithIcon:@"media-playback-start-symbolic" title:LDLocalized(@"Start")
+                                             action:@selector(startWatching:)];
+  _watcherPauseButton = [self watcherButtonWithIcon:@"media-playback-pause-symbolic" title:LDLocalized(@"Pause")
+                                             action:@selector(pauseWatching:)];
+  _watcherAutoScrollButton = [self watcherButtonWithIcon:@"go-bottom-symbolic" title:LDLocalized(@"Auto Scroll")
+                                                  action:@selector(toggleWatcherAutoScroll:)];
+  [_watcherAutoScrollButton setButtonType:NSPushOnPushOffButton];
+  _watcherClearButton = [self watcherButtonWithIcon:@"edit-clear-all-symbolic" title:LDLocalized(@"Clear")
+                                             action:@selector(clearWatcher:)];
+  CGFloat x = margin;
+  for (NSButton *button in @[_watcherStartButton, _watcherPauseButton, _watcherAutoScrollButton, _watcherClearButton]) {
+    [button setFrameOrigin:NSMakePoint(x, height - bar + floor((bar - NSHeight([button frame])) / 2.0))];
+    [button setAutoresizingMask:NSViewMaxXMargin | NSViewMinYMargin];
+    [pane addSubview:button];
+    x += NSWidth([button frame]) + margin;
+  }
+  _watcherFilterField = [[NSSearchField alloc] initWithFrame:NSMakeRect(x + margin, height - bar + floor((bar - 24.0) / 2.0), 220, 24)];
+  [[_watcherFilterField cell] setPlaceholderString:LDLocalized(@"Path Filter")];
+  [_watcherFilterField setToolTip:LDLocalized(@"Path Filter")];
+  [_watcherFilterField setAutoresizingMask:NSViewMaxXMargin | NSViewMinYMargin];
+  [_watcherFilterField setDelegate:(id)self];
+  [pane addSubview:_watcherFilterField];
+  [self updateWatcherControls];
+  return pane;
+}
+
+// OnUpdateWatcherStart/Pause/Clear: Start while not watching a scanned
+// tree, Pause while watching, Clear while there are rows; Auto Scroll shows
+// its setting.
+- (void)updateWatcherControls
+{
+  [_watcherStartButton setEnabled:[self validateAction:@selector(startWatching:)]];
+  [_watcherPauseButton setEnabled:[self validateAction:@selector(pauseWatching:)]];
+  [_watcherClearButton setEnabled:[self validateAction:@selector(clearWatcher:)]];
+  [_watcherAutoScrollButton setState:[[LDPreferences sharedPreferences] watcherAutoScroll] ? NSOnState : NSOffState];
+}
+
+- (void)startWatching:(id)sender
+{
+  (void)sender;
+  if ([self validateAction:@selector(startWatching:)]) {
+    [self startFileWatcher];
+  }
+  [self updateWatcherControls];
+}
+
+- (void)pauseWatching:(id)sender
+{
+  (void)sender;
+  [_fileWatcher stop];
+  _fileWatcher = nil;
+  [self updateWatcherControls];
+}
+
+- (void)toggleWatcherAutoScroll:(id)sender
+{
+  (void)sender;
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setWatcherAutoScroll:![preferences watcherAutoScroll]];
+  [self updateWatcherControls];
+  [self scrollWatcherToNewest];
+}
+
+// ClearResults: the rows, and those the filter hides, go; watching goes on.
+- (void)clearWatcher:(id)sender
+{
+  (void)sender;
+  [_watcherEvents removeAllObjects];
+  [self reloadWatcherRows];
+  [self updateWatcherControls];
+}
+
+// SetQuickFilter: the list shows the events whose path the expression
+// matches; an invalid one leaves the list as it was and says so.
+- (void)controlTextDidChange:(NSNotification *)notification
+{
+  if ([notification object] != _watcherFilterField) {
+    return;
+  }
+  LDFileWatcherPathFilter *filter = [LDFileWatcherPathFilter filterWithPattern:[_watcherFilterField stringValue]];
+  if (!filter) {
+    [self showStatus:LDLocalized(@"The path filter is not a valid regular expression.")];
+    return;
+  }
+  _watcherFilter = filter;
+  [self showSummaryStatus];
+  [self reloadWatcherRows];
+  [self scrollWatcherToNewest];
+}
+
+// With Auto Scroll on, the latest change stays in view, wherever the sort
+// puts it.
+- (void)scrollWatcherToNewest
+{
+  if (![[LDPreferences sharedPreferences] watcherAutoScroll]) {
+    return;
+  }
+  for (LDFileWatcherEvent *event in [_watcherEvents reverseObjectEnumerator]) {
+    NSUInteger row = [_watcherRows indexOfObjectIdenticalTo:event];
+    if (row != NSNotFound) {
+      [_watcherTable scrollRowToVisible:(NSInteger)row];
+      return;
+    }
+  }
+}
+
 - (BOOL)isFileWatcherOn
 {
   return _watcherWanted;
@@ -512,6 +645,7 @@ static NSString *const LDTabWatcher = @"watcher";
     return;
   }
   _fileWatcher = watcher;
+  [self updateWatcherControls];
 }
 
 // MainFrame.cpp OnToolsWatcher: the tab shows and watching starts, or the
@@ -543,6 +677,8 @@ static NSString *const LDTabWatcher = @"watcher";
     [_watcherEvents removeObjectsInRange:NSMakeRange(0, [_watcherEvents count] - maximum)];
   }
   [self reloadWatcherRows];
+  [self scrollWatcherToNewest];
+  [self updateWatcherControls];
 }
 
 - (NSComparisonResult)compareWatcherEvent:(LDFileWatcherEvent *)left with:(LDFileWatcherEvent *)right key:(NSString *)key
@@ -571,7 +707,9 @@ static NSString *const LDTabWatcher = @"watcher";
   NSMutableArray *rows = [NSMutableArray arrayWithCapacity:[_watcherEvents count]];
   NSEnumerator *events = ascending ? [_watcherEvents objectEnumerator] : [_watcherEvents reverseObjectEnumerator];
   for (LDFileWatcherEvent *event in events) {
-    [rows addObject:event];
+    if (!_watcherFilter || [(LDFileWatcherPathFilter *)_watcherFilter matchesEvent:event]) {
+      [rows addObject:event];
+    }
   }
   [rows sortWithOptions:NSSortStable usingComparator:^NSComparisonResult(id left, id right) {
     NSComparisonResult result = [self compareWatcherEvent:left with:right key:key];

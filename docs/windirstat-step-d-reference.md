@@ -659,6 +659,8 @@ Keep the "add as a leaf, don't descend" behaviour for unfollowed links and mount
 
 Hidden tabs are removed, not greyed (`:81-138`).
 
+*Later upstream (v2.7, `5dc5a134`, `329f9c91`; `40d77b69:windirstat/MainFrame.Commands.cpp:733-737,783-833,865-915`, `Controls/FileWatcherControl.cpp`):* while the File Watcher tab is active, the toolbar shows a "File Watcher:" group: **Start** (enabled while not watching a scanned tree), **Pause** (stops watching; the tab and rows stay), **Auto Scroll** (`Watcher/AutoScroll`, default on: the newest change is kept in view), **Clear** (empties the rows, including those the filter hides; watching goes on), and a **Path Filter** box. The filter is a case-insensitive `std::wregex` searched for anywhere in each row's full path. It applies to the rows already listed and to every new one. Escape clears it, and Enter or Tab moves to the list. An invalid expression keeps the previous filter and frames the box in red. LinDirStat follows this, with the controls in a bar at the top of the File Watcher tab rather than in the header bar, where there's no room for a contextual group. The filter is a POSIX extended expression (as Search), matched on the path's exact bytes (`LDFileWatcherPathFilter`). An invalid one keeps the previous filter and says so in the status bar instead of a red frame, since LinDirStat draws no custom control colours. The search field's own clear button empties it.
+
 **Tab strip**
 - MFC `CTabView` default position, at the **bottom**. · The active tab's label is bold. Tabs cannot be dragged to swap. · **Tab** cycles forward through the visible tabs and **Shift+Tab** backward. Past the end, focus moves to the extension list (`:191-227`).
 

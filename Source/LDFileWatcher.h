@@ -43,6 +43,20 @@ typedef enum {
 
 @end
 
+// WinDirStat 2.7's File Watcher quick filter (329f9c91,
+// CFileWatcherControl::SetQuickFilter): a case-insensitive regular
+// expression searched for anywhere in an event's full path. POSIX extended,
+// as LinDirStat's Search, not ECMAScript.
+@interface LDFileWatcherPathFilter : NSObject
+{
+  void *_regex;
+}
+// nil when pattern is not a valid expression; an empty pattern matches
+// every path.
++ (LDFileWatcherPathFilter *)filterWithPattern:(NSString *)pattern;
+- (BOOL)matchesEvent:(LDFileWatcherEvent *)event;
+@end
+
 @interface LDFileWatcher : NSObject
 {
   NSArray *_roots;

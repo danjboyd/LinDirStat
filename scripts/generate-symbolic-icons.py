@@ -36,6 +36,8 @@ ICONS = [
     "media-playback-start-symbolic",
     "radio-symbolic",
     "dialog-question-symbolic",
+    "go-bottom-symbolic",
+    "edit-clear-all-symbolic",
 ]
 
 

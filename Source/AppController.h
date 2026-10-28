@@ -73,6 +73,13 @@
   LDFileWatcher *_fileWatcher;
   BOOL _watcherWanted;
   NSDateFormatter *_watcherTimeFormatter;
+  // The File Watcher tab's bar (WinDirStat 2.7's watcher toolbar group).
+  NSSearchField *_watcherFilterField;
+  id _watcherFilter;
+  NSButton *_watcherStartButton;
+  NSButton *_watcherPauseButton;
+  NSButton *_watcherAutoScrollButton;
+  NSButton *_watcherClearButton;
   NSArray *_openWithNodes;
   // The in-app updater; nil unless this copy can update itself.
   LDUpdates *_updates;

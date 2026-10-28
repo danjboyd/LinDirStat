@@ -36,6 +36,7 @@
                      toTable:(NSTableView *)table;
 - (void)setSortPrototypeForColumn:(NSTableColumn *)column ascending:(BOOL)ascending;
 - (NSString *)selectedExtensionKey;
+- (void)updateWatcherControls;
 - (BOOL)validateAction:(SEL)action;
 - (LDColumnChooser *)addColumnChooserForTable:(NSTableView *)table
                                          list:(NSString *)list
