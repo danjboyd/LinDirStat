@@ -227,16 +227,47 @@ static NSData *LDBytes(NSString *path)
 }
 
 
+// Starts watcher, collecting its events into received, and returns once
+// it is watching: -startWithError: sets the watches up in the background, so
+// a change made at once can be missed (#96). A probe file in the first root
+// is rewritten until the watcher reports it; probe events are left out of
+// received.
+- (BOOL)start:(LDFileWatcher *)watcher collectingInto:(NSMutableArray *)received
+{
+  __block BOOL probed = NO;
+  [watcher setEventHandler:^(NSArray *events) {
+    for (LDFileWatcherEvent *event in events) {
+      if ([[[event path] lastPathComponent] isEqualToString:@".lindirstat-watch-probe"]) {
+        probed = YES;
+      } else {
+        [received addObject:event];
+      }
+    }
+  }];
+  NSError *error = nil;
+  if (![watcher startWithError:&error]) {
+    XCTFail(@"%@", error);
+    return NO;
+  }
+  NSData *rootBytes = [[watcher rootPaths] firstObject];
+  NSString *root = [[NSFileManager defaultManager] stringWithFileSystemRepresentation:[rootBytes bytes] length:[rootBytes length]];
+  NSString *probe = [root stringByAppendingPathComponent:@".lindirstat-watch-probe"];
+  NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:5.0];
+  for (NSUInteger i = 0; !probed && [deadline timeIntervalSinceNow] > 0; i++) {
+    [[NSString stringWithFormat:@"%lu", (unsigned long)i] writeToFile:probe atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+    [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+  }
+  XCTAssertTrue(probed, @"the watcher never reported its probe");
+  return probed;
+}
+
 - (NSArray *)eventsWhileRunning:(void (^)(void))changes watcher:(LDFileWatcher *)watcher until:(BOOL (^)(NSArray *events))done
 {
   NSMutableArray *received = [NSMutableArray array];
-  [watcher setEventHandler:^(NSArray *events) {
-    [received addObjectsFromArray:events];
-  }];
-  NSError *error = nil;
-  XCTAssertTrue([watcher startWithError:&error], @"%@", error);
-  // The folders below the roots are watched in the background.
-  [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.3]];
+  if (![self start:watcher collectingInto:received]) {
+    [watcher stop];
+    return @[];
+  }
   changes();
   NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:5.0];
   while (!done(received) && [deadline timeIntervalSinceNow] > 0) {
@@ -296,19 +327,21 @@ static NSData *LDBytes(NSString *path)
 - (void)testReportsTheSizeOfCreatedFiles
 {
   LDFileWatcher *watcher = [[LDFileWatcher alloc] initWithRootPaths:@[LDBytes(_temporaryRoot)]];
-  __block LDFileWatcherEvent *created = nil;
-  [watcher setEventHandler:^(NSArray *events) {
-    for (LDFileWatcherEvent *event in events) {
+  NSMutableArray *received = [NSMutableArray array];
+  if (![self start:watcher collectingInto:received]) {
+    [watcher stop];
+    return;
+  }
+  [self write:@"0123456789" to:@"ten.txt"];
+  LDFileWatcherEvent *created = nil;
+  NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:5.0];
+  while (!created && [deadline timeIntervalSinceNow] > 0) {
+    [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
+    for (LDFileWatcherEvent *event in received) {
       if ([event action] == LDFileWatcherActionCreated) {
         created = event;
       }
     }
-  }];
-  XCTAssertTrue([watcher startWithError:NULL]);
-  [self write:@"0123456789" to:@"ten.txt"];
-  NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:5.0];
-  while (!created && [deadline timeIntervalSinceNow] > 0) {
-    [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.02]];
   }
   [watcher stop];
   XCTAssertEqual(10ULL, [created logicalSize]);
