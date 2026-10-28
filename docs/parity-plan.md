@@ -67,12 +67,12 @@ and a treemap PR on Adwaita.
 | #71 | CSV fixtures from WinDirStat 2.9.3 and newer (ScanOutcome/ScanError); duplicates' Sampled hash; sizes stay at 1 decimal | Linux | — | done (#86) |
 | #85 | A loaded Windows CSV joins paths with "/", so saving and loading it again fails | Linux | — | done (#88) |
 | #66 | Extension list: double-click searches; group unregistered extensions (UTType backend on macOS) | Linux | macOS | done (#90) |
-| #69 | File Watcher: regex quick filter, toolbar controls, autoscroll | Linux | — | |
+| #69 | File Watcher: regex quick filter, toolbar controls, autoscroll | Linux | macOS | done (#92) |
 | #67 | Seconds in timestamps; several folders in Select Target; any number of custom cleanups | Linux | macOS (part b) | |
 | #83 | Header sorted by clicking keeps room for its sort arrow on macOS | Linux | macOS | |
 | #57 | Treemap is solid black on an unreadable 0 B root | macOS | Linux (Adwaita) | done (#87) |
-| #68 | JSON save and load in upstream's format | macOS | Linux | in review (#91) |
-| #70 | Treemap folder frames, headers, style presets (Hilbert/Moore stretch, may move to 0.1.6) | macOS | Linux (Adwaita) | |
+| #68 | JSON save and load in upstream's format | macOS | Linux | done (#91) |
+| #70 | Treemap folder frames, headers, style presets (Hilbert/Moore stretch, may move to 0.1.6) | macOS | Linux (Adwaita) | frames done (#93); presets in progress |
 
 The release itself (tag, AppImage, DMG) waits for Dan's approval.
 
