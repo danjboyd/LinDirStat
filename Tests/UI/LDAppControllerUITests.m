@@ -850,6 +850,26 @@
   CGFloat title = [header cellSize].width;
   CGFloat indicator = NSWidth([header sortIndicatorRectForBounds:NSMakeRect(0, 0, title, 24)]);
   XCTAssertTrue([percent width] >= title + indicator, @"%g < %g + %g", [percent width], title, indicator);
+  // The title fits left of where the cell draws the indicator at this width.
+  NSRect bounds = NSMakeRect(0, 0, [percent width], 24);
+  CGFloat left = NSMinX([header sortIndicatorRectForBounds:bounds]);
+  XCTAssertTrue(left >= title, @"indicator at %g, title %g wide", left, title);
+}
+
+// #83: sorting by clicking a header (Physical Size, after Percentage) fits
+// that column too.
+- (void)testClickSortedColumnFitsItsIndicator
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSOutlineView *tree = [_controller tree];
+  NSTableColumn *physical = [tree tableColumnWithIdentifier:LDColumnPhysicalSize];
+  [tree setSortDescriptors:@[[physical sortDescriptorPrototype]]];
+  NSTableHeaderCell *header = (NSTableHeaderCell *)[physical headerCell];
+  CGFloat title = [header cellSize].width;
+  CGFloat left = NSMinX([header sortIndicatorRectForBounds:NSMakeRect(0, 0, [physical width], 24)]);
+  XCTAssertTrue(left >= title, @"Physical Size %g wide, indicator at %g, title %g", [physical width], left, title);
 }
 
 // WinDirStat 2.7: Remove Empty Folders goes bottom-up and keeps folders
