@@ -1672,8 +1672,18 @@
 - (void)testEmptyRootTreemapShowsTheBackground
 {
   LDTreemapView *view = [[LDTreemapView alloc] initWithFrame:NSMakeRect(0, 0, 60, 40)];
+  // GNUstep draws a view only in a window.
+  NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 60, 40)
+                                                 styleMask:NSBorderlessWindowMask
+                                                   backing:NSBackingStoreBuffered
+                                                     defer:NO];
+  [window setReleasedWhenClosed:NO];
+  [[window contentView] addSubview:view];
   LDFileNode *root = [LDFileNode nodeWithPath:@"/unreadable" kind:LDFileNodeKindDirectory size:0];
   [view setRootNode:root metric:LDSizeMetricPhysical colorIndexes:nil];
+  // GNUstep's -cacheDisplayInRect: reads back the window's backing store
+  // without drawing.
+  [view display];
   NSBitmapImageRep *rep = [view bitmapImageRepForCachingDisplayInRect:[view bounds]];
   [view cacheDisplayInRect:[view bounds] toBitmapImageRep:rep];
   NSColor *pixel = [[rep colorAtX:30 y:20] colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
