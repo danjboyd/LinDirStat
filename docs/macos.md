@@ -134,3 +134,12 @@ LINDIRSTAT_APPEARANCE=dark \
 
 `LINDIRSTAT_APPEARANCE` (`dark` or `light`) forces the appearance for
 screenshots. Capture a window with `screencapture -l <window id>`.
+
+Always give a review run an explicit scan path (`LINDIRSTAT_SCAN_PATH` or a
+folder argument), pointing at a fixture or a private temporary tree. Launched
+without one, the app scans the home folder (unless it is started from a
+checkout, where it finds `Tests/Fixtures/basic-tree`). That walks folders
+macOS protects, so macOS asks the terminal for access (Documents, Desktop,
+Photos and so on), and answering that prompt is the user's decision. Test
+with a private defaults domain as well (a copy of the app with its own
+bundle identifier), so the user's settings are untouched.
