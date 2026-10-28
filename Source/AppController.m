@@ -192,6 +192,20 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   return menu;
 }
 
+// WinDirStat 2.9's Color Presets submenu: the presets, then Custom (tag
+// LDTreemapPresetCount).
+- (void)addColorPresetsMenuTo:(NSMenu *)menu
+{
+  NSMenu *presets = [self addSubmenuTitled:LDLocalized(@"Color Presets") to:menu];
+  NSArray *titles = @[LDLocalized(@"Classic"), LDLocalized(@"Calm"), LDLocalized(@"Flat"), LDLocalized(@"Pastel"),
+                      LDLocalized(@"High Contrast"), LDLocalized(@"Custom")];
+  NSInteger tag = 0;
+  for (NSString *title in titles) {
+    NSMenuItem *item = (NSMenuItem *)[self addItemTo:presets title:title action:@selector(applyColorPreset:) key:nil target:self];
+    [item setTag:tag++];
+  }
+}
+
 - (NSString *)functionKey:(unichar)key
 {
   return [NSString stringWithCharacters:&key length:1];
@@ -251,6 +265,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [self addItemTo:treemapMenu title:LDLocalized(@"Show Absolute Percentages") action:@selector(toggleAbsolutePercentages:) key:nil target:self];
   [self addItemTo:treemapMenu title:LDLocalized(@"Show Grid") action:@selector(toggleGrid:) key:nil target:self];
   [self addItemTo:treemapMenu title:LDLocalized(@"Show Folder Frames") action:@selector(toggleFolderFrames:) key:nil target:self];
+  [self addColorPresetsMenuTo:treemapMenu];
   [self addItemTo:treemapMenu title:LDLocalized(@"SequoiaView Layout") action:@selector(toggleLayoutStyle:) key:nil target:self];
 
   NSMenu *toolsMenu = [self addSubmenuTitled:LDLocalized(@"Tools") to:mainMenu];
@@ -478,6 +493,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     [menu addItem:[NSMenuItem separatorItem]];
     [self addItemTo:menu title:LDLocalized(@"Group Unregistered Types") action:@selector(toggleGroupUnregisteredTypes:) key:nil target:self];
     [self addItemTo:menu title:LDLocalized(@"Show Folder Frames") action:@selector(toggleFolderFrames:) key:nil target:self];
+    [self addColorPresetsMenuTo:menu];
     [menu addItem:[NSMenuItem separatorItem]];
     [self addItemTo:menu title:LDLocalized(@"Copy Path") action:@selector(copyPath:) key:nil target:self];
     [self addItemTo:menu title:[LDPlatformUI showInFileManagerTitle] action:@selector(revealItem:) key:nil target:self];
@@ -850,6 +866,14 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   }
   if (action == @selector(toggleGroupUnregisteredTypes:)) {
     [item setState:[[LDPreferences sharedPreferences] groupUnregisteredTypes] ? NSOnState : NSOffState];
+  }
+  if (action == @selector(applyColorPreset:)) {
+    // OnUpdateViewGraphPreset: not while scanning; Custom once there is one.
+    LDPreferences *preferences = [LDPreferences sharedPreferences];
+    NSInteger current = [preferences matchingTreemapPreset];
+    BOOL custom = [item tag] == LDTreemapPresetCount;
+    [item setState:(custom ? current < 0 : current == [item tag]) ? NSOnState : NSOffState];
+    return ![self isBusy] && (!custom || [preferences hasCustomTreemapPreset]);
   }
   if (action == @selector(toggleTreemap:)) {
     [item setState:[[LDPreferences sharedPreferences] showTreemap] ? NSOnState : NSOffState];
@@ -2244,6 +2268,15 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   (void)sender;
   LDPreferences *preferences = [LDPreferences sharedPreferences];
   [preferences setTreemapGrid:![preferences treemapGrid]];
+}
+
+// WinDirStat 2.9's OnViewGraphPreset.
+- (void)applyColorPreset:(id)sender
+{
+  if ([self isBusy]) {
+    return;
+  }
+  [[LDPreferences sharedPreferences] applyTreemapPreset:[sender tag]];
 }
 
 // WinDirStat 2.6's OnViewShowFolderFramesOnTreeMap.

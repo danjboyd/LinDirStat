@@ -60,6 +60,7 @@
 - (void)searchExtension:(id)sender;
 - (void)excludeExtension:(id)sender;
 - (void)toggleFolderFrames:(id)sender;
+- (void)applyColorPreset:(id)sender;
 - (void)stopScan:(id)sender;
 - (void)openPath:(id)sender;
 - (void)treemapView:(LDTreemapView *)view didSelectNode:(LDFileNode *)node;
@@ -1987,5 +1988,50 @@
   XCTAssertEqual(group + 1, menuFrames);
 }
 
+// WinDirStat 2.9's Color Presets submenu (Treemap menu and treemap context
+// menu): applying one updates the treemap, the matching item is checked,
+// and Custom is enabled once a custom appearance has been saved.
+- (void)testColorPresetsMenu
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSMenu *context = [[_controller treemap] menu];
+  NSMenu *presets = nil;
+  for (NSMenuItem *item in [context itemArray]) {
+    if ([[item submenu] numberOfItems] == LDTreemapPresetCount + 1
+        && [[[item submenu] itemAtIndex:0] action] == @selector(applyColorPreset:)) {
+      presets = [item submenu];
+    }
+  }
+  XCTAssertNotNil(presets);
+  NSMenuItem *classic = [presets itemAtIndex:LDTreemapPresetClassic];
+  NSMenuItem *flat = [presets itemAtIndex:LDTreemapPresetFlat];
+  NSMenuItem *custom = [presets itemAtIndex:LDTreemapPresetCount];
+  XCTAssertTrue([_controller validateMenuItem:classic]);
+  XCTAssertEqual(NSOnState, [classic state]);
+  XCTAssertFalse([_controller validateMenuItem:custom]);
+
+  [_controller applyColorPreset:flat];
+  LDTreemapOptions options = [[_controller treemap] options];
+  XCTAssertTrue(options.grid);
+  XCTAssertEqualWithAccuracy(0.85, options.saturation, 1e-9);
+  XCTAssertFalse(LDTreemapOptionsUseCushions(options));
+  [_controller validateMenuItem:flat];
+  XCTAssertEqual(NSOnState, [flat state]);
+  [_controller validateMenuItem:classic];
+  XCTAssertEqual(NSOffState, [classic state]);
+
+  [[LDPreferences sharedPreferences] setTreemapBrightness:50];
+  XCTAssertTrue([_controller validateMenuItem:custom]);
+  XCTAssertEqual(NSOnState, [custom state]);
+  [_controller applyColorPreset:classic];
+  XCTAssertEqual((NSInteger)LDTreemapPresetClassic, [[LDPreferences sharedPreferences] matchingTreemapPreset]);
+  [_controller applyColorPreset:custom];
+  XCTAssertEqual((NSInteger)50, [[LDPreferences sharedPreferences] treemapBrightness]);
+  [[LDPreferences sharedPreferences] applyTreemapPreset:LDTreemapPresetClassic];
+}
+
 @end
+
 

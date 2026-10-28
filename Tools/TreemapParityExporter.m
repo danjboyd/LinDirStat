@@ -6,10 +6,44 @@
 #import "LDExtensionStats.h"
 #import "LDTreemapLayout.h"
 
+// The options to render with: the defaults, a WinDirStat 2.9 colour preset
+// (--preset classic|calm|flat|pastel|high-contrast) and the layout style
+// (--style kdirstat|sequoia). An Auto grid colour uses white and black as
+// the window and text colours.
+static LDTreemapOptions ExportOptions;
+
 static void PrintUsage(void)
 {
-  fprintf(stderr, "usage: windirstat-parity-exporter fixtures.json fixture-name width height [--ppm out.ppm]\n");
-  fprintf(stderr, "       windirstat-parity-exporter --path path width [--ppm out.ppm]\n");
+  fprintf(stderr, "usage: windirstat-parity-exporter [--preset name] [--style name] fixtures.json fixture-name width height [--ppm out.ppm]\n");
+  fprintf(stderr, "       windirstat-parity-exporter [--preset name] [--style name] --path path width [--ppm out.ppm]\n");
+}
+
+static BOOL ParseOption(const char *flag, const char *value)
+{
+  if (strcmp(flag, "--preset") == 0) {
+    const char *names[] = {"classic", "calm", "flat", "pastel", "high-contrast"};
+    int preset = 0;
+    for (preset = 0; preset < LDTreemapPresetCount; preset++) {
+      if (strcmp(value, names[preset]) == 0) {
+        LDTreemapStyle style = ExportOptions.style;
+        ExportOptions = LDTreemapPresetOptions((LDTreemapPreset)preset);
+        ExportOptions.style = style;
+        return YES;
+      }
+    }
+    return NO;
+  }
+  if (strcmp(flag, "--style") == 0) {
+    if (strcmp(value, "kdirstat") == 0) {
+      ExportOptions.style = LDTreemapStyleKDirStat;
+      return YES;
+    }
+    if (strcmp(value, "sequoia") == 0) {
+      ExportOptions.style = LDTreemapStyleSequoiaView;
+      return YES;
+    }
+  }
+  return NO;
 }
 
 // Renders the production treemap (layout, rank colors and cushions) to a PPM.
@@ -20,7 +54,7 @@ static BOOL WritePPM(LDFileNode *root, int width, int height, const char *path)
                                                     metric:LDSizeMetricPhysical
                                                      width:width
                                                     height:height
-                                                   options:LDTreemapDefaultOptions()];
+                                                   options:ExportOptions];
   NSData *rgba = [treemap renderRGBAWithColorIndexes:[LDExtensionStats colorIndexMapForSortedStats:stats]];
   FILE *file = fopen(path, "wb");
   if (!file) {
@@ -111,6 +145,16 @@ static NSDictionary *DictionaryForItem(LDTreemapItem *item)
 
 static int RunExporter(int argc, const char *argv[])
 {
+  ExportOptions = LDTreemapDefaultOptions();
+  while (argc >= 3 && strncmp(argv[1], "--", 2) == 0 && strcmp(argv[1], "--path") != 0) {
+    if (!ParseOption(argv[1], argv[2])) {
+      PrintUsage();
+      return 2;
+    }
+    argv[2] = argv[0];
+    argv += 2;
+    argc -= 2;
+  }
   const char *ppmPath = NULL;
   if (argc >= 3 && strcmp(argv[argc - 2], "--ppm") == 0) {
     ppmPath = argv[argc - 1];
@@ -179,7 +223,7 @@ static int RunExporter(int argc, const char *argv[])
   NSArray *items = [LDTreemapLayout layoutItemsForRootNode:root
                                                     metric:LDSizeMetricPhysical
                                                     inRect:NSMakeRect(0.0, 0.0, width, height)
-                                                   options:LDTreemapDefaultOptions()];
+                                                   options:ExportOptions];
   NSMutableArray *outputItems = [NSMutableArray array];
   NSEnumerator *enumerator = [items objectEnumerator];
   LDTreemapItem *item = nil;

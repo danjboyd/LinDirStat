@@ -57,9 +57,10 @@
   // statistics walk.
   __block LDTreemap *treemap = nil;
   dispatch_group_t group = dispatch_group_create();
-  // Folder headers need the view's font, so a treemap with frames is laid
-  // out by the view.
-  if (width > 0 && height > 0 && ![request treemapOptions].showFolderFrames) {
+  // Folder headers need the view's font and the Auto grid colour its
+  // theme, so such a treemap is laid out by the view.
+  LDTreemapOptions treemapOptions = [request treemapOptions];
+  if (width > 0 && height > 0 && !treemapOptions.showFolderFrames && treemapOptions.gridColor != LDTreemapGridColorAuto) {
     dispatch_group_async(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
       treemap = [[LDTreemap alloc] initWithRootNode:root metric:metric width:width height:height
                                             options:[request treemapOptions]];

@@ -179,15 +179,18 @@ typedef enum {
 - (void)setTreemapBrightness:(NSInteger)value;
 - (NSInteger)treemapCushionShading;      // 13
 - (void)setTreemapCushionShading:(NSInteger)value;
-- (NSInteger)treemapHeight;              // 38
+- (NSInteger)treemapHeight;              // 38, 0-200 (WinDirStat 2.9)
 - (void)setTreemapHeight:(NSInteger)value;
+- (NSInteger)treemapSaturation;          // 100 (WinDirStat 2.9; settings file and presets)
+- (void)setTreemapSaturation:(NSInteger)value;
 - (NSInteger)treemapScaleFactor;         // 91
 - (void)setTreemapScaleFactor:(NSInteger)value;
 - (NSInteger)treemapLightSourceX;        // -100..100, default -100
 - (void)setTreemapLightSourceX:(NSInteger)value;
 - (NSInteger)treemapLightSourceY;        // -100..100, default -100
 - (void)setTreemapLightSourceY:(NSInteger)value;
-// Grid and selection frame colours, 0xRRGGBB (black and white).
+// Grid and selection frame colours, 0xRRGGBB (black and white). The grid
+// colour can also be LDTreemapGridColorAuto (as the presets set it).
 - (uint32_t)treemapGridColor;
 - (void)setTreemapGridColor:(uint32_t)color;
 // WinDirStat 2.6's Show Folder Frames (default off) and 2.8's draw
@@ -197,6 +200,13 @@ typedef enum {
 - (NSInteger)treemapFolderFramesDrawThreshold;
 - (uint32_t)treemapHighlightColor;
 - (void)setTreemapHighlightColor:(uint32_t)color;
+// WinDirStat 2.9's colour presets: the LDTreemapPreset matching the
+// current appearance, or -1 (custom); applying one (LDTreemapPresetCount
+// for the saved custom appearance, NO when there is none). An appearance
+// that matches no preset is saved as the custom one whenever it changes.
+- (NSInteger)matchingTreemapPreset;
+- (BOOL)hasCustomTreemapPreset;
+- (BOOL)applyTreemapPreset:(NSInteger)preset;
 // Every treemap setting above, as LDTreemap takes them.
 - (LDTreemapOptions)treemapOptions;
 // Style, grid and cushion settings; the colours are kept, as WinDirStat's
