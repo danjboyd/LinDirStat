@@ -22,8 +22,16 @@ FOUNDATION_EXPORT NSString *const LDSelectTargetColumnPercent;
 // The folder typed in the combo: "~" expanded, trailing slashes dropped
 // ("/" stays). Blank text gives "".
 + (NSString *)folderPathFromText:(NSString *)text;
-// YES when the text names an existing directory by an absolute path (after
-// "~" expansion).
+// WinDirStat 2.8 (1424ff67): the combo takes several folders separated by
+// "|" (NormalizeScanPaths). Each is read as above without the spaces around
+// it; blanks go, as does a
+// folder inside another one given (a later folder that contains earlier
+// ones replaces them), and duplicates.
++ (NSArray *)folderPathsFromText:(NSString *)text;
+// The text for folders: joined with "|".
++ (NSString *)folderTextForPaths:(NSArray *)paths;
+// YES when the text names at least one folder and every one is an existing
+// directory given by an absolute path (after "~" expansion).
 + (BOOL)isUsableFolderText:(NSString *)text;
 
 // Whether OK is enabled: All local drives needs at least one volume,
@@ -34,7 +42,7 @@ FOUNDATION_EXPORT NSString *const LDSelectTargetColumnPercent;
             folderText:(NSString *)folderText;
 
 // The paths to scan: every listed mount point, the selected ones in list
-// order, or the folder. nil when the mode cannot be confirmed.
+// order, or the folders. nil when the mode cannot be confirmed.
 + (NSArray *)pathsForMode:(LDSelectTargetMode)mode
               mountPoints:(NSArray *)mountPoints
           selectedIndexes:(NSIndexSet *)selectedIndexes

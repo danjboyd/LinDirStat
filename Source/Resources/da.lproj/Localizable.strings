@@ -152,6 +152,7 @@
 "Show Unknown" = "Vis Ukendt";
 "Show confirmation before: %@" = "Vis bekræftelse før udførelse af: %@";
 "Show grid" = "Vis gitter";
+"Show seconds in timestamps" = "Vis sekunder i tidsstempler";
 "Show sizes in human-readable format" = "Vis størrelser i GiB/MiB/KiB/bytes-format";
 "Show stripes" = "Vis Striber";
 "Show time spent during scan" = "Vis tid brugt under scanningen";

@@ -154,6 +154,7 @@
 "Show Unknown" = "不明を表示";
 "Show confirmation before: %@" = "実行前に確認を表示：%@";
 "Show grid" = "グリッドを表示";
+"Show seconds in timestamps" = "タイムスタンプに秒を表示する";
 "Show sizes in human-readable format" = "GiB/MiB/KiB/バイト形式でサイズを表示";
 "Show stripes" = "ストライプを表示";
 "Show time spent during scan" = "スキャン中の所要時間を表示";

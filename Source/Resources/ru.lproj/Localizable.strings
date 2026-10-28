@@ -153,6 +153,7 @@
 "Show Unknown" = "Показывать неизвестные";
 "Show confirmation before: %@" = "Показывать подтверждение перед: %@";
 "Show grid" = "Показывать решетку";
+"Show seconds in timestamps" = "Показывать секунды в метках времени";
 "Show sizes in human-readable format" = "Показывать размеры в формате ГБ/МБ/кБ/байт";
 "Show stripes" = "Показывать полосы";
 "Show time spent during scan" = "Показывать время, прошедшее с начала сканирования";

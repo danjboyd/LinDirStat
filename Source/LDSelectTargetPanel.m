@@ -1,6 +1,7 @@
 #import "LDSelectTargetPanel.h"
 #import "LDColumnChooser.h"
 #import "LDLocalization.h"
+#import "LDPlatformUI.h"
 #import "LDPreferences.h"
 #import "LDSelectTargetRules.h"
 #import "LDSizeFormatter.h"
@@ -103,6 +104,7 @@ typedef enum {
   LDColumnChooser *_columnChooser;
   NSComboBox *_folderCombo;
   NSButton *_browseButton;
+  NSButton *_addFoldersButton;
   NSButton *_duplicatesCheckbox;
   NSButton *_okButton;
   NSButton *_cancelButton;
@@ -229,6 +231,16 @@ typedef enum {
   browseFrame.origin = NSMakePoint(right - NSWidth(browseFrame), folderRowY);
   [_browseButton setFrame:browseFrame];
   [content addSubview:_browseButton];
+  // WinDirStat 2.8 (1424ff67): the button beside Browse adds folders to the
+  // ones already given.
+  _addFoldersButton = [self pushButtonWithTitle:@"" action:@selector(addFolders:)];
+  [_addFoldersButton setImage:[LDPlatformUI toolbarImageNamed:@"list-add-symbolic" label:LDLocalized(@"Add Folders…")]];
+  [_addFoldersButton setImagePosition:NSImageOnly];
+  [_addFoldersButton setToolTip:LDLocalized(@"Add Folders…")];
+  [_addFoldersButton setFrame:NSMakeRect(NSMinX(browseFrame) - LDSpacing - NSHeight(browseFrame), folderRowY,
+                                         NSHeight(browseFrame), NSHeight(browseFrame))];
+  [content addSubview:_addFoldersButton];
+  browseFrame = [_addFoldersButton frame];
 
   _folderCombo = [[NSComboBox alloc] initWithFrame:NSMakeRect(0, 0, 200, rowHeight)];
   [_folderCombo setEditable:YES];
@@ -347,8 +359,11 @@ typedef enum {
   [preferences setSelectTargetMode:_mode];
   [preferences setSelectedDrives:[self selectedMountPoints]];
   [preferences setScanForDuplicates:[_duplicatesCheckbox state] == NSOnState];
+  // Each folder on its own, the first one newest.
   if (_mode == LDSelectTargetFolder) {
-    [preferences addFolderToHistory:[paths objectAtIndex:0]];
+    for (NSString *path in [paths reverseObjectEnumerator]) {
+      [preferences addFolderToHistory:path];
+    }
   }
   return paths;
 }
@@ -482,24 +497,51 @@ typedef enum {
   }
 }
 
-- (void)browse:(id)sender
+// BrowseFolders: one or more folders replace the text (Browse) or are
+// added to it (the button beside it).
+- (void)browseFoldersAppending:(BOOL)append
 {
-  (void)sender;
   NSOpenPanel *open = [NSOpenPanel openPanel];
   [open setCanChooseFiles:NO];
   [open setCanChooseDirectories:YES];
-  [open setAllowsMultipleSelection:NO];
-  NSString *current = [LDSelectTargetRules folderPathFromText:[_folderCombo stringValue]];
-  NSString *directory = [LDSelectTargetRules isUsableFolderText:current] ? current : NSHomeDirectory();
+  [open setAllowsMultipleSelection:YES];
+  NSArray *current = [LDSelectTargetRules folderPathsFromText:[_folderCombo stringValue]];
+  NSString *first = [current firstObject];
+  NSString *directory = first && [LDSelectTargetRules isUsableFolderText:first] ? first : NSHomeDirectory();
   NSInteger result = [open runModalForDirectory:directory file:nil types:nil];
   if (result != NSFileHandlingPanelOKButton && result != NSOKButton) {
     return;
   }
-  NSString *path = [self selectedDirectoryPathFromOpenPanel:open];
-  if ([path length] > 0) {
-    [_folderCombo setStringValue:path];
-    [self setMode:LDSelectTargetFolder];
+  NSArray *chosen = [self selectedDirectoryPathsFromOpenPanel:open];
+  if ([chosen count] == 0) {
+    return;
   }
+  NSArray *paths = append ? [current arrayByAddingObjectsFromArray:chosen] : chosen;
+  NSString *text = [LDSelectTargetRules folderTextForPaths:paths];
+  [_folderCombo setStringValue:[LDSelectTargetRules folderTextForPaths:[LDSelectTargetRules folderPathsFromText:text]]];
+  [self setMode:LDSelectTargetFolder];
+}
+
+- (void)browse:(id)sender
+{
+  (void)sender;
+  [self browseFoldersAppending:NO];
+}
+
+- (void)addFolders:(id)sender
+{
+  (void)sender;
+  [self browseFoldersAppending:YES];
+}
+
+- (NSArray *)selectedDirectoryPathsFromOpenPanel:(NSOpenPanel *)panel
+{
+  NSArray *filenames = [panel filenames];
+  if ([filenames count] > 0) {
+    return filenames;
+  }
+  NSString *path = [self selectedDirectoryPathFromOpenPanel:panel];
+  return [path length] > 0 ? @[path] : @[];
 }
 
 // As AppController's: GNUstep's panel may report the choice by filenames,

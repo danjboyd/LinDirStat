@@ -154,6 +154,7 @@
 "Show Unknown" = "Показувати невідомі";
 "Show confirmation before: %@" = "Показувати підтвердження перед: %@";
 "Show grid" = "Показувати сітку";
+"Show seconds in timestamps" = "Показувати секунди в часових позначках";
 "Show sizes in human-readable format" = "Показувати розміри у форматі ГіБ/МіБ/КіБ/байт";
 "Show stripes" = "Показувати смуги";
 "Show time spent during scan" = "Показувати час, що минув з початку сканування";

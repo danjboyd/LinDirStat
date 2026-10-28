@@ -480,9 +480,11 @@
     if (![cleanup isEnabled]) {
       continue;
     }
+    // Ctrl+0-9 for the first ten (USERDEFINEDCLEANUPACCELERATORCOUNT).
+    NSString *key = slot < [LDPreferences customCleanupShortcutCount] ? [NSString stringWithFormat:@"%lu", (unsigned long)slot] : @"";
     NSMenuItem *item = (NSMenuItem *)[menu addItemWithTitle:[cleanup displayTitleForSlot:slot]
                                        action:@selector(runCustomCleanup:)
-                                keyEquivalent:[NSString stringWithFormat:@"%lu", (unsigned long)slot]];
+                                keyEquivalent:key];
     [item setTarget:self];
     [item setTag:(NSInteger)slot];
   }

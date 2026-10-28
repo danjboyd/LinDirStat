@@ -154,6 +154,7 @@
 "Show Unknown" = "顯示未知空間";
 "Show confirmation before: %@" = "執行前顯示確認：%@";
 "Show grid" = "顯示格線";
+"Show seconds in timestamps" = "在時間戳記中顯示秒數";
 "Show sizes in human-readable format" = "以 GiB/MiB/KiB/位元組格式顯示大小";
 "Show stripes" = "顯示間條";
 "Show time spent during scan" = "掃描時顯示所需時間";

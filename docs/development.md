@@ -116,6 +116,31 @@ margin (the window grows by about 30px each way).
 
 ## GUI review on a private display
 
+**A fresh shell may not find the toolchain's libraries.** If the GNUstep
+tools fail with `libobjc.so.4.6: cannot open shared object file`, the
+session didn't inherit `LD_LIBRARY_PATH`. Pass the gnustep-cli directories
+for the run:
+
+```sh
+G=~/.local/share/gnustep-cli
+LD_LIBRARY_PATH=$G/lib:$G/Local/Library/Libraries:$G/System/Library/Libraries scripts/run-tests.sh
+```
+
+**Driving the app with xdotool on a private Xvfb** (there is no window
+manager):
+
+- Header-bar buttons and the primary menu may not respond to synthetic
+  clicks. Use the keyboard instead once the window has focus: click inside a
+  list first, then Ctrl+O (Select Target), Ctrl+, (Preferences) and so on.
+  Lists, right-click menus and double-clicks take clicks normally.
+- Move the pointer onto a menu item and pause before clicking; a move and
+  click in one instant can miss it.
+- GNUstep text fields use Emacs-style keys: Ctrl+A goes to the start of the
+  line. To replace a field's text use End, Shift+Home, BackSpace.
+- To start in a state a preference controls (treemap folder frames, say),
+  set it on the command line for the run, through GNUstep's argument
+  domain: `scripts/run-isolated.sh HOME APP -TreeMapShowFolderFrames YES`.
+
 The scripts that launch the packaged AppImage (`check-appimage-*.sh`,
 `test-appimage-update.sh`, `package-linux.sh`, `release-linux.sh`) run
 themselves inside a bwrap sandbox with an empty home bound over yours

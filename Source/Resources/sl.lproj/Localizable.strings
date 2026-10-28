@@ -154,6 +154,7 @@
 "Show Unknown" = "Pokaži neznano";
 "Show confirmation before: %@" = "Pokaži potrditev pred: %@";
 "Show grid" = "Pokaži mrežo";
+"Show seconds in timestamps" = "Prikaži sekunde v časovnih žigih";
 "Show sizes in human-readable format" = "Prikaži velikosti v formatu GiB/MiB/KiB/bajti";
 "Show stripes" = "Pokaži črte";
 "Show time spent during scan" = "Prikaži porabljen čas med skeniranjem";

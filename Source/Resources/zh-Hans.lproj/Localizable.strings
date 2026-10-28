@@ -154,6 +154,7 @@
 "Show Unknown" = "显示未知项目";
 "Show confirmation before: %@" = "执行前显示确认：%@";
 "Show grid" = "显示表格网格线";
+"Show seconds in timestamps" = "在时间戳中显示秒数";
 "Show sizes in human-readable format" = "以 GiB/MiB/KiB/字节展示大小";
 "Show stripes" = "显示条纹底色";
 "Show time spent during scan" = "显示扫描耗时";

@@ -154,6 +154,7 @@
 "Show Unknown" = "Näita tundmatut";
 "Show confirmation before: %@" = "Kuva kinnitus enne toimingut: %@";
 "Show grid" = "Näita ruudustikku";
+"Show seconds in timestamps" = "Kuva ajatemplites sekundid";
 "Show sizes in human-readable format" = "Näita suurust GiB/MiB/KiB/baiti vormingus";
 "Show stripes" = "Näita varjundis";
 "Show time spent during scan" = "Näita ajakulgu skaneerimisel";

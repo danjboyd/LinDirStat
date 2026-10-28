@@ -154,6 +154,7 @@
 "Show Unknown" = "Zobrazit neznámé";
 "Show confirmation before: %@" = "Zobrazit potvrzení před provedením: %@";
 "Show grid" = "Zobrazovat mřížku";
+"Show seconds in timestamps" = "Zobrazovat sekundy v časových údajích";
 "Show sizes in human-readable format" = "Zobrazovat velikosti ve formátu GiB/MiB/KiB/bajty";
 "Show stripes" = "Zobrazovat pruhy";
 "Show time spent during scan" = "Zobrazit čas potřebný pro načtení";
