@@ -190,8 +190,9 @@ def prepare_home(style_dir, style):
         shutil.rmtree(home)
     defaults = home / "GNUstep/Defaults"
     defaults.mkdir(parents=True)
-    # Themes and bundles are read from the user's library; nothing is written there.
-    library = Path(pwd.getpwuid(os.getuid()).pw_dir) / "GNUstep/Library"
+    # Themes and bundles are read from the user's library ($HOME, as for the
+    # toolchain); nothing is written there.
+    library = Path(os.environ.get("HOME") or pwd.getpwuid(os.getuid()).pw_dir) / "GNUstep/Library"
     if library.is_dir():
         (home / "GNUstep/Library").symlink_to(library)
     with open(defaults / "NSGlobalDomain.plist", "wb") as f:
