@@ -301,6 +301,10 @@ typedef enum {
 // treemap colours them alike.
 - (BOOL)groupUnregisteredTypes;
 - (void)setGroupUnregisteredTypes:(BOOL)flag;
+// WinDirStat 2.7's Watcher AutoScroll (default on): the File Watcher list
+// keeps its newest row in view.
+- (BOOL)watcherAutoScroll;
+- (void)setWatcherAutoScroll:(BOOL)flag;
 - (BOOL)showTreemap;
 - (void)setShowTreemap:(BOOL)flag;
 // Options menu: toolbar, status bar and large toolbar icons.

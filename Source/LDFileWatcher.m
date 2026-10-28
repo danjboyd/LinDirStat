@@ -2,10 +2,59 @@
 #import "LDLocalization.h"
 #import "LDFileWatcher+Backend.h"
 
+#include <regex.h>
+#include <stdlib.h>
+#include <string.h>
+
 static const NSTimeInterval LDFileWatcherBatchInterval = 0.25;
 
 @interface LDFileWatcherEvent ()
 - (void)updateTime:(NSTimeInterval)time logicalSize:(unsigned long long)logicalSize;
+@end
+
+@implementation LDFileWatcherPathFilter
+
++ (LDFileWatcherPathFilter *)filterWithPattern:(NSString *)pattern
+{
+  LDFileWatcherPathFilter *filter = [[self alloc] init];
+  if ([pattern length] == 0) {
+    return filter;
+  }
+  regex_t *regex = calloc(1, sizeof(regex_t));
+  if (!regex || regcomp(regex, [pattern UTF8String], REG_EXTENDED | REG_ICASE | REG_NOSUB) != 0) {
+    free(regex);
+    return nil;
+  }
+  filter->_regex = regex;
+  return filter;
+}
+
+- (void)dealloc
+{
+  if (_regex) {
+    regfree((regex_t *)_regex);
+    free(_regex);
+  }
+}
+
+- (BOOL)matchesEvent:(LDFileWatcherEvent *)event
+{
+  if (!_regex) {
+    return YES;
+  }
+  // The path's exact bytes, NUL-terminated for regexec.
+  NSData *path = [event pathData];
+  char *bytes = malloc([path length] + 1);
+  if (!bytes) {
+    return NO;
+  }
+  memcpy(bytes, [path bytes], [path length]);
+  bytes[[path length]] = '\0';
+  BOOL matches = regexec((regex_t *)_regex, bytes, 0, NULL, 0) == 0;
+  free(bytes);
+  return matches;
+}
+
 @end
 
 @implementation LDFileWatcherEvent

@@ -46,6 +46,8 @@
       @"text-x-generic-symbolic": @"doc",
       @"radio-symbolic": @"circle.dotted",
       @"dialog-question-symbolic": @"questionmark.circle",
+      @"go-bottom-symbolic": @"arrow.down.to.line",
+      @"edit-clear-all-symbolic": @"clear",
     };
   });
   return names;

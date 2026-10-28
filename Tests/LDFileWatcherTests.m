@@ -48,6 +48,36 @@ static NSData *LDBytes(NSString *path)
   XCTAssertEqualObjects(@"Renamed (New)", [LDFileWatcherEvent titleForAction:LDFileWatcherActionRenamedNew]);
 }
 
+// WinDirStat 2.7's quick filter (329f9c91): a case-insensitive expression
+// found anywhere in the path; empty matches everything, invalid is refused.
+- (void)testPathFilter
+{
+  LDFileWatcherEvent *log = [LDFileWatcherEvent eventWithPathData:LDBytes(@"/srv/Logs/app.LOG") action:LDFileWatcherActionModified
+                                                             time:1 logicalSize:1 isDirectory:NO];
+  LDFileWatcherEvent *tmp = [LDFileWatcherEvent eventWithPathData:LDBytes(@"/srv/tmp/x.tmp") action:LDFileWatcherActionCreated
+                                                             time:2 logicalSize:1 isDirectory:NO];
+  const char raw[] = {'/', 's', 'r', 'v', '/', (char)0xff, '.', 'b', 'i', 'n'};
+  LDFileWatcherEvent *latin = [LDFileWatcherEvent eventWithPathData:[NSData dataWithBytes:raw length:sizeof(raw)]
+                                                             action:LDFileWatcherActionDeleted time:3 logicalSize:0 isDirectory:NO];
+
+  LDFileWatcherPathFilter *all = [LDFileWatcherPathFilter filterWithPattern:@""];
+  XCTAssertNotNil(all);
+  XCTAssertTrue([all matchesEvent:log]);
+  XCTAssertTrue([all matchesEvent:latin]);
+
+  LDFileWatcherPathFilter *logs = [LDFileWatcherPathFilter filterWithPattern:@"\\.log$"];
+  XCTAssertTrue([logs matchesEvent:log]);
+  XCTAssertFalse([logs matchesEvent:tmp]);
+
+  LDFileWatcherPathFilter *folder = [LDFileWatcherPathFilter filterWithPattern:@"logs|tmp"];
+  XCTAssertTrue([folder matchesEvent:log]);
+  XCTAssertTrue([folder matchesEvent:tmp]);
+  XCTAssertTrue([[LDFileWatcherPathFilter filterWithPattern:@"bin$"] matchesEvent:latin]);
+
+  XCTAssertNil([LDFileWatcherPathFilter filterWithPattern:@"("]);
+  XCTAssertNil([LDFileWatcherPathFilter filterWithPattern:@"[a-"]);
+}
+
 - (void)testEventKeepsExactBytes
 {
   const char raw[] = "/tmp/caf\xe9";

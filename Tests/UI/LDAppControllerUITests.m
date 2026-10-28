@@ -50,6 +50,12 @@
 - (void)toggleLogicalSize:(id)sender;
 - (void)toggleAbsolutePercentages:(id)sender;
 - (void)toggleGroupUnregisteredTypes:(id)sender;
+- (void)addWatcherEvents:(NSArray *)events;
+- (void)startWatching:(id)sender;
+- (void)pauseWatching:(id)sender;
+- (void)toggleWatcherAutoScroll:(id)sender;
+- (void)clearWatcher:(id)sender;
+- (void)controlTextDidChange:(NSNotification *)notification;
 - (void)searchExtension:(id)sender;
 - (void)excludeExtension:(id)sender;
 - (void)stopScan:(id)sender;
@@ -110,6 +116,8 @@
 - (NSArray *)searchRows { return _searchRows; }
 - (NSArray *)duplicateGroups { return _duplicateGroups; }
 - (NSArray *)watcherRows { return _watcherRows; }
+- (NSSearchField *)watcherFilterField { return _watcherFilterField; }
+- (BOOL)isWatching { return _fileWatcher != nil; }
 
 // Timers retain the controller; observers and background work would outlive
 // the test.
@@ -691,6 +699,83 @@
   XCTAssertFalse([_controller isFileWatcherOn]);
   XCTAssertFalse([[[_controller fileTabs] tabViewItems] containsObject:[_controller watcherTab]]);
   XCTAssertEqual([_controller tree], (LDOutlineView *)[_controller activeFileList]);
+}
+
+- (void)setWatcherFilter:(NSString *)pattern
+{
+  NSSearchField *field = [_controller watcherFilterField];
+  [field setStringValue:pattern];
+  [_controller controlTextDidChange:[NSNotification notificationWithName:NSControlTextDidChangeNotification object:field]];
+}
+
+- (NSArray *)watcherPaths
+{
+  return [[_controller watcherRows] valueForKey:@"path"];
+}
+
+// WinDirStat 2.7's watcher controls (5dc5a134, 329f9c91): Start and Pause,
+// Clear, Auto Scroll, and a regex path filter over everything listed.
+- (void)testFileWatcherControlsAndPathFilter
+{
+  if (!_controller || ![LDFileWatcher isSupported] || ![self scanTree]) {
+    return;
+  }
+  XCTAssertFalse([_controller validateAction:@selector(startWatching:)]);
+  [_controller toggleFileWatcher:nil];
+  XCTAssertTrue([_controller isWatching]);
+  XCTAssertFalse([_controller validateAction:@selector(startWatching:)]);
+  XCTAssertTrue([_controller validateAction:@selector(pauseWatching:)]);
+  XCTAssertFalse([_controller validateAction:@selector(clearWatcher:)]);
+
+  // Pause stops watching but keeps the tab; Start watches again.
+  [_controller pauseWatching:nil];
+  XCTAssertFalse([_controller isWatching]);
+  XCTAssertTrue([_controller isFileWatcherOn]);
+  XCTAssertTrue([[[_controller fileTabs] tabViewItems] containsObject:[_controller watcherTab]]);
+  XCTAssertTrue([_controller validateAction:@selector(startWatching:)]);
+  XCTAssertFalse([_controller validateAction:@selector(pauseWatching:)]);
+  [_controller startWatching:nil];
+  XCTAssertTrue([_controller isWatching]);
+
+  NSArray *paths = @[@"/srv/logs/app.log", @"/srv/tmp/x.tmp", @"/srv/logs/old.LOG"];
+  NSMutableArray *events = [NSMutableArray array];
+  for (NSUInteger i = 0; i < [paths count]; i++) {
+    NSData *bytes = [[paths objectAtIndex:i] dataUsingEncoding:NSUTF8StringEncoding];
+    [events addObject:[LDFileWatcherEvent eventWithPathData:bytes action:LDFileWatcherActionModified
+                                                       time:1000 + i logicalSize:1 isDirectory:NO]];
+  }
+  [_controller addWatcherEvents:events];
+  XCTAssertEqual((NSUInteger)3, [[_controller watcherRows] count]);
+  XCTAssertTrue([_controller validateAction:@selector(clearWatcher:)]);
+
+  // Case-insensitive, anywhere in the path; new events are filtered too.
+  [self setWatcherFilter:@"\\.log$"];
+  NSSet *logs = [NSSet setWithObjects:@"/srv/logs/app.log", @"/srv/logs/old.LOG", nil];
+  XCTAssertEqualObjects(logs, [NSSet setWithArray:[self watcherPaths]]);
+  [_controller addWatcherEvents:@[[LDFileWatcherEvent eventWithPathData:[@"/srv/tmp/y.tmp" dataUsingEncoding:NSUTF8StringEncoding]
+                                                                 action:LDFileWatcherActionCreated time:2000 logicalSize:1 isDirectory:NO]]];
+  XCTAssertEqualObjects(logs, [NSSet setWithArray:[self watcherPaths]]);
+  // An invalid expression changes nothing.
+  [self setWatcherFilter:@"("];
+  XCTAssertEqualObjects(logs, [NSSet setWithArray:[self watcherPaths]]);
+  [self setWatcherFilter:@""];
+  XCTAssertEqual((NSUInteger)4, [[_controller watcherRows] count]);
+
+  // Auto Scroll is on by default and remembered.
+  XCTAssertTrue([[LDPreferences sharedPreferences] watcherAutoScroll]);
+  [_controller toggleWatcherAutoScroll:nil];
+  XCTAssertFalse([[LDPreferences sharedPreferences] watcherAutoScroll]);
+  [_controller toggleWatcherAutoScroll:nil];
+  XCTAssertTrue([[LDPreferences sharedPreferences] watcherAutoScroll]);
+
+  // Clear empties the list and keeps watching.
+  [_controller clearWatcher:nil];
+  XCTAssertEqual((NSUInteger)0, [[_controller watcherRows] count]);
+  XCTAssertFalse([_controller validateAction:@selector(clearWatcher:)]);
+  XCTAssertTrue([_controller isWatching]);
+
+  [_controller toggleFileWatcher:nil];
+  XCTAssertFalse([_controller isWatching]);
 }
 
 #pragma mark - Refresh engine

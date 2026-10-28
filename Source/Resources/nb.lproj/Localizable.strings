@@ -96,6 +96,7 @@
 "Owner" = "Eier";
 "Owner:" = "Eier:";
 "Pacman animation" = "Vis Pacman-animasjon";
+"Path Filter" = "Banefilter";
 "Percentage" = "Prosent";
 "Permissions" = "Tillatelser";
 "Physical Size" = "Diskbruk";

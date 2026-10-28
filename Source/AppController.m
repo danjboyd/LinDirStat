@@ -792,6 +792,16 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   if (action == @selector(excludeExtension:)) {
     return _rootNode != nil && ![self isBusy] && [self exclusionPatternForSelectedExtension] != nil;
   }
+  // The File Watcher tab's bar (OnUpdateWatcherStart/Pause/Clear).
+  if (action == @selector(startWatching:)) {
+    return [self isFileWatcherOn] && !_fileWatcher && _rootNode != nil && ![self isBusy];
+  }
+  if (action == @selector(pauseWatching:)) {
+    return _fileWatcher != nil;
+  }
+  if (action == @selector(clearWatcher:)) {
+    return [_watcherEvents count] > 0;
+  }
   if (action == @selector(searchExtension:)) {
     return _rootNode != nil && ![self isBusy] && [self selectedExtensionKey] != nil;
   }
@@ -1452,6 +1462,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 - (void)refreshCommandState
 {
   [[_window toolbar] validateVisibleItems];
+  [self updateWatcherControls];
 }
 
 - (void)beginScanPath:(NSString *)scanPath
