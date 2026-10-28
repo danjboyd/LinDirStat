@@ -1364,10 +1364,17 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 - (CGFloat)headerWidthOfColumn:(NSTableColumn *)column inTable:(NSTableView *)table
 {
   NSTableHeaderCell *header = (NSTableHeaderCell *)[column headerCell];
-  CGFloat width = [header cellSize].width;
+  CGFloat title = [header cellSize].width;
+  CGFloat width = title;
   NSString *sortKey = [[[table sortDescriptors] firstObject] key];
   if (sortKey && [sortKey isEqualToString:[[column sortDescriptorPrototype] key]]) {
-    width += NSWidth([header sortIndicatorRectForBounds:NSMakeRect(0, 0, width, 24)]) + 6.0;
+    // The room the indicator takes from the right of the cell: its width
+    // and the inset the cell draws it at (AppKit's is wider than GNUstep's,
+    // so "Physical Size" was cut to "Physical S…" there, #83).
+    NSRect bounds = NSMakeRect(0, 0, title + 100.0, 24);
+    NSRect indicator = [header sortIndicatorRectForBounds:bounds];
+    CGFloat reserved = NSWidth(indicator) > 0 ? NSMaxX(bounds) - NSMinX(indicator) : 0.0;
+    width = MAX(title + NSWidth(indicator) + 6.0, title + reserved + 4.0);
   }
   return ceil(width);
 }
