@@ -851,12 +851,18 @@
   LDCommandLine *plain = [LDCommandLine commandLineWithArguments:@[@"LinDirStat"] currentDirectory:_workRoot];
   XCTAssertEqualObjects(@[], [_controller initialScanPaths:plain]);
   LDCommandLine *folder = [LDCommandLine commandLineWithArguments:@[@"LinDirStat", _tree] currentDirectory:_workRoot];
-  XCTAssertEqualObjects(@[_tree], [_controller initialScanPaths:folder]);
+  XCTAssertEqualObjects(@[[_tree stringByStandardizingPath]], [_controller initialScanPaths:folder]);
   // Started from a checkout, the fixture.
   NSString *fixture = [_workRoot stringByAppendingPathComponent:@"Tests/Fixtures/basic-tree"];
   XCTAssertTrue([files createDirectoryAtPath:fixture withIntermediateDirectories:YES attributes:nil error:NULL]);
   XCTAssertEqualObjects(@[fixture], [_controller initialScanPaths:plain]);
   [files removeItemAtPath:[_workRoot stringByAppendingPathComponent:@"Tests"] error:NULL];
+
+  // macOS opens a launch-time folder (a cold Open With, a Dock drop) before
+  // the window is up; it's kept for applicationDidFinishLaunching:.
+  AppController *launching = [[AppController alloc] init];
+  [launching application:NSApp openFiles:@[_tree]];
+  XCTAssertEqualObjects(@[[_tree stringByStandardizingPath]], [launching valueForKey:@"launchFolders"]);
 
   // Refresh with nothing scanned asks too.
   NSUInteger asked = [_controller selectTargetRequests];

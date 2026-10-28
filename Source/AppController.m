@@ -77,6 +77,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   NSTimeInterval _trashMeasuredAt;
   BOOL _measuringTrash;
   NSTimeInterval _profileStopPressedAt;
+  // Folders AppKit opened before the window was up (a cold Open With or a
+  // Dock drop on macOS); applicationDidFinishLaunching: scans them.
+  NSArray *_launchFolders;
 }
 - (LDScanResultsRequest *)scanResultsRequest;
 - (void)releaseInBackground:(NSArray *)objects;
@@ -104,7 +107,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     [self loadResultsFromCSVFile:[commandLine loadFromCSVPath]];
     return;
   }
-  NSArray *paths = [self initialScanPaths:commandLine];
+  NSArray *paths = [_launchFolders count] > 0 ? _launchFolders : [self initialScanPaths:commandLine];
+  _launchFolders = nil;
   if ([paths count] > 0) {
     [self beginScanPaths:paths];
   } else {
@@ -174,10 +178,15 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 // later (from the desktop) are scanned.
 - (void)application:(NSApplication *)application openFiles:(NSArray *)files
 {
-  if (_window && ![self isBusy]) {
-    NSArray *arguments = [@[@"LinDirStat"] arrayByAddingObjectsFromArray:files];
-    NSString *currentDirectory = [[NSFileManager defaultManager] currentDirectoryPath];
-    NSArray *folders = [[LDCommandLine commandLineWithArguments:arguments currentDirectory:currentDirectory] scanPaths];
+  NSArray *arguments = [@[@"LinDirStat"] arrayByAddingObjectsFromArray:files];
+  NSString *currentDirectory = [[NSFileManager defaultManager] currentDirectoryPath];
+  NSArray *folders = [[LDCommandLine commandLineWithArguments:arguments currentDirectory:currentDirectory] scanPaths];
+  if (!_window) {
+    // macOS sends a launch-time folder here between WillFinish and
+    // DidFinish, before setUpMainWindow; GNUstep passes it on the command
+    // line instead.
+    _launchFolders = folders;
+  } else if (![self isBusy]) {
     [self beginScanPaths:folders];
   }
   [application replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
