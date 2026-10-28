@@ -23,6 +23,28 @@ static const CGFloat LDButtonHeight = 34.0;
 static const CGFloat LDBarHeight = 8.0;
 static const CGFloat LDBarInset = 6.0;
 
+static NSInteger (^LDModalRunnerForTesting)(NSWindow *panel) = nil;
+
+// Runs the panel modally. GNUstep sends distributed notifications over a DO
+// connection to gdnc; when gdnc goes away (seen in the release workflow's
+// root container) the next request raises NSPortTimeoutException out of the
+// modal loop, which already ended its session. That mustn't close Select
+// Target, so the dialog carries on in a new session.
+static NSInteger LDRunPanelModally(NSWindow *panel)
+{
+  for (;;) {
+    @try {
+      return LDModalRunnerForTesting ? LDModalRunnerForTesting(panel) : [NSApp runModalForWindow:panel];
+    }
+    @catch (NSException *exception) {
+      if (![[exception name] isEqualToString:NSPortTimeoutException]) {
+        @throw;
+      }
+      NSLog(@"Select Target: %@ (%@); keeping the dialog open", [exception name], [exception reason]);
+    }
+  }
+}
+
 typedef enum {
   LDVolumeUsageQuerying = 0,
   LDVolumeUsageReady = 1,
@@ -345,7 +367,7 @@ typedef enum {
     : (_mode == LDSelectTargetIndividualDrives ? (NSView *)_table : (NSView *)_allRadio);
   [_panel setInitialFirstResponder:first];
   [_panel center];
-  NSInteger result = [NSApp runModalForWindow:_panel];
+  NSInteger result = LDRunPanelModally(_panel);
   _finished = YES;
   [_panel orderOut:nil];
   if (result != NSModalResponseOK) {
@@ -691,6 +713,11 @@ typedef enum {
 @end
 
 @implementation LDSelectTargetPanel
+
++ (void)setModalRunnerForTesting:(NSInteger (^)(NSWindow *panel))runner
+{
+  LDModalRunnerForTesting = [runner copy];
+}
 
 + (NSArray *)runWithInitialFolder:(NSString *)folder
 {
