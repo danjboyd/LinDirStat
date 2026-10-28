@@ -102,8 +102,15 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   LDCommandLine *commandLine = [LDCommandLine processCommandLine];
   if ([commandLine loadFromCSVPath]) {
     [self loadResultsFromCSVFile:[commandLine loadFromCSVPath]];
+    return;
+  }
+  NSArray *paths = [self initialScanPaths:commandLine];
+  if ([paths count] > 0) {
+    [self beginScanPaths:paths];
   } else {
-    [self beginScanPaths:[self initialScanPaths:commandLine]];
+    // WinDirStat.cpp:487-490: with nothing to scan, Select Drives opens
+    // (#104), once the window is up.
+    [self performSelector:@selector(openPath:) withObject:nil afterDelay:0];
   }
 }
 
@@ -1456,16 +1463,18 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 #pragma mark - Scanning
 
-- (NSString *)defaultFixturePath
+// For development only: started from a checkout, the test fixture. Never
+// the home folder, which a plain launch used to walk (#104).
+- (NSString *)developmentFixturePath
 {
   NSString *cwd = [[NSFileManager defaultManager] currentDirectoryPath];
   NSString *fixture = [cwd stringByAppendingPathComponent:@"Tests/Fixtures/basic-tree"];
-  if ([[NSFileManager defaultManager] fileExistsAtPath:fixture]) {
-    return fixture;
-  }
-  return NSHomeDirectory();
+  return [[NSFileManager defaultManager] fileExistsAtPath:fixture] ? fixture : nil;
 }
 
+// The folders a launch scans: the command line's (Open With LinDirStat
+// passes the folder there too), LINDIRSTAT_SCAN_PATH, or a checkout's
+// fixture. Empty when there is none: Select Target asks.
 - (NSArray *)initialScanPaths:(LDCommandLine *)commandLine
 {
   if ([[commandLine scanPaths] count] > 0) {
@@ -1475,7 +1484,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   if ([environmentPath length] > 0) {
     return @[environmentPath];
   }
-  return @[[self defaultFixturePath]];
+  NSString *fixture = [self developmentFixturePath];
+  return fixture ? @[fixture] : @[];
 }
 
 - (NSString *)displayPath:(NSString *)path
@@ -2108,7 +2118,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   if ([_currentScanPaths count] > 0) {
     [self beginScanPaths:_currentScanPaths];
   } else {
-    [self beginScanPath:[self defaultFixturePath]];
+    // Nothing scanned yet: ask, as at launch.
+    [self openPath:nil];
   }
 }
 
