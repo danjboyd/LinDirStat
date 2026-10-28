@@ -448,8 +448,8 @@ static NSInteger LDPercentOf(double value)
   [self changed];
 }
 
-- (NSInteger)treemapStyle { return LDClamp([self integerForKey:@"TreeMapStyle"], 0, 1); }
-- (void)setTreemapStyle:(NSInteger)style { [self setInteger:LDClamp(style, 0, 1) forKey:@"TreeMapStyle"]; }
+- (NSInteger)treemapStyle { return LDClamp([self integerForKey:@"TreeMapStyle"], 0, 3); }
+- (void)setTreemapStyle:(NSInteger)style { [self setInteger:LDClamp(style, 0, 3) forKey:@"TreeMapStyle"]; }
 - (BOOL)treemapGrid { return [self boolForKey:@"TreeMapGrid"]; }
 - (void)setTreemapGrid:(BOOL)flag { [self setBool:flag forKey:@"TreeMapGrid"]; [self saveCustomTreemapPreset]; }
 - (NSInteger)treemapBrightness { return LDClamp([self integerForKey:@"TreeMapBrightness"], 0, 100); }
@@ -490,7 +490,7 @@ static NSInteger LDPercentOf(double value)
   // Zeroed first, so options compare equal with memcmp.
   LDTreemapOptions options;
   memset(&options, 0, sizeof(options));
-  options.style = [self treemapStyle] == 1 ? LDTreemapStyleSequoiaView : LDTreemapStyleKDirStat;
+  options.style = (LDTreemapStyle)[self treemapStyle];
   options.grid = [self treemapGrid];
   options.gridColor = [self treemapGridColor];
   options.brightness = [self treemapBrightness] / 100.0;

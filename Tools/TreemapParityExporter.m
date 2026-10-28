@@ -8,7 +8,7 @@
 
 // The options to render with: the defaults, a WinDirStat 2.9 colour preset
 // (--preset classic|calm|flat|pastel|high-contrast) and the layout style
-// (--style kdirstat|sequoia). An Auto grid colour uses white and black as
+// (--style kdirstat|sequoia|hilbert|moore). An Auto grid colour uses white and black as
 // the window and text colours.
 static LDTreemapOptions ExportOptions;
 
@@ -40,6 +40,14 @@ static BOOL ParseOption(const char *flag, const char *value)
     }
     if (strcmp(value, "sequoia") == 0) {
       ExportOptions.style = LDTreemapStyleSequoiaView;
+      return YES;
+    }
+    if (strcmp(value, "hilbert") == 0) {
+      ExportOptions.style = LDTreemapStyleHilbert;
+      return YES;
+    }
+    if (strcmp(value, "moore") == 0) {
+      ExportOptions.style = LDTreemapStyleMoore;
       return YES;
     }
   }

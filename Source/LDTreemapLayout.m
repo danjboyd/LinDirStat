@@ -241,6 +241,386 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
   }
 }
 
+#pragma mark - Hilbert and Moore layouts
+
+// Port of HilbertMooreTreeMap.cpp (WinDirStat 2.9, 33f92966), whose
+// partition templates and orientation rules come from the Hilbert and Moore
+// Treemap Layouts Prototype by the Visual Analytics Research Group at the
+// Hasso Plattner Institute (MIT License, Copyright (c) 2021 Visual Analytics
+// Research Group at the Chair for Computer Graphics Systems at the Hasso
+// Plattner Institute, Potsdam;
+// https://github.com/varg-dev/hilbert-moore-treemap-layouts-prototype).
+//
+// A cell's curve state (TreeMapLayout::State) is one byte: the rotation in
+// quarter turns clockwise in the low two bits, LDCurveCounterclockwise when
+// the direction is reversed. Regions are in pixels from the parent's
+// bottom-left corner, y up.
+
+enum { LDCurveRotationMask = 3, LDCurveCounterclockwise = 4 };
+
+typedef struct {
+  double left;
+  double bottom;
+  double width;
+  double height;
+  uint8_t state;
+} LDCurveRegion;
+
+static double LDCurveAspectRatio(LDCurveRegion region)
+{
+  double shorter = MIN(region.width, region.height);
+  return shorter > 0.0 ? MAX(region.width, region.height) / shorter : INFINITY;
+}
+
+static void LDCurveRotate(LDCurveRegion *region, unsigned int quarterTurns)
+{
+  unsigned int rotation = ((region->state & LDCurveRotationMask) + quarterTurns) % 4;
+  region->state = (uint8_t)((region->state & ~LDCurveRotationMask) | rotation);
+}
+
+static void LDCurveReverse(LDCurveRegion *region)
+{
+  region->state ^= LDCurveCounterclockwise;
+}
+
+static double LDClampFraction(double fraction)
+{
+  return MIN(MAX(fraction, 0.0), 1.0);
+}
+
+static void LDCurveSplitX(LDCurveRegion region, double fraction, LDCurveRegion *first, LDCurveRegion *second)
+{
+  double splitWidth = region.width * LDClampFraction(fraction);
+  *first = (LDCurveRegion){region.left, region.bottom, splitWidth, region.height, region.state};
+  *second = (LDCurveRegion){region.left + splitWidth, region.bottom, region.width - splitWidth, region.height, region.state};
+}
+
+static void LDCurveSplitY(LDCurveRegion region, double fraction, LDCurveRegion *first, LDCurveRegion *second)
+{
+  double splitHeight = region.height * LDClampFraction(fraction);
+  *first = (LDCurveRegion){region.left, region.bottom, region.width, splitHeight, region.state};
+  *second = (LDCurveRegion){region.left, region.bottom + splitHeight, region.width, region.height - splitHeight, region.state};
+}
+
+// Region::SplitHorizontal: along the curve's x axis, as rotated.
+static void LDCurveSplitHorizontal(LDCurveRegion region, double fraction, LDCurveRegion *first, LDCurveRegion *second)
+{
+  switch (region.state & LDCurveRotationMask) {
+    case 0:
+      LDCurveSplitX(region, fraction, first, second);
+      break;
+    case 1:
+      LDCurveSplitY(region, fraction, first, second);
+      break;
+    case 2:
+      LDCurveSplitX(region, 1.0 - fraction, second, first);
+      break;
+    default:
+      LDCurveSplitY(region, 1.0 - fraction, second, first);
+      break;
+  }
+}
+
+// Region::SplitVertical.
+static void LDCurveSplitVertical(LDCurveRegion region, double fraction, LDCurveRegion *first, LDCurveRegion *second)
+{
+  switch (region.state & LDCurveRotationMask) {
+    case 0:
+      LDCurveSplitY(region, fraction, first, second);
+      break;
+    case 1:
+      LDCurveSplitX(region, 1.0 - fraction, second, first);
+      break;
+    case 2:
+      LDCurveSplitY(region, 1.0 - fraction, second, first);
+      break;
+    default:
+      LDCurveSplitX(region, fraction, first, second);
+      break;
+  }
+}
+
+typedef enum {
+  LDPatternIdentity, LDPatternHilbert2, LDPatternMoore2, LDPatternSnake3, LDPatternFirst3, LDPatternMiddle3,
+  LDPatternLast3, LDPatternSnake4, LDPatternFirst4, LDPatternMiddleLeft4, LDPatternMiddleRight4, LDPatternLast4,
+  LDPatternHorizontal4, LDPatternVertical4
+} LDCurvePattern;
+
+static double LDFraction(double numerator, double denominator)
+{
+  return denominator > 0.0 ? numerator / denominator : 0.0;
+}
+
+enum { LDClockwise90 = 1, LDCounterclockwise90 = 3 };
+
+// Dissect: one partition template applied to up to four weights.
+static void LDCurveDissect(LDCurvePattern pattern, const double *w, NSUInteger count, LDCurveRegion rectangle, LDCurveRegion *r)
+{
+  LDCurveRegion remaining, opposite, firstHalf, secondHalf;
+  double total = 0.0;
+  NSUInteger i = 0;
+  for (i = 0; i < count; i++) {
+    total += w[i];
+  }
+  switch (pattern) {
+    case LDPatternIdentity:
+      r[0] = rectangle;
+      break;
+    case LDPatternHilbert2:
+      LDCurveSplitHorizontal(rectangle, LDFraction(w[0], w[0] + w[1]), &r[0], &r[1]);
+      break;
+    case LDPatternMoore2:
+      LDCurveSplitHorizontal(rectangle, LDFraction(w[0], w[0] + w[1]), &r[0], &r[1]);
+      LDCurveRotate(&r[0], LDClockwise90);
+      LDCurveRotate(&r[1], LDCounterclockwise90);
+      break;
+    case LDPatternSnake3:
+      LDCurveSplitHorizontal(rectangle, LDFraction(w[0], w[0] + w[1] + w[2]), &r[0], &remaining);
+      LDCurveSplitHorizontal(remaining, LDFraction(w[1], w[1] + w[2]), &r[1], &r[2]);
+      break;
+    case LDPatternFirst3:
+      LDCurveSplitHorizontal(rectangle, LDFraction(w[0], w[0] + w[1] + w[2]), &r[0], &remaining);
+      LDCurveSplitVertical(remaining, LDFraction(w[2], w[1] + w[2]), &r[2], &r[1]);
+      LDCurveRotate(&r[0], LDClockwise90);
+      LDCurveRotate(&r[1], LDCounterclockwise90);
+      LDCurveRotate(&r[2], LDCounterclockwise90);
+      break;
+    case LDPatternMiddle3:
+      LDCurveSplitVertical(rectangle, LDFraction(w[0] + w[2], w[0] + w[1] + w[2]), &remaining, &r[1]);
+      LDCurveSplitHorizontal(remaining, LDFraction(w[0], w[0] + w[2]), &r[0], &r[2]);
+      LDCurveRotate(&r[0], LDCounterclockwise90);
+      LDCurveReverse(&r[0]);
+      LDCurveRotate(&r[2], LDClockwise90);
+      LDCurveReverse(&r[2]);
+      break;
+    case LDPatternLast3:
+      LDCurveSplitHorizontal(rectangle, LDFraction(w[0] + w[1], w[0] + w[1] + w[2]), &remaining, &r[2]);
+      LDCurveSplitVertical(remaining, LDFraction(w[0], w[0] + w[1]), &r[0], &r[1]);
+      LDCurveRotate(&r[0], LDClockwise90);
+      LDCurveRotate(&r[1], LDClockwise90);
+      LDCurveRotate(&r[2], LDCounterclockwise90);
+      break;
+    case LDPatternSnake4:
+      LDCurveSplitHorizontal(rectangle, LDFraction(w[0] + w[1], w[0] + w[1] + w[2] + w[3]), &firstHalf, &secondHalf);
+      LDCurveSplitHorizontal(firstHalf, LDFraction(w[0], w[0] + w[1]), &r[0], &r[1]);
+      LDCurveSplitHorizontal(secondHalf, LDFraction(w[2], w[2] + w[3]), &r[2], &r[3]);
+      break;
+    case LDPatternFirst4:
+      LDCurveSplitHorizontal(rectangle, LDFraction(w[0], total), &r[0], &remaining);
+      LDCurveSplitVertical(remaining, LDFraction(w[2] + w[3], w[1] + w[2] + w[3]), &opposite, &r[1]);
+      LDCurveSplitVertical(opposite, LDFraction(w[3], w[2] + w[3]), &r[3], &r[2]);
+      LDCurveRotate(&r[0], LDClockwise90);
+      LDCurveRotate(&r[1], LDCounterclockwise90);
+      LDCurveRotate(&r[2], LDCounterclockwise90);
+      LDCurveRotate(&r[3], LDCounterclockwise90);
+      break;
+    case LDPatternMiddleLeft4:
+      LDCurveSplitVertical(rectangle, LDFraction(w[0] + w[2] + w[3], total), &remaining, &r[1]);
+      LDCurveSplitHorizontal(remaining, LDFraction(w[0], w[0] + w[2] + w[3]), &r[0], &opposite);
+      LDCurveSplitVertical(opposite, LDFraction(w[3], w[2] + w[3]), &r[3], &r[2]);
+      LDCurveRotate(&r[0], LDCounterclockwise90);
+      LDCurveReverse(&r[0]);
+      LDCurveRotate(&r[2], LDClockwise90);
+      LDCurveReverse(&r[2]);
+      LDCurveRotate(&r[3], LDClockwise90);
+      LDCurveReverse(&r[3]);
+      break;
+    case LDPatternMiddleRight4:
+      LDCurveSplitVertical(rectangle, LDFraction(w[0] + w[1] + w[3], total), &remaining, &r[2]);
+      LDCurveSplitHorizontal(remaining, LDFraction(w[0] + w[1], w[0] + w[1] + w[3]), &opposite, &r[3]);
+      LDCurveSplitVertical(opposite, LDFraction(w[0], w[0] + w[1]), &r[0], &r[1]);
+      LDCurveRotate(&r[0], LDCounterclockwise90);
+      LDCurveReverse(&r[0]);
+      LDCurveRotate(&r[1], LDCounterclockwise90);
+      LDCurveReverse(&r[1]);
+      LDCurveRotate(&r[3], LDClockwise90);
+      LDCurveReverse(&r[3]);
+      break;
+    case LDPatternLast4:
+      LDCurveSplitHorizontal(rectangle, LDFraction(w[0] + w[1] + w[2], total), &remaining, &r[3]);
+      LDCurveSplitVertical(remaining, LDFraction(w[0] + w[1], w[0] + w[1] + w[2]), &opposite, &r[2]);
+      LDCurveSplitVertical(opposite, LDFraction(w[0], w[0] + w[1]), &r[0], &r[1]);
+      LDCurveRotate(&r[0], LDClockwise90);
+      LDCurveRotate(&r[1], LDClockwise90);
+      LDCurveRotate(&r[2], LDClockwise90);
+      LDCurveRotate(&r[3], LDCounterclockwise90);
+      break;
+    case LDPatternHorizontal4:
+      LDCurveSplitVertical(rectangle, LDFraction(w[0] + w[3], w[0] + w[3] + w[1] + w[2]), &firstHalf, &secondHalf);
+      LDCurveSplitHorizontal(firstHalf, LDFraction(w[0], w[0] + w[3]), &r[0], &r[3]);
+      LDCurveSplitHorizontal(secondHalf, LDFraction(w[1], w[1] + w[2]), &r[1], &r[2]);
+      LDCurveRotate(&r[0], LDCounterclockwise90);
+      LDCurveReverse(&r[0]);
+      LDCurveRotate(&r[3], LDClockwise90);
+      LDCurveReverse(&r[3]);
+      break;
+    case LDPatternVertical4:
+      LDCurveSplitHorizontal(rectangle, LDFraction(w[0] + w[1], w[0] + w[1] + w[2] + w[3]), &firstHalf, &secondHalf);
+      LDCurveSplitVertical(firstHalf, LDFraction(w[0], w[0] + w[1]), &r[0], &r[1]);
+      LDCurveSplitVertical(secondHalf, LDFraction(w[3], w[2] + w[3]), &r[3], &r[2]);
+      LDCurveRotate(&r[0], LDClockwise90);
+      LDCurveRotate(&r[1], LDClockwise90);
+      LDCurveRotate(&r[2], LDCounterclockwise90);
+      LDCurveRotate(&r[3], LDCounterclockwise90);
+      break;
+  }
+}
+
+static double LDCurveAverageAspectRatio(const LDCurveRegion *regions, NSUInteger count)
+{
+  double sum = 0.0;
+  NSUInteger i = 0;
+  for (i = 0; i < count; i++) {
+    sum += LDCurveAspectRatio(regions[i]);
+  }
+  return sum / count;
+}
+
+// SelectLayout: of the curve's templates for this many parts, the one whose
+// average aspect ratio is closest to 1 (the first on a tie).
+static void LDCurveSelectLayout(const double *weights, NSUInteger count, LDCurveRegion rectangle, BOOL moore, LDCurveRegion *result)
+{
+  static const LDCurvePattern identity[] = {LDPatternIdentity};
+  static const LDCurvePattern hilbert2[] = {LDPatternHilbert2};
+  static const LDCurvePattern moore2[] = {LDPatternMoore2};
+  static const LDCurvePattern hilbert3[] = {LDPatternSnake3, LDPatternMiddle3};
+  static const LDCurvePattern moore3[] = {LDPatternFirst3, LDPatternLast3};
+  static const LDCurvePattern hilbert4[] = {LDPatternSnake4, LDPatternMiddleLeft4, LDPatternMiddleRight4, LDPatternHorizontal4};
+  static const LDCurvePattern moore4[] = {LDPatternFirst4, LDPatternLast4, LDPatternVertical4};
+  const LDCurvePattern *patterns = identity;
+  NSUInteger patternCount = 1;
+  if (count == 2) {
+    patterns = moore ? moore2 : hilbert2;
+  } else if (count == 3) {
+    patterns = moore ? moore3 : hilbert3;
+    patternCount = 2;
+  } else if (count == 4) {
+    patterns = moore ? moore4 : hilbert4;
+    patternCount = moore ? 3 : 4;
+  }
+  LDCurveDissect(patterns[0], weights, count, rectangle, result);
+  double bestDifference = fabs(LDCurveAverageAspectRatio(result, count) - 1.0);
+  NSUInteger p = 0;
+  for (p = 1; p < patternCount; p++) {
+    LDCurveRegion candidate[4];
+    LDCurveDissect(patterns[p], weights, count, rectangle, candidate);
+    double difference = fabs(LDCurveAverageAspectRatio(candidate, count) - 1.0);
+    if (difference < bestDifference) {
+      memcpy(result, candidate, sizeof(candidate));
+      bestDifference = difference;
+    }
+  }
+}
+
+static double LDRangeWeight(const double *prefix, NSUInteger begin, NSUInteger end)
+{
+  return prefix[end] - prefix[begin];
+}
+
+static double LDImbalance(const double *prefix, NSUInteger begin, NSUInteger middle, NSUInteger end)
+{
+  return fabs(prefix[middle] - (prefix[end] + prefix[begin]) / 2.0);
+}
+
+// PartitionByVariance: four consecutive runs of children whose weights vary
+// least about a quarter of the total.
+static void LDPartitionByVariance(NSUInteger begin, NSUInteger end, const double *prefix, NSUInteger *bounds)
+{
+  double mean = LDRangeWeight(prefix, begin, end) / 4.0;
+  NSUInteger left = begin + 1;
+  NSUInteger right = begin + 3;
+  double bestVariance = INFINITY;
+  NSUInteger middle = 0;
+  for (middle = begin + 2; middle < end - 1; middle++) {
+    left = MIN(left, middle - 1);
+    right = MAX(right, middle + 1);
+    while (left + 1 < middle && LDImbalance(prefix, begin, left + 1, middle) < LDImbalance(prefix, begin, left, middle)) {
+      left++;
+    }
+    while (right + 1 < end && LDImbalance(prefix, middle, right + 1, end) < LDImbalance(prefix, middle, right, end)) {
+      right++;
+    }
+    NSUInteger candidate[5] = {begin, left, middle, right, end};
+    double variance = 0.0;
+    NSUInteger k = 0;
+    for (k = 0; k < 4; k++) {
+      double difference = LDRangeWeight(prefix, candidate[k], candidate[k + 1]) - mean;
+      variance += difference * difference;
+    }
+    if (variance < bestVariance) {
+      memcpy(bounds, candidate, sizeof(candidate));
+      bestVariance = variance;
+    }
+  }
+}
+
+// LayoutRange: up to four children are laid out by a template; more are
+// split into four runs, each laid out recursively along a Hilbert curve.
+static void LDCurveLayoutRange(LDCurveRegion rectangle, const double *prefix, NSUInteger begin, NSUInteger end,
+                               BOOL moore, LDCurveRegion *output)
+{
+  NSUInteger count = end - begin;
+  if (count == 1) {
+    output[begin] = rectangle;
+    return;
+  }
+  NSUInteger bounds[5];
+  NSUInteger partCount = count;
+  NSUInteger i = 0;
+  if (count <= 4) {
+    for (i = 0; i <= count; i++) {
+      bounds[i] = begin + i;
+    }
+  } else {
+    LDPartitionByVariance(begin, end, prefix, bounds);
+    partCount = 4;
+  }
+  double weights[4];
+  for (i = 0; i < partCount; i++) {
+    weights[i] = LDRangeWeight(prefix, bounds[i], bounds[i + 1]);
+  }
+  BOOL reversed = (rectangle.state & LDCurveCounterclockwise) != 0;
+  if (reversed) {
+    for (i = 0; i < partCount / 2; i++) {
+      double swap = weights[i];
+      weights[i] = weights[partCount - 1 - i];
+      weights[partCount - 1 - i] = swap;
+    }
+  }
+  LDCurveRegion layout[4];
+  LDCurveSelectLayout(weights, partCount, rectangle, moore, layout);
+  if (reversed) {
+    for (i = 0; i < partCount / 2; i++) {
+      LDCurveRegion swap = layout[i];
+      layout[i] = layout[partCount - 1 - i];
+      layout[partCount - 1 - i] = swap;
+    }
+  }
+  for (i = 0; i < partCount; i++) {
+    if (count <= 4) {
+      output[bounds[i]] = layout[i];
+    } else {
+      LDCurveLayoutRange(layout[i], prefix, bounds[i], bounds[i + 1], NO, output);
+    }
+  }
+}
+
+// ToPixelRectangle: rounded, from the parent's bottom-left, clamped inside it.
+static LDTreemapRect LDCurvePixelRect(LDCurveRegion region, LDTreemapRect parent)
+{
+  LDTreemapRect rect = {
+    parent.left + (int)lround(region.left),
+    parent.bottom - (int)lround(region.bottom + region.height),
+    parent.left + (int)lround(region.left + region.width),
+    parent.bottom - (int)lround(region.bottom)
+  };
+  rect.left = MIN(MAX(rect.left, parent.left), parent.right);
+  rect.top = MIN(MAX(rect.top, parent.top), parent.bottom);
+  rect.right = MIN(MAX(rect.right, parent.left), parent.right);
+  rect.bottom = MIN(MAX(rect.bottom, parent.top), parent.bottom);
+  return rect;
+}
+
 @implementation LDTreemap
 
 - (id)initWithRootNode:(LDFileNode *)rootNode
@@ -289,6 +669,9 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
   if (_cellCount == _cellCapacity) {
     _cellCapacity = MAX((NSUInteger)64, _cellCapacity * 2);
     _cells = realloc(_cells, _cellCapacity * sizeof(LDTreemapCell));
+    if (_options.style == LDTreemapStyleHilbert || _options.style == LDTreemapStyleMoore) {
+      _curveStates = realloc(_curveStates, _cellCapacity);
+    }
   }
   LDTreemapCell *cell = &_cells[_cellCount];
   cell->node = node;
@@ -298,6 +681,9 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
   cell->bottom = (int16_t)rect.bottom;
   cell->firstChild = -1;
   cell->childCount = 0;
+  if (_curveStates) {
+    _curveStates[_cellCount] = 0;
+  }
   return (NSInteger)_cellCount++;
 }
 
@@ -362,6 +748,8 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
   _frames = NULL;
   _frameCount = 0;
   NSUInteger frameCapacity = 0;
+  free(_curveStates);
+  _curveStates = NULL;
 
   if (!_rootNode || _width <= 0 || _height <= 0) {
     return;
@@ -423,7 +811,9 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
         continue;
       }
       int32_t firstChild = (int32_t)_cellCount;
-      if (_options.style == LDTreemapStyleSequoiaView) {
+      if (_options.style == LDTreemapStyleHilbert || _options.style == LDTreemapStyleMoore) {
+        [self layoutCurveChildren:children sizes:sizes count:count ofCell:(NSInteger)index inRect:area];
+      } else if (_options.style == LDTreemapStyleSequoiaView) {
         [self layoutSequoiaChildren:children sizes:sizes count:count ofCell:(NSInteger)index inRect:area];
       } else {
         [self layoutKDirStatChildren:children sizes:sizes count:count ofCell:(NSInteger)index inRect:area];
@@ -489,6 +879,29 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
     top = nextTop;
     rowBegin = rowEnd;
   }
+}
+
+// HilbertMooreTreeMap::ArrangeChildren: the children (all with a size here)
+// along the cell's curve, each taking its region's orientation.
+- (void)layoutCurveChildren:(NSArray *)children sizes:(const double *)sizes count:(NSUInteger)count
+                     ofCell:(NSInteger)index inRect:(LDTreemapRect)bounds
+{
+  double *prefix = malloc((count + 1) * sizeof(double));
+  LDCurveRegion *regions = malloc(count * sizeof(LDCurveRegion));
+  prefix[0] = 0.0;
+  NSUInteger i = 0;
+  for (i = 0; i < count; i++) {
+    prefix[i + 1] = prefix[i] + sizes[i];
+  }
+  LDCurveRegion root = {0.0, 0.0, (double)LDTreemapRectWidth(bounds), (double)LDTreemapRectHeight(bounds),
+                        _curveStates ? _curveStates[index] : 0};
+  LDCurveLayoutRange(root, prefix, 0, count, _options.style == LDTreemapStyleMoore, regions);
+  for (i = 0; i < count; i++) {
+    NSInteger child = [self appendCellForNode:[children objectAtIndex:i] rect:LDCurvePixelRect(regions[i], bounds)];
+    _curveStates[child] = regions[i].state;
+  }
+  free(prefix);
+  free(regions);
 }
 
 // Port of TreeMapLayout.cpp's ArrangeSquarified (v2.9.3; SequoiaView style).
@@ -937,6 +1350,7 @@ typedef struct {
 {
   free(_cells);
   free(_frames);
+  free(_curveStates);
 }
 
 @end

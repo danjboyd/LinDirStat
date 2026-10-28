@@ -72,6 +72,8 @@ def preset_options(name):
 # run at the first viewport size only.
 VARIANTS = [
     ("sequoia", "classic", "sequoia"),
+    ("hilbert", "classic", "hilbert"),
+    ("moore", "classic", "moore"),
     ("calm", "calm", "kdirstat"),
     ("flat", "flat", "kdirstat"),
     ("pastel", "pastel", "kdirstat"),
@@ -314,15 +316,251 @@ def arrange_squarified(bounds, parent_weight, weights):
     return regions
 
 
-def arrange_children(node, rect, style):
-    """TreeMapLayout::ArrangeChildren: children sorted by weight, empty regions skipped."""
+
+# Port of HilbertMooreTreeMap.cpp (WinDirStat 2.9, 33f92966; templates and
+# orientation rules from the Hasso Plattner Institute's Hilbert and Moore
+# Treemap Layouts Prototype, MIT License). A region is (left, bottom, width,
+# height, rotation, counterclockwise) in pixels from the parent's bottom-left.
+
+def curve_split_x(region, fraction):
+    left, bottom, width, height, rot, ccw = region
+    fraction = min(max(fraction, 0.0), 1.0)
+    split = width * fraction
+    return (left, bottom, split, height, rot, ccw), (left + split, bottom, width - split, height, rot, ccw)
+
+
+def curve_split_y(region, fraction):
+    left, bottom, width, height, rot, ccw = region
+    fraction = min(max(fraction, 0.0), 1.0)
+    split = height * fraction
+    return (left, bottom, width, split, rot, ccw), (left, bottom + split, width, height - split, rot, ccw)
+
+
+def split_horizontal(region, fraction):
+    rot = region[4]
+    if rot == 0:
+        return curve_split_x(region, fraction)
+    if rot == 1:
+        return curve_split_y(region, fraction)
+    if rot == 2:
+        first, second = curve_split_x(region, 1.0 - fraction)
+        return second, first
+    first, second = curve_split_y(region, 1.0 - fraction)
+    return second, first
+
+
+def split_vertical(region, fraction):
+    rot = region[4]
+    if rot == 0:
+        return curve_split_y(region, fraction)
+    if rot == 1:
+        first, second = curve_split_x(region, 1.0 - fraction)
+        return second, first
+    if rot == 2:
+        first, second = curve_split_y(region, 1.0 - fraction)
+        return second, first
+    return curve_split_x(region, fraction)
+
+
+def rotate(region, quarter_turns):
+    left, bottom, width, height, rot, ccw = region
+    return (left, bottom, width, height, (rot + quarter_turns) % 4, ccw)
+
+
+def reverse(region):
+    left, bottom, width, height, rot, ccw = region
+    return (left, bottom, width, height, rot, not ccw)
+
+
+def frac(numerator, denominator):
+    return numerator / denominator if denominator > 0.0 else 0.0
+
+
+CW, CCW = 1, 3
+
+
+def dissect(pattern, w, rect):
+    r = [None] * len(w)
+    total = 0.0
+    for weight in w:
+        total += weight
+    if pattern == "identity":
+        r[0] = rect
+    elif pattern == "hilbert2":
+        r[0], r[1] = split_horizontal(rect, frac(w[0], w[0] + w[1]))
+    elif pattern == "moore2":
+        r[0], r[1] = split_horizontal(rect, frac(w[0], w[0] + w[1]))
+        r[0], r[1] = rotate(r[0], CW), rotate(r[1], CCW)
+    elif pattern == "snake3":
+        r[0], rest = split_horizontal(rect, frac(w[0], w[0] + w[1] + w[2]))
+        r[1], r[2] = split_horizontal(rest, frac(w[1], w[1] + w[2]))
+    elif pattern == "first3":
+        r[0], rest = split_horizontal(rect, frac(w[0], w[0] + w[1] + w[2]))
+        r[2], r[1] = split_vertical(rest, frac(w[2], w[1] + w[2]))
+        r[0], r[1], r[2] = rotate(r[0], CW), rotate(r[1], CCW), rotate(r[2], CCW)
+    elif pattern == "middle3":
+        rest, r[1] = split_vertical(rect, frac(w[0] + w[2], w[0] + w[1] + w[2]))
+        r[0], r[2] = split_horizontal(rest, frac(w[0], w[0] + w[2]))
+        r[0] = reverse(rotate(r[0], CCW))
+        r[2] = reverse(rotate(r[2], CW))
+    elif pattern == "last3":
+        rest, r[2] = split_horizontal(rect, frac(w[0] + w[1], w[0] + w[1] + w[2]))
+        r[0], r[1] = split_vertical(rest, frac(w[0], w[0] + w[1]))
+        r[0], r[1], r[2] = rotate(r[0], CW), rotate(r[1], CW), rotate(r[2], CCW)
+    elif pattern == "snake4":
+        a, b = split_horizontal(rect, frac(w[0] + w[1], w[0] + w[1] + w[2] + w[3]))
+        r[0], r[1] = split_horizontal(a, frac(w[0], w[0] + w[1]))
+        r[2], r[3] = split_horizontal(b, frac(w[2], w[2] + w[3]))
+    elif pattern == "first4":
+        r[0], rest = split_horizontal(rect, frac(w[0], total))
+        opposite, r[1] = split_vertical(rest, frac(w[2] + w[3], w[1] + w[2] + w[3]))
+        r[3], r[2] = split_vertical(opposite, frac(w[3], w[2] + w[3]))
+        r = [rotate(r[0], CW), rotate(r[1], CCW), rotate(r[2], CCW), rotate(r[3], CCW)]
+    elif pattern == "middleleft4":
+        rest, r[1] = split_vertical(rect, frac(w[0] + w[2] + w[3], total))
+        r[0], opposite = split_horizontal(rest, frac(w[0], w[0] + w[2] + w[3]))
+        r[3], r[2] = split_vertical(opposite, frac(w[3], w[2] + w[3]))
+        r[0] = reverse(rotate(r[0], CCW))
+        r[2] = reverse(rotate(r[2], CW))
+        r[3] = reverse(rotate(r[3], CW))
+    elif pattern == "middleright4":
+        rest, r[2] = split_vertical(rect, frac(w[0] + w[1] + w[3], total))
+        opposite, r[3] = split_horizontal(rest, frac(w[0] + w[1], w[0] + w[1] + w[3]))
+        r[0], r[1] = split_vertical(opposite, frac(w[0], w[0] + w[1]))
+        r[0] = reverse(rotate(r[0], CCW))
+        r[1] = reverse(rotate(r[1], CCW))
+        r[3] = reverse(rotate(r[3], CW))
+    elif pattern == "last4":
+        rest, r[3] = split_horizontal(rect, frac(w[0] + w[1] + w[2], total))
+        opposite, r[2] = split_vertical(rest, frac(w[0] + w[1], w[0] + w[1] + w[2]))
+        r[0], r[1] = split_vertical(opposite, frac(w[0], w[0] + w[1]))
+        r = [rotate(r[0], CW), rotate(r[1], CW), rotate(r[2], CW), rotate(r[3], CCW)]
+    elif pattern == "horizontal4":
+        a, b = split_vertical(rect, frac(w[0] + w[3], w[0] + w[3] + w[1] + w[2]))
+        r[0], r[3] = split_horizontal(a, frac(w[0], w[0] + w[3]))
+        r[1], r[2] = split_horizontal(b, frac(w[1], w[1] + w[2]))
+        r[0] = reverse(rotate(r[0], CCW))
+        r[3] = reverse(rotate(r[3], CW))
+    elif pattern == "vertical4":
+        a, b = split_horizontal(rect, frac(w[0] + w[1], w[0] + w[1] + w[2] + w[3]))
+        r[0], r[1] = split_vertical(a, frac(w[0], w[0] + w[1]))
+        r[3], r[2] = split_vertical(b, frac(w[3], w[2] + w[3]))
+        r = [rotate(r[0], CW), rotate(r[1], CW), rotate(r[2], CCW), rotate(r[3], CCW)]
+    return r
+
+
+def aspect(region):
+    shorter = min(region[2], region[3])
+    return max(region[2], region[3]) / shorter if shorter > 0.0 else float("inf")
+
+
+PATTERNS = {
+    (1, False): ["identity"], (1, True): ["identity"],
+    (2, False): ["hilbert2"], (2, True): ["moore2"],
+    (3, False): ["snake3", "middle3"], (3, True): ["first3", "last3"],
+    (4, False): ["snake4", "middleleft4", "middleright4", "horizontal4"],
+    (4, True): ["first4", "last4", "vertical4"],
+}
+
+
+def select_layout(weights, rect, moore):
+    best = None
+    best_difference = None
+    for pattern in PATTERNS[(len(weights), moore)]:
+        candidate = dissect(pattern, weights, rect)
+        difference = abs(sum(aspect(r) for r in candidate) / len(candidate) - 1.0)
+        if best is None or difference < best_difference:
+            best, best_difference = candidate, difference
+    return best
+
+
+def partition_by_variance(begin, end, prefix):
+    mean = (prefix[end] - prefix[begin]) / 4.0
+
+    def imbalance(b, m, e):
+        return abs(prefix[m] - (prefix[e] + prefix[b]) / 2.0)
+
+    left, right = begin + 1, begin + 3
+    best_variance = float("inf")
+    best = None
+    for middle in range(begin + 2, end - 1):
+        left = min(left, middle - 1)
+        right = max(right, middle + 1)
+        while left + 1 < middle and imbalance(begin, left + 1, middle) < imbalance(begin, left, middle):
+            left += 1
+        while right + 1 < end and imbalance(middle, right + 1, end) < imbalance(middle, right, end):
+            right += 1
+        candidate = [begin, left, middle, right, end]
+        variance = sum((prefix[candidate[k + 1]] - prefix[candidate[k]] - mean) ** 2 for k in range(4))
+        if variance < best_variance:
+            best, best_variance = candidate, variance
+    return best
+
+
+def curve_layout_range(rect, prefix, begin, end, moore, out):
+    count = end - begin
+    if count == 1:
+        out[begin] = rect
+        return
+    if count <= 4:
+        bounds = list(range(begin, end + 1))
+    else:
+        bounds = partition_by_variance(begin, end, prefix)
+    parts = len(bounds) - 1
+    weights = [prefix[bounds[i + 1]] - prefix[bounds[i]] for i in range(parts)]
+    if rect[5]:
+        weights.reverse()
+    layout = select_layout(weights, rect, moore)
+    if rect[5]:
+        layout.reverse()
+    for i in range(parts):
+        if count <= 4:
+            out[bounds[i]] = layout[i]
+        else:
+            curve_layout_range(layout[i], prefix, bounds[i], bounds[i + 1], False, out)
+
+
+def c_round(value):
+    """std::lround: halves away from zero."""
+    return int(math.floor(value + 0.5)) if value >= 0 else -int(math.floor(-value + 0.5))
+
+
+def arrange_curve(bounds, weights, state, moore):
+    """HilbertMooreTreeMap::ArrangeChildren for positive weights."""
+    left, top, right, bottom = bounds
+    prefix = [0.0]
+    for weight in weights:
+        prefix.append(prefix[-1] + float(weight))
+    out = [None] * len(weights)
+    root = (0.0, 0.0, float(right - left), float(bottom - top), state[0], state[1])
+    curve_layout_range(root, prefix, 0, len(weights), moore, out)
+    regions = []
+    for region in out:
+        rl, rb, rw, rh, rot, ccw = region
+        rect = [left + c_round(rl), bottom - c_round(rb + rh), left + c_round(rl + rw), bottom - c_round(rb)]
+        rect[0] = min(max(rect[0], left), right)
+        rect[1] = min(max(rect[1], top), bottom)
+        rect[2] = min(max(rect[2], left), right)
+        rect[3] = min(max(rect[3], top), bottom)
+        regions.append((tuple(rect), (rot, ccw)))
+    return regions
+
+
+def arrange_children(node, rect, style, state=(0, False)):
+    """TreeMapLayout::ArrangeChildren: children sorted by weight, empty regions
+    skipped; each with the curve state its children start from."""
     children = node["children"]
     weights = [c["size"] for c in children]
     if not weights or rect[2] <= rect[0] or rect[3] <= rect[1]:
         return []
+    if style in ("hilbert", "moore"):
+        positive = [(c, w) for c, w in zip(children, weights) if w > 0]
+        placed = arrange_curve(rect, [w for _, w in positive], state, style == "moore")
+        return [(child, region, child_state) for (child, _), (region, child_state) in zip(positive, placed)
+                if region[2] > region[0] and region[3] > region[1]]
     arrange = arrange_squarified if style == "sequoia" else arrange_rows
     regions = arrange(rect, node["size"], weights)
-    return [(child, region) for child, region in zip(children, regions)
+    return [(child, region, state) for child, region in zip(children, regions)
             if region is not None and region[2] > region[0] and region[3] > region[1]]
 
 
@@ -415,9 +653,9 @@ def oracle_render(root, width, height, options=OPTIONS, style="kdirstat"):
         return pixels, leaves
 
     grid_width = 1 if options["grid"] else 0
-    stack = [(root, (0, 0, width, height), [0.0, 0.0, 0.0, 0.0], options["height"], True, 0)]
+    stack = [(root, (0, 0, width, height), [0.0, 0.0, 0.0, 0.0], options["height"], True, 0, (0, False))]
     while stack:
-        node, rect, surface, h, is_root, depth = stack.pop()
+        node, rect, surface, h, is_root, depth, state = stack.pop()
         left, top, right, bottom = rect
         if right - left <= grid_width or bottom - top <= grid_width:
             continue
@@ -439,8 +677,8 @@ def oracle_render(root, width, height, options=OPTIONS, style="kdirstat"):
                 "rect": [left, top, right - left, bottom - top],
             })
             continue
-        for child, child_rect in arrange_children(node, rect, style):
-            stack.append((child, child_rect, surface, h * options["scale_factor"], False, depth + 1))
+        for child, child_rect, child_state in arrange_children(node, rect, style, state):
+            stack.append((child, child_rect, surface, h * options["scale_factor"], False, depth + 1, child_state))
     return pixels, leaves
 
 
