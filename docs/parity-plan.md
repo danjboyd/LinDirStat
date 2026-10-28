@@ -55,6 +55,54 @@ checks every PR on its own platform before it is merged.
 | L13 | Performance: profile and fix stop/finalize time on million-file scans and duplicate detection memory | Linux | done (#15) |
 | M13 | macOS validation matrix (macOS 13–26, Intel and Apple Silicon where available) | macOS | deferred: needs Dan's Intel Mac (older macOS) |
 
+## 0.1.5: WinDirStat 2.6–2.9 catch-up (milestone 0.1.5)
+
+Items 0–7 (#58–#65) are done. The rest is split by who owns the code:
+`AppController*.m` work goes to **Linux**, shared model and treemap
+drawing to **macOS**. A Mac-affecting PR is checked on macOS before merge,
+and a treemap PR on Adwaita.
+
+| Issue | Gap | Owner | Reviewer | Status |
+|---|---|---|---|---|
+| #71 | CSV fixtures from WinDirStat 2.9.3 and newer (ScanOutcome/ScanError); duplicates' Sampled hash; sizes stay at 1 decimal | Linux | — | done (#86) |
+| #85 | A loaded Windows CSV joins paths with "/", so saving and loading it again fails | Linux | — | done (#88) |
+| #66 | Extension list: double-click searches; group unregistered extensions (UTType backend on macOS) | Linux | macOS | done (#90) |
+| #69 | File Watcher: regex quick filter, toolbar controls, autoscroll | Linux | macOS | done (#92) |
+| #67 | Seconds in timestamps; several folders in Select Target; any number of custom cleanups | Linux | macOS (part b) | |
+| #83 | Header sorted by clicking keeps room for its sort arrow on macOS | Linux | macOS | |
+| #57 | Treemap is solid black on an unreadable 0 B root | macOS | Linux (Adwaita) | done (#87) |
+| #68 | JSON save and load in upstream's format | macOS | Linux | done (#91) |
+| #70 | Treemap folder frames, headers, style presets (Hilbert/Moore stretch, may move to 0.1.6) | macOS | Linux (Adwaita) | frames done (#93); presets in progress |
+
+The release itself (tag, AppImage, DMG) waits for Dan's approval.
+
+### Release checklist
+
+The steps follow 0.1.4's (#51–#55, `docs/packaging.md`, `docs/updates.md` "Releasing").
+
+1. Every issue above is closed. `./scripts/run-tests.sh`, the WinDirStat and
+   GUI parity gates, and `make -C macos test` are green on `main`.
+2. Release notes PR: finish `packaging/linux/release-notes/0.1.5.md`, which
+   so far covers only the GPL-3.0 licence change, with the user-visible 0.1.5
+   changes. Mac notes go in the same PR.
+3. Pins PR: re-check `packaging/release-inputs.json`. If the release needs a
+   newer Adwaita tag, Dan approves it first. When the gnustep-packager pin
+   moves, re-sync `vendor/gnustep-packager-updater` to that tag's
+   `updater/objc` in the same PR, as #55 did.
+4. Version PR: set `package.version` and the runtime notices to 0.1.5.
+5. Release candidate: `gh workflow run release.yml --ref main -f
+   version=0.1.5-rc1`. Linux runs `scripts/release-linux.sh --from-ci <run>`,
+   a dry run that verifies the artifact and signs the feed locally. macOS
+   checks the DMG from the run's `release` artifact. Each posts its results
+   on the release PR. Publishing an rc (`--publish`) makes only a
+   pre-release, never the feed.
+6. Final candidate: a manual Release run on `main` without a version (it
+   builds `package.version`), then the same `--from-ci` dry run and DMG check.
+7. **With Dan's go:** `scripts/release-linux.sh --from-ci <run> --publish` on
+   the Linux machine that holds the update key. It creates the release with
+   every asset and `SHA256SUMS`, publishes the signed feed, and pushes tag
+   `v0.1.5` last. Then check the live feed (`docs/updates.md`).
+
 ## Intentional differences (not gaps)
 
 Properties panel, POSIX regular expressions in Search, Logical Size off by
