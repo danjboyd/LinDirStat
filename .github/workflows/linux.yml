@@ -34,3 +34,7 @@ jobs:
 
       - name: Build and test
         run: scripts/ci-linux.sh
+
+      - name: Debug plain launch (temporary)
+        if: always()
+        run: scripts/debug-plain-launch.sh
