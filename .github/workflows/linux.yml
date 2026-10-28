@@ -30,7 +30,8 @@ jobs:
             ca-certificates curl git make pkg-config python3 sudo \
             nettle-dev \
             xvfb xauth x11-utils \
-            xdotool imagemagick fonts-cantarell fonts-dejavu-core
+            xdotool imagemagick fonts-cantarell fonts-dejavu-core \
+            shared-mime-info
 
       - uses: actions/checkout@v4
 
