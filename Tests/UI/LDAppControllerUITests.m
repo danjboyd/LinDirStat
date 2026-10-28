@@ -1666,4 +1666,23 @@
   XCTAssertEqualObjects([self key:@"x.txt"], [[_controller treemap] highlightedExtensionKey]);
 }
 
+
+// #57: a 0 B (or unreadable) scan root leaves the treemap the window colour
+// instead of a solid black block.
+- (void)testEmptyRootTreemapShowsTheBackground
+{
+  LDTreemapView *view = [[LDTreemapView alloc] initWithFrame:NSMakeRect(0, 0, 60, 40)];
+  LDFileNode *root = [LDFileNode nodeWithPath:@"/unreadable" kind:LDFileNodeKindDirectory size:0];
+  [view setRootNode:root metric:LDSizeMetricPhysical colorIndexes:nil];
+  NSBitmapImageRep *rep = [view bitmapImageRepForCachingDisplayInRect:[view bounds]];
+  [view cacheDisplayInRect:[view bounds] toBitmapImageRep:rep];
+  NSColor *pixel = [[rep colorAtX:30 y:20] colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+  NSColor *background = [[NSColor controlBackgroundColor] colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+  XCTAssertNotNil(pixel);
+  XCTAssertNotNil(background);
+  XCTAssertEqualWithAccuracy([background redComponent], [pixel redComponent], 0.05);
+  XCTAssertEqualWithAccuracy([background greenComponent], [pixel greenComponent], 0.05);
+  XCTAssertEqualWithAccuracy([background blueComponent], [pixel blueComponent], 0.05);
+}
+
 @end

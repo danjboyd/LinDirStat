@@ -163,16 +163,28 @@
   XCTAssertEqual(root, [treemap nodeOfCell:(NSUInteger)index]);
 }
 
-- (void)testZeroSizeRootRendersBlack
+// #57: a 0 B (or unreadable) root is empty and renders transparent, not
+// black; the view shows the window colour, as CTreeMap::DrawTreemap does.
+- (void)testZeroSizeRootRendersTransparent
 {
   LDFileNode *root = [LDFileNode nodeWithPath:@"/empty" kind:LDFileNodeKindDirectory size:0];
   LDTreemap *treemap = [self treemapForRoot:root width:4 height:4];
+  XCTAssertTrue([treemap isEmpty]);
   NSData *rendered = [treemap renderRGBAWithColorIndexes:nil];
+  XCTAssertEqual((NSUInteger)(4 * 4 * 4), [rendered length]);
   const uint8_t *pixels = [rendered bytes];
-  XCTAssertEqual(0, pixels[0]);
-  XCTAssertEqual(0, pixels[1]);
-  XCTAssertEqual(0, pixels[2]);
-  XCTAssertEqual(255, pixels[3]);
+  for (NSUInteger i = 0; i < [rendered length]; i++) {
+    XCTAssertEqual(0, pixels[i]);
+  }
+  // The root is still a cell, so it can be hit and selected.
+  XCTAssertEqual((NSUInteger)1, [treemap cellCount]);
+  XCTAssertEqual(root, [treemap nodeOfCell:(NSUInteger)[treemap cellIndexAtX:2 y:2]]);
+}
+
+- (void)testSizedRootIsNotEmpty
+{
+  LDFileNode *root = [self treeWithSizes:[NSArray arrayWithObject:[NSNumber numberWithInt:10]]];
+  XCTAssertFalse([[self treemapForRoot:root width:4 height:4] isEmpty]);
 }
 
 - (void)testFlatShadingUsesPaletteTimesBrightness

@@ -579,6 +579,7 @@ Keep the "add as a leaf, don't descend" behaviour for unfollowed links and mount
   | Scale Factor | 91 |
 
 - Style: KDirStat (default) or SequoiaView. · Show Grid (off), Grid Color (black), Highlighting Border Color (white). · Light Incidence XY pad, default (−1, −1). · A Reset button.
+- An empty treemap (a root of 0 B, such as an unreadable folder) is filled with the window colour, not drawn black (`v2.9.3:Controls/TreeMap.cpp:667-670`, `COLOR_WINDOW`). The root is still the one hit-test item. LinDirStat renders it transparent and the view shows `controlBackgroundColor`, so the theme decides the colour (#57).
 
 ### Cleanups (§1.6)
 
