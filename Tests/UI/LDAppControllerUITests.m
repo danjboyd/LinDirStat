@@ -8,6 +8,7 @@
 #import "AppController.h"
 #import "AppController+Private.h"
 #import "LDColumnChooser.h"
+#import "LDCommandLine.h"
 #import "LDCommandRules.h"
 #import "LDExtensionStats.h"
 #import "LDFileOperations.h"
@@ -50,6 +51,7 @@
 - (void)toggleLogicalSize:(id)sender;
 - (void)toggleAbsolutePercentages:(id)sender;
 - (void)toggleGroupUnregisteredTypes:(id)sender;
+- (NSArray *)initialScanPaths:(LDCommandLine *)commandLine;
 - (NSMenu *)customCleanupMenu;
 - (void)addWatcherEvents:(NSArray *)events;
 - (void)startWatching:(id)sender;
@@ -77,6 +79,7 @@
 {
   NSUInteger _scansFinished;
   NSUInteger _idleBeforeAdoption;
+  NSUInteger _selectTargetRequests;
 }
 @end
 
@@ -94,6 +97,9 @@
 
 - (NSUInteger)scansFinished { return _scansFinished; }
 - (NSUInteger)idleBeforeAdoption { return _idleBeforeAdoption; }
+// Select Target is a modal panel: counted instead of shown.
+- (void)openPath:(id)sender { (void)sender; _selectTargetRequests++; }
+- (NSUInteger)selectTargetRequests { return _selectTargetRequests; }
 - (NSWindow *)window { return _window; }
 - (LDOutlineView *)tree { return _directoryTable; }
 - (NSTableView *)extensionTable { return _extensionTable; }
@@ -823,6 +829,49 @@
 
   [_controller toggleFileWatcher:nil];
   XCTAssertFalse([_controller isWatching]);
+}
+
+// #104: a launch with no folder asks with Select Target (WinDirStat.cpp
+// 487-490) instead of scanning the home folder; folders from the command
+// line (Open With LinDirStat too) still scan, and a checkout's fixture only
+// from the checkout.
+- (void)testLaunchWithoutAFolderAsksInsteadOfScanningHome
+{
+  if (!_controller) {
+    return;
+  }
+  // NSProcessInfo reads the environment once, so LINDIRSTAT_SCAN_PATH can
+  // only be checked when the runner leaves it unset.
+  if ([[[NSProcessInfo processInfo] environment] objectForKey:@"LINDIRSTAT_SCAN_PATH"]) {
+    return;
+  }
+  NSFileManager *files = [NSFileManager defaultManager];
+  NSString *previousDirectory = [files currentDirectoryPath];
+  XCTAssertTrue([files changeCurrentDirectoryPath:_workRoot]);
+
+  LDCommandLine *plain = [LDCommandLine commandLineWithArguments:@[@"LinDirStat"] currentDirectory:_workRoot];
+  XCTAssertEqualObjects(@[], [_controller initialScanPaths:plain]);
+  LDCommandLine *folder = [LDCommandLine commandLineWithArguments:@[@"LinDirStat", _tree] currentDirectory:_workRoot];
+  XCTAssertEqualObjects(@[[_tree stringByStandardizingPath]], [_controller initialScanPaths:folder]);
+  // Started from a checkout, the fixture.
+  NSString *fixture = [_workRoot stringByAppendingPathComponent:@"Tests/Fixtures/basic-tree"];
+  XCTAssertTrue([files createDirectoryAtPath:fixture withIntermediateDirectories:YES attributes:nil error:NULL]);
+  XCTAssertEqualObjects(@[fixture], [_controller initialScanPaths:plain]);
+  [files removeItemAtPath:[_workRoot stringByAppendingPathComponent:@"Tests"] error:NULL];
+
+  // macOS opens a launch-time folder (a cold Open With, a Dock drop) before
+  // the window is up; it's kept for applicationDidFinishLaunching:.
+  AppController *launching = [[AppController alloc] init];
+  [launching application:NSApp openFiles:@[_tree]];
+  XCTAssertEqualObjects(@[[_tree stringByStandardizingPath]], [launching valueForKey:@"launchFolders"]);
+
+  // Refresh with nothing scanned asks too.
+  NSUInteger asked = [_controller selectTargetRequests];
+  [_controller rescan:nil];
+  XCTAssertEqual(asked + 1, [_controller selectTargetRequests]);
+  XCTAssertNil([_controller root]);
+
+  [files changeCurrentDirectoryPath:previousDirectory];
 }
 
 #pragma mark - Refresh engine

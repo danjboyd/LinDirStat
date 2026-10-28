@@ -202,6 +202,13 @@
         "stageRelativePath": "metadata/licenses/Adwaita-theme.txt"
       },
       {
+        "name": "Adwaita icon theme (icons and cursors in the Adwaita GNUstep theme)",
+        "license": "LGPL-3.0-or-later OR CC-BY-SA-3.0",
+        "source": "runtime/System/Library/Themes/Adwaita.theme/Resources (its THIRD-PARTY-NOTICES)",
+        "homepage": "https://gitlab.gnome.org/GNOME/adwaita-icon-theme",
+        "stageRelativePath": "metadata/licenses/Adwaita-theme-icons.txt"
+      },
+      {
         "name": "gnustep-packager updater",
         "license": "MIT",
         "source": "Linked into the app (GPUpdaterCore, GPUpdaterUI) and app/LinDirStat.app/gp-update-helper",

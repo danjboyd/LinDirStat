@@ -77,6 +77,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   NSTimeInterval _trashMeasuredAt;
   BOOL _measuringTrash;
   NSTimeInterval _profileStopPressedAt;
+  // Folders AppKit opened before the window was up (a cold Open With or a
+  // Dock drop on macOS); applicationDidFinishLaunching: scans them.
+  NSArray *_launchFolders;
 }
 - (LDScanResultsRequest *)scanResultsRequest;
 - (void)releaseInBackground:(NSArray *)objects;
@@ -102,8 +105,16 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   LDCommandLine *commandLine = [LDCommandLine processCommandLine];
   if ([commandLine loadFromCSVPath]) {
     [self loadResultsFromCSVFile:[commandLine loadFromCSVPath]];
+    return;
+  }
+  NSArray *paths = [_launchFolders count] > 0 ? _launchFolders : [self initialScanPaths:commandLine];
+  _launchFolders = nil;
+  if ([paths count] > 0) {
+    [self beginScanPaths:paths];
   } else {
-    [self beginScanPaths:[self initialScanPaths:commandLine]];
+    // WinDirStat.cpp:487-490: with nothing to scan, Select Drives opens
+    // (#104), once the window is up.
+    [self performSelector:@selector(openPath:) withObject:nil afterDelay:0];
   }
 }
 
@@ -167,10 +178,15 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 // later (from the desktop) are scanned.
 - (void)application:(NSApplication *)application openFiles:(NSArray *)files
 {
-  if (_window && ![self isBusy]) {
-    NSArray *arguments = [@[@"LinDirStat"] arrayByAddingObjectsFromArray:files];
-    NSString *currentDirectory = [[NSFileManager defaultManager] currentDirectoryPath];
-    NSArray *folders = [[LDCommandLine commandLineWithArguments:arguments currentDirectory:currentDirectory] scanPaths];
+  NSArray *arguments = [@[@"LinDirStat"] arrayByAddingObjectsFromArray:files];
+  NSString *currentDirectory = [[NSFileManager defaultManager] currentDirectoryPath];
+  NSArray *folders = [[LDCommandLine commandLineWithArguments:arguments currentDirectory:currentDirectory] scanPaths];
+  if (!_window) {
+    // macOS sends a launch-time folder here between WillFinish and
+    // DidFinish, before setUpMainWindow; GNUstep passes it on the command
+    // line instead.
+    _launchFolders = folders;
+  } else if (![self isBusy]) {
     [self beginScanPaths:folders];
   }
   [application replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
@@ -1480,16 +1496,18 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 #pragma mark - Scanning
 
-- (NSString *)defaultFixturePath
+// For development only: started from a checkout, the test fixture. Never
+// the home folder, which a plain launch used to walk (#104).
+- (NSString *)developmentFixturePath
 {
   NSString *cwd = [[NSFileManager defaultManager] currentDirectoryPath];
   NSString *fixture = [cwd stringByAppendingPathComponent:@"Tests/Fixtures/basic-tree"];
-  if ([[NSFileManager defaultManager] fileExistsAtPath:fixture]) {
-    return fixture;
-  }
-  return NSHomeDirectory();
+  return [[NSFileManager defaultManager] fileExistsAtPath:fixture] ? fixture : nil;
 }
 
+// The folders a launch scans: the command line's (Open With LinDirStat
+// passes the folder there too), LINDIRSTAT_SCAN_PATH, or a checkout's
+// fixture. Empty when there is none: Select Target asks.
 - (NSArray *)initialScanPaths:(LDCommandLine *)commandLine
 {
   if ([[commandLine scanPaths] count] > 0) {
@@ -1499,7 +1517,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   if ([environmentPath length] > 0) {
     return @[environmentPath];
   }
-  return @[[self defaultFixturePath]];
+  NSString *fixture = [self developmentFixturePath];
+  return fixture ? @[fixture] : @[];
 }
 
 - (NSString *)displayPath:(NSString *)path
@@ -2132,7 +2151,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   if ([_currentScanPaths count] > 0) {
     [self beginScanPaths:_currentScanPaths];
   } else {
-    [self beginScanPath:[self defaultFixturePath]];
+    // Nothing scanned yet: ask, as at launch.
+    [self openPath:nil];
   }
 }
 
