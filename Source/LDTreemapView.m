@@ -38,6 +38,7 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 - (LDFileNode *)zoomNode { return _zoomNode ? _zoomNode : _rootNode; }
 - (LDFileNode *)selectedNode { return _selectedNode; }
 - (NSString *)highlightedExtensionKey { return _highlightedExtensionKey; }
+- (NSSet *)highlightedExtensionKeys { return _highlightedExtensionKeys; }
 - (LDTreemapOptions)options { return _options; }
 - (BOOL)isDimmed { return _dimmed; }
 - (BOOL)isZoomed { return _zoomNode != nil && _zoomNode != _rootNode; }
@@ -137,8 +138,18 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
 
 - (void)setHighlightedExtensionKey:(NSString *)extensionKey
 {
-  if (_highlightedExtensionKey != extensionKey && ![_highlightedExtensionKey isEqualToString:extensionKey]) {
+  if (_highlightedExtensionKeys || (_highlightedExtensionKey != extensionKey && ![_highlightedExtensionKey isEqualToString:extensionKey])) {
     _highlightedExtensionKey = [extensionKey copy];
+    _highlightedExtensionKeys = nil;
+    [self setNeedsDisplay:YES];
+  }
+}
+
+- (void)setHighlightedExtensionKeys:(NSSet *)extensionKeys
+{
+  if (_highlightedExtensionKey || (_highlightedExtensionKeys != extensionKeys && ![_highlightedExtensionKeys isEqualToSet:extensionKeys])) {
+    _highlightedExtensionKeys = [extensionKeys copy];
+    _highlightedExtensionKey = nil;
     [self setNeedsDisplay:YES];
   }
 }
@@ -298,7 +309,7 @@ NSRect LDWholePixelRectInside(NSRect rect)
   NSRectFill(NSMakeRect(area.origin.x, NSMaxY(area), area.size.width + 1.0, 1.0));
 
   if (!_renderTimer && _treemap) {
-    if (_highlightedExtensionKey) {
+    if (_highlightedExtensionKey || _highlightedExtensionKeys) {
       [self drawExtensionHighlights];
     } else if (_selectedNode) {
       [self drawSelection];
@@ -374,7 +385,8 @@ NSRect LDWholePixelRectInside(NSRect rect)
     if (kind != LDFileNodeKindFile && kind != LDFileNodeKindSymlink) {
       continue;
     }
-    if ([[node extensionKey] isEqualToString:_highlightedExtensionKey]) {
+    NSString *key = [node extensionKey];
+    if (_highlightedExtensionKeys ? [_highlightedExtensionKeys containsObject:key] : [key isEqualToString:_highlightedExtensionKey]) {
       [self drawHighlightRect:[self viewRectForCellRect:[_treemap rectOfCell:i]]];
     }
   }

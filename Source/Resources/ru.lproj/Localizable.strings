@@ -59,6 +59,8 @@
 "Full row selection" = "Выделять всю строку";
 "General" = "Общие";
 "Grid color" = "Цвет решетки";
+"Group Unregistered Types" = "Группировать незарегистрированные типы";
+"Grouped Extensions" = "Сгруппированные расширения";
 "Height" = "Высота";
 "Help" = "Помощь";
 "Highlight color" = "Цвет рамки выделения";

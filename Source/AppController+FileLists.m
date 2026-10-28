@@ -4,6 +4,7 @@
 #import "LDCSV.h"
 #import "LDDialogs.h"
 #import "LDDuplicateFinder.h"
+#import "LDExtensionStats.h"
 #import "LDFileWatcher.h"
 #import "LDHasher.h"
 #import "LDLargestFiles.h"
@@ -394,6 +395,37 @@ static NSString *const LDTabWatcher = @"watcher";
   LDSearchOptions *options = [LDSearchPanel runSearchPanel];
   if (options) {
     [self showSearchResultsForOptions:options];
+  }
+}
+
+// The selected extension list row's extension; nil for none or the grouped
+// row, which has no single extension.
+- (NSString *)selectedExtensionKey
+{
+  NSInteger row = [_extensionTable selectedRow];
+  if (row < 0 || row >= (NSInteger)[_extensionRows count]) {
+    return nil;
+  }
+  LDExtensionStats *stats = [_extensionRows objectAtIndex:(NSUInteger)row];
+  return [stats isGroup] ? nil : [stats extensionKey];
+}
+
+// WinDirStat's "Extension - Search" (9ed686b1): the files with the selected
+// extension, in Search Results.
+- (void)searchExtension:(id)sender
+{
+  (void)sender;
+  NSString *key = [self selectedExtensionKey];
+  if (key) {
+    [self showSearchResultsForOptions:[LDSearchOptions optionsForExtensionKey:key]];
+  }
+}
+
+// A double-click on a row (not the header) searches (0cdff4c3).
+- (void)extensionListDoubleClicked:(id)sender
+{
+  if ([_extensionTable clickedRow] >= 0 && [self validateAction:@selector(searchExtension:)]) {
+    [self searchExtension:sender];
   }
 }
 

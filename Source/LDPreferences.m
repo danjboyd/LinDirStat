@@ -241,6 +241,7 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"UserDefinedCleanups": @[],
     @"ConfigPage": @0,
     @"ShowFileTypes": @YES,
+    @"GroupUnregisteredTypes": @NO,
     @"ShowTreemap": @YES,
     @"ShowToolBar": @YES,
     @"ShowStatusBar": @YES,
@@ -689,6 +690,8 @@ static NSString *LDPromptKey(LDPrompt prompt)
 
 - (BOOL)showFileTypes { return [self boolForKey:@"ShowFileTypes"]; }
 - (void)setShowFileTypes:(BOOL)flag { [self setBool:flag forKey:@"ShowFileTypes"]; }
+- (BOOL)groupUnregisteredTypes { return [self boolForKey:@"GroupUnregisteredTypes"]; }
+- (void)setGroupUnregisteredTypes:(BOOL)flag { [self setBool:flag forKey:@"GroupUnregisteredTypes"]; }
 - (BOOL)showTreemap { return [self boolForKey:@"ShowTreemap"]; }
 - (void)setShowTreemap:(BOOL)flag { [self setBool:flag forKey:@"ShowTreemap"]; }
 - (BOOL)showToolBar { return [self boolForKey:@"ShowToolBar"]; }

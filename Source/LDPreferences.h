@@ -296,6 +296,11 @@ typedef enum {
 // Options menu: the extension list and the treemap panes.
 - (BOOL)showFileTypes;
 - (void)setShowFileTypes:(BOOL)flag;
+// WinDirStat 2.8's GroupUnregisteredTypes (default off): the extension list
+// shows the extensions without a registered type as one "…" row, and the
+// treemap colours them alike.
+- (BOOL)groupUnregisteredTypes;
+- (void)setGroupUnregisteredTypes:(BOOL)flag;
 - (BOOL)showTreemap;
 - (void)setShowTreemap:(BOOL)flag;
 // Options menu: toolbar, status bar and large toolbar icons.

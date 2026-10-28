@@ -27,6 +27,11 @@ typedef enum {
 }
 
 + (LDSearchOptions *)optionsWithTerm:(NSString *)term;
+// WinDirStat's "Extension - Search" (ExtensionListControl.cpp
+// OnSearchExtension): the files, not folders, whose extension key
+// (+[LDExtensionStats extensionKeyForFilename:]) is extensionKey, "<none>"
+// included, as a case-insensitive regular expression.
++ (LDSearchOptions *)optionsForExtensionKey:(NSString *)extensionKey;
 - (NSString *)term;
 - (void)setTerm:(NSString *)term;
 // The term is a POSIX extended regular expression (regcomp REG_EXTENDED),

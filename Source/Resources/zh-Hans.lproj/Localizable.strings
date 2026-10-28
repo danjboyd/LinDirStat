@@ -60,6 +60,8 @@
 "Full row selection" = "整行选中模式";
 "General" = "常规";
 "Grid color" = "网格颜色";
+"Group Unregistered Types" = "将未注册类型分组";
+"Grouped Extensions" = "已分组的扩展名";
 "Height" = "高度";
 "Help" = "帮助";
 "Highlight color" = "高亮边框颜色";

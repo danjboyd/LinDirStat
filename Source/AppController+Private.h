@@ -35,6 +35,8 @@
                        right:(BOOL)rightAligned
                      toTable:(NSTableView *)table;
 - (void)setSortPrototypeForColumn:(NSTableColumn *)column ascending:(BOOL)ascending;
+- (NSString *)selectedExtensionKey;
+- (BOOL)validateAction:(SEL)action;
 - (LDColumnChooser *)addColumnChooserForTable:(NSTableView *)table
                                          list:(NSString *)list
                                      required:(NSArray *)required

@@ -2,6 +2,7 @@
 #import <XCTest/XCTest.h>
 #import "LDFileNode.h"
 #import "LDSearch.h"
+#import "LDExtensionStats.h"
 
 @interface LDSearchTests : XCTestCase
 {
@@ -300,6 +301,34 @@
   LDSearchResult *result = [LDSearch searchNode:computer options:[LDSearchOptions optionsWithTerm:@"data"] maxResults:0];
   XCTAssertEqual((NSUInteger)1, [[result nodes] count]);
   XCTAssertEqualObjects(@"data-notes.txt", [[[result nodes] firstObject] displayName]);
+}
+
+// "Extension - Search" finds exactly the files the extension list counts
+// under that extension, by the same rules.
+- (void)testExtensionSearchMatchesTheExtensionList
+{
+  LDFileNode *root = [LDFileNode nodeWithPath:@"/ext" kind:LDFileNodeKindDirectory size:0];
+  NSArray *names = @[@"a.txt", @"B.TXT", @".txt", @"txt", @"notes.", @"README", @".profile",
+                     @"x.c++", @"archive.tar.gz", @"a.txt.bak", @"atxt"];
+  for (NSString *name in names) {
+    [self addFile:name size:1 to:root];
+  }
+  LDFileNode *folder = [LDFileNode nodeWithName:@"folder.txt" kind:LDFileNodeKindDirectory size:0 allocatedSize:0];
+  [root addChild:folder];
+  for (NSString *key in @[@"txt", @"<none>", @"c++", @"gz", @"bak"]) {
+    NSMutableSet *expected = [NSMutableSet set];
+    for (NSString *name in names) {
+      if ([[LDExtensionStats extensionKeyForFilename:name] isEqualToString:key]) {
+        [expected addObject:name];
+      }
+    }
+    LDSearchResult *result = [LDSearch searchNode:root options:[LDSearchOptions optionsForExtensionKey:key] maxResults:0];
+    NSMutableSet *found = [NSMutableSet set];
+    for (LDFileNode *node in [result nodes]) {
+      [found addObject:[node displayName]];
+    }
+    XCTAssertEqualObjects(expected, found, @"%@", key);
+  }
 }
 
 @end

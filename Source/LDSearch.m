@@ -134,6 +134,34 @@ static BOOL LDIsValidUTF8(const unsigned char *bytes)
   return options;
 }
 
++ (LDSearchOptions *)optionsForExtensionKey:(NSString *)extensionKey
+{
+  NSString *term;
+  if ([extensionKey isEqualToString:@"<none>"]) {
+    // No dot after the first character, or a dot at the end (".profile",
+    // "README", "notes.").
+    term = @"^(\\.?[^.]*|.*\\.)$";
+  } else {
+    NSMutableString *escaped = [NSMutableString string];
+    NSCharacterSet *special = [NSCharacterSet characterSetWithCharactersInString:@"\\.[]{}()*+?^$|"];
+    for (NSUInteger i = 0; i < [extensionKey length]; i++) {
+      unichar c = [extensionKey characterAtIndex:i];
+      if ([special characterIsMember:c]) {
+        [escaped appendString:@"\\"];
+      }
+      [escaped appendFormat:@"%C", c];
+    }
+    // A character before the dot: ".txt" alone is a hidden file.
+    term = [NSString stringWithFormat:@".\\.%@$", escaped];
+  }
+  LDSearchOptions *options = [self optionsWithTerm:term];
+  [options setUsesRegex:YES];
+  [options setCaseSensitive:NO];
+  [options setWholePhrase:NO];
+  [options setIncludesFolders:NO];
+  return options;
+}
+
 - (id)init
 {
   self = [super init];

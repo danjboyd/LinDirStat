@@ -11,6 +11,7 @@
 #import "LDCommandRules.h"
 #import "LDExtensionStats.h"
 #import "LDFileOperations.h"
+#import "LDFileTypeDescriptions.h"
 #import "LDFileWatcher.h"
 #import "LDHardLinks.h"
 #import "LDPreferences.h"
@@ -48,6 +49,9 @@
 - (void)toggleTreemap:(id)sender;
 - (void)toggleLogicalSize:(id)sender;
 - (void)toggleAbsolutePercentages:(id)sender;
+- (void)toggleGroupUnregisteredTypes:(id)sender;
+- (void)searchExtension:(id)sender;
+- (void)excludeExtension:(id)sender;
 - (void)stopScan:(id)sender;
 - (void)openPath:(id)sender;
 - (void)treemapView:(LDTreemapView *)view didSelectNode:(LDFileNode *)node;
@@ -1506,6 +1510,94 @@
     [self chooseColumn:[spec objectAtIndex:2] ofTable:[spec objectAtIndex:0]];
     XCTAssertNotNil([[spec objectAtIndex:0] tableColumnWithIdentifier:[spec objectAtIndex:2]], @"%@", list);
   }
+}
+
+- (NSUInteger)extensionRowForKey:(NSString *)key
+{
+  NSArray *rows = [_controller extensionRows];
+  for (NSUInteger i = 0; i < [rows count]; i++) {
+    if ([[[rows objectAtIndex:i] extensionKey] isEqualToString:key]) {
+      return i;
+    }
+  }
+  return NSNotFound;
+}
+
+// WinDirStat 2.8 (04b336dc): Group Unregistered Types folds the extensions
+// without a registered type into one row whose selection highlights them
+// all; that row has nothing to search for or exclude.
+- (void)testGroupUnregisteredTypes
+{
+  if (!_controller) {
+    return;
+  }
+  [self writeFile:@"odd/one.lindirstatzz" size:7000 seed:6];
+  [self writeFile:@"odd/two.lindirstatqq" size:3000 seed:7];
+  if (![self scanTree]) {
+    return;
+  }
+  LDFileTypeDescriptions *descriptions = [LDFileTypeDescriptions sharedDescriptions];
+  NSMutableSet *unregistered = [NSMutableSet set];
+  for (LDExtensionStats *row in [_controller extensionRows]) {
+    if (![descriptions isExtensionKeyRegistered:[row extensionKey]]) {
+      [unregistered addObject:[row extensionKey]];
+    }
+  }
+  XCTAssertTrue([unregistered containsObject:@"lindirstatzz"], @"%@", unregistered);
+  XCTAssertNotEqual(NSNotFound, [self extensionRowForKey:@"lindirstatzz"]);
+  XCTAssertEqual(NSNotFound, [self extensionRowForKey:LDExtensionGroupKey]);
+  XCTAssertEqual(NSOffState, [self menuStateFor:@selector(toggleGroupUnregisteredTypes:)]);
+
+  [_controller toggleGroupUnregisteredTypes:nil];
+  XCTAssertTrue([[LDPreferences sharedPreferences] groupUnregisteredTypes]);
+  XCTAssertEqual(NSOnState, [self menuStateFor:@selector(toggleGroupUnregisteredTypes:)]);
+  XCTAssertEqual(NSNotFound, [self extensionRowForKey:@"lindirstatzz"]);
+  NSUInteger groupRow = [self extensionRowForKey:LDExtensionGroupKey];
+  XCTAssertNotEqual(NSNotFound, groupRow);
+  LDExtensionStats *group = [[_controller extensionRows] objectAtIndex:groupRow];
+  XCTAssertEqualObjects(unregistered, [group groupedKeys]);
+  NSTableView *list = [_controller extensionTable];
+  XCTAssertEqualObjects(@"Grouped Extensions",
+                        [_controller tableView:list objectValueForTableColumn:[list tableColumnWithIdentifier:@"description"] row:(NSInteger)groupRow]);
+
+  [list selectRowIndexes:[NSIndexSet indexSetWithIndex:groupRow] byExtendingSelection:NO];
+  XCTAssertEqualObjects(unregistered, [[_controller treemap] highlightedExtensionKeys]);
+  XCTAssertNil([[_controller treemap] highlightedExtensionKey]);
+  XCTAssertFalse([_controller validateAction:@selector(searchExtension:)]);
+  XCTAssertFalse([_controller validateAction:@selector(excludeExtension:)]);
+
+  [_controller toggleGroupUnregisteredTypes:nil];
+  XCTAssertFalse([[LDPreferences sharedPreferences] groupUnregisteredTypes]);
+  XCTAssertEqual(NSNotFound, [self extensionRowForKey:LDExtensionGroupKey]);
+  XCTAssertNotEqual(NSNotFound, [self extensionRowForKey:@"lindirstatzz"]);
+}
+
+// WinDirStat's "Extension - Search", also on a double-click (0cdff4c3):
+// the files with that extension, in Search Results.
+- (void)testExtensionSearchShowsItsFiles
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSTableView *list = [_controller extensionTable];
+  XCTAssertEqual(self->_controller, [list target]);
+  XCTAssertEqual(@selector(extensionListDoubleClicked:), [list doubleAction]);
+  NSUInteger txt = [self extensionRowForKey:@"txt"];
+  XCTAssertNotEqual(NSNotFound, txt);
+  [list selectRowIndexes:[NSIndexSet indexSetWithIndex:txt] byExtendingSelection:NO];
+  XCTAssertTrue([_controller validateAction:@selector(searchExtension:)]);
+  NSMenu *menu = [_controller contextMenuForListView:list];
+  XCTAssertEqual(@selector(searchExtension:), [[menu itemAtIndex:0] action]);
+  XCTAssertEqualObjects(@"Extension - Search", [[menu itemAtIndex:0] title]);
+
+  [_controller searchExtension:nil];
+  XCTAssertEqual([_controller searchTab], [[_controller fileTabs] selectedTabViewItem]);
+  NSMutableSet *found = [NSMutableSet set];
+  for (LDFileNode *node in [_controller searchRows]) {
+    [found addObject:[node displayName]];
+  }
+  NSSet *expected = [NSSet setWithObjects:@"a1.txt", @"deep.txt", @"b1.txt", nil];
+  XCTAssertEqualObjects(expected, found);
 }
 
 - (void)testAbsolutePercentagesToggle

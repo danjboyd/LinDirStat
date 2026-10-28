@@ -59,6 +59,8 @@
 "Full row selection" = "Ganze Zeile markieren";
 "General" = "Allgemein";
 "Grid color" = "Raster-Farbe";
+"Group Unregistered Types" = "Nicht registrierte Typen gruppieren";
+"Grouped Extensions" = "Gruppierte Dateiendungen";
 "Height" = "Höhe";
 "Help" = "Hilfe";
 "Highlight color" = "Markierungsrahmen";
