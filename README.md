@@ -94,8 +94,8 @@ uses WinDirStat's own source as its reference. Highlights:
   terminal there, copy the path, move to Trash or delete permanently, empty
   the Trash, and WinDirStat-style custom clean-up commands. Every destructive
   action asks first.
-- **CSV export and import** in WinDirStat's format, so results can move
-  between WinDirStat and LinDirStat.
+- **CSV and JSON export and import** in WinDirStat's formats, so results
+  can move between WinDirStat and LinDirStat.
 - **Command line**: `LinDirStat ~/Downloads` scans a folder, and
   `LinDirStat --savetocsv usage.csv /srv` scans and saves without opening a
   window.

@@ -5,9 +5,13 @@
 // WinDirStat's command line (WinDirStat.cpp, CWinDirStatCommandLineInfo):
 //
 //   LinDirStat [folder...]                      scan the folders
-//   LinDirStat --savetocsv FILE folder...       scan, save results, exit
-//   LinDirStat --savedupestocsv FILE folder...  the same for duplicates
-//   LinDirStat --loadfromcsv FILE               show a saved CSV
+//   LinDirStat --saveto FILE folder...          scan, save results, exit
+//   LinDirStat --savedupesto FILE folder...     the same for duplicates
+//   LinDirStat --loadfrom FILE                  show saved results
+//
+// FILE is JSON when it ends in ".json" and CSV otherwise (WinDirStat 2.6).
+// The older names --savetocsv, --savedupestocsv and --loadfromcsv still
+// work.
 //
 // Flags are case-insensitive and may also be spelled -flag or /flag, as on
 // Windows. Several folders scan under "This Computer". Folders that do not
@@ -49,7 +53,7 @@
 
 // Runs a headless command line with Foundation only, so no display is
 // needed: scans the folders with options (duplicate detection on only for
-// --savedupestocsv, as in WinDirStat), writes the CSV files and returns the
+// --savedupesto, as in WinDirStat), writes the CSV or JSON files and returns the
 // exit status, 0 when every file was written and 1 otherwise
 // (DirStatDoc.cpp). Problems are added to messages as lines for stderr.
 @interface LDCommandLineExport : NSObject

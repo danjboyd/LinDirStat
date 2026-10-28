@@ -771,13 +771,15 @@ static NSString *const LDTabWatcher = @"watcher";
   }
 }
 
-#pragma mark - CSV and hashes
+#pragma mark - CSV/JSON and hashes
 
+// The extension picks the format (WinDirStat 2.6): ".json" saves JSON,
+// anything else CSV.
 - (NSString *)runSavePanelWithTitle:(NSString *)title name:(NSString *)name
 {
   NSSavePanel *panel = [NSSavePanel savePanel];
   [panel setTitle:title];
-  [panel setRequiredFileType:@"csv"];
+  [panel setAllowedFileTypes:@[@"csv", @"json"]];
   NSInteger result = [panel runModalForDirectory:nil file:name];
   if (result != NSFileHandlingPanelOKButton && result != NSOKButton) {
     return nil;
@@ -791,7 +793,7 @@ static NSString *const LDTabWatcher = @"watcher";
   if (!_rootNode || [self isBusy]) {
     return;
   }
-  NSString *path = [self runSavePanelWithTitle:LDLocalized(@"Save Results To CSV") name:LDLocalized(@"LinDirStat.csv")];
+  NSString *path = [self runSavePanelWithTitle:LDLocalized(@"Save Results To CSV/JSON") name:LDLocalized(@"LinDirStat.csv")];
   if (!path) {
     return;
   }
@@ -810,7 +812,7 @@ static NSString *const LDTabWatcher = @"watcher";
   if ([_duplicateGroups count] == 0) {
     return;
   }
-  NSString *path = [self runSavePanelWithTitle:LDLocalized(@"Save Duplicates To CSV") name:LDLocalized(@"LinDirStat Duplicates.csv")];
+  NSString *path = [self runSavePanelWithTitle:LDLocalized(@"Save Duplicates To CSV/JSON") name:LDLocalized(@"LinDirStat Duplicates.csv")];
   if (!path) {
     return;
   }
@@ -829,11 +831,11 @@ static NSString *const LDTabWatcher = @"watcher";
     return;
   }
   NSOpenPanel *panel = [NSOpenPanel openPanel];
-  [panel setTitle:LDLocalized(@"Load Results From CSV")];
+  [panel setTitle:LDLocalized(@"Load Results From CSV/JSON")];
   [panel setCanChooseFiles:YES];
   [panel setCanChooseDirectories:NO];
   [panel setAllowsMultipleSelection:NO];
-  NSInteger result = [panel runModalForDirectory:nil file:nil types:@[@"csv"]];
+  NSInteger result = [panel runModalForDirectory:nil file:nil types:@[@"csv", @"json"]];
   if (result != NSFileHandlingPanelOKButton && result != NSOKButton) {
     return;
   }

@@ -11,10 +11,16 @@ typedef enum {
   LDCSVErrorNoRows = 4
 } LDCSVErrorCode;
 
-// WinDirStat's "Save Results To CSV" / "Load Results From CSV" format
-// (CsvLoader.cpp). File I/O failures are reported in NSPOSIXErrorDomain,
-// format problems in LDCSVErrorDomain.
+// WinDirStat's "Save Results To CSV/JSON" / "Load Results From CSV/JSON"
+// formats (CsvLoader.cpp). As in WinDirStat 2.6, a path ending in ".json"
+// (any case) is JSON: an array of objects keyed by the CSV's column names,
+// counts and sizes as numbers, everything else as strings. File I/O
+// failures are reported in NSPOSIXErrorDomain, format problems in
+// LDCSVErrorDomain.
 @interface LDCSV : NSObject
+
+// YES for a ".json" path, which the methods below read or write as JSON.
++ (BOOL)isJSONPath:(NSString *)path;
 
 // Writes root's tree as WinDirStat does: a quoted header line, then one row
 // per node, each preceded by "\r\n" (no trailing newline), UTF-8 without a

@@ -77,8 +77,8 @@
 "Level colors" = "Koon osuuden väri";
 "Light Source" = "Valon suunta";
 "List Style" = "Listan tyyli";
-"Load Results From CSV" = "Lataa tulokset CSV/JSON-tiedostosta";
-"Load Results From CSV…" = "Lataa tulokset CSV-tiedostosta…";
+"Load Results From CSV/JSON" = "Lataa tulokset CSV/JSON-tiedostosta";
+"Load Results From CSV/JSON…" = "Lataa tulokset CSV/JSON-tiedostosta…";
 "Logical Size" = "Looginen koko";
 "Logical Size:" = "Looginen koko:";
 "Memory: %@" = "Muistinkäyttö: %@";
@@ -120,10 +120,10 @@
 "Reset Zoom" = "Nollaa suurennus";
 "Resume" = "Jatka";
 "Resume Scan" = "Jatka";
-"Save Duplicates To CSV" = "Tallenna duplikaatit CSV/JSON-tiedostoon";
-"Save Duplicates To CSV…" = "Tallenna duplikaatit CSV-tiedostoon…";
-"Save Results To CSV" = "Tallenna tulokset CSV/JSON-muodossa";
-"Save Results To CSV…" = "Tallenna tulokset CSV-muodossa…";
+"Save Duplicates To CSV/JSON" = "Tallenna duplikaatit CSV/JSON-tiedostoon";
+"Save Duplicates To CSV/JSON…" = "Tallenna duplikaatit CSV/JSON-tiedostoon…";
+"Save Results To CSV/JSON" = "Tallenna tulokset CSV/JSON-muodossa";
+"Save Results To CSV/JSON…" = "Tallenna tulokset CSV/JSON-muodossa…";
 "Scale factor" = "Kerroin";
 "Scan and display hard link information" = "Skannaa asemat ja näytä kovalinkkien tiedot";
 "Scan for duplicate files" = "Skannaa duplikaattitiedostoja (vaikuttaa suorituskykyyn)";

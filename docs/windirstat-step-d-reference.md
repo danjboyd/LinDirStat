@@ -465,6 +465,16 @@ Enabled only when the Duplicates tab is visible.
 
 - `/savetocsv <f>`: scan, save results, exit 0 on success or 1 on failure (`7da9c724:DirStatDoc.cpp:1952-1960`). · `/savedupestocsv <f>`: the same for duplicates (`7da9c724:DirStatDoc.cpp:1963-1972`). · `/loadfromcsv <f>`: load a CSV at startup.
 
+### JSON (later upstream, v2.6, `34daeec3`; v2.9.3 `CsvLoader.cpp:11-110, 340-414, 501-583, 627-672`)
+
+- **Chosen by extension:** a path ending in `.json` (case-insensitive, `IsJsonPath`) is JSON for Save Results, Load Results and Save Duplicates; anything else is CSV. The menu labels become **Save Results To CSV/JSON…**, **Load Results From CSV/JSON…** and **Save Duplicates To CSV/JSON…**, and the file filter "CSV/JSON Files (*.csv;*.json)". The command-line flags are renamed `/saveto`, `/savedupesto` and `/loadfrom`.
+- **Results layout** (`SaveResultsJson`): `[\r\n`, then one object per row in the CSV's order, joined by `,\r\n`, then `\r\n]\r\n`. Each object is `{\r\n`, then members `  "Column": value` joined by `,\r\n`, then `\r\n}`. The keys are the CSV's (localized) column names. Files, Folders, Logical Size and Physical Size are bare numbers. Name, Attributes, Last Change, WinDirStat Attributes (`"0x%08X"`) and Index (`"0x%016X"`) are strings, plus Owner when that column is shown. The sizes, the hard-link undo and the row order are as in the CSV.
+- **Escaping:** `JsonQuote` escapes only `"` and `\`. Other bytes, control characters included, are written raw.
+- **Duplicates layout** (`SaveDuplicatesJson`, v2.6): the same wrapper, with members Hash Prefix, Name, Logical Size, Physical Size (numbers), Last Change and Attributes. v2.7+ adds a `Sampled hash` boolean (`ccdde6b9`).
+- **Loading** (`LoadResultsJson`, `JsonReadObject`): it skips lines until `[`, then reads objects line by line. Members are matched by key in any order, unknown keys are ignored, missing ones are empty, and an object without a Name is skipped. Strings are unescaped by dropping each `\` (so `\n` reads as `n`). Rows are then built exactly as from the CSV.
+
+*LinDirStat:* `LDCSV` picks the format the same way, writes the same layout byte for byte, and loads with the same row handling as its CSV (including #85's Windows backslash paths). The labels and panels say CSV/JSON. `--saveto`, `--savedupesto` and `--loadfrom` work alongside the old names. Differences: control characters (possible in Linux names) are written as `\u00XX`, so the file stays valid JSON. The reader decodes all JSON escapes (`\n`, `\uXXXX`, surrogate pairs) and skips nested values, which WinDirStat never writes. Duplicates keep v2.6's six members, the same as LinDirStat's duplicates CSV. The fixture `Tests/Fixtures/csv/windirstat-drive.json` is the CSV fixture written in `SaveResultsJson`'s layout.
+
 ---
 
 ## 9. Filters and scan exclusions

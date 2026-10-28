@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <XCTest/XCTest.h>
 #import "LDCSV.h"
+#import "LDDuplicateFinder.h"
 #import "LDFileAttributes.h"
 #import "LDFileNode.h"
 #import "LDScanner.h"
@@ -386,6 +387,8 @@ static NSString *const LDCSVTestHeader =
   XCTAssertEqual([root fileCount], [reloaded fileCount]);
 }
 
+#pragma mark - JSON (WinDirStat 2.6, 34daeec3)
+
 - (NSString *)fixture:(NSString *)name
 {
   return [[[NSFileManager defaultManager] currentDirectoryPath]
@@ -453,4 +456,275 @@ static NSString *const LDCSVTestHeader =
   XCTAssertTrue([ours hasSuffix:@",\"Sampled hash\""]);
 }
 
+- (void)testJSONIsChosenByTheExtension
+{
+  XCTAssertTrue([LDCSV isJSONPath:@"/a/results.json"]);
+  XCTAssertTrue([LDCSV isJSONPath:@"/a/RESULTS.JSON"]);
+  XCTAssertFalse([LDCSV isJSONPath:@"/a/results.csv"]);
+  XCTAssertFalse([LDCSV isJSONPath:@"/a/results.json.csv"]);
+  XCTAssertFalse([LDCSV isJSONPath:@"/a/json"]);
+}
+
+// CsvLoader.cpp SaveResultsJson: "[", one object per item with two-space
+// members and CRLF line ends, counts and sizes as numbers, ",\r\n" between
+// objects, then "\r\n]\r\n".
+- (void)testWritesWinDirStatJSONExactly
+{
+  NSString *path = [self pathFor:@"tree.json"];
+  NSError *error = nil;
+  XCTAssertTrue([LDCSV writeTree:[self handBuiltTree] toPath:path includeOwner:NO error:&error], @"%@", error);
+
+  NSString *expected = [@[
+    @"[",
+    @"{",
+    @"  \"Name\": \"/data\",",
+    @"  \"Files\": 2,",
+    @"  \"Folders\": 1,",
+    @"  \"Logical Size\": 15,",
+    @"  \"Physical Size\": 4096,",
+    @"  \"Attributes\": \"\",",
+    @"  \"Last Change\": \"1970-01-01T00:33:20Z\",",
+    @"  \"WinDirStat Attributes\": \"0x30000004\",",
+    @"  \"Index\": \"0x0000000000000000\"",
+    @"},",
+    @"{",
+    @"  \"Name\": \"/data/A\",",
+    @"  \"Files\": 1,",
+    @"  \"Folders\": 0,",
+    @"  \"Logical Size\": 5,",
+    @"  \"Physical Size\": 0,",
+    @"  \"Attributes\": \"R\",",
+    @"  \"Last Change\": \"1970-01-01T00:33:20Z\",",
+    @"  \"WinDirStat Attributes\": \"0x20000004\",",
+    @"  \"Index\": \"0x0000000000000000\"",
+    @"},",
+    @"{",
+    @"  \"Name\": \"/data/A/say \\\"hi\\\"\",",
+    @"  \"Files\": 0,",
+    @"  \"Folders\": 0,",
+    @"  \"Logical Size\": 5,",
+    @"  \"Physical Size\": 0,",
+    @"  \"Attributes\": \"R\",",
+    @"  \"Last Change\": \"1970-01-01T00:33:20Z\",",
+    @"  \"WinDirStat Attributes\": \"0x20000008\",",
+    @"  \"Index\": \"0x0000000000000000\"",
+    @"},",
+    @"{",
+    @"  \"Name\": \"/data/b.txt\",",
+    @"  \"Files\": 0,",
+    @"  \"Folders\": 0,",
+    @"  \"Logical Size\": 10,",
+    @"  \"Physical Size\": 4096,",
+    @"  \"Attributes\": \"\",",
+    @"  \"Last Change\": \"1970-01-01T00:16:40Z\",",
+    @"  \"WinDirStat Attributes\": \"0x20000008\",",
+    @"  \"Index\": \"0x0000000000000000\"",
+    @"}",
+    @"]",
+    @""] componentsJoinedByString:@"\r\n"];
+  XCTAssertEqualObjects(expected, [self contentsOf:path]);
+}
+
+// A WinDirStat JSON export of a drive loads to the same tree as the CSV
+// export of it (the fixture is the CSV fixture in SaveResultsJson's layout).
+- (void)testReadsWinDirStatJSONDriveExport
+{
+  NSError *error = nil;
+  LDFileNode *fromJSON = [LDCSV readTreeFromPath:[self fixture:@"windirstat-drive.json"] error:&error];
+  XCTAssertNotNil(fromJSON, @"%@", error);
+  LDFileNode *fromCSV = [LDCSV readTreeFromPath:[self fixture:@"windirstat-drive.csv"] error:&error];
+  XCTAssertNotNil(fromCSV, @"%@", error);
+  XCTAssertEqualObjects(@"C:\\", [fromJSON path]);
+  XCTAssertEqual((unsigned long long)1610612836, [fromJSON aggregateSize]);
+  XCTAssertEqual((unsigned long long)1610620928, [fromJSON aggregateAllocatedSize]);
+  [self assertNode:fromJSON matches:fromCSV];
+  LDFileNode *dan = [self childNamed:@"dan" of:[self childNamed:@"Users" of:fromJSON]];
+  XCTAssertEqualObjects(@"C:\\Users\\dan\\notes, final.txt", [[self childNamed:@"notes, final.txt" of:dan] path]);
+  XCTAssertEqual((NSTimeInterval)1704067199, [[self childNamed:@"\u00dcn\u00efcode.md" of:dan] modificationTime]);
+}
+
+- (void)testWindowsJSONExportRoundTripsWithBackslashes
+{
+  NSError *error = nil;
+  LDFileNode *root = [LDCSV readTreeFromPath:[self fixture:@"windirstat-drive.json"] error:&error];
+  XCTAssertNotNil(root, @"%@", error);
+  NSString *saved = [self pathFor:@"resaved.json"];
+  XCTAssertTrue([LDCSV writeTree:root toPath:saved includeOwner:NO error:&error], @"%@", error);
+  NSString *text = [self contentsOf:saved];
+  XCTAssertTrue([text rangeOfString:@"\"Name\": \"C:\\\\Users\\\\dan\\\\notes, final.txt\""].location != NSNotFound, @"%@", text);
+  XCTAssertTrue([text rangeOfString:@"/"].location == NSNotFound, @"%@", text);
+  LDFileNode *reloaded = [LDCSV readTreeFromPath:saved error:&error];
+  XCTAssertNotNil(reloaded, @"%@", error);
+  [self assertNode:reloaded matches:root];
+}
+
+- (void)testScannedTreeRoundTripsAsJSON
+{
+  NSFileManager *manager = [NSFileManager defaultManager];
+  NSString *folder = [self pathFor:@"jscan"];
+  [manager createDirectoryAtPath:[folder stringByAppendingPathComponent:@"nested/deeper"] withIntermediateDirectories:YES attributes:nil error:NULL];
+  [[NSMutableData dataWithLength:3000] writeToFile:[folder stringByAppendingPathComponent:@"nested/deeper/data.bin"] atomically:NO];
+  [[NSMutableData dataWithLength:10] writeToFile:[folder stringByAppendingPathComponent:@"nested/Note.txt"] atomically:NO];
+  [[NSMutableData dataWithLength:20] writeToFile:[folder stringByAppendingPathComponent:@".hidden"] atomically:NO];
+
+  LDFileNode *scanned = [[[LDScanner alloc] init] scanPath:folder session:[[LDScanSession alloc] init]];
+  NSString *path = [self pathFor:@"scan.json"];
+  NSError *error = nil;
+  XCTAssertTrue([LDCSV writeTree:scanned toPath:path includeOwner:YES error:&error], @"%@", error);
+  // It is JSON, with every column, Owner included.
+  NSArray *items = [NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:path] options:0 error:&error];
+  XCTAssertTrue([items isKindOfClass:[NSArray class]], @"%@", error);
+  XCTAssertEqual((NSUInteger)6, [items count]);
+  XCTAssertEqualObjects([LDFileAttributes ownerOfPath:[scanned pathData]], [[items objectAtIndex:0] objectForKey:@"Owner"]);
+  XCTAssertTrue([[[items objectAtIndex:0] objectForKey:@"Files"] isKindOfClass:[NSNumber class]]);
+
+  LDFileNode *loaded = [LDCSV readTreeFromPath:path error:&error];
+  XCTAssertNotNil(loaded, @"%@", error);
+  XCTAssertEqualObjects([scanned path], [loaded path]);
+  [self assertNode:loaded matches:scanned];
+}
+
+// Quotes and backslashes are escaped as WinDirStat escapes them; control
+// characters (possible in Linux names) as \u00XX, so the file stays JSON.
+- (void)testJSONEscapesRoundTrip
+{
+  NSString *odd = @"a\\\"b\"\r\nc\td\u00e9\U0001F600";
+  LDDirectoryNode *root = [LDFileNode nodeWithPath:@"/odd \"root\"" kind:LDFileNodeKindDirectory size:0];
+  [root addChild:[self fileNamed:odd size:3 allocated:4096 mode:0644 time:1700000000]];
+  [root recalculateAggregateSize];
+  NSString *path = [self pathFor:@"odd.json"];
+  XCTAssertTrue([LDCSV writeTree:root toPath:path includeOwner:NO error:NULL]);
+  NSString *text = [self contentsOf:path];
+  XCTAssertTrue([text rangeOfString:@"a\\\\\\\"b\\\"\\u000d\\u000ac\\u0009d"].location != NSNotFound, @"%@", text);
+
+  NSError *error = nil;
+  NSArray *items = [NSJSONSerialization JSONObjectWithData:[NSData dataWithContentsOfFile:path] options:0 error:&error];
+  XCTAssertNotNil(items, @"%@", error);
+  XCTAssertEqualObjects([@"/odd \"root\"/" stringByAppendingString:odd], [[items objectAtIndex:1] objectForKey:@"Name"]);
+
+  LDFileNode *loaded = [LDCSV readTreeFromPath:path error:&error];
+  XCTAssertNotNil(loaded, @"%@", error);
+  XCTAssertEqualObjects(@"/odd \"root\"", [loaded path]);
+  XCTAssertEqualObjects(odd, [[[loaded children] firstObject] displayName]);
+}
+
+// The reader takes members in any order, ignores unknown ones, reads
+// missing ones as empty, skips objects without a Name (as JsonReadObject's
+// caller does), decodes \uXXXX escapes and ignores text before the array.
+- (void)testJSONReaderIsLenientLikeWinDirStat
+{
+  NSString *json = @"[\n"
+    @"{\"WinDirStat Attributes\": \"0x30000004\", \"Name\": \"/r\", \"Extra\": [1, {\"x\": \"]\"}],"
+    @" \"Logical Size\": 0, \"Physical Size\": 0, \"Last Change\": \"2024-01-01T00:00:00Z\"},\n"
+    @"{\"Files\": 0},\n"
+    @"{\"Name\": \"/r/caf\\u00e9 \\ud83d\\ude00\", \"WinDirStat Attributes\": \"0x20000008\", \"Logical Size\": 7,"
+    @" \"Physical Size\": 4096, \"Attributes\": \"R\", \"Last Change\": \"2024-01-01T00:00:00Z\", \"Index\": \"0x0\"}\n"
+    @"]\n";
+  NSMutableData *data = [NSMutableData dataWithBytes:"\xEF\xBB\xBF" "WinDirStat\r\n" length:15];
+  [data appendData:[json dataUsingEncoding:NSUTF8StringEncoding]];
+  NSString *path = [self pathFor:@"lenient.json"];
+  XCTAssertTrue([data writeToFile:path atomically:NO]);
+  NSError *error = nil;
+  LDFileNode *root = [LDCSV readTreeFromPath:path error:&error];
+  XCTAssertNotNil(root, @"%@", error);
+  XCTAssertEqualObjects(@"/r", [root path]);
+  XCTAssertEqual((NSUInteger)1, [[root children] count]);
+  LDFileNode *file = [[root children] firstObject];
+  XCTAssertEqualObjects(@"café \U0001F600", [file displayName]);
+  XCTAssertEqual((unsigned long long)7, [file size]);
+  XCTAssertEqualObjects(@"R", [LDFileAttributes attributeStringForNode:file]);
+}
+
+- (void)testMalformedJSONIsReported
+{
+  NSString *path = [self pathFor:@"bad.json"];
+  NSError *error = nil;
+  [@"[\r\n{\r\n  \"Name\": \"/x\",\r\n  \"Files\" 0\r\n}\r\n]\r\n" writeToFile:path atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  XCTAssertNil([LDCSV readTreeFromPath:path error:&error]);
+  XCTAssertEqualObjects(LDCSVErrorDomain, [error domain]);
+  XCTAssertEqual((NSInteger)LDCSVErrorMalformed, [error code]);
+
+  [@"not json" writeToFile:path atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  XCTAssertNil([LDCSV readTreeFromPath:path error:&error]);
+  XCTAssertEqual((NSInteger)LDCSVErrorNoRows, [error code]);
+
+  [@"[\r\n]\r\n" writeToFile:path atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  XCTAssertNil([LDCSV readTreeFromPath:path error:&error]);
+  XCTAssertEqual((NSInteger)LDCSVErrorNoRows, [error code]);
+}
+
+// WinDirStat's "This PC" root saved and loaded as JSON.
+- (void)testWindowsThisPCJSONRoundTrips
+{
+  NSString *path = [self writeCSV:[LDCSVTestHeader stringByAppendingString:
+                                   @"\r\n\"This PC\",2,4,300,8192,\"\",2024-01-01T00:00:00Z,0x30000001,0x0"
+                                   @"\r\n\"C:\\\",1,2,100,4096,\"\",2024-01-01T00:00:00Z,0x20000002,0x0"
+                                   @"\r\n\"C:\\Data\",1,1,100,4096,\"\",2024-01-01T00:00:00Z,0x20000004,0x0"
+                                   @"\r\n\"C:\\Data\\a.txt\",0,0,100,4096,\"\",2024-01-01T00:00:00Z,0x20000008,0x0"
+                                   @"\r\n\"D:\\\",1,1,200,4096,\"\",2024-01-01T00:00:00Z,0x20000002,0x0"
+                                   @"\r\n\"D:\\b.bin\",0,0,200,4096,\"\",2024-01-01T00:00:00Z,0x20000008,0x0"]
+                            named:@"thispc.csv"];
+  NSError *error = nil;
+  LDFileNode *root = [LDCSV readTreeFromPath:path error:&error];
+  XCTAssertNotNil(root, @"%@", error);
+  NSString *saved = [self pathFor:@"thispc.json"];
+  XCTAssertTrue([LDCSV writeTree:root toPath:saved includeOwner:NO error:&error], @"%@", error);
+  LDFileNode *reloaded = [LDCSV readTreeFromPath:saved error:&error];
+  XCTAssertNotNil(reloaded, @"%@", error);
+  XCTAssertTrue([reloaded isComputer]);
+  [self assertNode:reloaded matches:root];
+  XCTAssertEqualObjects(@"C:\\Data\\a.txt",
+                        [[self childNamed:@"a.txt" of:[self childNamed:@"Data" of:[self childNamed:@"C:\\" of:reloaded]]] path]);
+}
+
+// SaveDuplicatesJson (v2.9.3): the duplicates CSV's columns as members,
+// "Sampled hash" (always false: whole files are hashed) unquoted.
+- (void)testWritesDuplicatesAsCSVAndJSON
+{
+  LDDirectoryNode *root = [LDFileNode nodeWithPath:@"/d" kind:LDFileNodeKindDirectory size:0];
+  LDFileNode *a = [self fileNamed:@"a.bin" size:5 allocated:4096 mode:0644 time:1000];
+  LDFileNode *b = [self fileNamed:@"B.bin" size:5 allocated:4096 mode:0444 time:2000];
+  [root addChild:a];
+  [root addChild:b];
+  LDDuplicateGroup *group = [[LDDuplicateGroup alloc] initWithHashString:@"ab12" logicalSize:5 nodes:@[a, b] totalPhysicalSize:8192];
+
+  NSString *csv = [self pathFor:@"dupes.csv"];
+  NSError *error = nil;
+  XCTAssertTrue([LDCSV writeDuplicateGroups:@[group] toPath:csv error:&error], @"%@", error);
+  XCTAssertEqualObjects(@"\"Hash Prefix\",\"Name\",\"Logical Size\",\"Physical Size\",\"Last Change\",\"Attributes\",\"Sampled hash\"\r\n"
+                        @"\"ab12\",\"/d/a.bin\",5,4096,1970-01-01T00:16:40Z,\"\",false\r\n"
+                        @"\"ab12\",\"/d/B.bin\",5,4096,1970-01-01T00:33:20Z,\"R\",false\r\n", [self contentsOf:csv]);
+
+  NSString *json = [self pathFor:@"dupes.json"];
+  XCTAssertTrue([LDCSV writeDuplicateGroups:@[group] toPath:json error:&error], @"%@", error);
+  NSString *expected = [@[
+    @"[",
+    @"{",
+    @"  \"Hash Prefix\": \"ab12\",",
+    @"  \"Name\": \"/d/a.bin\",",
+    @"  \"Logical Size\": 5,",
+    @"  \"Physical Size\": 4096,",
+    @"  \"Last Change\": \"1970-01-01T00:16:40Z\",",
+    @"  \"Attributes\": \"\",",
+    @"  \"Sampled hash\": false",
+    @"},",
+    @"{",
+    @"  \"Hash Prefix\": \"ab12\",",
+    @"  \"Name\": \"/d/B.bin\",",
+    @"  \"Logical Size\": 5,",
+    @"  \"Physical Size\": 4096,",
+    @"  \"Last Change\": \"1970-01-01T00:33:20Z\",",
+    @"  \"Attributes\": \"R\",",
+    @"  \"Sampled hash\": false",
+    @"}",
+    @"]",
+    @""] componentsJoinedByString:@"\r\n"];
+  XCTAssertEqualObjects(expected, [self contentsOf:json]);
+
+  NSString *empty = [self pathFor:@"nodupes.json"];
+  XCTAssertTrue([LDCSV writeDuplicateGroups:@[] toPath:empty error:&error], @"%@", error);
+  XCTAssertEqualObjects(@"[\r\n]\r\n", [self contentsOf:empty]);
+}
+
 @end
+

@@ -76,8 +76,8 @@
 "Level colors" = "Farve for størrelsesforhold";
 "Light Source" = "Lysindfald";
 "List Style" = "Listestil";
-"Load Results From CSV" = "Indlæs resultater fra CSV/JSON";
-"Load Results From CSV…" = "Indlæs resultater fra CSV…";
+"Load Results From CSV/JSON" = "Indlæs resultater fra CSV/JSON";
+"Load Results From CSV/JSON…" = "Indlæs resultater fra CSV/JSON…";
 "Logical Size" = "Logisk størrelse";
 "Logical Size:" = "Logisk størrelse:";
 "Memory: %@" = "Hukommelsesforbrug: %@";
@@ -119,10 +119,10 @@
 "Reset Zoom" = "Nulstil zoom";
 "Resume" = "Genoptag";
 "Resume Scan" = "Genoptag";
-"Save Duplicates To CSV" = "Gem dubletter til CSV/JSON";
-"Save Duplicates To CSV…" = "Gem og dubletter til CSV…";
-"Save Results To CSV" = "Gem resultater i CSV/JSON";
-"Save Results To CSV…" = "Gem resultater i CSV…";
+"Save Duplicates To CSV/JSON" = "Gem dubletter til CSV/JSON";
+"Save Duplicates To CSV/JSON…" = "Gem dubletter til CSV/JSON…";
+"Save Results To CSV/JSON" = "Gem resultater i CSV/JSON";
+"Save Results To CSV/JSON…" = "Gem resultater i CSV/JSON…";
 "Scale factor" = "Skaleringsfaktor";
 "Scan and display hard link information" = "Scan drev og vis oplysninger om hardlinks";
 "Scan for duplicate files" = "Scan efter dubletter (påvirker ydeevnen)";

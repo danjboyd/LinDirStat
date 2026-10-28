@@ -77,8 +77,8 @@
 "Level colors" = "大小比例顏色";
 "Light Source" = "光線照射角度";
 "List Style" = "列表風格";
-"Load Results From CSV" = "從 CSV/JSON 檔案載入掃描結果";
-"Load Results From CSV…" = "從 CSV 檔案載入掃描結果…";
+"Load Results From CSV/JSON" = "從 CSV/JSON 檔案載入掃描結果";
+"Load Results From CSV/JSON…" = "從 CSV/JSON 檔案載入掃描結果…";
 "Logical Size" = "邏輯大小";
 "Logical Size:" = "邏輯大小:";
 "Memory: %@" = "記憶體使用：%@";
@@ -120,10 +120,10 @@
 "Reset Zoom" = "還原縮放";
 "Resume" = "繼續";
 "Resume Scan" = "繼續";
-"Save Duplicates To CSV" = "將重複項目儲存到 CSV/JSON";
-"Save Duplicates To CSV…" = "將重複項目儲存到 CSV…";
-"Save Results To CSV" = "儲存結果到 CSV/JSON";
-"Save Results To CSV…" = "儲存結果到 CSV…";
+"Save Duplicates To CSV/JSON" = "將重複項目儲存到 CSV/JSON";
+"Save Duplicates To CSV/JSON…" = "將重複項目儲存到 CSV/JSON…";
+"Save Results To CSV/JSON" = "儲存結果到 CSV/JSON";
+"Save Results To CSV/JSON…" = "儲存結果到 CSV/JSON…";
 "Scale factor" = "比例倍率";
 "Scan and display hard link information" = "掃描磁碟並顯示硬連結資訊";
 "Scan for duplicate files" = "掃描內容相同的檔案（會影響效能）";

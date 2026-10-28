@@ -77,8 +77,8 @@
 "Level colors" = "Boyut Oranı Rengi";
 "Light Source" = "Işığın Geliş Açısı";
 "List Style" = "Liste Stili";
-"Load Results From CSV" = "CSV/JSON Dosyasından Sonuç Yükle";
-"Load Results From CSV…" = "CSV Dosyasından Sonuç Yükle…";
+"Load Results From CSV/JSON" = "CSV/JSON Dosyasından Sonuç Yükle";
+"Load Results From CSV/JSON…" = "CSV/JSON Dosyasından Sonuç Yükle…";
 "Logical Size" = "Mantıksal Boyut";
 "Logical Size:" = "Mantıksal Boyut:";
 "Memory: %@" = "Hafıza Kullanımı: %@";
@@ -120,10 +120,10 @@
 "Reset Zoom" = "Yakınlaştırmayı Sıfırla";
 "Resume" = "Devam Et";
 "Resume Scan" = "Devam Et";
-"Save Duplicates To CSV" = "Kopya dosyaları CSV/JSON olarak kaydet";
-"Save Duplicates To CSV…" = "Kopya dosyaları CSV olarak kaydet…";
-"Save Results To CSV" = "Sonuçları CSV/JSON Dosyasına Kaydet";
-"Save Results To CSV…" = "Sonuçları CSV Dosyasına Kaydet…";
+"Save Duplicates To CSV/JSON" = "Kopya dosyaları CSV/JSON olarak kaydet";
+"Save Duplicates To CSV/JSON…" = "Kopya dosyaları CSV/JSON olarak kaydet…";
+"Save Results To CSV/JSON" = "Sonuçları CSV/JSON Dosyasına Kaydet";
+"Save Results To CSV/JSON…" = "Sonuçları CSV/JSON Dosyasına Kaydet…";
 "Scale factor" = "Ölçek Faktörü";
 "Scan and display hard link information" = "Sürücüleri tara ve sabit bağlantı bilgilerini göster";
 "Scan for duplicate files" = "Yinelenen dosyalar için tara (performansı etkiler)";

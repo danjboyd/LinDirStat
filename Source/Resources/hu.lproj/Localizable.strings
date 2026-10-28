@@ -77,8 +77,8 @@
 "Level colors" = "Méretarány színe";
 "Light Source" = "Fény beesés";
 "List Style" = "Listastílus";
-"Load Results From CSV" = "Eredmények betöltése CSV/JSON-ből";
-"Load Results From CSV…" = "Eredmények betöltése CSV-ből…";
+"Load Results From CSV/JSON" = "Eredmények betöltése CSV/JSON-ből";
+"Load Results From CSV/JSON…" = "Eredmények betöltése CSV/JSON-ből…";
 "Logical Size" = "Logikai méret";
 "Logical Size:" = "Logikai méret:";
 "Memory: %@" = "RAM használat: %@";
@@ -120,10 +120,10 @@
 "Reset Zoom" = "Nagyítás alaphelyzetbe";
 "Resume" = "Folytatás";
 "Resume Scan" = "Folytatás";
-"Save Duplicates To CSV" = "Duplikátumok mentése CSV/JSON-be";
-"Save Duplicates To CSV…" = "Duplikátumok mentése CSV-be…";
-"Save Results To CSV" = "Eredmények mentése CSV/JSON fájlba";
-"Save Results To CSV…" = "Eredmények mentése CSV fájlba…";
+"Save Duplicates To CSV/JSON" = "Duplikátumok mentése CSV/JSON-be";
+"Save Duplicates To CSV/JSON…" = "Duplikátumok mentése CSV/JSON-be…";
+"Save Results To CSV/JSON" = "Eredmények mentése CSV/JSON fájlba";
+"Save Results To CSV/JSON…" = "Eredmények mentése CSV/JSON fájlba…";
 "Scale factor" = "Mérettényező";
 "Scan and display hard link information" = "Meghajtók vizsgálata és a hard linkek adatainak megjelenítése";
 "Scan for duplicate files" = "Duplikált fájlok keresése (teljesítményt befolyásolja)";

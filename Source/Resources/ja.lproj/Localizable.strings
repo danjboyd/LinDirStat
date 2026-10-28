@@ -77,8 +77,8 @@
 "Level colors" = "サイズ比率の色";
 "Light Source" = "光の入射角";
 "List Style" = "リストスタイル";
-"Load Results From CSV" = "CSV/JSONから結果を読み込み";
-"Load Results From CSV…" = "CSVから結果を読み込み…";
+"Load Results From CSV/JSON" = "CSV/JSONから結果を読み込み";
+"Load Results From CSV/JSON…" = "CSV/JSONから結果を読み込み…";
 "Logical Size" = "論理サイズ";
 "Logical Size:" = "論理サイズ:";
 "Memory: %@" = "メモリ使用量: %@";
@@ -120,10 +120,10 @@
 "Reset Zoom" = "ズームのリセット";
 "Resume" = "再開";
 "Resume Scan" = "再開";
-"Save Duplicates To CSV" = "重複ファイルをCSV/JSONに保存";
-"Save Duplicates To CSV…" = "重複ファイルをCSVに保存…";
-"Save Results To CSV" = "結果を CSV/JSON に保存";
-"Save Results To CSV…" = "結果を CSV に保存…";
+"Save Duplicates To CSV/JSON" = "重複ファイルをCSV/JSONに保存";
+"Save Duplicates To CSV/JSON…" = "重複ファイルをCSV/JSONに保存…";
+"Save Results To CSV/JSON" = "結果を CSV/JSON に保存";
+"Save Results To CSV/JSON…" = "結果を CSV/JSON に保存…";
 "Scale factor" = "スケールファクター";
 "Scan and display hard link information" = "ドライブをスキャンしてハードリンク情報を表示";
 "Scan for duplicate files" = "重複ファイルをスキャン（パフォーマンスに影響）";

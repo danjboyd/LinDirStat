@@ -76,8 +76,8 @@
 "Level colors" = "Цвет соотношения размера";
 "Light Source" = "Источник света";
 "List Style" = "Стиль списка";
-"Load Results From CSV" = "Загрузить результаты из CSV/JSON";
-"Load Results From CSV…" = "Загрузить результаты из CSV…";
+"Load Results From CSV/JSON" = "Загрузить результаты из CSV/JSON";
+"Load Results From CSV/JSON…" = "Загрузить результаты из CSV/JSON…";
 "Logical Size" = "Логический размер";
 "Logical Size:" = "Логический размер:";
 "Memory: %@" = "Использование RAM: %@";
@@ -119,10 +119,10 @@
 "Reset Zoom" = "Сбросить масштаб";
 "Resume" = "Возобновить";
 "Resume Scan" = "Возобновить";
-"Save Duplicates To CSV" = "Сохранить дубликаты в CSV/JSON";
-"Save Duplicates To CSV…" = "Сохранить дубликаты в CSV…";
-"Save Results To CSV" = "Сохранить результаты в CSV/JSON";
-"Save Results To CSV…" = "Сохранить результаты в CSV…";
+"Save Duplicates To CSV/JSON" = "Сохранить дубликаты в CSV/JSON";
+"Save Duplicates To CSV/JSON…" = "Сохранить дубликаты в CSV/JSON…";
+"Save Results To CSV/JSON" = "Сохранить результаты в CSV/JSON";
+"Save Results To CSV/JSON…" = "Сохранить результаты в CSV/JSON…";
 "Scale factor" = "Масштаб";
 "Scan and display hard link information" = "Сканировать диски и отображать сведения о жёстких ссылках";
 "Scan for duplicate files" = "Сканировать дубликаты файлов (влияет на производительность)";

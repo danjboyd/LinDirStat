@@ -127,6 +127,66 @@ static void LDWriteQuotedString(FILE *file, NSString *string)
   LDWriteQuoted(file, bytes ? bytes : "", bytes ? strlen(bytes) : 0);
 }
 
+// Writes bytes as a JSON string. WinDirStat escapes only '"' and '\\'
+// (CsvLoader.cpp JsonQuote); control characters, which Windows names cannot
+// hold but Linux names can, are written as \u00XX so the file stays JSON.
+static void LDWriteJSONQuoted(FILE *file, const char *bytes, size_t length)
+{
+  fputc('"', file);
+  size_t start = 0;
+  size_t i = 0;
+  for (i = 0; i < length; i++) {
+    unsigned char c = (unsigned char)bytes[i];
+    if (c != '"' && c != '\\' && c >= 0x20) {
+      continue;
+    }
+    fwrite(bytes + start, 1, i - start, file);
+    if (c == '"' || c == '\\') {
+      fputc('\\', file);
+      fputc(c, file);
+    } else {
+      fprintf(file, "\\u%04x", c);
+    }
+    start = i + 1;
+  }
+  fwrite(bytes + start, 1, length - start, file);
+  fputc('"', file);
+}
+
+static void LDWriteJSONQuotedString(FILE *file, NSString *string)
+{
+  const char *bytes = [string UTF8String];
+  LDWriteJSONQuoted(file, bytes ? bytes : "", bytes ? strlen(bytes) : 0);
+}
+
+// A text field in either format.
+static void LDWriteText(FILE *file, BOOL json, const char *bytes, size_t length)
+{
+  if (json) {
+    LDWriteJSONQuoted(file, bytes, length);
+  } else {
+    LDWriteQuoted(file, bytes, length);
+  }
+}
+
+static void LDWriteTextString(FILE *file, BOOL json, NSString *string)
+{
+  if (json) {
+    LDWriteJSONQuotedString(file, string);
+  } else {
+    LDWriteQuotedString(file, string);
+  }
+}
+
+// A JSON member's key: two spaces, the column name and ": ", as WinDirStat
+// writes them, each member after the first on its own line.
+static void LDWriteJSONKey(FILE *file, NSString *name, BOOL first)
+{
+  fputs(first ? "  " : ",\r\n  ", file);
+  LDWriteJSONQuotedString(file, name);
+  fputs(": ", file);
+}
+
 static NSComparisonResult LDCompareNamesCaseInsensitively(id left, id right, void *context)
 {
   (void)context;
@@ -152,6 +212,10 @@ typedef struct {
   __unsafe_unretained LDHardLinkTable *hardLinks;
   __unsafe_unretained NSMapTable *folderDeltas;
   BOOL includeOwner;
+  // WinDirStat 2.6's JSON layout (CsvLoader.cpp SaveResultsJson) instead of
+  // CSV rows; firstRow is cleared once a row is written.
+  BOOL json;
+  BOOL firstRow;
 } LDCSVWriteContext;
 
 static void LDAddDeltaUpward(NSMapTable *deltas, LDFileNode *node, LDFileNode *root, long long logical, long long physical)
@@ -211,16 +275,23 @@ static void LDWriteRow(FILE *file, LDFileNode *node, NSData *path, BOOL isRoot, 
 {
   BOOL isDirectory = [node kind] == LDFileNodeKindDirectory;
   BOOL includeOwner = context->includeOwner;
+  BOOL json = context->json;
 
-  fputs("\r\n", file);
-  if ([node isComputer]) {
-    LDWriteQuotedString(file, [node path]);
-  } else if (LDIsValidUTF8([path bytes], [path length])) {
-    LDWriteQuoted(file, [path bytes], [path length]);
+  if (json) {
+    fputs(context->firstRow ? "{\r\n" : ",\r\n{\r\n", file);
+    LDWriteJSONKey(file, LDCSVColumnNames[LDCSVColumnName], YES);
   } else {
-    // CSV text is UTF-8, so a path that is not falls back to -path, which
+    fputs("\r\n", file);
+  }
+  context->firstRow = NO;
+  if ([node isComputer]) {
+    LDWriteTextString(file, json, [node path]);
+  } else if (LDIsValidUTF8([path bytes], [path length])) {
+    LDWriteText(file, json, [path bytes], [path length]);
+  } else {
+    // The text is UTF-8, so a path that is not falls back to -path, which
     // decodes such names as Latin-1. It will not match the name on disk.
-    LDWriteQuotedString(file, [node path]);
+    LDWriteTextString(file, json, [node path]);
   }
 
   // WinDirStat writes 0/0 for files, and for folders the files and
@@ -249,13 +320,15 @@ static void LDWriteRow(FILE *file, LDFileNode *node, NSData *path, BOOL isRoot, 
     }
     index = [node isComputer] ? 0 : LDIndexForPath(path);
   }
-  fprintf(file, ",%lu,%lu,%llu,%llu,", files, folders, logical, physical);
-  LDWriteQuotedString(file, [LDFileAttributes attributeStringForNode:node]);
+  NSString *attributes = [LDFileAttributes attributeStringForNode:node];
 
   time_t seconds = (time_t)[node aggregateModificationTime];
   struct tm utc;
   memset(&utc, 0, sizeof(utc));
   gmtime_r(&seconds, &utc);
+  char lastChange[32];
+  snprintf(lastChange, sizeof(lastChange), "%04d-%02d-%02dT%02d:%02d:%02dZ",
+           utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min, utc.tm_sec);
   // Symlinks and special files are written as files.
   unsigned int type = isDirectory ? LDCSVTypeDirectory : LDCSVTypeFile;
   if ([node kind] == LDFileNodeKindFreeSpace) {
@@ -274,13 +347,41 @@ static void LDWriteRow(FILE *file, LDFileNode *node, NSData *path, BOOL isRoot, 
   if (![node isScanPending]) {
     type |= LDCSVTypeDone;
   }
-  fprintf(file, ",%04d-%02d-%02dT%02d:%02d:%02dZ,0x%08X,0x%016llX",
-          utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday,
-          utc.tm_hour, utc.tm_min, utc.tm_sec, type, index);
+  NSString *owner = includeOwner ? ([node isSpaceItem] ? @"" : [LDFileAttributes ownerOfPath:path]) : nil;
 
+  if (json) {
+    // Counts and sizes are numbers; the rest are strings, the type and
+    // index included ("0x00000008").
+    LDWriteJSONKey(file, LDCSVColumnNames[LDCSVColumnFiles], NO);
+    fprintf(file, "%lu", files);
+    LDWriteJSONKey(file, LDCSVColumnNames[LDCSVColumnFolders], NO);
+    fprintf(file, "%lu", folders);
+    LDWriteJSONKey(file, LDCSVColumnNames[LDCSVColumnLogicalSize], NO);
+    fprintf(file, "%llu", logical);
+    LDWriteJSONKey(file, LDCSVColumnNames[LDCSVColumnPhysicalSize], NO);
+    fprintf(file, "%llu", physical);
+    LDWriteJSONKey(file, LDCSVColumnNames[LDCSVColumnAttributes], NO);
+    LDWriteJSONQuotedString(file, attributes);
+    LDWriteJSONKey(file, LDCSVColumnNames[LDCSVColumnLastChange], NO);
+    fprintf(file, "\"%s\"", lastChange);
+    LDWriteJSONKey(file, LDCSVColumnNames[LDCSVColumnWinDirStatAttributes], NO);
+    fprintf(file, "\"0x%08X\"", type);
+    LDWriteJSONKey(file, LDCSVColumnNames[LDCSVColumnIndex], NO);
+    fprintf(file, "\"0x%016llX\"", index);
+    if (includeOwner) {
+      LDWriteJSONKey(file, LDCSVColumnNames[LDCSVColumnOwner], NO);
+      LDWriteJSONQuotedString(file, owner);
+    }
+    fputs("\r\n}", file);
+    return;
+  }
+
+  fprintf(file, ",%lu,%lu,%llu,%llu,", files, folders, logical, physical);
+  LDWriteQuotedString(file, attributes);
+  fprintf(file, ",%s,0x%08X,0x%016llX", lastChange, type, index);
   if (includeOwner) {
     fputc(',', file);
-    LDWriteQuotedString(file, [node isSpaceItem] ? @"" : [LDFileAttributes ownerOfPath:path]);
+    LDWriteQuotedString(file, owner);
   }
 }
 
@@ -331,6 +432,11 @@ typedef struct {
   size_t position;
   NSMutableData *storage;
   NSMutableData *fields;
+  // WinDirStat 2.6's JSON results (an array of objects keyed by column
+  // name) read as records: first a header of every column, then one record
+  // per object with its values in that order.
+  BOOL json;
+  BOOL headerRead;
 } LDCSVParser;
 
 static void LDParserAppendField(LDCSVParser *parser, size_t offset)
@@ -344,8 +450,13 @@ static void LDParserAppendField(LDCSVParser *parser, size_t offset)
 // the input and -1 for an unterminated quoted field. Rows may be separated
 // by "\r\n" before or after them (or bare "\n"), and quoted fields may hold
 // commas and line breaks.
+static int LDJSONNextRecord(LDCSVParser *parser);
+
 static int LDParserNextRecord(LDCSVParser *parser)
 {
+  if (parser->json) {
+    return LDJSONNextRecord(parser);
+  }
   const unsigned char *bytes = parser->bytes;
   size_t length = parser->length;
   size_t pos = parser->position;
@@ -408,6 +519,287 @@ static int LDParserNextRecord(LDCSVParser *parser)
   }
   parser->position = pos;
   return 1;
+}
+
+#pragma mark JSON
+
+static void LDJSONSkipSpace(LDCSVParser *parser)
+{
+  while (parser->position < parser->length) {
+    unsigned char c = parser->bytes[parser->position];
+    if (c != ' ' && c != '\t' && c != '\r' && c != '\n') {
+      break;
+    }
+    parser->position++;
+  }
+}
+
+static void LDAppendUTF8(NSMutableData *data, uint32_t value)
+{
+  unsigned char bytes[4];
+  size_t length = 0;
+  if (value < 0x80) {
+    bytes[0] = (unsigned char)value;
+    length = 1;
+  } else if (value < 0x800) {
+    bytes[0] = (unsigned char)(0xC0 | (value >> 6));
+    bytes[1] = (unsigned char)(0x80 | (value & 0x3F));
+    length = 2;
+  } else if (value < 0x10000) {
+    bytes[0] = (unsigned char)(0xE0 | (value >> 12));
+    bytes[1] = (unsigned char)(0x80 | ((value >> 6) & 0x3F));
+    bytes[2] = (unsigned char)(0x80 | (value & 0x3F));
+    length = 3;
+  } else {
+    bytes[0] = (unsigned char)(0xF0 | (value >> 18));
+    bytes[1] = (unsigned char)(0x80 | ((value >> 12) & 0x3F));
+    bytes[2] = (unsigned char)(0x80 | ((value >> 6) & 0x3F));
+    bytes[3] = (unsigned char)(0x80 | (value & 0x3F));
+    length = 4;
+  }
+  [data appendBytes:bytes length:length];
+}
+
+static BOOL LDJSONReadHex4(LDCSVParser *parser, uint32_t *value)
+{
+  if (parser->position + 4 > parser->length) {
+    return NO;
+  }
+  uint32_t result = 0;
+  size_t i = 0;
+  for (i = 0; i < 4; i++) {
+    unsigned char c = parser->bytes[parser->position + i];
+    result <<= 4;
+    if (c >= '0' && c <= '9') {
+      result |= (uint32_t)(c - '0');
+    } else if (c >= 'a' && c <= 'f') {
+      result |= (uint32_t)(c - 'a' + 10);
+    } else if (c >= 'A' && c <= 'F') {
+      result |= (uint32_t)(c - 'A' + 10);
+    } else {
+      return NO;
+    }
+  }
+  parser->position += 4;
+  *value = result;
+  return YES;
+}
+
+// Reads a string (at its opening quote) into output, unescaped. Raw bytes,
+// control characters included, are taken as they are, as WinDirStat's
+// JsonReadObject does.
+static BOOL LDJSONReadString(LDCSVParser *parser, NSMutableData *output)
+{
+  const unsigned char *bytes = parser->bytes;
+  parser->position++;
+  while (parser->position < parser->length) {
+    size_t start = parser->position;
+    while (parser->position < parser->length && bytes[parser->position] != '"' && bytes[parser->position] != '\\') {
+      parser->position++;
+    }
+    [output appendBytes:bytes + start length:parser->position - start];
+    if (parser->position >= parser->length) {
+      return NO;
+    }
+    unsigned char c = bytes[parser->position++];
+    if (c == '"') {
+      return YES;
+    }
+    if (parser->position >= parser->length) {
+      return NO;
+    }
+    unsigned char escaped = bytes[parser->position++];
+    char simple = 0;
+    switch (escaped) {
+      case 'b': simple = '\b'; break;
+      case 'f': simple = '\f'; break;
+      case 'n': simple = '\n'; break;
+      case 'r': simple = '\r'; break;
+      case 't': simple = '\t'; break;
+      case 'u': {
+        uint32_t value = 0;
+        if (!LDJSONReadHex4(parser, &value)) {
+          return NO;
+        }
+        if (value >= 0xD800 && value <= 0xDBFF && parser->position + 1 < parser->length
+            && bytes[parser->position] == '\\' && bytes[parser->position + 1] == 'u') {
+          size_t mark = parser->position;
+          uint32_t low = 0;
+          parser->position += 2;
+          if (LDJSONReadHex4(parser, &low) && low >= 0xDC00 && low <= 0xDFFF) {
+            value = 0x10000 + ((value - 0xD800) << 10) + (low - 0xDC00);
+          } else {
+            parser->position = mark;
+          }
+        }
+        LDAppendUTF8(output, value);
+        continue;
+      }
+      default:
+        // '"', '\\', '/' and anything else stand for themselves.
+        simple = (char)escaped;
+        break;
+    }
+    [output appendBytes:&simple length:1];
+  }
+  return NO;
+}
+
+// Skips an array or object (at its opening bracket), strings included.
+static BOOL LDJSONSkipNested(LDCSVParser *parser)
+{
+  NSUInteger depth = 0;
+  NSMutableData *scratch = [NSMutableData data];
+  while (parser->position < parser->length) {
+    unsigned char c = parser->bytes[parser->position];
+    if (c == '"') {
+      [scratch setLength:0];
+      if (!LDJSONReadString(parser, scratch)) {
+        return NO;
+      }
+      continue;
+    }
+    parser->position++;
+    if (c == '[' || c == '{') {
+      depth++;
+    } else if (c == ']' || c == '}') {
+      if (depth == 0) {
+        return NO;
+      }
+      if (--depth == 0) {
+        return YES;
+      }
+    }
+  }
+  return NO;
+}
+
+// The next object's values, in column order; objects without a Name are
+// skipped, as WinDirStat skips them. Returns 1, 0 at the array's end and -1
+// when the text is not JSON.
+static int LDJSONNextRecord(LDCSVParser *parser)
+{
+  const unsigned char *bytes = parser->bytes;
+  NSUInteger column = 0;
+  [parser->storage setLength:0];
+  [parser->fields setLength:0];
+
+  if (!parser->headerRead) {
+    // Everything before the array is ignored (WinDirStat skips lines until
+    // '[').
+    while (parser->position < parser->length && bytes[parser->position] != '[') {
+      parser->position++;
+    }
+    if (parser->position >= parser->length) {
+      return 0;
+    }
+    parser->position++;
+    parser->headerRead = YES;
+    for (column = 0; column < LDCSVColumnCount; column++) {
+      size_t offset = [parser->storage length];
+      const char *name = [LDCSVColumnNames[column] UTF8String];
+      [parser->storage appendBytes:name length:strlen(name)];
+      LDParserAppendField(parser, offset);
+    }
+    return 1;
+  }
+
+  NSMutableData *key = [NSMutableData data];
+  while (YES) {
+    LDJSONSkipSpace(parser);
+    if (parser->position < parser->length && bytes[parser->position] == ',') {
+      parser->position++;
+      LDJSONSkipSpace(parser);
+    }
+    if (parser->position >= parser->length || bytes[parser->position] == ']') {
+      return 0;
+    }
+    if (bytes[parser->position] != '{') {
+      return -1;
+    }
+    parser->position++;
+
+    [parser->storage setLength:0];
+    LDCSVField values[LDCSVColumnCount];
+    BOOL present[LDCSVColumnCount];
+    memset(present, 0, sizeof(present));
+    while (YES) {
+      LDJSONSkipSpace(parser);
+      if (parser->position >= parser->length) {
+        return -1;
+      }
+      if (bytes[parser->position] == '}') {
+        parser->position++;
+        break;
+      }
+      if (bytes[parser->position] != '"') {
+        return -1;
+      }
+      [key setLength:0];
+      if (!LDJSONReadString(parser, key)) {
+        return -1;
+      }
+      LDJSONSkipSpace(parser);
+      if (parser->position >= parser->length || bytes[parser->position] != ':') {
+        return -1;
+      }
+      parser->position++;
+      LDJSONSkipSpace(parser);
+      if (parser->position >= parser->length) {
+        return -1;
+      }
+      size_t offset = [parser->storage length];
+      if (bytes[parser->position] == '"') {
+        if (!LDJSONReadString(parser, parser->storage)) {
+          return -1;
+        }
+      } else if (bytes[parser->position] == '[' || bytes[parser->position] == '{') {
+        // A nested array or object (WinDirStat writes none): skipped, its
+        // column read as empty.
+        if (!LDJSONSkipNested(parser)) {
+          return -1;
+        }
+      } else {
+        // A number, true, false or null, kept as its text.
+        size_t start = parser->position;
+        while (parser->position < parser->length && bytes[parser->position] != ',' && bytes[parser->position] != '}'
+               && bytes[parser->position] != ' ' && bytes[parser->position] != '\t'
+               && bytes[parser->position] != '\r' && bytes[parser->position] != '\n') {
+          parser->position++;
+        }
+        if (parser->position == start) {
+          return -1;
+        }
+        [parser->storage appendBytes:bytes + start length:parser->position - start];
+      }
+      LDCSVField value = {offset, [parser->storage length] - offset};
+      [parser->storage appendBytes:"\0" length:1];
+      for (column = 0; column < LDCSVColumnCount; column++) {
+        const char *name = [LDCSVColumnNames[column] UTF8String];
+        if ([key length] == strlen(name) && memcmp([key bytes], name, [key length]) == 0) {
+          values[column] = value;
+          present[column] = YES;
+        }
+      }
+      LDJSONSkipSpace(parser);
+      if (parser->position < parser->length && bytes[parser->position] == ',') {
+        parser->position++;
+      } else if (parser->position >= parser->length || bytes[parser->position] != '}') {
+        return -1;
+      }
+    }
+    if (!present[LDCSVColumnName]) {
+      continue;
+    }
+    // Missing columns read as empty, as in WinDirStat.
+    size_t empty = [parser->storage length];
+    [parser->storage appendBytes:"\0" length:1];
+    for (column = 0; column < LDCSVColumnCount; column++) {
+      LDCSVField field = present[column] ? values[column] : (LDCSVField){empty, 0};
+      [parser->fields appendBytes:&field length:sizeof(field)];
+    }
+    return 1;
+  }
 }
 
 static NSUInteger LDParserFieldCount(LDCSVParser *parser)
@@ -484,6 +876,11 @@ static NSString *LDRowDescription(NSUInteger row)
 
 @implementation LDCSV
 
++ (BOOL)isJSONPath:(NSString *)path
+{
+  return [[[path pathExtension] lowercaseString] isEqualToString:@"json"];
+}
+
 + (BOOL)writeTree:(LDFileNode *)root
            toPath:(NSString *)path
      includeOwner:(BOOL)includeOwner
@@ -504,13 +901,18 @@ static NSString *LDRowDescription(NSUInteger row)
   }
   setvbuf(file, NULL, _IOFBF, 256 * 1024);
 
-  NSUInteger columns = includeOwner ? LDCSVColumnCount : LDCSVColumnOwner;
-  NSUInteger column = 0;
-  for (column = 0; column < columns; column++) {
-    if (column > 0) {
-      fputc(',', file);
+  BOOL json = [self isJSONPath:path];
+  if (json) {
+    fputs("[\r\n", file);
+  } else {
+    NSUInteger columns = includeOwner ? LDCSVColumnCount : LDCSVColumnOwner;
+    NSUInteger column = 0;
+    for (column = 0; column < columns; column++) {
+      if (column > 0) {
+        fputc(',', file);
+      }
+      LDWriteQuotedString(file, LDCSVColumnNames[column]);
     }
-    LDWriteQuotedString(file, LDCSVColumnNames[column]);
   }
 
   @autoreleasepool {
@@ -519,9 +921,12 @@ static NSString *LDRowDescription(NSUInteger row)
     // until the end of the scope.
     __attribute__((objc_precise_lifetime)) LDHardLinkTable *hardLinks = [LDHardLinkTable tableForRoot:root];
     __attribute__((objc_precise_lifetime)) NSMapTable *folderDeltas = hardLinks ? LDFolderDeltasForTree(root, hardLinks) : nil;
-    LDCSVWriteContext context = {hardLinks, folderDeltas, includeOwner};
+    LDCSVWriteContext context = {hardLinks, folderDeltas, includeOwner, json, YES};
     NSMutableData *rootPath = [[root pathData] mutableCopy];
     LDWriteSubtree(file, root, rootPath, YES, &context);
+  }
+  if (json) {
+    fputs("\r\n]\r\n", file);
   }
 
   BOOL failed = ferror(file) != 0;
@@ -566,23 +971,56 @@ static NSString *LDRowDescription(NSUInteger row)
     }
     return NO;
   }
-  fputs("\"Hash Prefix\",\"Name\",\"Logical Size\",\"Physical Size\",\"Last Change\",\"Attributes\",\"Sampled hash\"\r\n", file);
+  BOOL json = [self isJSONPath:path];
+  if (json) {
+    fputs("[\r\n", file);
+  } else {
+    fputs("\"Hash Prefix\",\"Name\",\"Logical Size\",\"Physical Size\",\"Last Change\",\"Attributes\",\"Sampled hash\"\r\n", file);
+  }
+  BOOL first = YES;
   for (NSArray *row in rows) {
     LDDuplicateGroup *group = [row objectAtIndex:0];
     LDFileNode *node = [row objectAtIndex:1];
-    LDWriteQuotedString(file, [group hashString]);
-    fputc(',', file);
-    LDWriteQuotedString(file, [row objectAtIndex:2]);
     time_t seconds = (time_t)[node modificationTime];
     struct tm utc;
     memset(&utc, 0, sizeof(utc));
     gmtime_r(&seconds, &utc);
-    fprintf(file, ",%llu,%llu,%04d-%02d-%02dT%02d:%02d:%02dZ,", [node size], [node allocatedSize],
-            utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min, utc.tm_sec);
-    LDWriteQuotedString(file, [LDFileAttributes attributeStringForNode:node]);
-    // WinDirStat 2.9 hashes very large files from samples when asked to;
-    // LinDirStat always hashes whole files.
-    fputs(",false\r\n", file);
+    char lastChange[32];
+    snprintf(lastChange, sizeof(lastChange), "%04d-%02d-%02dT%02d:%02d:%02dZ",
+             utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min, utc.tm_sec);
+    NSString *attributes = [LDFileAttributes attributeStringForNode:node];
+    if (json) {
+      // SaveDuplicatesJson (v2.9.3 CsvLoader.cpp:628-647): the CSV's
+      // columns, "Sampled hash" unquoted.
+      fputs(first ? "{\r\n" : ",\r\n{\r\n", file);
+      LDWriteJSONKey(file, @"Hash Prefix", YES);
+      LDWriteJSONQuotedString(file, [group hashString]);
+      LDWriteJSONKey(file, @"Name", NO);
+      LDWriteJSONQuotedString(file, [row objectAtIndex:2]);
+      LDWriteJSONKey(file, @"Logical Size", NO);
+      fprintf(file, "%llu", [node size]);
+      LDWriteJSONKey(file, @"Physical Size", NO);
+      fprintf(file, "%llu", [node allocatedSize]);
+      LDWriteJSONKey(file, @"Last Change", NO);
+      fprintf(file, "\"%s\"", lastChange);
+      LDWriteJSONKey(file, @"Attributes", NO);
+      LDWriteJSONQuotedString(file, attributes);
+      LDWriteJSONKey(file, @"Sampled hash", NO);
+      fputs("false\r\n}", file);
+    } else {
+      LDWriteQuotedString(file, [group hashString]);
+      fputc(',', file);
+      LDWriteQuotedString(file, [row objectAtIndex:2]);
+      fprintf(file, ",%llu,%llu,%s,", [node size], [node allocatedSize], lastChange);
+      LDWriteQuotedString(file, attributes);
+      // WinDirStat 2.9 hashes very large files from samples when asked to;
+      // LinDirStat always hashes whole files.
+      fputs(",false\r\n", file);
+    }
+    first = NO;
+  }
+  if (json) {
+    fputs(first ? "]\r\n" : "\r\n]\r\n", file);
   }
   BOOL failed = ferror(file) != 0;
   if (fclose(file) != 0) {
@@ -617,6 +1055,8 @@ static NSString *LDRowDescription(NSUInteger row)
   parser.position = 0;
   parser.storage = [NSMutableData data];
   parser.fields = [NSMutableData data];
+  parser.json = [self isJSONPath:path];
+  parser.headerRead = NO;
   if (parser.length >= 3 && memcmp(parser.bytes, "\xEF\xBB\xBF", 3) == 0) {
     parser.position = 3;
   }
@@ -638,7 +1078,8 @@ static NSString *LDRowDescription(NSUInteger row)
   int status = LDParserNextRecord(parser);
   if (status <= 0) {
     *error = LDCSVError(status < 0 ? LDCSVErrorMalformed : LDCSVErrorNoRows,
-                        status < 0 ? @"The header has an unterminated quote." : @"The file is empty.");
+                        status < 0 ? @"The header has an unterminated quote."
+                                   : (parser->json ? @"The file has no JSON array." : @"The file is empty."));
     return nil;
   }
   NSUInteger columnIndex[LDCSVColumnCount];
@@ -784,12 +1225,14 @@ static NSString *LDRowDescription(NSUInteger row)
   }
 
   if (status < 0) {
-    *error = LDCSVError(LDCSVErrorMalformed,
-                        [NSString stringWithFormat:@"%@ has an unterminated quote.", LDRowDescription(row + 1)]);
+    NSString *description = parser->json
+      ? [NSString stringWithFormat:@"The file is not valid JSON after item %lu.", (unsigned long)(row - 1)]
+      : [NSString stringWithFormat:@"%@ has an unterminated quote.", LDRowDescription(row + 1)];
+    *error = LDCSVError(LDCSVErrorMalformed, description);
     return nil;
   }
   if (!root) {
-    *error = LDCSVError(LDCSVErrorNoRows, @"The file has a header but no rows.");
+    *error = LDCSVError(LDCSVErrorNoRows, parser->json ? @"The JSON array has no items." : @"The file has a header but no rows.");
     return nil;
   }
 

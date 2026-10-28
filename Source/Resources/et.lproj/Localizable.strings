@@ -77,8 +77,8 @@
 "Level colors" = "Suuruse osakaalu värv";
 "Light Source" = "Staatiline";
 "List Style" = "Lehe stiil";
-"Load Results From CSV" = "Laadi tulemused CSV/JSON-failist";
-"Load Results From CSV…" = "Laadi tulemused CSV-failist…";
+"Load Results From CSV/JSON" = "Laadi tulemused CSV/JSON-failist";
+"Load Results From CSV/JSON…" = "Laadi tulemused CSV/JSON-failist…";
 "Logical Size" = "Loogiline suurus";
 "Logical Size:" = "Loogiline suurus:";
 "Memory: %@" = "RAM kasutus: %@";
@@ -120,10 +120,10 @@
 "Reset Zoom" = "Lähtesta suum";
 "Resume" = "Jätka";
 "Resume Scan" = "Jätka";
-"Save Duplicates To CSV" = "Salvesta duplikaadid CSV/JSON-faili";
-"Save Duplicates To CSV…" = "Salvesta duplikaadid CSV-faili…";
-"Save Results To CSV" = "Salvesta tulemused CSV/JSON-sse";
-"Save Results To CSV…" = "Salvesta tulemused CSV-sse…";
+"Save Duplicates To CSV/JSON" = "Salvesta duplikaadid CSV/JSON-faili";
+"Save Duplicates To CSV/JSON…" = "Salvesta duplikaadid CSV/JSON-faili…";
+"Save Results To CSV/JSON" = "Salvesta tulemused CSV/JSON-sse";
+"Save Results To CSV/JSON…" = "Salvesta tulemused CSV/JSON-sse…";
 "Scale factor" = "Mastaabitegur";
 "Scan and display hard link information" = "Skanni draive ja kuva kõvalinkide teave";
 "Scan for duplicate files" = "Otsi dubleeritud faile (mõjutab jõudlust)";

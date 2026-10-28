@@ -44,7 +44,8 @@ static NSString *const LDFlagLoadFromCSV = @"loadfromcsv";
 - (BOOL)isHeadless { return _headless; }
 
 // The lowercased name of a WinDirStat flag ("--savetocsv", "-SaveToCSV",
-// "/savetocsv"), or nil.
+// "/savetocsv"), or nil. WinDirStat 2.6's names (34daeec3: /saveto,
+// /savedupesto, /loadfrom, for CSV or JSON) give the same flags.
 + (NSString *)flagNameOfArgument:(NSString *)argument
 {
   NSString *name = nil;
@@ -56,6 +57,10 @@ static NSString *const LDFlagLoadFromCSV = @"loadfromcsv";
     return nil;
   }
   name = [name lowercaseString];
+  NSDictionary *renamed = @{@"saveto": LDFlagSaveToCSV, @"savedupesto": LDFlagSaveDuplicatesToCSV, @"loadfrom": LDFlagLoadFromCSV};
+  if ([renamed objectForKey:name]) {
+    return [renamed objectForKey:name];
+  }
   NSArray *flags = [NSArray arrayWithObjects:LDFlagSaveToCSV, LDFlagSaveDuplicatesToCSV, LDFlagLoadFromCSV, nil];
   return [flags containsObject:name] ? name : nil;
 }
