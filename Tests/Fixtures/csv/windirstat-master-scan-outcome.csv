@@ -1,0 +1,6 @@
+"Name","Files","Folders","Logical Size","Physical Size","Attributes","Last Change","WinDirStat Attributes","Index","ScanOutcome","ScanError"
+"D:\Projects",2,2,1048916,4096,"",2026-10-20T08:00:00Z,0x30000004,0x0001000000000010,"partial",""
+"D:\Projects\cloud",1,0,1048576,,"",2026-10-20T08:00:00Z,0x20000004,0x0002000000000020,"complete",""
+"D:\Projects\cloud\video.mp4",0,0,1048576,,"O",2026-10-19T18:30:00Z,0x20000008,0x0003000000000030,"complete",""
+"D:\Projects\locked",0,0,0,0,"",2026-10-01T00:00:00Z,0x20000004,0x0004000000000040,"enumeration-error","Access is denied, (0x80070005)"
+"D:\Projects\README.md",0,0,340,4096,"RA",2026-09-01T12:00:00Z,0x20000008,0x0006000000000060,"complete",""

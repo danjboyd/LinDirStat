@@ -178,8 +178,9 @@
 
   XCTAssertEqual(0, status);
   NSArray *lines = [[self contentsOf:@"dupes.csv"] componentsSeparatedByString:@"\r\n"];
-  XCTAssertEqualObjects(@"\"Hash Prefix\",\"Name\",\"Logical Size\",\"Physical Size\",\"Last Change\",\"Attributes\"",
+  XCTAssertEqualObjects(@"\"Hash Prefix\",\"Name\",\"Logical Size\",\"Physical Size\",\"Last Change\",\"Attributes\",\"Sampled hash\"",
                         [lines objectAtIndex:0]);
+  XCTAssertTrue([[lines objectAtIndex:1] hasSuffix:@",false"], @"%@", [lines objectAtIndex:1]);
   NSString *tree = [[self temporaryRoot] stringByAppendingPathComponent:@"tree"];
   XCTAssertTrue([[lines objectAtIndex:1] rangeOfString:[tree stringByAppendingString:@"/one\",4,"]].location != NSNotFound);
   XCTAssertTrue([[lines objectAtIndex:2] rangeOfString:[tree stringByAppendingString:@"/sub/two\",4,"]].location != NSNotFound);
