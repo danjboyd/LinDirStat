@@ -154,6 +154,7 @@
 "Show Unknown" = "Ismeretlen mutatása";
 "Show confirmation before: %@" = "Megerősítés megjelenítése a következő művelet előtt: %@";
 "Show grid" = "Rácsozás mutatása";
+"Show seconds in timestamps" = "Másodpercek megjelenítése az időbélyegekben";
 "Show sizes in human-readable format" = "Méretek GiB/MiB/KiB/bájt formátumban";
 "Show stripes" = "Sávok mutatása";
 "Show time spent during scan" = "Vizsgálat alatt eltelt idő mutatása";

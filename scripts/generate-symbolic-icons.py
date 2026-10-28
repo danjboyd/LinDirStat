@@ -38,6 +38,9 @@ ICONS = [
     "dialog-question-symbolic",
     "go-bottom-symbolic",
     "edit-clear-all-symbolic",
+    "list-add-symbolic",
+    "list-remove-symbolic",
+    "go-down-symbolic",
 ]
 
 

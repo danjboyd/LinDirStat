@@ -150,6 +150,7 @@
 "Show Unknown" = "Onbekend weergeven";
 "Show confirmation before: %@" = "Bevestiging weergeven vóór: %@";
 "Show grid" = "Raster weergeven";
+"Show seconds in timestamps" = "Seconden in tijdstempels weergeven";
 "Show sizes in human-readable format" = "Bestandsgrootte in GiB/MiB/KiB/bytes formaat weergeven";
 "Show stripes" = "Strepen weergeven";
 "Show time spent during scan" = "Bestede tijd tijdens scan weergeven";

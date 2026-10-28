@@ -153,6 +153,7 @@
 "Show Unknown" = "Exibir Desconhecidos";
 "Show confirmation before: %@" = "Mostrar confirmação antes de: %@";
 "Show grid" = "Exibir Grid";
+"Show seconds in timestamps" = "Mostrar segundos nos carimbos de data/hora";
 "Show sizes in human-readable format" = "Exibir tamanhos nos formatos GiB/MiB/KiB/bytes";
 "Show stripes" = "Exibir Listas";
 "Show time spent during scan" = "Exibir tempo decorrido durante a varredura";

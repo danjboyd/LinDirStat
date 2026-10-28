@@ -43,14 +43,62 @@ static const NSUInteger LDAllDrivesListLength = 48;
   return path;
 }
 
+// "/a/b" covers "/a/b" and "/a/b/c", not "/a/bc".
+static NSString *LDFolderKey(NSString *path)
+{
+  return [path hasSuffix:@"/"] ? path : [path stringByAppendingString:@"/"];
+}
+
++ (NSArray *)folderPathsFromText:(NSString *)text
+{
+  NSMutableArray *roots = [NSMutableArray array];
+  NSCharacterSet *space = [NSCharacterSet whitespaceAndNewlineCharacterSet];
+  for (NSString *part in [text componentsSeparatedByString:@"|"]) {
+    // Spaces around a separator are not part of the path.
+    NSString *path = [self folderPathFromText:[part stringByTrimmingCharactersInSet:space]];
+    if ([path length] == 0) {
+      continue;
+    }
+    NSString *key = LDFolderKey(path);
+    BOOL covered = NO;
+    for (NSString *root in roots) {
+      if ([key hasPrefix:LDFolderKey(root)]) {
+        covered = YES;
+        break;
+      }
+    }
+    if (covered) {
+      continue;
+    }
+    NSIndexSet *inside = [roots indexesOfObjectsPassingTest:^BOOL(NSString *root, NSUInteger index, BOOL *stop) {
+      (void)index;
+      (void)stop;
+      return [LDFolderKey(root) hasPrefix:key];
+    }];
+    [roots removeObjectsAtIndexes:inside];
+    [roots addObject:path];
+  }
+  return roots;
+}
+
++ (NSString *)folderTextForPaths:(NSArray *)paths
+{
+  return [paths componentsJoinedByString:@"|"];
+}
+
 + (BOOL)isUsableFolderText:(NSString *)text
 {
-  NSString *path = [self folderPathFromText:text];
-  if (![path isAbsolutePath]) {
+  NSArray *paths = [self folderPathsFromText:text];
+  if ([paths count] == 0) {
     return NO;
   }
-  BOOL isDirectory = NO;
-  return [[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory;
+  for (NSString *path in paths) {
+    BOOL isDirectory = NO;
+    if (![path isAbsolutePath] || ![[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDirectory] || !isDirectory) {
+      return NO;
+    }
+  }
+  return YES;
 }
 
 + (BOOL)canConfirmMode:(LDSelectTargetMode)mode
@@ -84,7 +132,7 @@ static const NSUInteger LDAllDrivesListLength = 48;
   switch (mode) {
     case LDSelectTargetAllLocalDrives: return [mountPoints copy];
     case LDSelectTargetIndividualDrives: return [mountPoints objectsAtIndexes:selected];
-    case LDSelectTargetFolder: return @[[self folderPathFromText:folderText]];
+    case LDSelectTargetFolder: return [self folderPathsFromText:folderText];
   }
   return nil;
 }

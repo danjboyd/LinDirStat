@@ -101,6 +101,9 @@ typedef enum {
 // Applies the Cleanups page rules (PageCleanups.cpp): recursion needs mount
 // points or folders and forces waiting; without waiting there is no refresh.
 - (void)normalize;
+// Nothing set: no command, no option and the default title (an unused slot
+// from before cleanups could be added and removed).
+- (BOOL)isUnused;
 
 @end
 
@@ -129,6 +132,10 @@ typedef enum {
 // Sizes as "1.2 GB" (YES) or "1,234,567 bytes" (NO).
 - (BOOL)humanFormat;
 - (void)setHumanFormat:(BOOL)flag;
+// WinDirStat 2.8's ShowTimeSeconds (b14022fd, default off): timestamps in
+// the lists show seconds.
+- (BOOL)showTimeSeconds;
+- (void)setShowTimeSeconds:(BOOL)flag;
 - (BOOL)listGrid;
 - (void)setListGrid:(BOOL)flag;
 - (BOOL)listStripes;
@@ -294,9 +301,13 @@ typedef enum {
 - (void)addFolderToHistory:(NSString *)folder;
 - (void)removeFolderFromHistory:(NSString *)folder;
 
-// Custom cleanups: always 10 slots.
+// Custom cleanups, as many as the user adds (WinDirStat 2.8, 4779293d).
+// Settings from before then held ten fixed slots: on first read the
+// configured ones are kept and the unused ones after the last of them go.
+// The first ten get Ctrl+0-9 in the Custom Cleanup menu.
 - (NSArray *)customCleanups;
 - (void)setCustomCleanups:(NSArray *)cleanups;
++ (NSUInteger)customCleanupShortcutCount;
 
 // Options menu: the extension list and the treemap panes.
 - (BOOL)showFileTypes;

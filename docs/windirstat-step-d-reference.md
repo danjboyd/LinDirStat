@@ -146,6 +146,7 @@ Works on exactly one file. Shows a message box with MD5, SHA1, SHA256, SHA384 an
 ### 1.6 User-defined cleanups ("Custom Cleanup"; `Options.h:88-142`, `Pages/PageCleanups.cpp`, `WM:699-831`)
 
 **Slots.** There are 10, numbered 0–9. Slot *i* has the shortcut **Ctrl+*i*** (`7da9c724:windirstat.rc:396-405`), and its menu text is `"<Title>\tCtrl+<i>"` (`7da9c724:res/langs/lang_en.txt:265`).
+- *Later upstream (v2.8, `4779293d`; `40d77b69:windirstat/Options.cpp:102-213`, `Pages/PageCleanups.cpp:154-200`):* **any number** of custom cleanups. `Cleanups\Count` holds how many there are. Settings without it are the old ten slots: on first load the configured ones are kept, and the unused slots after the last of them are dropped (an untouched setup migrates to none). The Cleanups page gets **+**, **−**, **↑** and **↓** buttons under the list. A new cleanup is titled for its position. Only the first ten keep Ctrl+0–9 (`USERDEFINEDCLEANUPACCELERATORCOUNT`); the rest show their title alone. LinDirStat follows this. Its marker is `UserDefinedCleanupCount`. Its buttons are Adwaita symbolic icons (list-add, list-remove, go-up, go-down) with tooltips.
 
 **Fields** (all default empty, false or 0; `Options.h:91-105`):
 
@@ -298,6 +299,8 @@ Substitution goes through `>`-markers so a `%` inside a filename is safe. Paths 
 **Linux equivalent**
 - **All local drives:** read `/proc/self/mountinfo`. Exclude pseudo filesystems: proc, sysfs, devtmpfs, tmpfs, cgroup*, squashfs, overlay (except `/`). Exclude network and FUSE filesystems: nfs*, cifs/smb3, sshfs, fuse.*. De-duplicate bind mounts by `st_dev`. · **Individual drives:** the same list. Name: "Label (mountpoint)", or just the mountpoint. Total and Free come from `statvfs`, with Free = `f_bavail`. Keep the bar and percent columns. · **Multi-mount root:** a synthetic "This Computer" node.
 
+
+*Later upstream (v2.8, `1424ff67`; `40d77b69:windirstat/Dialogs/SelectDrivesDlg.cpp`, `HelpersInterface.cpp` `NormalizeScanPaths`):* the **Folder** box takes several folders separated by `|`. Each is made a full path; blanks are dropped, and so is a folder inside another one given (a later folder that contains earlier ones replaces them). OK needs every one to exist. **Browse…** picks several folders and replaces the box; a new button beside it adds the picked folders to it. Several roots are scanned under "This PC", like several drives. Each folder goes into the history on its own, the first one newest. LinDirStat follows this (`+[LDSelectTargetRules folderPathsFromText:]`), with the add button as an Adwaita list-add icon. Spaces around a `|` are ignored, and the several folders are scanned under "This Computer", as the command line already did.
 ---
 
 ## 5. Largest Files tab (`Controls/FileTopControl.cpp`, `ItemTop.cpp`, `FileTreeView.cpp:70-81`)
@@ -568,6 +571,7 @@ Keep the "add as a leaf, don't descend" behaviour for unfollowed links and mount
 
 - Changing dark mode or language needs a **restart** (`PageGeneral.cpp:107-110`).
 - List-style changes repaint immediately.
+- *Later upstream (v2.8, `b14022fd`; `40d77b69:windirstat/HelpersInterface.cpp:145-198`):* **Show seconds in timestamps** (`ShowTimeSeconds`, default off) adds seconds to every Last Change and watcher time, forcing them into a locale format that lacks them. LinDirStat follows this: the lists' `yyyy-MM-dd HH:mm` becomes `yyyy-MM-dd HH:mm:ss`, and Last Change is refitted. (The File Watcher's Time always had seconds.)
 
 ### Filtering (§9)
 

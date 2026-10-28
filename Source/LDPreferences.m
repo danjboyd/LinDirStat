@@ -23,7 +23,7 @@ NSString *const LDColumnListSearch = @"Search";
 NSString *const LDColumnListWatcher = @"Watcher";
 NSString *const LDColumnListDrives = @"DriveSelect";
 
-static const NSUInteger LDCustomCleanupSlots = 10;
+static const NSUInteger LDCustomCleanupShortcuts = 10;
 enum { LDFileTreeColorSlots = 8 };
 
 // GNOME's palette (blue, red, green, yellow; dark then light) in the order
@@ -119,6 +119,13 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
 - (LDRefreshPolicy)refreshPolicy { return _refreshPolicy; }
 - (void)setRefreshPolicy:(LDRefreshPolicy)policy { _refreshPolicy = policy; }
 
+- (BOOL)isUnused
+{
+  return [_title length] == 0 && [_commandLine length] == 0 && !_enabled && !_worksForMountPoints
+    && !_worksForDirectories && !_worksForFiles && !_recurseIntoSubdirectories && !_askForConfirmation
+    && !_showInTerminal && !_waitForCompletion && _refreshPolicy == LDRefreshPolicyNone;
+}
+
 - (void)normalize
 {
   if (!_worksForMountPoints && !_worksForDirectories) {
@@ -163,6 +170,7 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
 {
   return @{
     @"HumanFormat": @YES,
+    @"ShowTimeSeconds": @NO,
     @"ListGrid": @NO,
     @"ListStripes": @NO,
     @"ListFullRowSelection": @YES,
@@ -299,11 +307,15 @@ static NSInteger LDClamp(NSInteger value, NSInteger low, NSInteger high)
   for (NSString *key in [LDPreferences defaultValues]) {
     [_defaults removeObjectForKey:key];
   }
+  // Not registered: its absence marks the old ten slots.
+  [_defaults removeObjectForKey:@"UserDefinedCleanupCount"];
   [self changed];
 }
 
 - (BOOL)humanFormat { return [self boolForKey:@"HumanFormat"]; }
 - (void)setHumanFormat:(BOOL)flag { [self setBool:flag forKey:@"HumanFormat"]; }
+- (BOOL)showTimeSeconds { return [self boolForKey:@"ShowTimeSeconds"]; }
+- (void)setShowTimeSeconds:(BOOL)flag { [self setBool:flag forKey:@"ShowTimeSeconds"]; }
 - (BOOL)listGrid { return [self boolForKey:@"ListGrid"]; }
 - (void)setListGrid:(BOOL)flag { [self setBool:flag forKey:@"ListGrid"]; }
 - (BOOL)listStripes { return [self boolForKey:@"ListStripes"]; }
@@ -671,29 +683,38 @@ static NSString *LDPromptKey(LDPrompt prompt)
   [self storeFolderHistory:history];
 }
 
++ (NSUInteger)customCleanupShortcutCount { return LDCustomCleanupShortcuts; }
+
+// UserDefinedCleanupCount marks settings written since cleanups can be
+// added and removed (WinDirStat's Cleanups\Count); without it the list is
+// the old ten slots (COptions::PreProcessPersistedSettings).
 - (NSArray *)customCleanups
 {
   NSArray *stored = [_defaults arrayForKey:@"UserDefinedCleanups"];
-  NSMutableArray *cleanups = [NSMutableArray arrayWithCapacity:LDCustomCleanupSlots];
-  for (NSUInteger i = 0; i < LDCustomCleanupSlots; i++) {
-    id entry = i < [stored count] ? [stored objectAtIndex:i] : nil;
-    LDCustomCleanup *cleanup = [entry isKindOfClass:[NSDictionary class]]
+  BOOL migrated = [_defaults objectForKey:@"UserDefinedCleanupCount"] != nil;
+  NSMutableArray *cleanups = [NSMutableArray arrayWithCapacity:[stored count]];
+  for (id entry in stored) {
+    [cleanups addObject:[entry isKindOfClass:[NSDictionary class]]
       ? [[LDCustomCleanup alloc] initWithDictionary:entry]
-      : [[LDCustomCleanup alloc] init];
-    [cleanups addObject:cleanup];
+      : [[LDCustomCleanup alloc] init]];
+  }
+  if (!migrated) {
+    while ([cleanups count] > 0 && [[cleanups lastObject] isUnused]) {
+      [cleanups removeLastObject];
+    }
   }
   return cleanups;
 }
 
 - (void)setCustomCleanups:(NSArray *)cleanups
 {
-  NSMutableArray *stored = [NSMutableArray array];
-  for (NSUInteger i = 0; i < LDCustomCleanupSlots; i++) {
-    LDCustomCleanup *cleanup = i < [cleanups count] ? [cleanups objectAtIndex:i] : [[LDCustomCleanup alloc] init];
+  NSMutableArray *stored = [NSMutableArray arrayWithCapacity:[cleanups count]];
+  for (LDCustomCleanup *cleanup in cleanups) {
     [cleanup normalize];
     [stored addObject:[cleanup dictionaryRepresentation]];
   }
   [_defaults setObject:stored forKey:@"UserDefinedCleanups"];
+  [_defaults setInteger:(NSInteger)[stored count] forKey:@"UserDefinedCleanupCount"];
   [self changed];
 }
 

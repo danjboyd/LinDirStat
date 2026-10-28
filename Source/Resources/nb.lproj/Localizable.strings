@@ -153,6 +153,7 @@
 "Show Unknown" = "Vis utilgjengelige";
 "Show confirmation before: %@" = "Vis bekreftelse før: %@";
 "Show grid" = "Vis som rutenett";
+"Show seconds in timestamps" = "Vis sekunder i tidsstempler";
 "Show sizes in human-readable format" = "Vis størrelser i GiB/MiB/KiB/byte format";
 "Show stripes" = "Vis med kantstriper";
 "Show time spent during scan" = "Vis tid brukt under skanning";

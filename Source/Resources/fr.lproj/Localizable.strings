@@ -151,6 +151,7 @@
 "Show Unknown" = "Afficher inconnu";
 "Show confirmation before: %@" = "Afficher une confirmation avant : %@";
 "Show grid" = "Montrer la grille";
+"Show seconds in timestamps" = "Afficher les secondes dans les horodatages";
 "Show sizes in human-readable format" = "Montrer la taille des fichiers en Go/Mo/Ko/octets";
 "Show stripes" = "Afficher des rayures";
 "Show time spent during scan" = "Montrer le temps passé à parcourir les répertoires";

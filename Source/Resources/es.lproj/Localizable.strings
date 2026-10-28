@@ -151,6 +151,7 @@
 "Show Unknown" = "Mostrar Desconocidos";
 "Show confirmation before: %@" = "Mostrar confirmación antes de: %@";
 "Show grid" = "Mostrar Grilla";
+"Show seconds in timestamps" = "Mostrar segundos en las marcas de tiempo";
 "Show sizes in human-readable format" = "Mostrar Tamaños en Formato GiB/MiB/KiB/bytes";
 "Show stripes" = "Mostrar Bandas";
 "Show time spent during scan" = "Mostrar Tiempo utilizado durante el Recorrido";

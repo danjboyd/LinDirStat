@@ -50,6 +50,7 @@
 - (void)toggleLogicalSize:(id)sender;
 - (void)toggleAbsolutePercentages:(id)sender;
 - (void)toggleGroupUnregisteredTypes:(id)sender;
+- (NSMenu *)customCleanupMenu;
 - (void)addWatcherEvents:(NSArray *)events;
 - (void)startWatching:(id)sender;
 - (void)pauseWatching:(id)sender;
@@ -700,6 +701,50 @@
   XCTAssertFalse([_controller isFileWatcherOn]);
   XCTAssertFalse([[[_controller fileTabs] tabViewItems] containsObject:[_controller watcherTab]]);
   XCTAssertEqual([_controller tree], (LDOutlineView *)[_controller activeFileList]);
+}
+
+// WinDirStat 2.8 (b14022fd): Show seconds in timestamps.
+- (void)testShowTimeSecondsInLastChange
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setColumn:LDColumnLastChange shown:YES];
+  NSOutlineView *tree = [_controller tree];
+  NSTableColumn *lastChange = [tree tableColumnWithIdentifier:LDColumnLastChange];
+  LDFileNode *a1 = [self node:@"a/a1.txt"];
+  NSString *minutes = [_controller outlineView:tree objectValueForTableColumn:lastChange byItem:a1];
+  XCTAssertEqual((NSUInteger)16, [minutes length], @"%@", minutes);
+  [preferences setShowTimeSeconds:YES];
+  NSString *seconds = [_controller outlineView:tree objectValueForTableColumn:lastChange byItem:a1];
+  XCTAssertEqual((NSUInteger)19, [seconds length], @"%@", seconds);
+  XCTAssertTrue([seconds hasPrefix:minutes], @"%@ / %@", seconds, minutes);
+}
+
+// WinDirStat 2.8 (4779293d): any number of custom cleanups; the first ten
+// keep Ctrl+0-9.
+- (void)testMoreThanTenCustomCleanups
+{
+  if (!_controller) {
+    return;
+  }
+  NSMutableArray *cleanups = [NSMutableArray array];
+  for (NSUInteger i = 0; i < 12; i++) {
+    LDCustomCleanup *cleanup = [[LDCustomCleanup alloc] init];
+    [cleanup setEnabled:YES];
+    [cleanup setTitle:[NSString stringWithFormat:@"Cleanup %lu", (unsigned long)i]];
+    [cleanup setWorksForFiles:YES];
+    [cleanup setCommandLine:@"true"];
+    [cleanups addObject:cleanup];
+  }
+  [[LDPreferences sharedPreferences] setCustomCleanups:cleanups];
+  NSMenu *menu = [_controller customCleanupMenu];
+  XCTAssertEqual((NSInteger)12, [menu numberOfItems]);
+  XCTAssertEqualObjects(@"Cleanup 11", [[menu itemAtIndex:11] title]);
+  XCTAssertEqual((NSInteger)11, [[menu itemAtIndex:11] tag]);
+  XCTAssertEqualObjects(@"9", [[menu itemAtIndex:9] keyEquivalent]);
+  XCTAssertEqualObjects(@"", [[menu itemAtIndex:10] keyEquivalent]);
 }
 
 - (void)setWatcherFilter:(NSString *)pattern

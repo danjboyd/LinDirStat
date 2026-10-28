@@ -41,6 +41,7 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
 
   // General
   NSButton *_humanFormat;
+  NSButton *_timeSeconds;
   NSButton *_fullRowSelection;
   NSButton *_listGrid;
   NSButton *_listStripes;
@@ -86,6 +87,8 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   // Cleanups
   NSMutableArray *_cleanups;
   NSTableView *_cleanupTable;
+  NSButton *_addCleanup;
+  NSButton *_removeCleanup;
   NSButton *_moveUp;
   NSButton *_moveDown;
   NSButton *_cleanupEnabled;
@@ -287,6 +290,19 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
   [button setTarget:self];
   [button setAction:action];
   [button sizeToFit];
+  return button;
+}
+
+// A push button showing a symbolic icon, its title as the tooltip.
+- (NSButton *)iconButtonNamed:(NSString *)icon title:(NSString *)title action:(SEL)action
+{
+  NSButton *button = [self pushButtonWithTitle:@"" action:action];
+  [button setImage:[LDPlatformUI toolbarImageNamed:icon label:title]];
+  [button setImagePosition:NSImageOnly];
+  [button setToolTip:title];
+  NSRect frame = [button frame];
+  frame.size.height = MAX(NSHeight(frame), 28.0);
+  [button setFrame:frame];
   return button;
 }
 
@@ -523,6 +539,7 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
   [self beginPage:LDLocalized(@"General")];
   [self addSectionTitle:LDLocalized(@"Sizes")];
   _humanFormat = [self addCheckbox:LDLocalized(@"Show sizes in human-readable format") action:@selector(generalChanged:)];
+  _timeSeconds = [self addCheckbox:LDLocalized(@"Show seconds in timestamps") action:@selector(generalChanged:)];
   [self addSectionTitle:LDLocalized(@"List Style")];
   _autoResizeColumns = [self addCheckbox:LDLocalized(@"Automatically resize columns") action:@selector(generalChanged:)];
   _fullRowSelection = [self addCheckbox:LDLocalized(@"Full row selection") action:@selector(generalChanged:)];
@@ -710,17 +727,21 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
   NSView *page = [self beginPage:LDLocalized(@"Cleanups")];
   CGFloat listWidth = 220.0;
 
-  _moveUp = [self pushButtonWithTitle:LDLocalized(@"Move Up") action:@selector(moveCleanupUp:)];
-  _moveDown = [self pushButtonWithTitle:LDLocalized(@"Move Down") action:@selector(moveCleanupDown:)];
+  // WinDirStat 2.8 (4779293d): add, remove, up and down under the list.
+  _addCleanup = [self iconButtonNamed:@"list-add-symbolic" title:LDLocalized(@"Add") action:@selector(addCleanup:)];
+  _removeCleanup = [self iconButtonNamed:@"list-remove-symbolic" title:LDLocalized(@"Remove") action:@selector(removeCleanup:)];
+  _moveUp = [self iconButtonNamed:@"go-up-symbolic" title:LDLocalized(@"Move Up") action:@selector(moveCleanupUp:)];
+  _moveDown = [self iconButtonNamed:@"go-down-symbolic" title:LDLocalized(@"Move Down") action:@selector(moveCleanupDown:)];
+  NSArray *listButtons = @[_addCleanup, _removeCleanup, _moveUp, _moveDown];
   CGFloat buttonHeight = NSHeight([_moveUp frame]);
-  CGFloat buttonWidth = floor((listWidth - LDOptionsControlSpacing) / 2.0);
+  CGFloat buttonWidth = floor((listWidth - 3 * LDOptionsControlSpacing) / 4.0);
   CGFloat buttonY = NSHeight([page frame]) - LDOptionsMargin - buttonHeight;
-  [_moveUp setFrame:NSMakeRect(_left, buttonY, buttonWidth, buttonHeight)];
-  [_moveDown setFrame:NSMakeRect(_left + listWidth - buttonWidth, buttonY, buttonWidth, buttonHeight)];
-  [_moveUp setAutoresizingMask:NSViewMinYMargin];
-  [_moveDown setAutoresizingMask:NSViewMinYMargin];
-  [page addSubview:_moveUp];
-  [page addSubview:_moveDown];
+  for (NSUInteger i = 0; i < [listButtons count]; i++) {
+    NSButton *button = [listButtons objectAtIndex:i];
+    [button setFrame:NSMakeRect(_left + i * (buttonWidth + LDOptionsControlSpacing), buttonY, buttonWidth, buttonHeight)];
+    [button setAutoresizingMask:NSViewMinYMargin];
+    [page addSubview:button];
+  }
 
   CGFloat listHeight = buttonY - LDOptionsRowSpacing - _y;
   NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(_left, _y, listWidth, listHeight)];
@@ -866,6 +887,7 @@ static NSInteger LDState(BOOL flag)
   LDPreferences *preferences = [LDPreferences sharedPreferences];
 
   [_humanFormat setState:LDState([preferences humanFormat])];
+  [_timeSeconds setState:LDState([preferences showTimeSeconds])];
   [_fullRowSelection setState:LDState([preferences listFullRowSelection])];
   [_listGrid setState:LDState([preferences listGrid])];
   [_listStripes setState:LDState([preferences listStripes])];
@@ -944,6 +966,8 @@ static NSInteger LDState(BOOL flag)
   [self apply:^(LDPreferences *preferences) {
     if (sender == self->_humanFormat) {
       [preferences setHumanFormat:on];
+    } else if (sender == self->_timeSeconds) {
+      [preferences setShowTimeSeconds:on];
     } else if (sender == self->_fullRowSelection) {
       [preferences setListFullRowSelection:on];
     } else if (sender == self->_listGrid) {
@@ -1320,6 +1344,7 @@ static NSInteger LDState(BOOL flag)
   NSInteger index = [self selectedCleanupIndex];
   LDCustomCleanup *cleanup = [self selectedCleanup];
   [cleanup normalize];
+  [_removeCleanup setEnabled:cleanup != nil];
   [_moveUp setEnabled:index > 0];
   [_moveDown setEnabled:index >= 0 && index + 1 < (NSInteger)[_cleanups count]];
 
@@ -1402,6 +1427,35 @@ static NSInteger LDState(BOOL flag)
   [self saveCleanups];
   [_cleanupTable reloadData];
   [_cleanupTable selectRow:target byExtendingSelection:NO];
+  [self refreshCleanupControls];
+}
+
+// OnBnClickedAdd: a new cleanup, titled for its place, at the end.
+- (void)addCleanup:(id)sender
+{
+  (void)sender;
+  [_cleanups addObject:[[LDCustomCleanup alloc] init]];
+  [self saveCleanups];
+  [_cleanupTable reloadData];
+  [_cleanupTable selectRow:(NSInteger)[_cleanups count] - 1 byExtendingSelection:NO];
+  [_cleanupTable scrollRowToVisible:(NSInteger)[_cleanups count] - 1];
+  [self refreshCleanupControls];
+}
+
+// OnBnClickedRemove: the next one (or the new last one) is selected.
+- (void)removeCleanup:(id)sender
+{
+  (void)sender;
+  NSInteger index = [self selectedCleanupIndex];
+  if (index < 0 || index >= (NSInteger)[_cleanups count]) {
+    return;
+  }
+  [_cleanups removeObjectAtIndex:(NSUInteger)index];
+  [self saveCleanups];
+  [_cleanupTable reloadData];
+  if ([_cleanups count] > 0) {
+    [_cleanupTable selectRow:MIN(index, (NSInteger)[_cleanups count] - 1) byExtendingSelection:NO];
+  }
   [self refreshCleanupControls];
 }
 

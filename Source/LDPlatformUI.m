@@ -48,6 +48,9 @@
       @"dialog-question-symbolic": @"questionmark.circle",
       @"go-bottom-symbolic": @"arrow.down.to.line",
       @"edit-clear-all-symbolic": @"clear",
+      @"list-add-symbolic": @"plus",
+      @"list-remove-symbolic": @"minus",
+      @"go-down-symbolic": @"arrow.down",
     };
   });
   return names;

@@ -153,6 +153,7 @@
 "Show Unknown" = "Visualizza sconosciuto";
 "Show confirmation before: %@" = "Visualizza conferma prima di: %@";
 "Show grid" = "Visualizza griglia";
+"Show seconds in timestamps" = "Visualizza secondi nelle indicazioni data/ora";
 "Show sizes in human-readable format" = "Visualizza dimensioni in formato GiB/MiB/KiB/byte";
 "Show stripes" = "Visualizza strisce";
 "Show time spent during scan" = "In scansione visualizza tempo trascorso";

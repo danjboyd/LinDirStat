@@ -154,6 +154,7 @@
 "Show Unknown" = "Bilinmeyeni Göster";
 "Show confirmation before: %@" = "Öncesinde onay göster: %@";
 "Show grid" = "Izgarayı Göster";
+"Show seconds in timestamps" = "Zaman damgalarında saniyeleri göster";
 "Show sizes in human-readable format" = "Boyutları GiB/MiB/KiB/bayt biçiminde göster";
 "Show stripes" = "Çizgileri Göster";
 "Show time spent during scan" = "Tarama sırasında harcanan zamanı göster";

@@ -1110,6 +1110,19 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   _syncingSelection = YES;
   LDPreferences *preferences = [LDPreferences sharedPreferences];
   [LDSizeFormatter setHumanReadable:[preferences humanFormat]];
+  // WinDirStat 2.8's Show seconds in timestamps.
+  NSString *dateFormat = [preferences showTimeSeconds] ? @"yyyy-MM-dd HH:mm:ss" : @"yyyy-MM-dd HH:mm";
+  if (![[_dateFormatter dateFormat] isEqualToString:dateFormat]) {
+    [_dateFormatter setDateFormat:dateFormat];
+    if (_fileTabs) {
+      for (NSTableView *list in @[_largestTable, _searchTable, _duplicatesTable]) {
+        [list reloadData];
+      }
+    }
+    // Last Change needs more or less room.
+    [_directoryTable reloadData];
+    [self fitColumnsToContents];
+  }
   for (NSTableView *table in @[_directoryTable, _extensionTable]) {
     [table setUsesAlternatingRowBackgroundColors:[preferences listStripes]];
     [table setGridStyleMask:[preferences listGrid] ? (NSTableViewSolidVerticalGridLineMask | NSTableViewSolidHorizontalGridLineMask) : NSTableViewGridNone];

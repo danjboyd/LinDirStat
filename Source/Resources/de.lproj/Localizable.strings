@@ -152,6 +152,7 @@
 "Show Unknown" = "Unbekannten Platz anzeigen";
 "Show confirmation before: %@" = "Vor der Ausführung eine Bestätigung anzeigen: %@";
 "Show grid" = "Raster";
+"Show seconds in timestamps" = "Sekunden in Zeitstempeln anzeigen";
 "Show sizes in human-readable format" = "Größen im GiB/MiB/KiB/Bytes-Format anzeigen";
 "Show stripes" = "Streifen";
 "Show time spent during scan" = "Verbrauchte Zeit während des Einlesens anzeigen";

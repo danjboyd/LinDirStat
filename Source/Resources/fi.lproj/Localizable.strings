@@ -154,6 +154,7 @@
 "Show Unknown" = "Näytä tuntematon";
 "Show confirmation before: %@" = "Näytä vahvistus ennen toimintoa: %@";
 "Show grid" = "Näytä ruudukko";
+"Show seconds in timestamps" = "Näytä sekunnit aikaleimoissa";
 "Show sizes in human-readable format" = "Näytä koot Gt/Mt/kt/tavua -muodossa";
 "Show stripes" = "Näytä raidat";
 "Show time spent during scan" = "Näytä tarkistukseen käytetty aika";

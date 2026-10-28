@@ -153,6 +153,7 @@
 "Show Unknown" = "Visa okända";
 "Show confirmation before: %@" = "Visa bekräftelse före: %@";
 "Show grid" = "Visa rutnät";
+"Show seconds in timestamps" = "Visa sekunder i tidsstämplar";
 "Show sizes in human-readable format" = "Visa storlekar i format GiB/MiB/KiB/bytes";
 "Show stripes" = "Visa ränder";
 "Show time spent during scan" = "Visa tid tillbringad under sökningen";
