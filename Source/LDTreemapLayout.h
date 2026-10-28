@@ -98,8 +98,12 @@ typedef struct {
 
 // Renders the treemap as width * height * 4 bytes of RGBA, top row first.
 // colorIndexes maps extension keys to palette indexes; unknown extensions use
-// the final palette entry.
+// the final palette entry. An empty treemap renders fully transparent.
 - (NSData *)renderRGBAWithColorIndexes:(NSDictionary *)colorIndexes;
+
+// YES when the root has no size (0 B, or unreadable): WinDirStat fills such a
+// treemap with the window colour rather than drawing cells.
+- (BOOL)isEmpty;
 
 // Color used to paint a leaf node (before shading). <Free Space> and
 // <Unknown> carry an LDRGBColorFlag, as in WinDirStat.
