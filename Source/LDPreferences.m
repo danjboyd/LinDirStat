@@ -23,7 +23,7 @@ NSString *const LDColumnListSearch = @"Search";
 NSString *const LDColumnListWatcher = @"Watcher";
 NSString *const LDColumnListDrives = @"DriveSelect";
 
-static const NSUInteger LDCustomCleanupSlots = 10;
+static const NSUInteger LDCustomCleanupShortcuts = 10;
 enum { LDFileTreeColorSlots = 8 };
 
 // GNOME's palette (blue, red, green, yellow; dark then light) in the order
@@ -119,6 +119,13 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
 - (LDRefreshPolicy)refreshPolicy { return _refreshPolicy; }
 - (void)setRefreshPolicy:(LDRefreshPolicy)policy { _refreshPolicy = policy; }
 
+- (BOOL)isUnused
+{
+  return [_title length] == 0 && [_commandLine length] == 0 && !_enabled && !_worksForMountPoints
+    && !_worksForDirectories && !_worksForFiles && !_recurseIntoSubdirectories && !_askForConfirmation
+    && !_showInTerminal && !_waitForCompletion && _refreshPolicy == LDRefreshPolicyNone;
+}
+
 - (void)normalize
 {
   if (!_worksForMountPoints && !_worksForDirectories) {
@@ -163,6 +170,7 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
 {
   return @{
     @"HumanFormat": @YES,
+    @"ShowTimeSeconds": @NO,
     @"ListGrid": @NO,
     @"ListStripes": @NO,
     @"ListFullRowSelection": @YES,
@@ -189,6 +197,8 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"TreeMapBrightness": @88,
     @"TreeMapAmbientLightPercent": @13,
     @"TreeMapHeightFactor": @38,
+    @"TreeMapSaturation": @100,
+    @"TreeMapCustomPreset": @[],
     @"TreeMapScaleFactor": @91,
     @"TreeMapLightSourceX": @(-100),
     @"TreeMapLightSourceY": @(-100),
@@ -299,11 +309,15 @@ static NSInteger LDClamp(NSInteger value, NSInteger low, NSInteger high)
   for (NSString *key in [LDPreferences defaultValues]) {
     [_defaults removeObjectForKey:key];
   }
+  // Not registered: its absence marks the old ten slots.
+  [_defaults removeObjectForKey:@"UserDefinedCleanupCount"];
   [self changed];
 }
 
 - (BOOL)humanFormat { return [self boolForKey:@"HumanFormat"]; }
 - (void)setHumanFormat:(BOOL)flag { [self setBool:flag forKey:@"HumanFormat"]; }
+- (BOOL)showTimeSeconds { return [self boolForKey:@"ShowTimeSeconds"]; }
+- (void)setShowTimeSeconds:(BOOL)flag { [self setBool:flag forKey:@"ShowTimeSeconds"]; }
 - (BOOL)listGrid { return [self boolForKey:@"ListGrid"]; }
 - (void)setListGrid:(BOOL)flag { [self setBool:flag forKey:@"ListGrid"]; }
 - (BOOL)listStripes { return [self boolForKey:@"ListStripes"]; }
@@ -327,6 +341,13 @@ static NSInteger LDClamp(NSInteger value, NSInteger low, NSInteger high)
 static uint32_t LDColorValue(NSInteger value)
 {
   return (uint32_t)value & 0xffffff;
+}
+
+// CTreeMap::Options::RoundDouble of a fraction, in percent.
+static NSInteger LDPercentOf(double value)
+{
+  double scaled = value * 100.0;
+  return (NSInteger)(scaled + (scaled < 0.0 ? -0.5 : 0.5));
 }
 
 + (NSUInteger)fileTreeColorSlots { return LDFileTreeColorSlots; }
@@ -430,22 +451,33 @@ static uint32_t LDColorValue(NSInteger value)
 - (NSInteger)treemapStyle { return LDClamp([self integerForKey:@"TreeMapStyle"], 0, 1); }
 - (void)setTreemapStyle:(NSInteger)style { [self setInteger:LDClamp(style, 0, 1) forKey:@"TreeMapStyle"]; }
 - (BOOL)treemapGrid { return [self boolForKey:@"TreeMapGrid"]; }
-- (void)setTreemapGrid:(BOOL)flag { [self setBool:flag forKey:@"TreeMapGrid"]; }
+- (void)setTreemapGrid:(BOOL)flag { [self setBool:flag forKey:@"TreeMapGrid"]; [self saveCustomTreemapPreset]; }
 - (NSInteger)treemapBrightness { return LDClamp([self integerForKey:@"TreeMapBrightness"], 0, 100); }
-- (void)setTreemapBrightness:(NSInteger)value { [self setInteger:LDClamp(value, 0, 100) forKey:@"TreeMapBrightness"]; }
+- (void)setTreemapBrightness:(NSInteger)value { [self setInteger:LDClamp(value, 0, 100) forKey:@"TreeMapBrightness"]; [self saveCustomTreemapPreset]; }
+- (NSInteger)treemapSaturation { return LDClamp([self integerForKey:@"TreeMapSaturation"], 0, 100); }
+- (void)setTreemapSaturation:(NSInteger)value { [self setInteger:LDClamp(value, 0, 100) forKey:@"TreeMapSaturation"]; [self saveCustomTreemapPreset]; }
 - (NSInteger)treemapCushionShading { return LDClamp([self integerForKey:@"TreeMapAmbientLightPercent"], 0, 100); }
-- (void)setTreemapCushionShading:(NSInteger)value { [self setInteger:LDClamp(value, 0, 100) forKey:@"TreeMapAmbientLightPercent"]; }
-- (NSInteger)treemapHeight { return LDClamp([self integerForKey:@"TreeMapHeightFactor"], 0, 100); }
-- (void)setTreemapHeight:(NSInteger)value { [self setInteger:LDClamp(value, 0, 100) forKey:@"TreeMapHeightFactor"]; }
+- (void)setTreemapCushionShading:(NSInteger)value { [self setInteger:LDClamp(value, 0, 100) forKey:@"TreeMapAmbientLightPercent"]; [self saveCustomTreemapPreset]; }
+- (NSInteger)treemapHeight { return LDClamp([self integerForKey:@"TreeMapHeightFactor"], 0, 200); }
+- (void)setTreemapHeight:(NSInteger)value { [self setInteger:LDClamp(value, 0, 200) forKey:@"TreeMapHeightFactor"]; [self saveCustomTreemapPreset]; }
 - (NSInteger)treemapScaleFactor { return LDClamp([self integerForKey:@"TreeMapScaleFactor"], 0, 100); }
-- (void)setTreemapScaleFactor:(NSInteger)value { [self setInteger:LDClamp(value, 0, 100) forKey:@"TreeMapScaleFactor"]; }
+- (void)setTreemapScaleFactor:(NSInteger)value { [self setInteger:LDClamp(value, 0, 100) forKey:@"TreeMapScaleFactor"]; [self saveCustomTreemapPreset]; }
 - (NSInteger)treemapLightSourceX { return LDClamp([self integerForKey:@"TreeMapLightSourceX"], -100, 100); }
-- (void)setTreemapLightSourceX:(NSInteger)value { [self setInteger:LDClamp(value, -100, 100) forKey:@"TreeMapLightSourceX"]; }
+- (void)setTreemapLightSourceX:(NSInteger)value { [self setInteger:LDClamp(value, -100, 100) forKey:@"TreeMapLightSourceX"]; [self saveCustomTreemapPreset]; }
 - (NSInteger)treemapLightSourceY { return LDClamp([self integerForKey:@"TreeMapLightSourceY"], -100, 100); }
-- (void)setTreemapLightSourceY:(NSInteger)value { [self setInteger:LDClamp(value, -100, 100) forKey:@"TreeMapLightSourceY"]; }
+- (void)setTreemapLightSourceY:(NSInteger)value { [self setInteger:LDClamp(value, -100, 100) forKey:@"TreeMapLightSourceY"]; [self saveCustomTreemapPreset]; }
 
-- (uint32_t)treemapGridColor { return LDColorValue([self integerForKey:@"TreeMapGridColor"]); }
-- (void)setTreemapGridColor:(uint32_t)color { [self setInteger:LDColorValue(color) forKey:@"TreeMapGridColor"]; }
+// Auto (WinDirStat's CLR_DEFAULT) is stored as -1.
+- (uint32_t)treemapGridColor
+{
+  NSInteger value = [self integerForKey:@"TreeMapGridColor"];
+  return value < 0 || value == (NSInteger)LDTreemapGridColorAuto ? LDTreemapGridColorAuto : LDColorValue(value);
+}
+- (void)setTreemapGridColor:(uint32_t)color
+{
+  [self setInteger:color == LDTreemapGridColorAuto ? -1 : (NSInteger)LDColorValue(color) forKey:@"TreeMapGridColor"];
+  [self saveCustomTreemapPreset];
+}
 - (uint32_t)treemapHighlightColor { return LDColorValue([self integerForKey:@"TreeMapHighlightColor"]); }
 - (void)setTreemapHighlightColor:(uint32_t)color { [self setInteger:LDColorValue(color) forKey:@"TreeMapHighlightColor"]; }
 
@@ -467,15 +499,90 @@ static uint32_t LDColorValue(NSInteger value)
   options.scaleFactor = [self treemapScaleFactor] / 100.0;
   options.lightSourceX = [self treemapLightSourceX] / 100.0;
   options.lightSourceY = [self treemapLightSourceY] / 100.0;
+  options.saturation = [self treemapSaturation] / 100.0;
   options.showFolderFrames = [self treemapShowFolderFrames];
   options.folderFramesDrawThreshold = (int)[self treemapFolderFramesDrawThreshold];
   return options;
 }
 
+// COptions::SaveCustomTreeMapPreset: an appearance that matches no preset
+// is kept as TreeMapCustomPreset ([grid, grid colour, contrast labels,
+// brightness, saturation, ambient light, height, scale factor, light x,
+// light y], WinDirStat's layout; LinDirStat has no contrast labels).
+- (void)saveCustomTreemapPreset
+{
+  LDTreemapOptions options = [self treemapOptions];
+  if (LDTreemapMatchingPreset(options, NULL)) {
+    return;
+  }
+  NSArray *values = @[@([self treemapGrid] ? 1 : 0),
+                      @([self treemapGridColor] == LDTreemapGridColorAuto ? -1 : (NSInteger)[self treemapGridColor]),
+                      @0, @([self treemapBrightness]), @([self treemapSaturation]), @([self treemapCushionShading]),
+                      @([self treemapHeight]), @([self treemapScaleFactor]), @([self treemapLightSourceX]),
+                      @([self treemapLightSourceY])];
+  [_defaults setObject:values forKey:@"TreeMapCustomPreset"];
+}
+
+- (BOOL)hasCustomTreemapPreset
+{
+  NSArray *values = [_defaults arrayForKey:@"TreeMapCustomPreset"];
+  return [values count] == 10;
+}
+
+- (NSInteger)matchingTreemapPreset
+{
+  LDTreemapPreset preset = LDTreemapPresetClassic;
+  return LDTreemapMatchingPreset([self treemapOptions], &preset) ? (NSInteger)preset : -1;
+}
+
+- (BOOL)applyTreemapPreset:(NSInteger)preset
+{
+  NSInteger grid, gridColor, brightness, saturation, ambient, height, scale, lightX, lightY;
+  if (preset >= 0 && preset < LDTreemapPresetCount) {
+    LDTreemapOptions options = LDTreemapPresetOptions((LDTreemapPreset)preset);
+    grid = options.grid;
+    gridColor = options.gridColor == LDTreemapGridColorAuto ? -1 : (NSInteger)options.gridColor;
+    brightness = LDPercentOf(options.brightness);
+    saturation = LDPercentOf(options.saturation);
+    ambient = LDPercentOf(options.ambientLight);
+    height = LDPercentOf(options.height);
+    scale = LDPercentOf(options.scaleFactor);
+    lightX = LDPercentOf(options.lightSourceX);
+    lightY = LDPercentOf(options.lightSourceY);
+  } else if (preset == LDTreemapPresetCount && [self hasCustomTreemapPreset]) {
+    NSArray *values = [_defaults arrayForKey:@"TreeMapCustomPreset"];
+    grid = [[values objectAtIndex:0] integerValue] != 0;
+    gridColor = [[values objectAtIndex:1] integerValue];
+    brightness = [[values objectAtIndex:3] integerValue];
+    saturation = [[values objectAtIndex:4] integerValue];
+    ambient = [[values objectAtIndex:5] integerValue];
+    height = [[values objectAtIndex:6] integerValue];
+    scale = [[values objectAtIndex:7] integerValue];
+    lightX = [[values objectAtIndex:8] integerValue];
+    lightY = [[values objectAtIndex:9] integerValue];
+  } else {
+    return NO;
+  }
+  // The stored percentages (TreeMapAmbientLightPercent is the ambient
+  // light, which the page shows as 100 - cushion shading).
+  [_defaults setBool:grid != 0 forKey:@"TreeMapGrid"];
+  [_defaults setInteger:gridColor < 0 ? -1 : (NSInteger)LDColorValue(gridColor) forKey:@"TreeMapGridColor"];
+  [_defaults setInteger:LDClamp(brightness, 0, 100) forKey:@"TreeMapBrightness"];
+  [_defaults setInteger:LDClamp(saturation, 0, 100) forKey:@"TreeMapSaturation"];
+  [_defaults setInteger:LDClamp(ambient, 0, 100) forKey:@"TreeMapAmbientLightPercent"];
+  [_defaults setInteger:LDClamp(height, 0, 200) forKey:@"TreeMapHeightFactor"];
+  [_defaults setInteger:LDClamp(scale, 0, 100) forKey:@"TreeMapScaleFactor"];
+  [_defaults setInteger:LDClamp(lightX, -100, 100) forKey:@"TreeMapLightSourceX"];
+  [_defaults setInteger:LDClamp(lightY, -100, 100) forKey:@"TreeMapLightSourceY"];
+  [self changed];
+  return YES;
+}
+
 - (void)resetTreemapOptions
 {
   for (NSString *key in @[@"TreeMapStyle", @"TreeMapGrid", @"TreeMapBrightness", @"TreeMapAmbientLightPercent",
-                          @"TreeMapHeightFactor", @"TreeMapScaleFactor", @"TreeMapLightSourceX", @"TreeMapLightSourceY"]) {
+                          @"TreeMapHeightFactor", @"TreeMapScaleFactor", @"TreeMapLightSourceX", @"TreeMapLightSourceY",
+                          @"TreeMapSaturation"]) {
     [_defaults removeObjectForKey:key];
   }
   [self changed];
@@ -671,29 +778,38 @@ static NSString *LDPromptKey(LDPrompt prompt)
   [self storeFolderHistory:history];
 }
 
++ (NSUInteger)customCleanupShortcutCount { return LDCustomCleanupShortcuts; }
+
+// UserDefinedCleanupCount marks settings written since cleanups can be
+// added and removed (WinDirStat's Cleanups\Count); without it the list is
+// the old ten slots (COptions::PreProcessPersistedSettings).
 - (NSArray *)customCleanups
 {
   NSArray *stored = [_defaults arrayForKey:@"UserDefinedCleanups"];
-  NSMutableArray *cleanups = [NSMutableArray arrayWithCapacity:LDCustomCleanupSlots];
-  for (NSUInteger i = 0; i < LDCustomCleanupSlots; i++) {
-    id entry = i < [stored count] ? [stored objectAtIndex:i] : nil;
-    LDCustomCleanup *cleanup = [entry isKindOfClass:[NSDictionary class]]
+  BOOL migrated = [_defaults objectForKey:@"UserDefinedCleanupCount"] != nil;
+  NSMutableArray *cleanups = [NSMutableArray arrayWithCapacity:[stored count]];
+  for (id entry in stored) {
+    [cleanups addObject:[entry isKindOfClass:[NSDictionary class]]
       ? [[LDCustomCleanup alloc] initWithDictionary:entry]
-      : [[LDCustomCleanup alloc] init];
-    [cleanups addObject:cleanup];
+      : [[LDCustomCleanup alloc] init]];
+  }
+  if (!migrated) {
+    while ([cleanups count] > 0 && [[cleanups lastObject] isUnused]) {
+      [cleanups removeLastObject];
+    }
   }
   return cleanups;
 }
 
 - (void)setCustomCleanups:(NSArray *)cleanups
 {
-  NSMutableArray *stored = [NSMutableArray array];
-  for (NSUInteger i = 0; i < LDCustomCleanupSlots; i++) {
-    LDCustomCleanup *cleanup = i < [cleanups count] ? [cleanups objectAtIndex:i] : [[LDCustomCleanup alloc] init];
+  NSMutableArray *stored = [NSMutableArray arrayWithCapacity:[cleanups count]];
+  for (LDCustomCleanup *cleanup in cleanups) {
     [cleanup normalize];
     [stored addObject:[cleanup dictionaryRepresentation]];
   }
   [_defaults setObject:stored forKey:@"UserDefinedCleanups"];
+  [_defaults setInteger:(NSInteger)[stored count] forKey:@"UserDefinedCleanupCount"];
   [self changed];
 }
 

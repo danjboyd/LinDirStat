@@ -89,11 +89,21 @@
 
 - (NSData *)renderRGBAWithWidth:(int)width height:(int)height options:(LDTreemapOptions)options
 {
+  return [self renderRGBAWithWidth:width height:height options:options
+                        background:LDRGB(255, 255, 255) text:LDRGB(0, 0, 0)];
+}
+
+- (NSData *)renderRGBAWithWidth:(int)width height:(int)height options:(LDTreemapOptions)options
+                     background:(LDRGBColor)background text:(LDRGBColor)text
+{
+  LDTreemapFolderStyle style = {0, background, text};
   LDTreemap *treemap = [[LDTreemap alloc] initWithRootNode:_rootNode
                                                     metric:LDSizeMetricPhysical
                                                      width:width
                                                     height:height
-                                                   options:options];
+                                                   options:options
+                                               folderStyle:style
+                                                 textWidth:nil];
   return [treemap renderRGBAWithColorIndexes:_colorIndexes];
 }
 

@@ -215,8 +215,9 @@
 
 - (void)testCustomCleanupsRoundTripAndNormalize
 {
-  NSArray *cleanups = [_preferences customCleanups];
-  XCTAssertEqual((NSUInteger)10, [cleanups count]);
+  // A new installation has none (WinDirStat 2.8, 4779293d).
+  XCTAssertEqual((NSUInteger)0, [[_preferences customCleanups] count]);
+  NSArray *cleanups = @[[[LDCustomCleanup alloc] init]];
   LDCustomCleanup *first = [cleanups objectAtIndex:0];
   XCTAssertEqualObjects(@"Custom Cleanup #0", [first displayTitleForSlot:0]);
   [first setEnabled:YES];
@@ -236,6 +237,72 @@
   [stored setRecurseIntoSubdirectories:YES];
   [stored normalize];
   XCTAssertTrue([stored waitForCompletion]);
+}
+
+// Any number of cleanups, in order; the count marks the new format.
+- (void)testAnyNumberOfCustomCleanups
+{
+  NSMutableArray *cleanups = [NSMutableArray array];
+  for (NSUInteger i = 0; i < 13; i++) {
+    LDCustomCleanup *cleanup = [[LDCustomCleanup alloc] init];
+    [cleanup setTitle:[NSString stringWithFormat:@"Cleanup %lu", (unsigned long)i]];
+    [cleanups addObject:cleanup];
+  }
+  // An unused one at the end is kept once the list is the new format.
+  [cleanups addObject:[[LDCustomCleanup alloc] init]];
+  [_preferences setCustomCleanups:cleanups];
+  XCTAssertEqual((NSInteger)14, [_defaults integerForKey:@"UserDefinedCleanupCount"]);
+  NSArray *stored = [[[LDPreferences alloc] initWithUserDefaults:_defaults] customCleanups];
+  XCTAssertEqual((NSUInteger)14, [stored count]);
+  XCTAssertEqualObjects(@"Cleanup 12", [[stored objectAtIndex:12] title]);
+  XCTAssertEqual((NSUInteger)10, [LDPreferences customCleanupShortcutCount]);
+
+  [_preferences setCustomCleanups:@[]];
+  XCTAssertEqual((NSUInteger)0, [[_preferences customCleanups] count]);
+  [_preferences resetAll];
+  XCTAssertNil([_defaults objectForKey:@"UserDefinedCleanupCount"]);
+}
+
+// Settings from the ten fixed slots: the configured ones stay (unused ones
+// between them too, as placeholders), the unused ones after the last go
+// (COptions::PostProcessPersistedSettings).
+- (void)testOldTenSlotsAreMigrated
+{
+  NSMutableArray *slots = [NSMutableArray array];
+  for (NSUInteger i = 0; i < 10; i++) {
+    LDCustomCleanup *cleanup = [[LDCustomCleanup alloc] init];
+    if (i == 0) {
+      [cleanup setTitle:@"Compress"];
+    } else if (i == 3) {
+      [cleanup setCommandLine:@"gzip %p"];
+    }
+    [slots addObject:[cleanup dictionaryRepresentation]];
+  }
+  [_defaults setObject:slots forKey:@"UserDefinedCleanups"];
+  [_defaults removeObjectForKey:@"UserDefinedCleanupCount"];
+  NSArray *cleanups = [_preferences customCleanups];
+  XCTAssertEqual((NSUInteger)4, [cleanups count]);
+  XCTAssertEqualObjects(@"Compress", [[cleanups objectAtIndex:0] title]);
+  XCTAssertTrue([[cleanups objectAtIndex:1] isUnused]);
+  XCTAssertEqualObjects(@"gzip %p", [[cleanups objectAtIndex:3] commandLine]);
+  XCTAssertFalse([[cleanups objectAtIndex:3] isUnused]);
+
+  // Ten unused slots (a setup never touched) migrate to none.
+  NSMutableArray *empty = [NSMutableArray array];
+  for (NSUInteger i = 0; i < 10; i++) {
+    [empty addObject:[[[LDCustomCleanup alloc] init] dictionaryRepresentation]];
+  }
+  [_defaults setObject:empty forKey:@"UserDefinedCleanups"];
+  XCTAssertEqual((NSUInteger)0, [[_preferences customCleanups] count]);
+}
+
+// WinDirStat 2.8 (b14022fd): seconds in timestamps, off by default.
+- (void)testShowTimeSecondsPersists
+{
+  XCTAssertFalse([_preferences showTimeSeconds]);
+  [_preferences setShowTimeSeconds:YES];
+  XCTAssertTrue([_defaults boolForKey:@"ShowTimeSeconds"]);
+  XCTAssertTrue([[[LDPreferences alloc] initWithUserDefaults:_defaults] showTimeSeconds]);
 }
 
 // WinDirStat 2.6 split the delete warning into one prompt per operation.
@@ -277,5 +344,42 @@
   XCTAssertEqual((NSInteger)128, [_preferences treemapFolderFramesDrawThreshold]);
 }
 
+// WinDirStat 2.9: TreeMapSaturation (100, 0-100), Height up to 200, an Auto
+// grid colour, the colour presets and the saved custom appearance.
+- (void)testColorPresetPreferences
+{
+  XCTAssertEqual((NSInteger)100, [_preferences treemapSaturation]);
+  XCTAssertEqual((NSInteger)0, [_preferences matchingTreemapPreset]);
+  XCTAssertFalse([_preferences hasCustomTreemapPreset]);
+  [_preferences setTreemapHeight:150];
+  XCTAssertEqual((NSInteger)150, [_preferences treemapHeight]);
+  [_preferences setTreemapHeight:500];
+  XCTAssertEqual((NSInteger)200, [_preferences treemapHeight]);
+  // That appearance matches no preset, so it is the custom one.
+  XCTAssertEqual((NSInteger)-1, [_preferences matchingTreemapPreset]);
+  XCTAssertTrue([_preferences hasCustomTreemapPreset]);
+
+  XCTAssertTrue([_preferences applyTreemapPreset:LDTreemapPresetCalm]);
+  XCTAssertEqual((NSInteger)LDTreemapPresetCalm, [_preferences matchingTreemapPreset]);
+  XCTAssertEqual(LDTreemapGridColorAuto, [_preferences treemapGridColor]);
+  XCTAssertEqual(LDTreemapGridColorAuto, [_preferences treemapOptions].gridColor);
+  XCTAssertTrue([_preferences treemapGrid]);
+  XCTAssertEqual((NSInteger)65, [_preferences treemapSaturation]);
+  XCTAssertEqual((NSInteger)70, [_preferences treemapCushionShading]);
+
+  // Custom brings back the appearance from before.
+  XCTAssertTrue([_preferences applyTreemapPreset:LDTreemapPresetCount]);
+  XCTAssertEqual((NSInteger)200, [_preferences treemapHeight]);
+  XCTAssertFalse([_preferences treemapGrid]);
+  XCTAssertEqual((NSInteger)-1, [_preferences matchingTreemapPreset]);
+
+  [_preferences setTreemapGridColor:0x123456];
+  XCTAssertEqual((uint32_t)0x123456, [_preferences treemapGridColor]);
+  XCTAssertTrue([_preferences applyTreemapPreset:LDTreemapPresetHighContrast]);
+  XCTAssertEqual((uint32_t)0x000000, [_preferences treemapGridColor]);
+  XCTAssertFalse([_preferences applyTreemapPreset:99]);
+}
+
 @end
+
 

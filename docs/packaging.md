@@ -57,8 +57,8 @@ pins what comes from other repositories, each by tag and revision:
 
 | Input | Pin | Used by |
 | --- | --- | --- |
-| Adwaita GNUstep theme | `0.1.0-alpha17` (`10225c7`) | `scripts/build-adwaita.sh`, from `package-stage.sh` |
-| gnustep-packager | `v0.1.4` (`211d913`) | `release-linux.sh`, `regression-gate.sh` |
+| Adwaita GNUstep theme | `0.1.0-alpha18` (`3083b0a`) | `scripts/build-adwaita.sh`, from `package-stage.sh` |
+| gnustep-packager | `v0.1.5` (`49e0917`) | `release-linux.sh`, `regression-gate.sh` |
 | tools-xctest | `v0.6.0` (`c45391a`) | `scripts/build-tools-xctest.sh`, from the test scripts and CI |
 | appimagetool | release `1.9.1` by sha256 | `scripts/fetch-appimagetool.sh`, from `release-linux.sh` |
 

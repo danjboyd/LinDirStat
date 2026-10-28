@@ -8,6 +8,7 @@
 #import "AppController.h"
 #import "AppController+Private.h"
 #import "LDColumnChooser.h"
+#import "LDCommandLine.h"
 #import "LDCommandRules.h"
 #import "LDExtensionStats.h"
 #import "LDFileOperations.h"
@@ -50,6 +51,8 @@
 - (void)toggleLogicalSize:(id)sender;
 - (void)toggleAbsolutePercentages:(id)sender;
 - (void)toggleGroupUnregisteredTypes:(id)sender;
+- (NSArray *)initialScanPaths:(LDCommandLine *)commandLine;
+- (NSMenu *)customCleanupMenu;
 - (void)addWatcherEvents:(NSArray *)events;
 - (void)startWatching:(id)sender;
 - (void)pauseWatching:(id)sender;
@@ -59,6 +62,7 @@
 - (void)searchExtension:(id)sender;
 - (void)excludeExtension:(id)sender;
 - (void)toggleFolderFrames:(id)sender;
+- (void)applyColorPreset:(id)sender;
 - (void)stopScan:(id)sender;
 - (void)openPath:(id)sender;
 - (void)treemapView:(LDTreemapView *)view didSelectNode:(LDFileNode *)node;
@@ -75,6 +79,7 @@
 {
   NSUInteger _scansFinished;
   NSUInteger _idleBeforeAdoption;
+  NSUInteger _selectTargetRequests;
 }
 @end
 
@@ -92,6 +97,9 @@
 
 - (NSUInteger)scansFinished { return _scansFinished; }
 - (NSUInteger)idleBeforeAdoption { return _idleBeforeAdoption; }
+// Select Target is a modal panel: counted instead of shown.
+- (void)openPath:(id)sender { (void)sender; _selectTargetRequests++; }
+- (NSUInteger)selectTargetRequests { return _selectTargetRequests; }
 - (NSWindow *)window { return _window; }
 - (LDOutlineView *)tree { return _directoryTable; }
 - (NSTableView *)extensionTable { return _extensionTable; }
@@ -702,6 +710,50 @@
   XCTAssertEqual([_controller tree], (LDOutlineView *)[_controller activeFileList]);
 }
 
+// WinDirStat 2.8 (b14022fd): Show seconds in timestamps.
+- (void)testShowTimeSecondsInLastChange
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setColumn:LDColumnLastChange shown:YES];
+  NSOutlineView *tree = [_controller tree];
+  NSTableColumn *lastChange = [tree tableColumnWithIdentifier:LDColumnLastChange];
+  LDFileNode *a1 = [self node:@"a/a1.txt"];
+  NSString *minutes = [_controller outlineView:tree objectValueForTableColumn:lastChange byItem:a1];
+  XCTAssertEqual((NSUInteger)16, [minutes length], @"%@", minutes);
+  [preferences setShowTimeSeconds:YES];
+  NSString *seconds = [_controller outlineView:tree objectValueForTableColumn:lastChange byItem:a1];
+  XCTAssertEqual((NSUInteger)19, [seconds length], @"%@", seconds);
+  XCTAssertTrue([seconds hasPrefix:minutes], @"%@ / %@", seconds, minutes);
+}
+
+// WinDirStat 2.8 (4779293d): any number of custom cleanups; the first ten
+// keep Ctrl+0-9.
+- (void)testMoreThanTenCustomCleanups
+{
+  if (!_controller) {
+    return;
+  }
+  NSMutableArray *cleanups = [NSMutableArray array];
+  for (NSUInteger i = 0; i < 12; i++) {
+    LDCustomCleanup *cleanup = [[LDCustomCleanup alloc] init];
+    [cleanup setEnabled:YES];
+    [cleanup setTitle:[NSString stringWithFormat:@"Cleanup %lu", (unsigned long)i]];
+    [cleanup setWorksForFiles:YES];
+    [cleanup setCommandLine:@"true"];
+    [cleanups addObject:cleanup];
+  }
+  [[LDPreferences sharedPreferences] setCustomCleanups:cleanups];
+  NSMenu *menu = [_controller customCleanupMenu];
+  XCTAssertEqual((NSInteger)12, [menu numberOfItems]);
+  XCTAssertEqualObjects(@"Cleanup 11", [[menu itemAtIndex:11] title]);
+  XCTAssertEqual((NSInteger)11, [[menu itemAtIndex:11] tag]);
+  XCTAssertEqualObjects(@"9", [[menu itemAtIndex:9] keyEquivalent]);
+  XCTAssertEqualObjects(@"", [[menu itemAtIndex:10] keyEquivalent]);
+}
+
 - (void)setWatcherFilter:(NSString *)pattern
 {
   NSSearchField *field = [_controller watcherFilterField];
@@ -779,6 +831,49 @@
   XCTAssertFalse([_controller isWatching]);
 }
 
+// #104: a launch with no folder asks with Select Target (WinDirStat.cpp
+// 487-490) instead of scanning the home folder; folders from the command
+// line (Open With LinDirStat too) still scan, and a checkout's fixture only
+// from the checkout.
+- (void)testLaunchWithoutAFolderAsksInsteadOfScanningHome
+{
+  if (!_controller) {
+    return;
+  }
+  // NSProcessInfo reads the environment once, so LINDIRSTAT_SCAN_PATH can
+  // only be checked when the runner leaves it unset.
+  if ([[[NSProcessInfo processInfo] environment] objectForKey:@"LINDIRSTAT_SCAN_PATH"]) {
+    return;
+  }
+  NSFileManager *files = [NSFileManager defaultManager];
+  NSString *previousDirectory = [files currentDirectoryPath];
+  XCTAssertTrue([files changeCurrentDirectoryPath:_workRoot]);
+
+  LDCommandLine *plain = [LDCommandLine commandLineWithArguments:@[@"LinDirStat"] currentDirectory:_workRoot];
+  XCTAssertEqualObjects(@[], [_controller initialScanPaths:plain]);
+  LDCommandLine *folder = [LDCommandLine commandLineWithArguments:@[@"LinDirStat", _tree] currentDirectory:_workRoot];
+  XCTAssertEqualObjects(@[[_tree stringByStandardizingPath]], [_controller initialScanPaths:folder]);
+  // Started from a checkout, the fixture.
+  NSString *fixture = [_workRoot stringByAppendingPathComponent:@"Tests/Fixtures/basic-tree"];
+  XCTAssertTrue([files createDirectoryAtPath:fixture withIntermediateDirectories:YES attributes:nil error:NULL]);
+  XCTAssertEqualObjects(@[fixture], [_controller initialScanPaths:plain]);
+  [files removeItemAtPath:[_workRoot stringByAppendingPathComponent:@"Tests"] error:NULL];
+
+  // macOS opens a launch-time folder (a cold Open With, a Dock drop) before
+  // the window is up; it's kept for applicationDidFinishLaunching:.
+  AppController *launching = [[AppController alloc] init];
+  [launching application:NSApp openFiles:@[_tree]];
+  XCTAssertEqualObjects(@[[_tree stringByStandardizingPath]], [launching valueForKey:@"launchFolders"]);
+
+  // Refresh with nothing scanned asks too.
+  NSUInteger asked = [_controller selectTargetRequests];
+  [_controller rescan:nil];
+  XCTAssertEqual(asked + 1, [_controller selectTargetRequests]);
+  XCTAssertNil([_controller root]);
+
+  [files changeCurrentDirectoryPath:previousDirectory];
+}
+
 #pragma mark - Refresh engine
 
 - (void)testAddToExclusionFilterDropsItemsAndExtensions
@@ -850,6 +945,26 @@
   CGFloat title = [header cellSize].width;
   CGFloat indicator = NSWidth([header sortIndicatorRectForBounds:NSMakeRect(0, 0, title, 24)]);
   XCTAssertTrue([percent width] >= title + indicator, @"%g < %g + %g", [percent width], title, indicator);
+  // The title fits left of where the cell draws the indicator at this width.
+  NSRect bounds = NSMakeRect(0, 0, [percent width], 24);
+  CGFloat left = NSMinX([header sortIndicatorRectForBounds:bounds]);
+  XCTAssertTrue(left >= title, @"indicator at %g, title %g wide", left, title);
+}
+
+// #83: sorting by clicking a header (Physical Size, after Percentage) fits
+// that column too.
+- (void)testClickSortedColumnFitsItsIndicator
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSOutlineView *tree = [_controller tree];
+  NSTableColumn *physical = [tree tableColumnWithIdentifier:LDColumnPhysicalSize];
+  [tree setSortDescriptors:@[[physical sortDescriptorPrototype]]];
+  NSTableHeaderCell *header = (NSTableHeaderCell *)[physical headerCell];
+  CGFloat title = [header cellSize].width;
+  CGFloat left = NSMinX([header sortIndicatorRectForBounds:NSMakeRect(0, 0, [physical width], 24)]);
+  XCTAssertTrue(left >= title, @"Physical Size %g wide, indicator at %g, title %g", [physical width], left, title);
 }
 
 // WinDirStat 2.7: Remove Empty Folders goes bottom-up and keeps folders
@@ -1922,5 +2037,50 @@
   XCTAssertEqual(group + 1, menuFrames);
 }
 
+// WinDirStat 2.9's Color Presets submenu (Treemap menu and treemap context
+// menu): applying one updates the treemap, the matching item is checked,
+// and Custom is enabled once a custom appearance has been saved.
+- (void)testColorPresetsMenu
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  NSMenu *context = [[_controller treemap] menu];
+  NSMenu *presets = nil;
+  for (NSMenuItem *item in [context itemArray]) {
+    if ([[item submenu] numberOfItems] == LDTreemapPresetCount + 1
+        && [[[item submenu] itemAtIndex:0] action] == @selector(applyColorPreset:)) {
+      presets = [item submenu];
+    }
+  }
+  XCTAssertNotNil(presets);
+  NSMenuItem *classic = [presets itemAtIndex:LDTreemapPresetClassic];
+  NSMenuItem *flat = [presets itemAtIndex:LDTreemapPresetFlat];
+  NSMenuItem *custom = [presets itemAtIndex:LDTreemapPresetCount];
+  XCTAssertTrue([_controller validateMenuItem:classic]);
+  XCTAssertEqual(NSOnState, [classic state]);
+  XCTAssertFalse([_controller validateMenuItem:custom]);
+
+  [_controller applyColorPreset:flat];
+  LDTreemapOptions options = [[_controller treemap] options];
+  XCTAssertTrue(options.grid);
+  XCTAssertEqualWithAccuracy(0.85, options.saturation, 1e-9);
+  XCTAssertFalse(LDTreemapOptionsUseCushions(options));
+  [_controller validateMenuItem:flat];
+  XCTAssertEqual(NSOnState, [flat state]);
+  [_controller validateMenuItem:classic];
+  XCTAssertEqual(NSOffState, [classic state]);
+
+  [[LDPreferences sharedPreferences] setTreemapBrightness:50];
+  XCTAssertTrue([_controller validateMenuItem:custom]);
+  XCTAssertEqual(NSOnState, [custom state]);
+  [_controller applyColorPreset:classic];
+  XCTAssertEqual((NSInteger)LDTreemapPresetClassic, [[LDPreferences sharedPreferences] matchingTreemapPreset]);
+  [_controller applyColorPreset:custom];
+  XCTAssertEqual((NSInteger)50, [[LDPreferences sharedPreferences] treemapBrightness]);
+  [[LDPreferences sharedPreferences] applyTreemapPreset:LDTreemapPresetClassic];
+}
+
 @end
+
 

@@ -19,5 +19,9 @@
 
 // The demo tree rendered as width * height RGBA bytes, top row first.
 - (NSData *)renderRGBAWithWidth:(int)width height:(int)height options:(LDTreemapOptions)options;
+// The same with the theme's window and text colours, which an Auto grid
+// colour is made from.
+- (NSData *)renderRGBAWithWidth:(int)width height:(int)height options:(LDTreemapOptions)options
+                     background:(LDRGBColor)background text:(LDRGBColor)text;
 
 @end

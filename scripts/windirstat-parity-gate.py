@@ -5,9 +5,11 @@ Renders each fixture tree twice:
 
 * LinDirStat: the production LDTreemap layout and cushion renderer, invoked
   through Tools/windirstat-parity-exporter.
-* Oracle: an independent Python port of WinDirStat's CTreeMap
-  (references/WinDirStat/windirstat/Controls/TreeMap.cpp and TreeMap.h):
-  KDirStat row layout, cushion shading, the equalized default palette and
+* Oracle: an independent Python port of WinDirStat's CTreeMap and
+  TreeMapLayout (references/WinDirStat/windirstat/Controls/TreeMap.cpp,
+  TreeMap.h and TreeMapLayout.cpp, v2.9.3): the rows (KDirStat) and
+  squarified (SequoiaView) layouts, cushion and flat shading, the grid,
+  saturation and the colour presets, the equalized default palette and
   WinDirStat's rank-based extension colors.
 
 Both use the same double-precision math, so the images are expected to match
@@ -30,15 +32,51 @@ DEFAULT_CUSHION_COLORS = [
     (85, 0, 255), (255, 255, 255),
 ]
 
-# TreeMap.h DefaultOptions.
+# TreeMap.h DefaultOptions (v2.9.3).
 OPTIONS = {
+    "grid": False,
+    "grid_color": (0, 0, 0),
     "brightness": 0.88,
+    "saturation": 1.0,
     "height": 0.38,
     "scale_factor": 0.91,
     "ambient_light": 0.13,
     "light_x": -1.0,
     "light_y": -1.0,
 }
+
+# CTreeMap::GetGridColor's CLR_DEFAULT: COLOR_WINDOW blended 12% towards
+# COLOR_WINDOWTEXT. The exporter renders with a white window and black text.
+GRID_AUTO = "auto"
+WINDOW_COLOR = (255, 255, 255)
+WINDOW_TEXT_COLOR = (0, 0, 0)
+
+
+def preset_options(name):
+    """CTreeMap::GetPreset (TreeMap.cpp v2.9.3)."""
+    options = dict(OPTIONS)
+    if name == "classic":
+        return options
+    options.update(grid=True, grid_color=GRID_AUTO, brightness=0.72, saturation=0.65,
+                   height=0.15, scale_factor=0.80, ambient_light=0.70)
+    if name == "flat":
+        options.update(saturation=0.85, height=0.0, ambient_light=1.0)
+    elif name == "pastel":
+        options.update(brightness=0.82, saturation=0.40, height=0.10, ambient_light=0.85)
+    elif name == "high-contrast":
+        options.update(grid_color=(0, 0, 0), brightness=0.62, saturation=1.0, height=0.0, ambient_light=1.0)
+    return options
+
+
+# Rendering variants beyond the default options: (name, preset, style). They
+# run at the first viewport size only.
+VARIANTS = [
+    ("sequoia", "classic", "sequoia"),
+    ("calm", "calm", "kdirstat"),
+    ("flat", "flat", "kdirstat"),
+    ("pastel", "pastel", "kdirstat"),
+    ("high-contrast", "high-contrast", "kdirstat"),
+]
 PALETTE_BRIGHTNESS = 0.6
 MIN_PROPORTION = 0.4
 
@@ -143,72 +181,149 @@ def color_indexes(root):
     return {key: min(rank, len(PALETTE) - 1) for rank, (key, _) in enumerate(ranked)}
 
 
-def kdirstat_next_row(sizes, parent_size, next_child, width, child_width):
-    size_used = 0.0
-    row_height = 0.0
-    i = next_child
-    while i < len(sizes):
-        child_size = sizes[i]
-        size_used += child_size
-        virtual_row_height = size_used / parent_size
-        cw = child_size / parent_size * width / virtual_row_height
-        if cw / virtual_row_height < MIN_PROPORTION and i > next_child:
-            break
-        row_height = virtual_row_height
-        i += 1
-    used = i - next_child
-    for j in range(used):
-        child_width[next_child + j] = sizes[next_child + j] / (parent_size * row_height)
-    return row_height, used
+# Port of references/WinDirStat/windirstat/Controls/TreeMapLayout.cpp
+# (v2.9.3): children get integer weights; rows and squarified strips are
+# cut with C++'s truncating double-to-int conversions.
 
-
-def kdirstat_children(node, rect):
-    left, top, right, bottom = rect
-    children = [c for c in node["children"] if c["size"] > 0]
-    sizes = [float(c["size"]) for c in children]
-    parent_size = float(node["size"])
-    pw, ph = right - left, bottom - top
-    horizontal = pw >= ph
-    width = 1.0
-    if horizontal:
-        if ph > 0:
-            width = pw / ph
-    elif pw > 0:
-        width = ph / pw
-
-    child_width = [0.0] * len(children)
-    rows = []
-    next_child = 0
-    while next_child < len(children):
-        row_height, used = kdirstat_next_row(sizes, parent_size, next_child, width, child_width)
-        rows.append((row_height, used))
-        next_child += used
-
-    row_extent = ph if horizontal else pw
-    child_extent = pw if horizontal else ph
+def arrange_equal_rows(bounds, weights):
+    left, top, right, bottom = bounds
+    width = (right - left) / len(weights)
     out = []
-    f_top = float(top if horizontal else left)
-    c = 0
-    for row_index, (row_height, used) in enumerate(rows):
-        f_bottom = f_top + row_height * row_extent
-        row_bottom = int(f_bottom)
-        if row_index == len(rows) - 1:
-            row_bottom = bottom if horizontal else right
-        f_left = float(left if horizontal else top)
-        for k in range(used):
-            f_right = f_left + child_width[c] * child_extent
-            row_right = int(f_right)
-            if k == used - 1:
-                row_right = right if horizontal else bottom
-            if horizontal:
-                child_rect = (int(f_left), int(f_top), row_right, row_bottom)
-            else:
-                child_rect = (int(f_top), int(f_left), row_bottom, row_right)
-            out.append((children[c], child_rect))
-            f_left = f_right
-            c += 1
-        f_top = f_bottom
+    x = float(left)
+    for i in range(len(weights)):
+        nxt = x + width
+        r = right if i + 1 == len(weights) else int(nxt)
+        out.append((int(x), top, r, bottom))
+        x = nxt
     return out
+
+
+def arrange_rows(bounds, parent_weight, weights):
+    """TreeMapLayout ArrangeRows (KDirStat style)."""
+    if parent_weight == 0:
+        return arrange_equal_rows(bounds, weights)
+    left, top, right, bottom = bounds
+    bw, bh = right - left, bottom - top
+    horizontal = bw >= bh
+    normalized_width = bw / bh if horizontal else bh / bw
+    row_origin = top if horizontal else left
+    row_extent = bh if horizontal else bw
+    column_extent = bw if horizontal else bh
+    regions = [None] * len(weights)
+    f_top = float(row_origin)
+    row_begin = 0
+    while row_begin < len(weights):
+        row_weight = 0
+        row_fraction = 0.0
+        row_end = row_begin
+        while row_end < len(weights):
+            child_weight = weights[row_end]
+            if child_weight == 0:
+                break
+            row_weight += child_weight
+            candidate = row_weight / parent_weight
+            child_width = child_weight / parent_weight * normalized_width / candidate
+            if child_width / candidate < MIN_PROPORTION:
+                row_weight -= child_weight
+                break
+            row_fraction = candidate
+            row_end += 1
+        if row_end == row_begin:
+            break
+        while row_end < len(weights) and weights[row_end] == 0:
+            row_end += 1
+        next_top = f_top + row_fraction * row_extent
+        row_bottom = (bottom if horizontal else right) if row_end == len(weights) else int(next_top)
+        f_left = float(left if horizontal else top)
+        for i in range(row_begin, row_end):
+            if weights[i] == 0:
+                continue
+            next_left = f_left + weights[i] / row_weight * column_extent
+            last = i + 1 == row_end or (i + 1 < len(weights) and weights[i + 1] == 0)
+            r = (right if horizontal else bottom) if last else int(next_left)
+            if horizontal:
+                regions[i] = (int(f_left), int(f_top), r, row_bottom)
+            else:
+                regions[i] = (int(f_top), int(f_left), row_bottom, r)
+            f_left = next_left
+        f_top = next_top
+        row_begin = row_end
+    return regions
+
+
+def arrange_squarified(bounds, parent_weight, weights):
+    """TreeMapLayout ArrangeSquarified (SequoiaView style)."""
+    if parent_weight == 0:
+        return arrange_equal_rows(bounds, weights)
+    left, top, right, bottom = bounds
+    remaining = [left, top, right, bottom]
+    remaining_weight = parent_weight
+    weight_per_pixel = remaining_weight / (right - left) / (bottom - top)
+    regions = [None] * len(weights)
+    head = 0
+    while head < len(weights) and remaining[2] > remaining[0] and remaining[3] > remaining[1]:
+        rw, rh = remaining[2] - remaining[0], remaining[3] - remaining[1]
+        horizontal = rw >= rh
+        thickness = rh if horizontal else rw
+        squared_row_weight = thickness * thickness * weight_per_pixel
+        row_begin = head
+        row_end = head
+        worst = float("inf")
+        largest = weights[row_begin]
+        row_weight = 0
+        while row_end < len(weights):
+            child_weight = weights[row_end]
+            if child_weight == 0:
+                row_end = len(weights)
+                break
+            next_weight = float(row_weight) + child_weight
+            squared = next_weight * next_weight
+            next_worst = max(squared_row_weight * largest / squared, squared / squared_row_weight / child_weight)
+            if next_worst > worst:
+                break
+            row_weight += child_weight
+            row_end += 1
+            worst = next_worst
+        if row_weight == 0:
+            break
+        extent = rw if horizontal else rh
+        row_width = min(max(int(row_weight / remaining_weight * extent), 1), extent) if row_weight < remaining_weight else extent
+        row = list(remaining)
+        if horizontal:
+            row[2] = row[0] + row_width
+        else:
+            row[3] = row[1] + row_width
+        begin = float(row[1] if horizontal else row[0])
+        for i in range(row_begin, row_end):
+            if weights[i] == 0:
+                continue
+            nxt = begin + weights[i] / row_weight * ((row[3] - row[1]) if horizontal else (row[2] - row[0]))
+            last = i + 1 == row_end or (i + 1 < len(weights) and weights[i + 1] == 0)
+            end = (row[3] if horizontal else row[2]) if last else int(nxt)
+            if horizontal:
+                regions[i] = (row[0], int(begin), row[2], end)
+            else:
+                regions[i] = (int(begin), row[1], end, row[3])
+            begin = nxt
+        if horizontal:
+            remaining[0] += row_width
+        else:
+            remaining[1] += row_width
+        remaining_weight -= row_weight
+        head += row_end - row_begin
+    return regions
+
+
+def arrange_children(node, rect, style):
+    """TreeMapLayout::ArrangeChildren: children sorted by weight, empty regions skipped."""
+    children = node["children"]
+    weights = [c["size"] for c in children]
+    if not weights or rect[2] <= rect[0] or rect[3] <= rect[1]:
+        return []
+    arrange = arrange_squarified if style == "sequoia" else arrange_rows
+    regions = arrange(rect, node["size"], weights)
+    return [(child, region) for child, region in zip(children, regions)
+            if region is not None and region[2] > region[0] and region[3] > region[1]]
 
 
 def add_ridge(rect, surface, h):
@@ -225,31 +340,56 @@ def add_ridge(rect, surface, h):
     return s
 
 
-def oracle_render(root, width, height):
-    """Port of CTreeMap::DrawTreeMap for the default options (no grid)."""
-    pixels = bytearray(width * height * 3)  # Grid color black.
+def blend(color, background, amount):
+    """CColorSpace::BlendColor."""
+    return tuple(int(c * (1.0 - amount) + b * amount) for c, b in zip(color, background))
+
+
+def oracle_render(root, width, height, options=OPTIONS, style="kdirstat"):
+    """Port of CTreeMap::DrawTreeMap: layout, grid, flat or cushion leaves."""
+    grid_color = options["grid_color"]
+    if grid_color == GRID_AUTO:
+        grid_color = blend(WINDOW_COLOR, WINDOW_TEXT_COLOR, 0.12)
+    # LinDirStat fills the background with the grid colour with or without
+    # the grid (the default black), which only shows in the grid's gaps.
+    pixels = bytearray(bytes(grid_color) * (width * height))
     leaves = []
     indexes = color_indexes(root)
+    cushions = options["ambient_light"] < 1.0 and options["height"] > 0.0 and options["scale_factor"] > 0.0
 
-    lx, ly, lz = OPTIONS["light_x"], OPTIONS["light_y"], 10.0
+    lx, ly, lz = options["light_x"], options["light_y"], 10.0
     length = math.sqrt(lx * lx + ly * ly + lz * lz)
     lx, ly, lz = lx / length, ly / length, lz / length
-    ia = OPTIONS["ambient_light"]
+    ia = options["ambient_light"]
     shading = 1.0 - ia
 
+    def desaturate(color):
+        """PrepareRenderColor's saturation step: blend towards the integer grey."""
+        gray = sum(color) // 3
+        return blend(color, (gray, gray, gray), 1.0 - min(max(options["saturation"], 0.0), 1.0))
+
     def leaf_color(node):
-        """CTreeMap::RenderRectangle: flagged colors are equalized and drawn darker or lighter."""
+        """PrepareRenderColor: flagged colors are equalized and drawn darker or lighter, then desaturated."""
+        brightness = options["brightness"]
         if node["space"] is not None:
             rgb, flags = SPACE_COLORS[node["space"]]
-            brightness = OPTIONS["brightness"]
             if flags & COLORFLAG_DARKER:
                 brightness *= 0.66
             else:
                 brightness = min(brightness * 1.2, 1.0)
-            return make_bright_color(rgb, PALETTE_BRIGHTNESS), brightness
+            return desaturate(make_bright_color(rgb, PALETTE_BRIGHTNESS)), brightness
         if node["is_file"]:
-            return PALETTE[indexes.get(extension_key(node["name"]), len(PALETTE) - 1)], OPTIONS["brightness"]
-        return (0, 0, 0), OPTIONS["brightness"]
+            return desaturate(PALETTE[indexes.get(extension_key(node["name"]), len(PALETTE) - 1)]), brightness
+        return desaturate((0, 0, 0)), brightness
+
+    def draw_solid(rect, color, brightness):
+        """DrawSolidRect: the palette colour scaled by brightness, normalized."""
+        left, top, right, bottom = rect
+        scale = brightness / PALETTE_BRIGHTNESS
+        rgb = bytes(normalize_color(int(color[0] * scale), int(color[1] * scale), int(color[2] * scale)))
+        for y in range(top, bottom):
+            row = (y * width + left) * 3
+            pixels[row:row + (right - left) * 3] = rgb * (right - left)
 
     def draw_cushion(rect, surface, color, brightness):
         left, top, right, bottom = rect
@@ -274,17 +414,23 @@ def oracle_render(root, width, height):
     if root["size"] == 0:
         return pixels, leaves
 
-    stack = [(root, (0, 0, width, height), [0.0, 0.0, 0.0, 0.0], OPTIONS["height"], True, 0)]
+    grid_width = 1 if options["grid"] else 0
+    stack = [(root, (0, 0, width, height), [0.0, 0.0, 0.0, 0.0], options["height"], True, 0)]
     while stack:
         node, rect, surface, h, is_root, depth = stack.pop()
         left, top, right, bottom = rect
-        if right - left <= 0 or bottom - top <= 0:
+        if right - left <= grid_width or bottom - top <= grid_width:
             continue
-        if not is_root:
+        if cushions and not is_root:
             surface = add_ridge(rect, surface, h)
         if not node["children"]:
             color, brightness = leaf_color(node)
-            draw_cushion(rect, surface, color, brightness)
+            # RenderLeaf: with the grid, the top and left pixel are the grid.
+            drawn = (left + grid_width, top + grid_width, right, bottom)
+            if cushions:
+                draw_cushion(drawn, surface, color, brightness)
+            else:
+                draw_solid(drawn, color, brightness)
             leaves.append({
                 "path": node["path"],
                 "ext": extension_key(node["name"]),
@@ -293,12 +439,16 @@ def oracle_render(root, width, height):
                 "rect": [left, top, right - left, bottom - top],
             })
             continue
-        for child, child_rect in kdirstat_children(node, rect):
-            stack.append((child, child_rect, surface, h * OPTIONS["scale_factor"], False, depth + 1))
+        for child, child_rect in arrange_children(node, rect, style):
+            stack.append((child, child_rect, surface, h * options["scale_factor"], False, depth + 1))
     return pixels, leaves
 
 
 def build_exporter(repo):
+    # A prebuilt exporter (the macOS build: make -C macos exporter).
+    prebuilt = os.environ.get("WINDIRSTAT_PARITY_EXPORTER")
+    if prebuilt:
+        return Path(prebuilt)
     subprocess.run(["make", "-C", str(repo / "Tools")], check=True, stdout=subprocess.DEVNULL)
     for candidate in (repo / "Tools/obj/windirstat-parity-exporter", repo / "Tools/windirstat-parity-exporter"):
         if candidate.exists():
@@ -317,9 +467,9 @@ def exporter_environment():
     return env
 
 
-def lindirstat_render(exporter, spec_path, fixture_name, width, height, ppm_path):
+def lindirstat_render(exporter, spec_path, fixture_name, width, height, ppm_path, extra=()):
     completed = subprocess.run(
-        [str(exporter), str(spec_path), fixture_name, str(width), str(height), "--ppm", str(ppm_path)],
+        [str(exporter), *extra, str(spec_path), fixture_name, str(width), str(height), "--ppm", str(ppm_path)],
         env=exporter_environment(),
         text=True,
         stdout=subprocess.PIPE,
@@ -386,14 +536,18 @@ def main():
     spec = json.loads(spec_path.read_text())
     exporter = build_exporter(repo)
 
+    runs = [("default", None, "kdirstat", size) for size in spec["sizes"]]
+    runs += [(name, preset, style, spec["sizes"][0]) for name, preset, style in VARIANTS]
     results = []
     for fixture in spec["fixtures"]:
         root = prepare(fixture["tree"])
-        for width, height in spec["sizes"]:
-            stem = f"{fixture['name']}-{width}x{height}"
+        for variant, preset, style, (width, height) in runs:
+            stem = f"{fixture['name']}-{width}x{height}" + ("" if variant == "default" else f"-{variant}")
+            extra = [] if preset is None else ["--preset", preset, "--style", style]
+            options = OPTIONS if preset is None else preset_options(preset)
             actual, actual_items = lindirstat_render(
-                exporter, spec_path, fixture["name"], width, height, out_dir / f"{stem}-lindirstat.ppm")
-            expected, expected_items = oracle_render(root, width, height)
+                exporter, spec_path, fixture["name"], width, height, out_dir / f"{stem}-lindirstat.ppm", extra)
+            expected, expected_items = oracle_render(root, width, height, options, style)
             write_ppm(out_dir / f"{stem}-windirstat-oracle.ppm", expected, width, height)
             pixels, diff = pixel_metrics(actual, expected, width, height)
             write_ppm(out_dir / f"{stem}-diff.ppm", diff, width, height)
@@ -401,6 +555,7 @@ def main():
             (out_dir / f"{stem}-windirstat-oracle-rects.json").write_text(json.dumps(expected_items, indent=2))
             results.append({
                 "fixture": fixture["name"],
+                "variant": variant,
                 "size": [width, height],
                 "geometry": rect_metrics(actual_items, expected_items),
                 "image": pixels,
@@ -408,7 +563,8 @@ def main():
 
     summary = {
         "strict": strict,
-        "oracle": "Python port of references/WinDirStat/windirstat/Controls/TreeMap.cpp (KDirStat style, default options)",
+        "oracle": "Python port of references/WinDirStat/windirstat/Controls/TreeMap.cpp and TreeMapLayout.cpp "
+                  "(v2.9.3: rows and squarified layouts, default options and the colour presets)",
         "thresholds": THRESHOLDS,
         "results": results,
     }
@@ -416,7 +572,7 @@ def main():
 
     failures = []
     for result in results:
-        name = f"{result['fixture']} {result['size'][0]}x{result['size'][1]}"
+        name = f"{result['fixture']} {result['size'][0]}x{result['size'][1]} {result['variant']}"
         print(f"{name:40} exact={result['image']['exact_pixel_match']:.4f} "
               f"maxΔ={result['image']['max_channel_delta']:3d} "
               f"rect mismatches={result['geometry']['rect_mismatches']}")

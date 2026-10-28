@@ -41,6 +41,7 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
 
   // General
   NSButton *_humanFormat;
+  NSButton *_timeSeconds;
   NSButton *_fullRowSelection;
   NSButton *_listGrid;
   NSButton *_listStripes;
@@ -75,6 +76,8 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   NSSlider *_brightness;
   NSSlider *_cushionShading;
   NSSlider *_height;
+  NSPopUpButton *_treemapPreset;
+  NSTextField *_gridColorLabel;
   NSSlider *_scaleFactor;
   NSSlider *_lightX;
   NSSlider *_lightY;
@@ -86,6 +89,8 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   // Cleanups
   NSMutableArray *_cleanups;
   NSTableView *_cleanupTable;
+  NSButton *_addCleanup;
+  NSButton *_removeCleanup;
   NSButton *_moveUp;
   NSButton *_moveDown;
   NSButton *_cleanupEnabled;
@@ -287,6 +292,19 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
   [button setTarget:self];
   [button setAction:action];
   [button sizeToFit];
+  return button;
+}
+
+// A push button showing a symbolic icon, its title as the tooltip.
+- (NSButton *)iconButtonNamed:(NSString *)icon title:(NSString *)title action:(SEL)action
+{
+  NSButton *button = [self pushButtonWithTitle:@"" action:action];
+  [button setImage:[LDPlatformUI toolbarImageNamed:icon label:title]];
+  [button setImagePosition:NSImageOnly];
+  [button setToolTip:title];
+  NSRect frame = [button frame];
+  frame.size.height = MAX(NSHeight(frame), 28.0);
+  [button setFrame:frame];
   return button;
 }
 
@@ -523,6 +541,7 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
   [self beginPage:LDLocalized(@"General")];
   [self addSectionTitle:LDLocalized(@"Sizes")];
   _humanFormat = [self addCheckbox:LDLocalized(@"Show sizes in human-readable format") action:@selector(generalChanged:)];
+  _timeSeconds = [self addCheckbox:LDLocalized(@"Show seconds in timestamps") action:@selector(generalChanged:)];
   [self addSectionTitle:LDLocalized(@"List Style")];
   _autoResizeColumns = [self addCheckbox:LDLocalized(@"Automatically resize columns") action:@selector(generalChanged:)];
   _fullRowSelection = [self addCheckbox:LDLocalized(@"Full row selection") action:@selector(generalChanged:)];
@@ -678,19 +697,25 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
        height:NSHeight([previewTitle frame]) mask:NSViewMinXMargin];
 
   [self addSectionTitle:LDLocalized(@"Layout")];
+  // WinDirStat 2.9's colour presets, Custom last (CPageTreeMap).
+  _treemapPreset = [self popUpWithTitles:@[LDLocalized(@"Classic"), LDLocalized(@"Calm"), LDLocalized(@"Flat"),
+                                           LDLocalized(@"Pastel"), LDLocalized(@"High Contrast"), LDLocalized(@"Custom")]
+                                  action:@selector(treemapPresetChanged:)];
+  [_treemapPreset setFrameSize:NSMakeSize(MAX(NSWidth([_treemapPreset frame]), 160.0), NSHeight([_treemapPreset frame]))];
+  [self addRow:LDLocalized(@"Color Presets") controls:@[_treemapPreset]];
   _treemapStyle = [self popUpWithTitles:@[LDLocalized(@"KDirStat"), @"SequoiaView"] action:@selector(treemapChanged:)];
   [_treemapStyle setFrameSize:NSMakeSize(MAX(NSWidth([_treemapStyle frame]), 160.0), NSHeight([_treemapStyle frame]))];
   [self addRow:LDLocalized(@"Style") controls:@[_treemapStyle]];
   _treemapGrid = [self addCheckbox:LDLocalized(@"Show grid") action:@selector(treemapChanged:)];
   _gridColor = [self colorWellWithAction:@selector(treemapColorChanged:)];
-  [self addRow:LDLocalized(@"Grid color") controls:@[_gridColor]];
+  _gridColorLabel = [self addRow:LDLocalized(@"Grid color") controls:@[_gridColor]];
   _highlightColor = [self colorWellWithAction:@selector(treemapColorChanged:)];
   [self addRow:LDLocalized(@"Highlight color") controls:@[_highlightColor]];
 
   [self addSectionTitle:LDLocalized(@"Cushions")];
   _brightness = [self addSliderRow:LDLocalized(@"Brightness") from:0 to:100];
   _cushionShading = [self addSliderRow:LDLocalized(@"Cushion shading") from:0 to:100];
-  _height = [self addSliderRow:LDLocalized(@"Height") from:0 to:100];
+  _height = [self addSliderRow:LDLocalized(@"Height") from:0 to:200];
   _scaleFactor = [self addSliderRow:LDLocalized(@"Scale factor") from:0 to:100];
 
   [self addSectionTitle:LDLocalized(@"Light Source")];
@@ -710,17 +735,21 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
   NSView *page = [self beginPage:LDLocalized(@"Cleanups")];
   CGFloat listWidth = 220.0;
 
-  _moveUp = [self pushButtonWithTitle:LDLocalized(@"Move Up") action:@selector(moveCleanupUp:)];
-  _moveDown = [self pushButtonWithTitle:LDLocalized(@"Move Down") action:@selector(moveCleanupDown:)];
+  // WinDirStat 2.8 (4779293d): add, remove, up and down under the list.
+  _addCleanup = [self iconButtonNamed:@"list-add-symbolic" title:LDLocalized(@"Add") action:@selector(addCleanup:)];
+  _removeCleanup = [self iconButtonNamed:@"list-remove-symbolic" title:LDLocalized(@"Remove") action:@selector(removeCleanup:)];
+  _moveUp = [self iconButtonNamed:@"go-up-symbolic" title:LDLocalized(@"Move Up") action:@selector(moveCleanupUp:)];
+  _moveDown = [self iconButtonNamed:@"go-down-symbolic" title:LDLocalized(@"Move Down") action:@selector(moveCleanupDown:)];
+  NSArray *listButtons = @[_addCleanup, _removeCleanup, _moveUp, _moveDown];
   CGFloat buttonHeight = NSHeight([_moveUp frame]);
-  CGFloat buttonWidth = floor((listWidth - LDOptionsControlSpacing) / 2.0);
+  CGFloat buttonWidth = floor((listWidth - 3 * LDOptionsControlSpacing) / 4.0);
   CGFloat buttonY = NSHeight([page frame]) - LDOptionsMargin - buttonHeight;
-  [_moveUp setFrame:NSMakeRect(_left, buttonY, buttonWidth, buttonHeight)];
-  [_moveDown setFrame:NSMakeRect(_left + listWidth - buttonWidth, buttonY, buttonWidth, buttonHeight)];
-  [_moveUp setAutoresizingMask:NSViewMinYMargin];
-  [_moveDown setAutoresizingMask:NSViewMinYMargin];
-  [page addSubview:_moveUp];
-  [page addSubview:_moveDown];
+  for (NSUInteger i = 0; i < [listButtons count]; i++) {
+    NSButton *button = [listButtons objectAtIndex:i];
+    [button setFrame:NSMakeRect(_left + i * (buttonWidth + LDOptionsControlSpacing), buttonY, buttonWidth, buttonHeight)];
+    [button setAutoresizingMask:NSViewMinYMargin];
+    [page addSubview:button];
+  }
 
   CGFloat listHeight = buttonY - LDOptionsRowSpacing - _y;
   NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(_left, _y, listWidth, listHeight)];
@@ -866,6 +895,7 @@ static NSInteger LDState(BOOL flag)
   LDPreferences *preferences = [LDPreferences sharedPreferences];
 
   [_humanFormat setState:LDState([preferences humanFormat])];
+  [_timeSeconds setState:LDState([preferences showTimeSeconds])];
   [_fullRowSelection setState:LDState([preferences listFullRowSelection])];
   [_listGrid setState:LDState([preferences listGrid])];
   [_listStripes setState:LDState([preferences listStripes])];
@@ -899,7 +929,10 @@ static NSInteger LDState(BOOL flag)
   [self updateLabelForSlider:_levelCount];
 
   [_treemapStyle selectItemAtIndex:[preferences treemapStyle]];
-  [self setColor:[preferences treemapGridColor] ofWell:_gridColor];
+  // Auto shows the colour it stands for (CTreeMap::GetGridColor) and says so.
+  BOOL autoGrid = [preferences treemapGridColor] == LDTreemapGridColorAuto;
+  [self setColor:autoGrid ? [self autoGridColor] : [preferences treemapGridColor] ofWell:_gridColor];
+  [_gridColorLabel setStringValue:autoGrid ? LDLocalized(@"Grid color (Auto)") : LDLocalized(@"Grid color")];
   [self setColor:[preferences treemapHighlightColor] ofWell:_highlightColor];
   [_treemapGrid setState:LDState([preferences treemapGrid])];
   [_brightness setIntegerValue:[preferences treemapBrightness]];
@@ -944,6 +977,8 @@ static NSInteger LDState(BOOL flag)
   [self apply:^(LDPreferences *preferences) {
     if (sender == self->_humanFormat) {
       [preferences setHumanFormat:on];
+    } else if (sender == self->_timeSeconds) {
+      [preferences setShowTimeSeconds:on];
     } else if (sender == self->_fullRowSelection) {
       [preferences setListFullRowSelection:on];
     } else if (sender == self->_listGrid) {
@@ -1188,9 +1223,15 @@ static NSInteger LDState(BOOL flag)
   [label setStringValue:[NSString stringWithFormat:format, (long)[slider integerValue]]];
 }
 
-// Renders WinDirStat's demo tree with the current settings.
+// Renders WinDirStat's demo tree with the current settings, and shows the
+// preset they match (CPageTreeMap::UpdatePresetSelection).
 - (void)updateTreemapPreview
 {
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  NSInteger preset = [preferences matchingTreemapPreset];
+  [_treemapPreset selectItemAtIndex:preset >= 0 ? preset : LDTreemapPresetCount];
+  [[_treemapPreset itemAtIndex:LDTreemapPresetCount] setEnabled:[preferences hasCustomTreemapPreset] || preset < 0];
+
   NSRect bounds = [_treemapPreview bounds];
   int width = (int)NSWidth(bounds);
   int height = (int)NSHeight(bounds);
@@ -1198,7 +1239,9 @@ static NSInteger LDState(BOOL flag)
     return;
   }
   LDTreemapPreview *preview = [LDTreemapPreview sharedPreview];
-  NSData *pixels = [preview renderRGBAWithWidth:width height:height options:[[LDPreferences sharedPreferences] treemapOptions]];
+  NSData *pixels = [preview renderRGBAWithWidth:width height:height options:[[LDPreferences sharedPreferences] treemapOptions]
+                                     background:LDRGBFromColor([NSColor controlBackgroundColor])
+                                           text:LDRGBFromColor([NSColor controlTextColor])];
   NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
                                                                   pixelsWide:width
                                                                   pixelsHigh:height
@@ -1226,6 +1269,27 @@ static NSInteger LDState(BOOL flag)
     }
   }];
   [self updateTreemapPreview];
+}
+
+// The theme's colour for an Auto grid.
+- (uint32_t)autoGridColor
+{
+  uint32_t background = LDRGBFromColor([NSColor controlBackgroundColor]);
+  uint32_t text = LDRGBFromColor([NSColor controlTextColor]);
+  return LDRGB((int)(LDRGBRed(background) * 0.88 + LDRGBRed(text) * 0.12),
+               (int)(LDRGBGreen(background) * 0.88 + LDRGBGreen(text) * 0.12),
+               (int)(LDRGBBlue(background) * 0.88 + LDRGBBlue(text) * 0.12));
+}
+
+// CPageTreeMap::OnPresetChanged: a preset's appearance, or the saved
+// custom one.
+- (void)treemapPresetChanged:(id)sender
+{
+  NSInteger preset = [(NSPopUpButton *)sender indexOfSelectedItem];
+  [self apply:^(LDPreferences *preferences) {
+    [preferences applyTreemapPreset:preset];
+  }];
+  [self refreshControls];
 }
 
 - (void)treemapChanged:(id)sender
@@ -1320,6 +1384,7 @@ static NSInteger LDState(BOOL flag)
   NSInteger index = [self selectedCleanupIndex];
   LDCustomCleanup *cleanup = [self selectedCleanup];
   [cleanup normalize];
+  [_removeCleanup setEnabled:cleanup != nil];
   [_moveUp setEnabled:index > 0];
   [_moveDown setEnabled:index >= 0 && index + 1 < (NSInteger)[_cleanups count]];
 
@@ -1402,6 +1467,35 @@ static NSInteger LDState(BOOL flag)
   [self saveCleanups];
   [_cleanupTable reloadData];
   [_cleanupTable selectRow:target byExtendingSelection:NO];
+  [self refreshCleanupControls];
+}
+
+// OnBnClickedAdd: a new cleanup, titled for its place, at the end.
+- (void)addCleanup:(id)sender
+{
+  (void)sender;
+  [_cleanups addObject:[[LDCustomCleanup alloc] init]];
+  [self saveCleanups];
+  [_cleanupTable reloadData];
+  [_cleanupTable selectRow:(NSInteger)[_cleanups count] - 1 byExtendingSelection:NO];
+  [_cleanupTable scrollRowToVisible:(NSInteger)[_cleanups count] - 1];
+  [self refreshCleanupControls];
+}
+
+// OnBnClickedRemove: the next one (or the new last one) is selected.
+- (void)removeCleanup:(id)sender
+{
+  (void)sender;
+  NSInteger index = [self selectedCleanupIndex];
+  if (index < 0 || index >= (NSInteger)[_cleanups count]) {
+    return;
+  }
+  [_cleanups removeObjectAtIndex:(NSUInteger)index];
+  [self saveCleanups];
+  [_cleanupTable reloadData];
+  if ([_cleanups count] > 0) {
+    [_cleanupTable selectRow:MIN(index, (NSInteger)[_cleanups count] - 1) byExtendingSelection:NO];
+  }
   [self refreshCleanupControls];
 }
 

@@ -11,6 +11,10 @@ typedef enum {
   LDTreemapStyleSequoiaView = 1 // Classic squarification
 } LDTreemapStyle;
 
+// gridColor's "Auto" (WinDirStat's CLR_DEFAULT): the window colour tinted
+// 12% towards the text colour (CTreeMap::GetGridColor).
+#define LDTreemapGridColorAuto ((LDRGBColor)0xFF000000)
+
 typedef struct {
   LDTreemapStyle style;
   BOOL grid;
@@ -19,6 +23,7 @@ typedef struct {
   double height;       // cushion height "H"
   double scaleFactor;  // cushion scale "F", 0..1
   double ambientLight; // "Ia", 0..1
+  double saturation;   // 0..1, blends each colour towards its grey (2.9)
   double lightSourceX; // negative = left
   double lightSourceY; // negative = top
   // WinDirStat 2.6-2.8 folder frames (f9ada432, 549d7f20): folders whose
@@ -41,6 +46,26 @@ typedef struct {
 typedef double (^LDTreemapTextWidth)(NSString *text);
 
 FOUNDATION_EXPORT LDTreemapOptions LDTreemapDefaultOptions(void);
+
+// WinDirStat 2.9's colour presets (CTreeMap::GetPreset, 181ccb4f). A
+// preset sets the appearance: grid, grid colour, brightness, saturation,
+// cushion shading, height, scale factor and light source.
+typedef enum {
+  LDTreemapPresetClassic = 0,
+  LDTreemapPresetCalm,
+  LDTreemapPresetFlat,
+  LDTreemapPresetPastel,
+  LDTreemapPresetHighContrast,
+  LDTreemapPresetCount
+} LDTreemapPreset;
+
+// The default options with preset's appearance.
+FOUNDATION_EXPORT LDTreemapOptions LDTreemapPresetOptions(LDTreemapPreset preset);
+// options with appearance's appearance (CTreeMap::Options::SetAppearance).
+FOUNDATION_EXPORT LDTreemapOptions LDTreemapOptionsWithAppearance(LDTreemapOptions options, LDTreemapOptions appearance);
+// The preset whose appearance options has, compared in whole percent as
+// CTreeMap::GetMatchingPreset does; NO when none (a custom appearance).
+FOUNDATION_EXPORT BOOL LDTreemapMatchingPreset(LDTreemapOptions options, LDTreemapPreset *preset);
 FOUNDATION_EXPORT BOOL LDTreemapOptionsUseCushions(LDTreemapOptions options);
 
 // Half-open integer rectangle, like a Windows RECT: [left, right) x [top, bottom).

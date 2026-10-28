@@ -75,6 +75,38 @@
   [[NSFileManager defaultManager] removeItemAtPath:directory error:NULL];
 }
 
+// WinDirStat 2.8 (1424ff67, NormalizeScanPaths): several folders split by
+// "|"; blanks, duplicates and folders inside another one go.
+- (void)testSeveralFoldersAreNormalized
+{
+  XCTAssertEqualObjects((@[@"/srv/a", @"/srv/b"]), [LDSelectTargetRules folderPathsFromText:@" /srv/a/ | | /srv/b"]);
+  XCTAssertEqualObjects((@[@"/srv/a"]), [LDSelectTargetRules folderPathsFromText:@"/srv/a|/srv/a/x|/srv/a"]);
+  // A later folder that holds earlier ones replaces them, keeping its place.
+  XCTAssertEqualObjects((@[@"/var", @"/srv"]), [LDSelectTargetRules folderPathsFromText:@"/srv/a|/var|/srv/b|/srv"]);
+  // Only whole components count: /srv/ab is not inside /srv/a.
+  XCTAssertEqualObjects((@[@"/srv/a", @"/srv/ab"]), [LDSelectTargetRules folderPathsFromText:@"/srv/a|/srv/ab"]);
+  XCTAssertEqualObjects(@[@"/"], [LDSelectTargetRules folderPathsFromText:@"/home|/"]);
+  XCTAssertEqualObjects(@[], [LDSelectTargetRules folderPathsFromText:@" | "]);
+  XCTAssertEqualObjects(@"/a|/b", ([LDSelectTargetRules folderTextForPaths:@[@"/a", @"/b"]]));
+}
+
+- (void)testSeveralFoldersMustAllExist
+{
+  NSString *one = [[self temporaryDirectory] stringByAppendingPathComponent:@"one"];
+  NSString *two = [[self temporaryDirectory] stringByAppendingPathComponent:@"two"];
+  for (NSString *path in @[one, two]) {
+    [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:NULL];
+  }
+  NSString *both = [NSString stringWithFormat:@"%@|%@", one, two];
+  XCTAssertTrue([LDSelectTargetRules isUsableFolderText:both]);
+  XCTAssertFalse([LDSelectTargetRules isUsableFolderText:[both stringByAppendingString:@"|/nonexistent-lindirstat"]]);
+  XCTAssertFalse([LDSelectTargetRules isUsableFolderText:[both stringByAppendingString:@"|relative"]]);
+  XCTAssertEqualObjects((@[one, two]), ([LDSelectTargetRules pathsForMode:LDSelectTargetFolder
+                                                               mountPoints:@[]
+                                                           selectedIndexes:[NSIndexSet indexSet]
+                                                                folderText:both]));
+}
+
 - (void)testOKEnablementPerMode
 {
   NSString *directory = [self temporaryDirectory];

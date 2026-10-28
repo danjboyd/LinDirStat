@@ -101,6 +101,9 @@ typedef enum {
 // Applies the Cleanups page rules (PageCleanups.cpp): recursion needs mount
 // points or folders and forces waiting; without waiting there is no refresh.
 - (void)normalize;
+// Nothing set: no command, no option and the default title (an unused slot
+// from before cleanups could be added and removed).
+- (BOOL)isUnused;
 
 @end
 
@@ -129,6 +132,10 @@ typedef enum {
 // Sizes as "1.2 GB" (YES) or "1,234,567 bytes" (NO).
 - (BOOL)humanFormat;
 - (void)setHumanFormat:(BOOL)flag;
+// WinDirStat 2.8's ShowTimeSeconds (b14022fd, default off): timestamps in
+// the lists show seconds.
+- (BOOL)showTimeSeconds;
+- (void)setShowTimeSeconds:(BOOL)flag;
 - (BOOL)listGrid;
 - (void)setListGrid:(BOOL)flag;
 - (BOOL)listStripes;
@@ -172,15 +179,18 @@ typedef enum {
 - (void)setTreemapBrightness:(NSInteger)value;
 - (NSInteger)treemapCushionShading;      // 13
 - (void)setTreemapCushionShading:(NSInteger)value;
-- (NSInteger)treemapHeight;              // 38
+- (NSInteger)treemapHeight;              // 38, 0-200 (WinDirStat 2.9)
 - (void)setTreemapHeight:(NSInteger)value;
+- (NSInteger)treemapSaturation;          // 100 (WinDirStat 2.9; settings file and presets)
+- (void)setTreemapSaturation:(NSInteger)value;
 - (NSInteger)treemapScaleFactor;         // 91
 - (void)setTreemapScaleFactor:(NSInteger)value;
 - (NSInteger)treemapLightSourceX;        // -100..100, default -100
 - (void)setTreemapLightSourceX:(NSInteger)value;
 - (NSInteger)treemapLightSourceY;        // -100..100, default -100
 - (void)setTreemapLightSourceY:(NSInteger)value;
-// Grid and selection frame colours, 0xRRGGBB (black and white).
+// Grid and selection frame colours, 0xRRGGBB (black and white). The grid
+// colour can also be LDTreemapGridColorAuto (as the presets set it).
 - (uint32_t)treemapGridColor;
 - (void)setTreemapGridColor:(uint32_t)color;
 // WinDirStat 2.6's Show Folder Frames (default off) and 2.8's draw
@@ -190,6 +200,13 @@ typedef enum {
 - (NSInteger)treemapFolderFramesDrawThreshold;
 - (uint32_t)treemapHighlightColor;
 - (void)setTreemapHighlightColor:(uint32_t)color;
+// WinDirStat 2.9's colour presets: the LDTreemapPreset matching the
+// current appearance, or -1 (custom); applying one (LDTreemapPresetCount
+// for the saved custom appearance, NO when there is none). An appearance
+// that matches no preset is saved as the custom one whenever it changes.
+- (NSInteger)matchingTreemapPreset;
+- (BOOL)hasCustomTreemapPreset;
+- (BOOL)applyTreemapPreset:(NSInteger)preset;
 // Every treemap setting above, as LDTreemap takes them.
 - (LDTreemapOptions)treemapOptions;
 // Style, grid and cushion settings; the colours are kept, as WinDirStat's
@@ -294,9 +311,13 @@ typedef enum {
 - (void)addFolderToHistory:(NSString *)folder;
 - (void)removeFolderFromHistory:(NSString *)folder;
 
-// Custom cleanups: always 10 slots.
+// Custom cleanups, as many as the user adds (WinDirStat 2.8, 4779293d).
+// Settings from before then held ten fixed slots: on first read the
+// configured ones are kept and the unused ones after the last of them go.
+// The first ten get Ctrl+0-9 in the Custom Cleanup menu.
 - (NSArray *)customCleanups;
 - (void)setCustomCleanups:(NSArray *)cleanups;
++ (NSUInteger)customCleanupShortcutCount;
 
 // Options menu: the extension list and the treemap panes.
 - (BOOL)showFileTypes;
