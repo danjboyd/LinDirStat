@@ -64,7 +64,8 @@ and a treemap PR on Adwaita.
 
 | Issue | Gap | Owner | Reviewer | Status |
 |---|---|---|---|---|
-| #71 | CSV fixture written by WinDirStat 2.9.x; sizes stay at 1 decimal | Linux | — | in progress |
+| #71 | CSV fixtures from WinDirStat 2.9.3 and newer (ScanOutcome/ScanError); duplicates' Sampled hash; sizes stay at 1 decimal | Linux | — | in review (#86) |
+| #85 | A loaded Windows CSV joins paths with "/", so saving and loading it again fails | Linux | — | |
 | #66 | Extension list: double-click searches; group unregistered extensions (UTType backend on macOS) | Linux | macOS (backend) | |
 | #69 | File Watcher: regex quick filter, toolbar controls, autoscroll | Linux | — | |
 | #67 | Seconds in timestamps; several folders in Select Target; any number of custom cleanups | Linux | macOS (part b) | |
