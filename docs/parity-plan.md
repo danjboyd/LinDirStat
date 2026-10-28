@@ -78,7 +78,7 @@ The release itself (tag, AppImage, DMG) waits for Dan's approval.
 
 ### Release checklist
 
-The steps follow 0.1.4's (#51–#55, `docs/packaging.md`, `docs/updates.md`).
+The steps follow 0.1.4's (#51–#55, `docs/packaging.md`, `docs/updates.md` "Releasing").
 
 1. Every issue above is closed. `./scripts/run-tests.sh`, the WinDirStat and
    GUI parity gates, and `make -C macos test` are green on `main`.
@@ -86,18 +86,22 @@ The steps follow 0.1.4's (#51–#55, `docs/packaging.md`, `docs/updates.md`).
    so far covers only the GPL-3.0 licence change, with the user-visible 0.1.5
    changes. Mac notes go in the same PR.
 3. Pins PR: re-check `packaging/release-inputs.json`. If the release needs a
-   newer Adwaita tag, Dan approves it first.
+   newer Adwaita tag, Dan approves it first. When the gnustep-packager pin
+   moves, re-sync `vendor/gnustep-packager-updater` to that tag's
+   `updater/objc` in the same PR, as #55 did.
 4. Version PR: set `package.version` and the runtime notices to 0.1.5.
-5. Release candidate: run the Release workflow by hand with version
-   `0.1.5-rc1`. Linux checks the AppImage (bwrap sandbox, fresh `HOME`, scan
-   `/usr`, Open With LinDirStat). macOS checks the DMG (open, scan, Full Disk
-   Access prompt, `xattr` quarantine path). Each posts screenshots and
-   results on the PR.
-6. **Dan approves the release**, then tags `v0.1.5` from `main`. The tag
-   starts the Release workflow.
-7. Attach the AppImage, the DMG and their `.sha256` files to the release in
-   `danjboyd/LinDirStat-releases`, run `scripts/release-sha256sums.sh v0.1.5`,
-   and check the update feed (`docs/updates.md`).
+5. Release candidate: `gh workflow run release.yml --ref main -f
+   version=0.1.5-rc1`. Linux runs `scripts/release-linux.sh --from-ci <run>`,
+   a dry run that verifies the artifact and signs the feed locally. macOS
+   checks the DMG from the run's `release` artifact. Each posts its results
+   on the release PR. Publishing an rc (`--publish`) makes only a
+   pre-release, never the feed.
+6. Final candidate: a manual Release run on `main` without a version (it
+   builds `package.version`), then the same `--from-ci` dry run and DMG check.
+7. **With Dan's go:** `scripts/release-linux.sh --from-ci <run> --publish` on
+   the Linux machine that holds the update key. It creates the release with
+   every asset and `SHA256SUMS`, publishes the signed feed, and pushes tag
+   `v0.1.5` last. Then check the live feed (`docs/updates.md`).
 
 ## Intentional differences (not gaps)
 
