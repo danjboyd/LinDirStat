@@ -323,6 +323,69 @@ static NSString *const LDCSVTestHeader =
   XCTAssertEqual((NSTimeInterval)1714552200, [root aggregateModificationTime]);
 }
 
+// A Windows tree keeps its backslashes below the root, so it is saved as
+// WinDirStat wrote it and loads again (#85).
+- (void)testWindowsTreeKeepsBackslashesAndRoundTrips
+{
+  NSString *fixture = [[[NSFileManager defaultManager] currentDirectoryPath]
+                        stringByAppendingPathComponent:@"Tests/Fixtures/csv/windirstat-drive.csv"];
+  NSError *error = nil;
+  LDFileNode *root = [LDCSV readTreeFromPath:fixture error:&error];
+  XCTAssertNotNil(root, @"%@", error);
+  LDFileNode *dan = [self childNamed:@"dan" of:[self childNamed:@"Users" of:root]];
+  LDFileNode *notes = [self childNamed:@"notes, final.txt" of:dan];
+  XCTAssertEqualObjects(@"C:\\Users\\dan\\notes, final.txt", [notes path]);
+  XCTAssertEqual('\\', [dan pathSeparator]);
+  NSString *dataPath = [[NSString alloc] initWithData:[notes pathData] encoding:NSUTF8StringEncoding];
+  XCTAssertEqualObjects(@"C:\\Users\\dan\\notes, final.txt", dataPath);
+
+  NSString *saved = [self pathFor:@"resaved.csv"];
+  XCTAssertTrue([LDCSV writeTree:root toPath:saved includeOwner:NO error:&error], @"%@", error);
+  NSString *text = [self contentsOf:saved];
+  XCTAssertTrue([text rangeOfString:@"\r\n\"C:\\Users\\dan\\notes, final.txt\","].location != NSNotFound, @"%@", text);
+  XCTAssertTrue([text rangeOfString:@"/"].location == NSNotFound, @"%@", text);
+
+  LDFileNode *reloaded = [LDCSV readTreeFromPath:saved error:&error];
+  XCTAssertNotNil(reloaded, @"%@", error);
+  XCTAssertEqual([root aggregateSize], [reloaded aggregateSize]);
+  XCTAssertEqual([root aggregateAllocatedSize], [reloaded aggregateAllocatedSize]);
+  XCTAssertEqual([root fileCount], [reloaded fileCount]);
+  XCTAssertEqual([root directoryCount], [reloaded directoryCount]);
+  LDFileNode *again = [self childNamed:@"notes, final.txt"
+                                    of:[self childNamed:@"dan" of:[self childNamed:@"Users" of:reloaded]]];
+  XCTAssertEqualObjects([notes path], [again path]);
+  XCTAssertEqual([notes size], [again size]);
+}
+
+// WinDirStat's "This PC" root: its drives are Windows paths, so the rows
+// below them split at backslashes.
+- (void)testWindowsThisPCExportLoadsAndRoundTrips
+{
+  NSString *path = [self writeCSV:[LDCSVTestHeader stringByAppendingString:
+                                   @"\r\n\"This PC\",2,4,300,8192,\"\",2024-01-01T00:00:00Z,0x30000001,0x0"
+                                   @"\r\n\"C:\\\",1,2,100,4096,\"\",2024-01-01T00:00:00Z,0x20000002,0x0"
+                                   @"\r\n\"C:\\Data\",1,1,100,4096,\"\",2024-01-01T00:00:00Z,0x20000004,0x0"
+                                   @"\r\n\"C:\\Data\\a.txt\",0,0,100,4096,\"\",2024-01-01T00:00:00Z,0x20000008,0x0"
+                                   @"\r\n\"D:\\\",1,1,200,4096,\"\",2024-01-01T00:00:00Z,0x20000002,0x0"
+                                   @"\r\n\"D:\\b.bin\",0,0,200,4096,\"\",2024-01-01T00:00:00Z,0x20000008,0x0"]
+                            named:@"thispc.csv"];
+  NSError *error = nil;
+  LDFileNode *root = [LDCSV readTreeFromPath:path error:&error];
+  XCTAssertNotNil(root, @"%@", error);
+  XCTAssertTrue([root isComputer]);
+  XCTAssertEqual((unsigned long long)300, [root aggregateSize]);
+  LDFileNode *a = [self childNamed:@"a.txt" of:[self childNamed:@"Data" of:[self childNamed:@"C:\\" of:root]]];
+  XCTAssertEqualObjects(@"C:\\Data\\a.txt", [a path]);
+  XCTAssertEqualObjects(@"D:\\b.bin", [[self childNamed:@"b.bin" of:[self childNamed:@"D:\\" of:root]] path]);
+
+  NSString *saved = [self pathFor:@"thispc-resaved.csv"];
+  XCTAssertTrue([LDCSV writeTree:root toPath:saved includeOwner:NO error:&error], @"%@", error);
+  LDFileNode *reloaded = [LDCSV readTreeFromPath:saved error:&error];
+  XCTAssertNotNil(reloaded, @"%@", error);
+  XCTAssertEqual([root aggregateSize], [reloaded aggregateSize]);
+  XCTAssertEqual([root fileCount], [reloaded fileCount]);
+}
+
 - (NSString *)fixture:(NSString *)name
 {
   return [[[NSFileManager defaultManager] currentDirectoryPath]

@@ -56,6 +56,12 @@ typedef enum {
 // Creates a node that remembers its full path. Used for scan roots and tests.
 // Directory kinds return an LDDirectoryNode.
 + (id)nodeWithPath:(NSString *)path kind:(LDFileNodeKind)kind size:(unsigned long long)size;
+// For a node made with a path: its descendants' paths are joined with '\\'
+// instead of '/' (a Windows tree loaded from a WinDirStat CSV).
+- (void)setUsesBackslashPaths:(BOOL)flag;
+// The separator this node's children are joined with: '\\' below a node set
+// to use backslash paths, '/' otherwise.
+- (char)pathSeparator;
 
 // Creates a node that stores only its name; its path is derived from its parent.
 + (id)nodeWithName:(NSString *)name kind:(LDFileNodeKind)kind size:(unsigned long long)size allocatedSize:(unsigned long long)allocatedSize;

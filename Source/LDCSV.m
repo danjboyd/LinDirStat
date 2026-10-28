@@ -296,7 +296,9 @@ static void LDWriteSubtree(FILE *file, LDFileNode *node, NSMutableData *path, BO
   }
   children = [children sortedArrayUsingFunction:LDCompareNamesCaseInsensitively context:NULL];
   NSUInteger parentLength = [path length];
-  BOOL needsSeparator = parentLength == 0 || ((const char *)[path bytes])[parentLength - 1] != '/';
+  // A Windows tree loaded from a WinDirStat CSV keeps its backslashes.
+  char separator = [node pathSeparator];
+  BOOL needsSeparator = parentLength == 0 || ((const char *)[path bytes])[parentLength - 1] != separator;
   for (LDFileNode *child in children) {
     if ([node isComputer]) {
       // Its children are full-path roots.
@@ -304,7 +306,7 @@ static void LDWriteSubtree(FILE *file, LDFileNode *node, NSMutableData *path, BO
       continue;
     }
     if (needsSeparator) {
-      [path appendBytes:"/" length:1];
+      [path appendBytes:&separator length:1];
     }
     const char *name = [child nameBytes];
     [path appendBytes:name length:strlen(name)];
@@ -720,6 +722,7 @@ static NSString *LDRowDescription(NSUInteger row)
       } else {
         node = [LDFileNode nodeWithPath:LDStringFromBytes(name, nameLength) kind:kind size:0];
         [node setSize:ownLogical allocatedSize:ownPhysical];
+        [node setUsesBackslashPaths:separator == '\\'];
       }
       root = node;
     } else {
@@ -756,9 +759,14 @@ static NSString *LDRowDescription(NSUInteger row)
         }
       }
       if (parent == root && [root isComputer]) {
-        // A root of a LinDirStat multi-root scan keeps its full path.
+        // A root of a LinDirStat multi-root scan keeps its full path. Below
+        // WinDirStat's "This PC" the drives ("C:\") switch the separator.
+        if (memchr(name, '\\', nameLength) && !memchr(name, '/', nameLength)) {
+          separator = '\\';
+        }
         node = [LDFileNode nodeWithPath:LDStringFromBytes(name, nameLength) kind:kind size:0];
         [node setSize:ownLogical allocatedSize:ownPhysical];
+        [node setUsesBackslashPaths:separator == '\\'];
       } else {
         node = [LDFileNode nodeWithNameBytes:leaf length:leafLength arena:arena kind:kind size:ownLogical allocatedSize:ownPhysical];
       }
