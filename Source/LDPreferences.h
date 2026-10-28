@@ -183,6 +183,11 @@ typedef enum {
 // Grid and selection frame colours, 0xRRGGBB (black and white).
 - (uint32_t)treemapGridColor;
 - (void)setTreemapGridColor:(uint32_t)color;
+// WinDirStat 2.6's Show Folder Frames (default off) and 2.8's draw
+// threshold (default 5, 3-128, settings file only).
+- (BOOL)treemapShowFolderFrames;
+- (void)setTreemapShowFolderFrames:(BOOL)flag;
+- (NSInteger)treemapFolderFramesDrawThreshold;
 - (uint32_t)treemapHighlightColor;
 - (void)setTreemapHighlightColor:(uint32_t)color;
 // Every treemap setting above, as LDTreemap takes them.

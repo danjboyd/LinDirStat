@@ -143,6 +143,7 @@
 "Settings…" = "Настроить LinDirStat…";
 "Show Absolute Percentages" = "Показывать абсолютные проценты";
 "Show File Types" = "Показывать типы файлов";
+"Show Folder Frames" = "Показать рамки папок";
 "Show Free Space" = "Показывать свободное место";
 "Show Grid" = "Показывать решетку";
 "Show Status Bar" = "Показывать строку состояния";

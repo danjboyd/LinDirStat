@@ -52,6 +52,7 @@
 - (void)toggleGroupUnregisteredTypes:(id)sender;
 - (void)searchExtension:(id)sender;
 - (void)excludeExtension:(id)sender;
+- (void)toggleFolderFrames:(id)sender;
 - (void)stopScan:(id)sender;
 - (void)openPath:(id)sender;
 - (void)treemapView:(LDTreemapView *)view didSelectNode:(LDFileNode *)node;
@@ -1787,4 +1788,54 @@
   XCTAssertEqualWithAccuracy([background blueComponent], [pixel blueComponent], 0.05);
 }
 
+// WinDirStat 2.6's Treemap > Show Folder Frames: the folders get frames
+// (and headers where their names fit), and the menu item is checked.
+- (void)testShowFolderFramesToggle
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  LDTreemapView *view = [_controller treemap];
+  NSMenuItem *item = [[NSMenuItem alloc] initWithTitle:@"Show Folder Frames" action:@selector(toggleFolderFrames:) keyEquivalent:@""];
+  [_controller validateMenuItem:item];
+  XCTAssertEqual(NSOffState, [item state]);
+  XCTAssertFalse([view options].showFolderFrames);
+
+  [_controller toggleFolderFrames:nil];
+  XCTAssertTrue([[LDPreferences sharedPreferences] treemapShowFolderFrames]);
+  XCTAssertTrue([view options].showFolderFrames);
+  [_controller validateMenuItem:item];
+  XCTAssertEqual(NSOnState, [item state]);
+  [view display];
+  __block NSUInteger frames = 0;
+  __block NSUInteger headers = 0;
+  [[view treemap] enumerateFolderFramesUsingBlock:^(LDFileNode *node, LDTreemapRect frame, LDTreemapRect header) {
+    frames++;
+    if (LDTreemapRectWidth(header) > 0) {
+      headers++;
+    }
+  }];
+  XCTAssertTrue(frames > 0);
+  XCTAssertTrue(headers > 0);
+
+  [_controller toggleFolderFrames:nil];
+  XCTAssertFalse([view options].showFolderFrames);
+
+  // Also in the treemap's context menu, after Group Unregistered Types.
+  NSUInteger group = NSNotFound;
+  NSUInteger menuFrames = NSNotFound;
+  NSUInteger i = 0;
+  for (i = 0; i < [[view menu] numberOfItems]; i++) {
+    if ([[[view menu] itemAtIndex:(NSInteger)i] action] == @selector(toggleFolderFrames:)) {
+      menuFrames = i;
+    }
+    if ([[[view menu] itemAtIndex:(NSInteger)i] action] == @selector(toggleGroupUnregisteredTypes:)) {
+      group = i;
+    }
+  }
+  XCTAssertNotEqual(NSNotFound, menuFrames);
+  XCTAssertEqual(group + 1, menuFrames);
+}
+
 @end
+
