@@ -60,6 +60,8 @@
 "Full row selection" = "전체 행 선택";
 "General" = "일반";
 "Grid color" = "격자 색상";
+"Group Unregistered Types" = "등록되지 않은 유형 그룹화";
+"Grouped Extensions" = "그룹화된 확장자";
 "Height" = "높이";
 "Help" = "도움말";
 "Highlight color" = "테두리 색상 강조";

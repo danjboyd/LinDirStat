@@ -669,6 +669,10 @@
     return nil;
   }
   LDExtensionStats *stats = [_extensionRows objectAtIndex:(NSUInteger)row];
+  // The grouped row has no single extension to exclude.
+  if ([stats isGroup]) {
+    return nil;
+  }
   return [LDFilterPatterns patternForExtension:[stats extensionKey]
                                      usesRegex:[[LDPreferences sharedPreferences] filterUsesRegex]];
 }

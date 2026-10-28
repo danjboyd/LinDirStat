@@ -1,6 +1,9 @@
 #import <Foundation/Foundation.h>
 #import "LDFileNode.h"
 
+// The extension key of the row that groups unregistered extensions.
+FOUNDATION_EXPORT NSString *const LDExtensionGroupKey;
+
 @interface LDExtensionStats : NSObject
 {
   NSString *_extensionKey;
@@ -9,6 +12,7 @@
   unsigned long long _allocatedBytes;
   NSUInteger _fileCount;
   NSUInteger _colorIndex;
+  NSSet *_groupedKeys;
 }
 
 + (NSString *)extensionKeyForFilename:(NSString *)filename;
@@ -27,8 +31,21 @@
 // Maps extension key -> NSNumber palette index for the given sorted stats.
 + (NSDictionary *)colorIndexMapForSortedStats:(NSArray *)stats;
 
+// WinDirStat 2.8's Group Unregistered Types (04b336dc, RebuildExtensionData):
+// colours stats (sorted by bytes for metric) by rank as above, but the
+// extensions in grouped count as one entry, sized by their sum, that shares
+// one colour. With grouped empty this is the plain ranking.
++ (void)assignColorsToSortedStats:(NSArray *)stats metric:(LDSizeMetric)metric grouping:(NSSet *)grouped;
+// The extension list's rows: stats without the grouped extensions, plus one
+// "…" row (LDExtensionGroupKey) totalling them, in its members' shared
+// colour. stats itself when nothing is grouped.
++ (NSArray *)rowsForStats:(NSArray *)stats grouping:(NSSet *)grouped;
+
 - (id)initWithExtensionKey:(NSString *)extensionKey;
 - (NSString *)extensionKey;
+// The "…" row and the extensions it totals (nil for other rows).
+- (BOOL)isGroup;
+- (NSSet *)groupedKeys;
 - (NSString *)displayName;
 // Logical bytes.
 - (unsigned long long)bytes;

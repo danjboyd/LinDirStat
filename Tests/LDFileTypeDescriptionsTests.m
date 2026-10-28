@@ -40,6 +40,22 @@
   XCTAssertNil([[[LDFileTypeDescriptions alloc] initWithMimeDirectory:nil] mimeTypeForExtensionKey:@"txt"]);
 }
 
+// Group Unregistered Types: an extension is registered when a simple glob
+// names it; files without one never group, and nothing does without a
+// database.
+- (void)testRegisteredExtensions
+{
+  LDFileTypeDescriptions *descriptions = [self descriptions];
+  XCTAssertTrue([descriptions isExtensionKeyRegistered:@"txt"]);
+  XCTAssertTrue([descriptions isExtensionKeyRegistered:@"dat"]);
+  XCTAssertFalse([descriptions isExtensionKeyRegistered:@"zzz"]);
+  XCTAssertFalse([descriptions isExtensionKeyRegistered:@"gz"]);
+  XCTAssertTrue([descriptions isExtensionKeyRegistered:@"<none>"]);
+  XCTAssertTrue([descriptions isExtensionKeyRegistered:@""]);
+  LDFileTypeDescriptions *missing = [[LDFileTypeDescriptions alloc] initWithMimeDirectory:@"/nonexistent/lindirstat-mime"];
+  XCTAssertTrue([missing isExtensionKeyRegistered:@"zzz"]);
+}
+
 - (void)testUnknownAndMissingExtensions
 {
   LDFileTypeDescriptions *descriptions = [self descriptions];
@@ -56,6 +72,13 @@
   XCTAssertTrue([[[system descriptionForExtensionKey:@"pdf"] uppercaseString] rangeOfString:@"PDF"].location != NSNotFound);
   XCTAssertNil([system descriptionForExtensionKey:@"lindirstatnosuchtype"]);
   XCTAssertNil([system descriptionForExtensionKey:@"<none>"]);
+}
+
+- (void)testRegisteredExtensionsComeFromUniformTypes
+{
+  LDFileTypeDescriptions *system = [[LDFileTypeDescriptions alloc] initWithMimeDirectory:nil];
+  XCTAssertTrue([system isExtensionKeyRegistered:@"pdf"]);
+  XCTAssertFalse([system isExtensionKeyRegistered:@"lindirstatnosuchtype"]);
 }
 #endif
 

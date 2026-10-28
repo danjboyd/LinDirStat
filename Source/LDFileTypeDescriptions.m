@@ -138,6 +138,23 @@
   return [[self mimeTypesByExtension] objectForKey:extensionKey];
 }
 
+- (BOOL)isExtensionKeyRegistered:(NSString *)extensionKey
+{
+  if ([extensionKey length] == 0 || [extensionKey isEqualToString:@"<none>"]) {
+    return YES;
+  }
+  if (!_mimeDirectory) {
+#if defined(__APPLE__)
+    UTType *type = [UTType typeWithFilenameExtension:extensionKey];
+    return type != nil && ![type isDynamic];
+#else
+    return YES;
+#endif
+  }
+  NSDictionary *types = [self mimeTypesByExtension];
+  return [types count] == 0 || [types objectForKey:extensionKey] != nil;
+}
+
 - (NSString *)descriptionForExtensionKey:(NSString *)extensionKey
 {
   if ([extensionKey length] == 0 || [extensionKey isEqualToString:@"<none>"]) {

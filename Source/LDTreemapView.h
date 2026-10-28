@@ -24,6 +24,7 @@ FOUNDATION_EXPORT NSRect LDWholePixelRectInside(NSRect rect);
   LDFileNode *_zoomNode;
   LDFileNode *_selectedNode;
   NSString *_highlightedExtensionKey;
+  NSSet *_highlightedExtensionKeys;
   NSDictionary *_colorIndexes;
   LDSizeMetric _metric;
   LDTreemapOptions _options;
@@ -69,6 +70,10 @@ FOUNDATION_EXPORT NSRect LDWholePixelRectInside(NSRect rect);
 // selection (WinDirStat does this while the extension list has focus).
 - (NSString *)highlightedExtensionKey;
 - (void)setHighlightedExtensionKey:(NSString *)extensionKey;
+// As above for several extensions at once (WinDirStat 2.8's grouped
+// unregistered types row); setting either clears the other.
+- (NSSet *)highlightedExtensionKeys;
+- (void)setHighlightedExtensionKeys:(NSSet *)extensionKeys;
 // Dims the treemap while a scan is running.
 - (BOOL)isDimmed;
 - (void)setDimmed:(BOOL)dimmed;

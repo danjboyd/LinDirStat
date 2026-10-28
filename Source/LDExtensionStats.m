@@ -7,6 +7,8 @@
 
 #include <stdlib.h>
 
+NSString *const LDExtensionGroupKey = @"<grouped>";
+
 @implementation LDExtensionStats
 
 + (NSString *)extensionKeyForFilename:(NSString *)filename
@@ -177,6 +179,64 @@ static void LDTallyNode(LDExtensionTally *tally, LDFileNode *node)
   return sorted;
 }
 
++ (void)assignColorsToSortedStats:(NSArray *)stats metric:(LDSizeMetric)metric grouping:(NSSet *)grouped
+{
+  // Colour units by descending bytes: each extension on its own, and the
+  // grouped ones as one unit.
+  NSMutableArray *units = [NSMutableArray arrayWithCapacity:[stats count] + 1];
+  NSMutableArray *members = [NSMutableArray array];
+  unsigned long long groupBytes = 0;
+  for (LDExtensionStats *entry in stats) {
+    if ([grouped containsObject:[entry extensionKey]]) {
+      [members addObject:entry];
+      groupBytes += [entry bytesForMetric:metric];
+    } else {
+      [units addObject:@[@([entry bytesForMetric:metric]), entry]];
+    }
+  }
+  if ([members count] > 0) {
+    [units addObject:@[@(groupBytes), members]];
+  }
+  // Stable: equal sizes keep the stats' order, with the group after them.
+  NSArray *ranked = [units sortedArrayWithOptions:NSSortStable usingComparator:^NSComparisonResult(NSArray *a, NSArray *b) {
+    return [[b objectAtIndex:0] compare:[a objectAtIndex:0]];
+  }];
+  NSUInteger rank = 0;
+  for (NSArray *unit in ranked) {
+    NSUInteger color = [LDExtensionColor paletteIndexForRank:rank++];
+    id member = [unit objectAtIndex:1];
+    for (LDExtensionStats *entry in [member isKindOfClass:[NSArray class]] ? member : @[member]) {
+      [entry setColorIndex:color];
+    }
+  }
+}
+
++ (NSArray *)rowsForStats:(NSArray *)stats grouping:(NSSet *)grouped
+{
+  if ([grouped count] == 0) {
+    return stats;
+  }
+  NSMutableArray *rows = [NSMutableArray arrayWithCapacity:[stats count]];
+  LDExtensionStats *group = [[LDExtensionStats alloc] initWithExtensionKey:LDExtensionGroupKey];
+  NSMutableSet *keys = [NSMutableSet set];
+  for (LDExtensionStats *entry in stats) {
+    if (![grouped containsObject:[entry extensionKey]]) {
+      [rows addObject:entry];
+      continue;
+    }
+    group->_bytes += entry->_bytes;
+    group->_allocatedBytes += entry->_allocatedBytes;
+    group->_fileCount += entry->_fileCount;
+    group->_colorIndex = entry->_colorIndex;
+    [keys addObject:[entry extensionKey]];
+  }
+  if ([keys count] > 0) {
+    group->_groupedKeys = [keys copy];
+    [rows addObject:group];
+  }
+  return rows;
+}
+
 + (NSDictionary *)colorIndexMapForSortedStats:(NSArray *)stats
 {
   NSMutableDictionary *map = [NSMutableDictionary dictionaryWithCapacity:[stats count]];
@@ -195,6 +255,10 @@ static void LDTallyNode(LDExtensionTally *tally, LDFileNode *node)
     _extensionKey = [extensionKey copy];
     if ([extensionKey isEqualToString:@"<none>"]) {
       _displayName = [@"[no extension]" copy];
+    } else if ([extensionKey isEqualToString:LDExtensionGroupKey]) {
+      // WinDirStat shows "\u22ef"; GNUstep has no font fallback, and the
+      // Adwaita UI font lacks that glyph.
+      _displayName = @"\u2026";
     } else {
       _displayName = [[@"." stringByAppendingString:extensionKey] copy];
     }
@@ -203,6 +267,8 @@ static void LDTallyNode(LDExtensionTally *tally, LDFileNode *node)
 }
 
 - (NSString *)extensionKey { return _extensionKey; }
+- (BOOL)isGroup { return _groupedKeys != nil; }
+- (NSSet *)groupedKeys { return _groupedKeys; }
 - (NSString *)displayName { return _displayName; }
 - (unsigned long long)bytes { return _bytes; }
 - (unsigned long long)allocatedBytes { return _allocatedBytes; }

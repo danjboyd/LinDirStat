@@ -265,6 +265,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [optionsMenu addItem:[NSMenuItem separatorItem]];
   [[self addItemTo:optionsMenu title:LDLocalized(@"Show File Types") action:@selector(toggleFileTypes:) key:[self functionKey:NSF8FunctionKey] target:self]
     setKeyEquivalentModifierMask:0];
+  [self addItemTo:optionsMenu title:LDLocalized(@"Group Unregistered Types") action:@selector(toggleGroupUnregisteredTypes:) key:nil target:self];
   [[self addItemTo:optionsMenu title:LDLocalized(@"Show Treemap") action:@selector(toggleTreemap:) key:[self functionKey:NSF9FunctionKey] target:self]
     setKeyEquivalentModifierMask:0];
   [[self addItemTo:optionsMenu title:LDLocalized(@"Show Toolbar") action:@selector(toggleToolBar:) key:[self functionKey:NSF10FunctionKey] target:self]
@@ -337,6 +338,19 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   (void)sender;
   LDPreferences *preferences = [LDPreferences sharedPreferences];
   [preferences setShowFileTypes:![preferences showFileTypes]];
+}
+
+// WinDirStat 2.8 (04b336dc, 6813c201): regroups and recolours the
+// extensions of the finished scan, keeping the selection and zoom.
+- (void)toggleGroupUnregisteredTypes:(id)sender
+{
+  (void)sender;
+  if (![self validateAction:@selector(toggleGroupUnregisteredTypes:)]) {
+    return;
+  }
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setGroupUnregisteredTypes:![preferences groupUnregisteredTypes]];
+  [self didChangeTree];
 }
 
 - (void)toggleTreemap:(id)sender
@@ -461,6 +475,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     [self addItemTo:menu title:LDLocalized(@"Reselect Child") action:@selector(reselectChild:) key:nil target:self];
     [self addItemTo:menu title:LDLocalized(@"Select Parent") action:@selector(selectParent:) key:nil target:self];
     [menu addItem:[NSMenuItem separatorItem]];
+    [self addItemTo:menu title:LDLocalized(@"Group Unregistered Types") action:@selector(toggleGroupUnregisteredTypes:) key:nil target:self];
+    [menu addItem:[NSMenuItem separatorItem]];
     [self addItemTo:menu title:LDLocalized(@"Copy Path") action:@selector(copyPath:) key:nil target:self];
     [self addItemTo:menu title:[LDPlatformUI showInFileManagerTitle] action:@selector(revealItem:) key:nil target:self];
     [self addItemTo:menu title:LDLocalized(@"Open Terminal Here") action:@selector(openTerminal:) key:nil target:self];
@@ -583,6 +599,10 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   NSMenu *menu = [[NSMenu alloc] initWithTitle:@""];
   // The extension list's own menu (WinDirStat's OnContextMenu there).
   if (view == _extensionTable) {
+    // Search is the default (double-click) item; AppKit has no bold default.
+    NSString *search = [NSString stringWithFormat:@"%@ - %@", LDLocalized(@"Extension"), LDLocalized(@"Search")];
+    [self addItemTo:menu title:search action:@selector(searchExtension:) key:nil target:self];
+    [self addItemTo:menu title:LDLocalized(@"Group Unregistered Types") action:@selector(toggleGroupUnregisteredTypes:) key:nil target:self];
     [self addItemTo:menu title:LDLocalized(@"Add to Exclusion Filter") action:@selector(excludeExtension:) key:nil target:self];
     return menu;
   }
@@ -772,6 +792,13 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   if (action == @selector(excludeExtension:)) {
     return _rootNode != nil && ![self isBusy] && [self exclusionPatternForSelectedExtension] != nil;
   }
+  if (action == @selector(searchExtension:)) {
+    return _rootNode != nil && ![self isBusy] && [self selectedExtensionKey] != nil;
+  }
+  // Only once the scan has settled, with the extension list shown.
+  if (action == @selector(toggleGroupUnregisteredTypes:)) {
+    return _rootNode != nil && ![self isBusy] && [[LDPreferences sharedPreferences] showFileTypes];
+  }
   if (action == @selector(saveDuplicatesToCSV:)) {
     return [_duplicateGroups count] > 0 && ![self isBusy];
   }
@@ -808,6 +835,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   }
   if (action == @selector(toggleFileTypes:)) {
     [item setState:[[LDPreferences sharedPreferences] showFileTypes] ? NSOnState : NSOffState];
+  }
+  if (action == @selector(toggleGroupUnregisteredTypes:)) {
+    [item setState:[[LDPreferences sharedPreferences] groupUnregisteredTypes] ? NSOnState : NSOffState];
   }
   if (action == @selector(toggleTreemap:)) {
     [item setState:[[LDPreferences sharedPreferences] showTreemap] ? NSOnState : NSOffState];
@@ -1135,6 +1165,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
   [_extensionTable setAllowsMultipleSelection:NO];
   [_extensionTable setAllowsColumnSelection:NO];
+  // WinDirStat 2.8 (0cdff4c3): a double-click searches for the extension.
+  [_extensionTable setTarget:self];
+  [_extensionTable setDoubleAction:@selector(extensionListDoubleClicked:)];
   [_extensionTable setAutosaveName:@"LinDirStatExtensionList3"];
   [_extensionTable setAutosaveTableColumns:YES];
   [_extensionTable setDataSource:self];
@@ -1813,7 +1846,19 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [_sortedChildrenCache removeAllObjects];
   [_ownerCache removeAllObjects];
   NSArray *stats = results ? [results extensionStats] : [LDExtensionStats sortedStatsForRootNode:_rootNode metric:_sizeMetric];
-  _extensionRows = [self sortedExtensionRows:stats];
+  NSDictionary *colorIndexes = [results colorIndexes];
+  NSData *pixels = [results treemapPixels];
+  NSSet *grouped = [self unregisteredExtensionKeysInStats:stats];
+  if ([grouped count] > 0) {
+    // The grouped types share one colour, so the treemap is drawn again.
+    [LDExtensionStats assignColorsToSortedStats:stats metric:_sizeMetric grouping:grouped];
+    colorIndexes = nil;
+    pixels = nil;
+  }
+  if (!colorIndexes) {
+    colorIndexes = [LDExtensionStats colorIndexMapForSortedStats:stats];
+  }
+  _extensionRows = [self sortedExtensionRows:[LDExtensionStats rowsForStats:stats grouping:grouped]];
   _syncingSelection = YES;
   [_directoryTable deselectAll:nil];
   [_extensionTable deselectAll:nil];
@@ -1821,12 +1866,29 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [_treemapView setHighlightedExtensionKey:nil];
   [_treemapView setRootNode:_rootNode
                      metric:_sizeMetric
-               colorIndexes:results ? [results colorIndexes] : [LDExtensionStats colorIndexMapForSortedStats:_extensionRows]
+               colorIndexes:colorIndexes
                     treemap:treemapIsCurrent ? [results treemap] : nil
-                     pixels:[results treemapPixels]];
+                     pixels:pixels];
   [_directoryTable reloadData];
   [_extensionTable reloadData];
   [self fitFlexibleColumns];
+}
+
+// With Group Unregistered Types on: the extensions in stats that have no
+// registered type.
+- (NSSet *)unregisteredExtensionKeysInStats:(NSArray *)stats
+{
+  if (![[LDPreferences sharedPreferences] groupUnregisteredTypes]) {
+    return [NSSet set];
+  }
+  LDFileTypeDescriptions *descriptions = [LDFileTypeDescriptions sharedDescriptions];
+  NSMutableSet *keys = [NSMutableSet set];
+  for (LDExtensionStats *entry in stats) {
+    if (![descriptions isExtensionKeyRegistered:[entry extensionKey]]) {
+      [keys addObject:[entry extensionKey]];
+    }
+  }
+  return keys;
 }
 
 // After refreshes and deletions: rebuild what is derived from the tree,
@@ -2299,9 +2361,15 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     return;
   }
   LDExtensionStats *stats = [_extensionRows objectAtIndex:row];
-  [_treemapView setHighlightedExtensionKey:[stats extensionKey]];
+  // The grouped row highlights every unregistered type at once.
+  if ([stats isGroup]) {
+    [_treemapView setHighlightedExtensionKeys:[stats groupedKeys]];
+  } else {
+    [_treemapView setHighlightedExtensionKey:[stats extensionKey]];
+  }
   [self updateSelectionField];
-  NSString *pattern = [[stats extensionKey] isEqualToString:LDLocalized(@"<none>")] ? LDLocalized(@"Files without an extension") : [@"*" stringByAppendingString:[stats displayName]];
+  NSString *pattern = [stats isGroup] ? LDLocalized(@"Grouped Extensions")
+    : [[stats extensionKey] isEqualToString:LDLocalized(@"<none>")] ? LDLocalized(@"Files without an extension") : [@"*" stringByAppendingString:[stats displayName]];
   [_statusField setStringValue:[NSString stringWithFormat:LDLocalized(@"%@  ·  %lu files, %@"),
                                 pattern,
                                 (unsigned long)[stats fileCount],
@@ -2521,6 +2589,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     return [self swatchForColorIndex:[stats colorIndex]];
   }
   if ([identifier isEqualToString:@"description"]) {
+    if ([stats isGroup]) {
+      return LDLocalized(@"Grouped Extensions");
+    }
     return [[LDFileTypeDescriptions sharedDescriptions] descriptionForExtensionKey:[stats extensionKey]] ?: @"";
   }
   if ([identifier isEqualToString:@"bytes"]) {

@@ -21,6 +21,12 @@
 // Lowercase extension key ("txt"); nil when unknown or "<none>".
 - (NSString *)descriptionForExtensionKey:(NSString *)extensionKey;
 
+// WinDirStat 2.8's "registered" test for Group Unregistered Types
+// (04b336dc: a key under HKEY_CLASSES_ROOT): a shared-mime-info glob on
+// Linux, a declared (not dynamic) Uniform Type on macOS. Files without an
+// extension are never grouped, and without a type database nothing is.
+- (BOOL)isExtensionKeyRegistered:(NSString *)extensionKey;
+
 // The shared-mime-info type for a lowercase extension key ("txt" ->
 // "text/plain"); nil when unknown or without a MIME database (macOS).
 - (NSString *)mimeTypeForExtensionKey:(NSString *)extensionKey;

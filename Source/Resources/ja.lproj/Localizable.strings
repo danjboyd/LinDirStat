@@ -60,6 +60,8 @@
 "Full row selection" = "行全体の選択";
 "General" = "全般";
 "Grid color" = "グリッドの色";
+"Group Unregistered Types" = "未登録の種類をグループ化";
+"Grouped Extensions" = "グループ化された拡張子";
 "Height" = "高さ";
 "Help" = "ヘルプ";
 "Highlight color" = "ハイライト境界色";
