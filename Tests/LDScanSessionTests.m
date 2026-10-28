@@ -12,6 +12,18 @@
 }
 @end
 
+// Cancels as soon as a worker reports its first directory.
+@interface LDCancelOnProgressSession : LDScanSession
+@end
+
+@implementation LDCancelOnProgressSession
+- (void)recordFiles:(NSUInteger)files directories:(NSUInteger)directories bytes:(unsigned long long)bytes
+{
+  [super recordFiles:files directories:directories bytes:bytes];
+  [self cancel];
+}
+@end
+
 @implementation LDScanSessionTests
 
 - (NSString *)fixturePath
@@ -66,16 +78,20 @@
   XCTAssertEqual((unsigned long long)40, [[session rootNode] aggregateSize]);
 }
 
+// Cancelled from the scan's own progress report, after the root is read and
+// before any subfolder is: a timed cancel raced a warm-cache walk of /usr.
 - (void)testCancelStopsALargeScan
 {
-  LDScanSession *session = [[LDScanSession alloc] init];
-  [session startAsyncScanPath:@"/usr"];
-  [NSThread sleepForTimeInterval:0.05];
-  [session cancel];
+  NSString *root = [self makeTreeNamed:@"large" folders:200];
+  LDCancelOnProgressSession *session = [[LDCancelOnProgressSession alloc] init];
+  [session setThreadCount:1];
+  [session startAsyncScanPath:root];
 
   XCTAssertTrue([session waitUntilFinishedBeforeDate:[NSDate dateWithTimeIntervalSinceNow:5.0]]);
   XCTAssertEqual(LDScanSessionStateCanceled, [session state]);
   XCTAssertNotNil([session rootNode]);
+  XCTAssertEqual((NSUInteger)0, [session filesScanned]);
+  XCTAssertTrue([[session rootNode] aggregateSize] < 200 * 100);
 }
 
 - (NSString *)temporaryRoot

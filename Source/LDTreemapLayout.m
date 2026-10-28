@@ -580,6 +580,11 @@ typedef struct {
   double height;
 } LDRenderFrame;
 
+- (BOOL)isEmpty
+{
+  return _cellCount == 0 || [self sizeOfNode:_rootNode] == 0;
+}
+
 // Port of the drawing half of CTreeMap::DrawTreeMap: walks the cells
 // depth-first, adding each cell's ridge to its parent's cushion surface.
 - (NSData *)renderRGBAWithColorIndexes:(NSDictionary *)colorIndexes
@@ -591,8 +596,8 @@ typedef struct {
   uint8_t *bitmap = [data mutableBytes];
   LDTreemapRect area = {0, 0, _width, _height};
 
-  if (_cellCount == 0 || [self sizeOfNode:_rootNode] == 0) {
-    LDDrawSolidRect(bitmap, _width, area, LDRGB(0, 0, 0), LDPaletteBrightness);
+  // Left transparent, so the view's background shows through.
+  if ([self isEmpty]) {
     return data;
   }
 

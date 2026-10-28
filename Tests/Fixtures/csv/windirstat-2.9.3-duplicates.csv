@@ -1,0 +1,5 @@
+"Hash Prefix","Name","Logical Size","Physical Size","Last Change","Attributes","Sampled hash"
+"0A1B2C3D","D:\Media\a.mkv",104857600,104857600,2026-09-01T12:00:00Z,"A",true
+"0A1B2C3D","D:\Media\copy of a.mkv",104857600,104857600,2026-09-02T12:00:00Z,"A",true
+"9F8E7D6C","D:\Docs\notes.txt",120,4096,2026-08-01T07:15:00Z,"",false
+"9F8E7D6C","D:\Docs\notes (1).txt",120,4096,2026-08-01T07:15:00Z,"",false

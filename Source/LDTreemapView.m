@@ -297,7 +297,9 @@ NSRect LDWholePixelRectInside(NSRect rect)
     NSFrameRectWithWidth(bounds, LDZoomFrameWidth);
   }
 
-  if (_bitmap) {
+  // An empty treemap (a 0 B or unreadable root) stays the window colour, as
+  // CTreeMap::DrawTreemap fills it with COLOR_WINDOW.
+  if (_bitmap && ![_treemap isEmpty]) {
     [self drawBitmapInRect:area];
   }
 

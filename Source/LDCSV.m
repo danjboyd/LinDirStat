@@ -296,7 +296,9 @@ static void LDWriteSubtree(FILE *file, LDFileNode *node, NSMutableData *path, BO
   }
   children = [children sortedArrayUsingFunction:LDCompareNamesCaseInsensitively context:NULL];
   NSUInteger parentLength = [path length];
-  BOOL needsSeparator = parentLength == 0 || ((const char *)[path bytes])[parentLength - 1] != '/';
+  // A Windows tree loaded from a WinDirStat CSV keeps its backslashes.
+  char separator = [node pathSeparator];
+  BOOL needsSeparator = parentLength == 0 || ((const char *)[path bytes])[parentLength - 1] != separator;
   for (LDFileNode *child in children) {
     if ([node isComputer]) {
       // Its children are full-path roots.
@@ -304,7 +306,7 @@ static void LDWriteSubtree(FILE *file, LDFileNode *node, NSMutableData *path, BO
       continue;
     }
     if (needsSeparator) {
-      [path appendBytes:"/" length:1];
+      [path appendBytes:&separator length:1];
     }
     const char *name = [child nameBytes];
     [path appendBytes:name length:strlen(name)];
@@ -564,7 +566,7 @@ static NSString *LDRowDescription(NSUInteger row)
     }
     return NO;
   }
-  fputs("\"Hash Prefix\",\"Name\",\"Logical Size\",\"Physical Size\",\"Last Change\",\"Attributes\"\r\n", file);
+  fputs("\"Hash Prefix\",\"Name\",\"Logical Size\",\"Physical Size\",\"Last Change\",\"Attributes\",\"Sampled hash\"\r\n", file);
   for (NSArray *row in rows) {
     LDDuplicateGroup *group = [row objectAtIndex:0];
     LDFileNode *node = [row objectAtIndex:1];
@@ -578,7 +580,9 @@ static NSString *LDRowDescription(NSUInteger row)
     fprintf(file, ",%llu,%llu,%04d-%02d-%02dT%02d:%02d:%02dZ,", [node size], [node allocatedSize],
             utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min, utc.tm_sec);
     LDWriteQuotedString(file, [LDFileAttributes attributeStringForNode:node]);
-    fputs("\r\n", file);
+    // WinDirStat 2.9 hashes very large files from samples when asked to;
+    // LinDirStat always hashes whole files.
+    fputs(",false\r\n", file);
   }
   BOOL failed = ferror(file) != 0;
   if (fclose(file) != 0) {
@@ -718,6 +722,7 @@ static NSString *LDRowDescription(NSUInteger row)
       } else {
         node = [LDFileNode nodeWithPath:LDStringFromBytes(name, nameLength) kind:kind size:0];
         [node setSize:ownLogical allocatedSize:ownPhysical];
+        [node setUsesBackslashPaths:separator == '\\'];
       }
       root = node;
     } else {
@@ -754,9 +759,14 @@ static NSString *LDRowDescription(NSUInteger row)
         }
       }
       if (parent == root && [root isComputer]) {
-        // A root of a LinDirStat multi-root scan keeps its full path.
+        // A root of a LinDirStat multi-root scan keeps its full path. Below
+        // WinDirStat's "This PC" the drives ("C:\") switch the separator.
+        if (memchr(name, '\\', nameLength) && !memchr(name, '/', nameLength)) {
+          separator = '\\';
+        }
         node = [LDFileNode nodeWithPath:LDStringFromBytes(name, nameLength) kind:kind size:0];
         [node setSize:ownLogical allocatedSize:ownPhysical];
+        [node setUsesBackslashPaths:separator == '\\'];
       } else {
         node = [LDFileNode nodeWithNameBytes:leaf length:leafLength arena:arena kind:kind size:ownLogical allocatedSize:ownPhysical];
       }

@@ -446,7 +446,8 @@ The file filter is "CSV Files (*.csv) | All Files".
 
 ### Load Results From CSV... (Ctrl+Alt+L; `WMA:281-294`, `CsvLoader.cpp:258-338`)
 
-- **Columns** are matched **by localized header name**, so their order is free. All are required except Owner; a missing column fails the load. · **Rows:** the type comes from the hex attribute column; root and drive rows use the full path as their name; every other row splits at the last separator and attaches to a parent looked up by path. · **After parsing**, every parent is sorted by physical size. · **Result:** the loaded tree becomes the document via `OnOpenDocument(newroot)` (`WM:160-203`), which calls `StartScanningEngine({})`. That only finalizes; it does **no disk I/O**. Refresh rescans from disk.
+- **Columns** are matched **by localized header name**, so their order is free. All are required except Owner; a missing column fails the load.
+- *Later upstream (after v2.9.3: `51f123b2`, `589e83c5`; unreleased at the pin):* Save Results appends `"ScanOutcome","ScanError"` (quoted: `not-started`, `complete`, `partial`, `cancelled`, `missing`, `connection-error`, `enumeration-error`, and the error text) and leaves Physical Size **blank** when it is unknown (a cloud file not stored locally). LinDirStat's loader matches columns by name, so it ignores the two new columns, and it reads a blank Physical Size as 0 bytes on disk. Both are pinned by `Tests/Fixtures/csv/windirstat-master-scan-outcome.csv`. A v2.9.3 export is pinned by `windirstat-2.9.3.csv` (the format above, unchanged since `7da9c724`). Sizes keep one decimal in the UI; upstream's two-decimal format (`322ee29b`) is still Dan's open call. · **Rows:** the type comes from the hex attribute column; root and drive rows use the full path as their name; every other row splits at the last separator and attaches to a parent looked up by path. · **After parsing**, every parent is sorted by physical size. · **Result:** the loaded tree becomes the document via `OnOpenDocument(newroot)` (`WM:160-203`), which calls `StartScanningEngine({})`. That only finalizes; it does **no disk I/O**. Refresh rescans from disk.
 
 ### Save Duplicates To CSV... (`7da9c724:DirStatDoc.cpp:1111-1123`, `7da9c724:CsvLoader.cpp:343-407`)
 
@@ -457,6 +458,7 @@ Enabled only when the Duplicates tab is visible.
 ```
 
 - One row per file, `\r\n` after each.
+- *Later upstream (v2.9.0; `40d77b69:windirstat/CsvLoader.cpp:606-623,651-670`):* a seventh column, `"Sampled hash"`, unquoted `true` or `false`: `true` when the group was matched by hashing samples of a very large file ("Probable duplicates"). LinDirStat writes it and always writes `false`, because it hashes whole files. `Tests/Fixtures/csv/windirstat-2.9.3-duplicates.csv` pins the header.
 - Sorted by logical size descending, then hash, then path (case-insensitive).
 
 ### Command line (`7da9c724:WinDirStat.cpp:233-236`)
@@ -581,6 +583,7 @@ Keep the "add as a leaf, don't descend" behaviour for unfollowed links and mount
   | Scale Factor | 91 |
 
 - Style: KDirStat (default) or SequoiaView. · Show Grid (off), Grid Color (black), Highlighting Border Color (white). · Light Incidence XY pad, default (−1, −1). · A Reset button.
+- An empty treemap (a root of 0 B, such as an unreadable folder) is filled with the window colour, not drawn black (`v2.9.3:Controls/TreeMap.cpp:667-670`, `COLOR_WINDOW`). The root is still the one hit-test item. LinDirStat renders it transparent and the view shows `controlBackgroundColor`, so the theme decides the colour (#57).
 
 ### Cleanups (§1.6)
 

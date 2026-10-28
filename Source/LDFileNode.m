@@ -17,6 +17,7 @@
 
 @interface LDFileNode ()
 - (id)initWithNodeKind:(LDFileNodeKind)kind;
+- (char)appendPathToData:(NSMutableData *)data separator:(char)separator;
 - (void)setNameBytes:(const char *)bytes length:(size_t)length arena:(LDNameArena *)arena;
 - (void)setStoredPath:(NSString *)path;
 @end
@@ -27,7 +28,10 @@
 
 enum {
   LDFileNodeFlagOwnsName = 1 << 0,
-  LDFileNodeFlagHardLink = 1 << 1
+  LDFileNodeFlagHardLink = 1 << 1,
+  // A stored path whose descendants are joined with '\\' (a Windows tree
+  // loaded from a WinDirStat CSV).
+  LDFileNodeFlagBackslashPaths = 1 << 2
 };
 
 static Class LDClassForKind(LDFileNodeKind kind)
@@ -120,33 +124,72 @@ static Class LDClassForKind(LDFileNodeKind kind)
   return nil;
 }
 
-- (NSString *)path
+- (void)setUsesBackslashPaths:(BOOL)flag
+{
+  if (flag) {
+    _flags |= LDFileNodeFlagBackslashPaths;
+  } else {
+    _flags &= ~LDFileNodeFlagBackslashPaths;
+  }
+}
+
+- (char)pathSeparator
+{
+  for (LDFileNode *node = self; node; node = node->_parent) {
+    if ([node storedPath]) {
+      return (node->_flags & LDFileNodeFlagBackslashPaths) ? '\\' : '/';
+    }
+  }
+  return '/';
+}
+
+// The path, and the separator its descendants are joined with.
+- (NSString *)pathWithSeparator:(char *)separator
 {
   NSString *stored = [self storedPath];
   if (stored) {
+    *separator = (_flags & LDFileNodeFlagBackslashPaths) ? '\\' : '/';
     return stored;
   }
   if (_parent) {
-    return [[_parent path] stringByAppendingPathComponent:[self displayName]];
+    NSString *parentPath = [_parent pathWithSeparator:separator];
+    if (*separator == '/') {
+      return [parentPath stringByAppendingPathComponent:[self displayName]];
+    }
+    return [parentPath hasSuffix:@"\\"] ? [parentPath stringByAppendingString:[self displayName]]
+                                         : [NSString stringWithFormat:@"%@\\%@", parentPath, [self displayName]];
   }
+  *separator = '/';
   return [self displayName];
 }
 
-- (void)appendPathToData:(NSMutableData *)data
+- (NSString *)path
+{
+  char separator = '/';
+  return [self pathWithSeparator:&separator];
+}
+
+- (char)appendPathToData:(NSMutableData *)data separator:(char)separator
 {
   NSString *stored = [self storedPath];
   if (stored) {
     const char *bytes = [stored fileSystemRepresentation];
     [data appendBytes:bytes length:strlen(bytes)];
-    return;
+    return (_flags & LDFileNodeFlagBackslashPaths) ? '\\' : '/';
   }
   if (_parent) {
-    [_parent appendPathToData:data];
-    if ([data length] == 0 || ((const char *)[data bytes])[[data length] - 1] != '/') {
-      [data appendBytes:"/" length:1];
+    separator = [_parent appendPathToData:data separator:separator];
+    if ([data length] == 0 || ((const char *)[data bytes])[[data length] - 1] != separator) {
+      [data appendBytes:&separator length:1];
     }
   }
   [data appendBytes:_name length:strlen(_name)];
+  return separator;
+}
+
+- (void)appendPathToData:(NSMutableData *)data
+{
+  [self appendPathToData:data separator:'/'];
 }
 
 - (NSData *)pathData
@@ -808,6 +851,7 @@ static const char LDComputerNodeName[] = "This Computer";
 - (NSString *)path { return [self displayName]; }
 - (NSData *)pathData { return [NSData data]; }
 - (void)appendPathToData:(NSMutableData *)data { (void)data; }
+- (char)appendPathToData:(NSMutableData *)data separator:(char)separator { (void)data; return separator; }
 
 @end
 
