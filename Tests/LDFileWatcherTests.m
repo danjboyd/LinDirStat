@@ -228,17 +228,28 @@ static NSData *LDBytes(NSString *path)
 
 
 // Starts watcher, collecting its events into received, and returns once
-// it is watching: -startWithError: sets the watches up in the background, so
-// a change made at once can be missed (#96). A probe file in the first root
-// is rewritten until the watcher reports it; probe events are left out of
-// received.
+// it is watching everything already there: -startWithError: sets the
+// watches up in the background, the root's and every folder's below it, so
+// a change made at once can be missed (#96). A probe file in each existing
+// folder of the first root is rewritten until the watcher has reported every
+// one; probe events are left out of received.
 - (BOOL)start:(LDFileWatcher *)watcher collectingInto:(NSMutableArray *)received
 {
-  __block BOOL probed = NO;
+  NSData *rootBytes = [[watcher rootPaths] firstObject];
+  NSFileManager *manager = [NSFileManager defaultManager];
+  NSString *root = [manager stringWithFileSystemRepresentation:[rootBytes bytes] length:[rootBytes length]];
+  NSMutableSet *pending = [NSMutableSet setWithObject:root];
+  NSDirectoryEnumerator *walk = [manager enumeratorAtPath:root];
+  for (NSString *relative in walk) {
+    if ([[[walk fileAttributes] fileType] isEqualToString:NSFileTypeDirectory]) {
+      [pending addObject:[root stringByAppendingPathComponent:relative]];
+    }
+  }
+  NSArray *folders = [pending allObjects];
   [watcher setEventHandler:^(NSArray *events) {
     for (LDFileWatcherEvent *event in events) {
       if ([[[event path] lastPathComponent] isEqualToString:@".lindirstat-watch-probe"]) {
-        probed = YES;
+        [pending removeObject:[[event path] stringByDeletingLastPathComponent]];
       } else {
         [received addObject:event];
       }
@@ -249,16 +260,18 @@ static NSData *LDBytes(NSString *path)
     XCTFail(@"%@", error);
     return NO;
   }
-  NSData *rootBytes = [[watcher rootPaths] firstObject];
-  NSString *root = [[NSFileManager defaultManager] stringWithFileSystemRepresentation:[rootBytes bytes] length:[rootBytes length]];
-  NSString *probe = [root stringByAppendingPathComponent:@".lindirstat-watch-probe"];
   NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:5.0];
-  for (NSUInteger i = 0; !probed && [deadline timeIntervalSinceNow] > 0; i++) {
-    [[NSString stringWithFormat:@"%lu", (unsigned long)i] writeToFile:probe atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+  for (NSUInteger i = 0; [pending count] > 0 && [deadline timeIntervalSinceNow] > 0; i++) {
+    for (NSString *folder in folders) {
+      if ([pending containsObject:folder]) {
+        NSString *probe = [folder stringByAppendingPathComponent:@".lindirstat-watch-probe"];
+        [[NSString stringWithFormat:@"%lu", (unsigned long)i] writeToFile:probe atomically:NO encoding:NSUTF8StringEncoding error:NULL];
+      }
+    }
     [[NSRunLoop currentRunLoop] runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
   }
-  XCTAssertTrue(probed, @"the watcher never reported its probe");
-  return probed;
+  XCTAssertEqual((NSUInteger)0, [pending count], @"not watching yet: %@", pending);
+  return [pending count] == 0;
 }
 
 - (NSArray *)eventsWhileRunning:(void (^)(void))changes watcher:(LDFileWatcher *)watcher until:(BOOL (^)(NSArray *events))done
