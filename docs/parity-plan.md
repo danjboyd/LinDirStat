@@ -55,6 +55,26 @@ checks every PR on its own platform before it is merged.
 | L13 | Performance: profile and fix stop/finalize time on million-file scans and duplicate detection memory | Linux | done (#15) |
 | M13 | macOS validation matrix (macOS 13–26, Intel and Apple Silicon where available) | macOS | deferred: needs Dan's Intel Mac (older macOS) |
 
+## 0.1.5: WinDirStat 2.6–2.9 catch-up (milestone 0.1.5)
+
+Items 0–7 (#58–#65) are done. The rest is split by who owns the code:
+`AppController*.m` work goes to **Linux**, shared model and treemap
+drawing to **macOS**. A Mac-affecting PR is checked on macOS before merge,
+and a treemap PR on Adwaita.
+
+| Issue | Gap | Owner | Reviewer | Status |
+|---|---|---|---|---|
+| #71 | CSV fixture written by WinDirStat 2.9.x; sizes stay at 1 decimal | Linux | — | in progress |
+| #66 | Extension list: double-click searches; group unregistered extensions (UTType backend on macOS) | Linux | macOS (backend) | |
+| #69 | File Watcher: regex quick filter, toolbar controls, autoscroll | Linux | — | |
+| #67 | Seconds in timestamps; several folders in Select Target; any number of custom cleanups | Linux | macOS (part b) | |
+| #83 | Header sorted by clicking keeps room for its sort arrow on macOS | Linux | macOS | |
+| #57 | Treemap is solid black on an unreadable 0 B root | macOS | Linux (Adwaita) | |
+| #68 | JSON save and load in upstream's format | macOS | Linux | |
+| #70 | Treemap folder frames, headers, style presets (Hilbert/Moore stretch, may move to 0.1.6) | macOS | Linux (Adwaita) | |
+
+The release itself (tag, AppImage, DMG) waits for Dan's approval.
+
 ## Intentional differences (not gaps)
 
 Properties panel, POSIX regular expressions in Search, Logical Size off by
