@@ -184,6 +184,8 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"HiddenColumns": @{},
     @"TreeMapStyle": @0,
     @"TreeMapGrid": @NO,
+    @"TreeMapShowFolderFrames": @NO,
+    @"TreeMapFolderFramesDrawThreshold": @5,
     @"TreeMapBrightness": @88,
     @"TreeMapAmbientLightPercent": @13,
     @"TreeMapHeightFactor": @38,
@@ -447,6 +449,10 @@ static uint32_t LDColorValue(NSInteger value)
 - (uint32_t)treemapHighlightColor { return LDColorValue([self integerForKey:@"TreeMapHighlightColor"]); }
 - (void)setTreemapHighlightColor:(uint32_t)color { [self setInteger:LDColorValue(color) forKey:@"TreeMapHighlightColor"]; }
 
+- (BOOL)treemapShowFolderFrames { return [self boolForKey:@"TreeMapShowFolderFrames"]; }
+- (void)setTreemapShowFolderFrames:(BOOL)flag { [self setBool:flag forKey:@"TreeMapShowFolderFrames"]; }
+- (NSInteger)treemapFolderFramesDrawThreshold { return LDClamp([self integerForKey:@"TreeMapFolderFramesDrawThreshold"], 3, 128); }
+
 - (LDTreemapOptions)treemapOptions
 {
   // Zeroed first, so options compare equal with memcmp.
@@ -461,6 +467,8 @@ static uint32_t LDColorValue(NSInteger value)
   options.scaleFactor = [self treemapScaleFactor] / 100.0;
   options.lightSourceX = [self treemapLightSourceX] / 100.0;
   options.lightSourceY = [self treemapLightSourceY] / 100.0;
+  options.showFolderFrames = [self treemapShowFolderFrames];
+  options.folderFramesDrawThreshold = (int)[self treemapFolderFramesDrawThreshold];
   return options;
 }
 

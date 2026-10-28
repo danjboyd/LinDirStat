@@ -250,6 +250,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [self addItemTo:treemapMenu title:LDLocalized(@"Use Logical Size") action:@selector(toggleLogicalSize:) key:@"l" target:self];
   [self addItemTo:treemapMenu title:LDLocalized(@"Show Absolute Percentages") action:@selector(toggleAbsolutePercentages:) key:nil target:self];
   [self addItemTo:treemapMenu title:LDLocalized(@"Show Grid") action:@selector(toggleGrid:) key:nil target:self];
+  [self addItemTo:treemapMenu title:LDLocalized(@"Show Folder Frames") action:@selector(toggleFolderFrames:) key:nil target:self];
   [self addItemTo:treemapMenu title:LDLocalized(@"SequoiaView Layout") action:@selector(toggleLayoutStyle:) key:nil target:self];
 
   NSMenu *toolsMenu = [self addSubmenuTitled:LDLocalized(@"Tools") to:mainMenu];
@@ -476,6 +477,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     [self addItemTo:menu title:LDLocalized(@"Select Parent") action:@selector(selectParent:) key:nil target:self];
     [menu addItem:[NSMenuItem separatorItem]];
     [self addItemTo:menu title:LDLocalized(@"Group Unregistered Types") action:@selector(toggleGroupUnregisteredTypes:) key:nil target:self];
+    [self addItemTo:menu title:LDLocalized(@"Show Folder Frames") action:@selector(toggleFolderFrames:) key:nil target:self];
     [menu addItem:[NSMenuItem separatorItem]];
     [self addItemTo:menu title:LDLocalized(@"Copy Path") action:@selector(copyPath:) key:nil target:self];
     [self addItemTo:menu title:[LDPlatformUI showInFileManagerTitle] action:@selector(revealItem:) key:nil target:self];
@@ -868,6 +870,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     [item setState:_sizeMetric == LDSizeMetricLogical ? NSOnState : NSOffState];
   } else if (action == @selector(toggleAbsolutePercentages:)) {
     [item setState:[[LDPreferences sharedPreferences] useAbsolutePercentages] ? NSOnState : NSOffState];
+  } else if (action == @selector(toggleFolderFrames:)) {
+    [item setState:[[LDPreferences sharedPreferences] treemapShowFolderFrames] ? NSOnState : NSOffState];
   } else if (action == @selector(toggleGrid:)) {
     [item setState:[_treemapView options].grid ? NSOnState : NSOffState];
   } else if (action == @selector(toggleLayoutStyle:)) {
@@ -2220,6 +2224,14 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   (void)sender;
   LDPreferences *preferences = [LDPreferences sharedPreferences];
   [preferences setTreemapGrid:![preferences treemapGrid]];
+}
+
+// WinDirStat 2.6's OnViewShowFolderFramesOnTreeMap.
+- (void)toggleFolderFrames:(id)sender
+{
+  (void)sender;
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  [preferences setTreemapShowFolderFrames:![preferences treemapShowFolderFrames]];
 }
 
 - (void)toggleLayoutStyle:(id)sender

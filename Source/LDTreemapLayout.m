@@ -28,7 +28,35 @@ LDTreemapOptions LDTreemapDefaultOptions(void)
   options.ambientLight = 0.13;
   options.lightSourceX = -1.0;
   options.lightSourceY = -1.0;
+  options.showFolderFrames = NO;
+  options.folderFramesDrawThreshold = 5;
   return options;
+}
+
+// A folder that got a frame (CTreeMap's FolderDrawInfo).
+struct LDTreemapFrame {
+  uint32_t cell;
+  BOOL header;
+};
+
+// CItem::IsScanRoot: the tree's root, or a root of a multi-root scan.
+static BOOL LDIsScanRoot(LDFileNode *node)
+{
+  return ![node parent] || [[node parent] isComputer];
+}
+
+// CColorSpace::BlendColor.
+static LDRGBColor LDBlendColor(LDRGBColor color, LDRGBColor background, double amount)
+{
+  return LDRGB((int)(LDRGBRed(color) * (1.0 - amount) + LDRGBRed(background) * amount),
+               (int)(LDRGBGreen(color) * (1.0 - amount) + LDRGBGreen(background) * amount),
+               (int)(LDRGBBlue(color) * (1.0 - amount) + LDRGBBlue(background) * amount));
+}
+
+// CColorSpace::DimColor with its default factor.
+static LDRGBColor LDDimColor(LDRGBColor color)
+{
+  return LDRGB((int)(LDRGBRed(color) * 0.9f), (int)(LDRGBGreen(color) * 0.9f), (int)(LDRGBBlue(color) * 0.9f));
 }
 
 BOOL LDTreemapOptionsUseCushions(LDTreemapOptions options)
@@ -136,11 +164,26 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
                 height:(int)height
                options:(LDTreemapOptions)options
 {
+  LDTreemapFolderStyle style = {0, LDRGB(255, 255, 255), LDRGB(0, 0, 0)};
+  return [self initWithRootNode:rootNode metric:metric width:width height:height options:options
+                    folderStyle:style textWidth:nil];
+}
+
+- (id)initWithRootNode:(LDFileNode *)rootNode
+                metric:(LDSizeMetric)metric
+                 width:(int)width
+                height:(int)height
+               options:(LDTreemapOptions)options
+           folderStyle:(LDTreemapFolderStyle)folderStyle
+             textWidth:(LDTreemapTextWidth)textWidth
+{
   self = [super init];
   if (self) {
     _rootNode = rootNode;
     _metric = metric;
     _options = options;
+    _folderStyle = folderStyle;
+    _textWidth = [textWidth copy];
     _width = MIN(MAX(width, 0), LDTreemapMaxSide);
     _height = MIN(MAX(height, 0), LDTreemapMaxSide);
     [self layout];
@@ -230,6 +273,10 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
   _cells = NULL;
   _cellCount = 0;
   _cellCapacity = 0;
+  free(_frames);
+  _frames = NULL;
+  _frameCount = 0;
+  NSUInteger frameCapacity = 0;
 
   if (!_rootNode || _width <= 0 || _height <= 0) {
     return;
@@ -250,6 +297,41 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
       continue;
     }
     @autoreleasepool {
+      LDTreemapRect area = [self rectOfCell:index];
+      int width = LDTreemapRectWidth(area);
+      int height = LDTreemapRectHeight(area);
+      if (_options.showFolderFrames && index != 0 && MIN(width, height) >= _options.folderFramesDrawThreshold) {
+        // A 1-pixel frame, and a header when the name fits; the children
+        // go inside.
+        int headerHeight = _folderStyle.headerHeight;
+        BOOL header = headerHeight > 0 && _textWidth && height > headerHeight + 2
+                      && _textWidth([node displayName]) <= width - 2 - 6;
+        if (_frameCount == frameCapacity) {
+          NSUInteger grown = MAX((NSUInteger)32, frameCapacity * 2);
+          struct LDTreemapFrame *frames = realloc(_frames, grown * sizeof(struct LDTreemapFrame));
+          if (frames) {
+            _frames = frames;
+            frameCapacity = grown;
+          }
+        }
+        // Out of memory, the folder is laid out unframed.
+        if (_frameCount < frameCapacity) {
+          _frames[_frameCount].cell = (uint32_t)index;
+          _frames[_frameCount].header = header;
+          _frameCount++;
+          area.left++;
+          area.top++;
+          area.right--;
+          area.bottom--;
+          if (header) {
+            area.top += headerHeight;
+          }
+          int gridWidth = _options.grid ? 1 : 0;
+          if (LDTreemapRectWidth(area) <= gridWidth || LDTreemapRectHeight(area) <= gridWidth) {
+            continue;
+          }
+        }
+      }
       NSArray *children = [node children];
       NSUInteger count = [self sizedChildren:children sizes:&sizes capacity:&sizesCapacity];
       if (count == 0) {
@@ -257,9 +339,9 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
       }
       int32_t firstChild = (int32_t)_cellCount;
       if (_options.style == LDTreemapStyleSequoiaView) {
-        [self layoutSequoiaChildren:children sizes:sizes count:count ofCell:(NSInteger)index];
+        [self layoutSequoiaChildren:children sizes:sizes count:count ofCell:(NSInteger)index inRect:area];
       } else {
-        [self layoutKDirStatChildren:children sizes:sizes count:count ofCell:(NSInteger)index];
+        [self layoutKDirStatChildren:children sizes:sizes count:count ofCell:(NSInteger)index inRect:area];
       }
       _cells[index].firstChild = firstChild;
       _cells[index].childCount = (uint32_t)(_cellCount - (NSUInteger)firstChild);
@@ -297,9 +379,9 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
 }
 
 // Port of the KDirStat branch of CTreeMap::DrawTreeMap.
-- (void)layoutKDirStatChildren:(NSArray *)children sizes:(const double *)sizes count:(NSUInteger)count ofCell:(NSInteger)index
+- (void)layoutKDirStatChildren:(NSArray *)children sizes:(const double *)sizes count:(NSUInteger)count
+                        ofCell:(NSInteger)index inRect:(LDTreemapRect)parentRect
 {
-  LDTreemapRect parentRect = [self rectOfCell:(NSUInteger)index];
   double parentSize = (double)[self sizeOfNode:_cells[index].node];
 
   double *childWidth = malloc(count * sizeof(double));
@@ -372,9 +454,9 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
 }
 
 // Port of the SequoiaView branch of CTreeMap::DrawTreeMap.
-- (void)layoutSequoiaChildren:(NSArray *)children sizes:(const double *)sizes count:(NSUInteger)count ofCell:(NSInteger)index
+- (void)layoutSequoiaChildren:(NSArray *)children sizes:(const double *)sizes count:(NSUInteger)count
+                       ofCell:(NSInteger)index inRect:(LDTreemapRect)remaining
 {
-  LDTreemapRect remaining = [self rectOfCell:(NSUInteger)index];
   double remainingSize = (double)[self sizeOfNode:_cells[index].node];
   double sizePerSquarePixel = remainingSize / LDTreemapRectWidth(remaining) / LDTreemapRectHeight(remaining);
   NSUInteger head = 0;
@@ -672,7 +754,112 @@ typedef struct {
     }
   }
   free(stack);
+
+  // Folder frames and headers over the cells (CTreeMap::DrawTreemap draws
+  // them after blitting); the view draws the names.
+  NSUInteger f = 0;
+  for (f = 0; f < _frameCount; f++) {
+    LDTreemapRect frame = [self rectOfCell:_frames[f].cell];
+    if (LDTreemapRectWidth(frame) <= 2 || LDTreemapRectHeight(frame) <= 2) {
+      continue;
+    }
+    LDRGBColor color = [self folderColorForNode:_cells[_frames[f].cell].node];
+    LDRGBColor border = LDDimColor(color);
+    LDTreemapRect edge = frame;
+    edge.bottom = edge.top + 1;
+    LDDrawSolidRect(bitmap, _width, edge, border, LDPaletteBrightness);
+    edge.top = frame.bottom - 1;
+    edge.bottom = frame.bottom;
+    LDDrawSolidRect(bitmap, _width, edge, border, LDPaletteBrightness);
+    edge = frame;
+    edge.right = edge.left + 1;
+    LDDrawSolidRect(bitmap, _width, edge, border, LDPaletteBrightness);
+    edge.left = frame.right - 1;
+    edge.right = frame.right;
+    LDDrawSolidRect(bitmap, _width, edge, border, LDPaletteBrightness);
+    if (_frames[f].header) {
+      LDTreemapRect header = {frame.left + 1, frame.top + 1, frame.right - 1, frame.top + 1 + _folderStyle.headerHeight};
+      LDDrawSolidRect(bitmap, _width, header, color, LDPaletteBrightness);
+    }
+  }
   return data;
+}
+
+- (void)enumerateFolderFramesUsingBlock:(void (^)(LDFileNode *node, LDTreemapRect frame, LDTreemapRect header))block
+{
+  NSUInteger f = 0;
+  for (f = 0; f < _frameCount; f++) {
+    LDTreemapRect frame = [self rectOfCell:_frames[f].cell];
+    LDTreemapRect header = {frame.left + 1, frame.top + 1, frame.left + 1, frame.top + 1};
+    if (_frames[f].header) {
+      header.right = frame.right - 1;
+      header.bottom = frame.top + 1 + _folderStyle.headerHeight;
+    }
+    block(_cells[_frames[f].cell].node, frame, header);
+  }
+}
+
+// CFolderColors::GetColor.
+- (LDRGBColor)folderColorForNode:(LDFileNode *)node
+{
+  LDRGBColor background = _folderStyle.background;
+  if (!node || LDIsScanRoot(node)) {
+    return LDBlendColor(background, _folderStyle.text, 0.12);
+  }
+  static const LDRGBColor palette[8] = {
+    LDRGB(79, 157, 232), LDRGB(71, 173, 128), LDRGB(230, 159, 0), LDRGB(213, 94, 0),
+    LDRGB(168, 135, 224), LDRGB(86, 180, 233), LDRGB(204, 121, 167), LDRGB(230, 205, 70)
+  };
+  // The branch: the ancestor just below a scan root.
+  NSUInteger depth = 0;
+  LDFileNode *ancestor = node;
+  while ([ancestor parent] && !LDIsScanRoot([ancestor parent])) {
+    ancestor = [ancestor parent];
+    depth++;
+  }
+  if (!_branchIndexes) {
+    _branchIndexes = [NSMapTable mapTableWithKeyOptions:NSPointerFunctionsOpaqueMemory | NSPointerFunctionsOpaquePersonality
+                                           valueOptions:NSPointerFunctionsStrongMemory];
+  }
+  NSNumber *branch = [_branchIndexes objectForKey:ancestor];
+  if (!branch) {
+    // Each sibling folder, largest (physical) first, takes the palette
+    // entry its name hashes to, or the next one free.
+    NSMutableArray *siblings = [NSMutableArray array];
+    for (LDFileNode *sibling in [[ancestor parent] children]) {
+      if (![sibling isLeaf]) {
+        [siblings addObject:sibling];
+      }
+    }
+    [siblings sortUsingComparator:^NSComparisonResult(LDFileNode *left, LDFileNode *right) {
+      unsigned long long a = [left aggregateAllocatedSize];
+      unsigned long long b = [right aggregateAllocatedSize];
+      if (a != b) {
+        return a > b ? NSOrderedAscending : NSOrderedDescending;
+      }
+      return [[left displayName] compare:[right displayName] options:NSLiteralSearch];
+    }];
+    unsigned int used = 0;
+    for (LDFileNode *sibling in siblings) {
+      if (used == (1u << 8) - 1) {
+        used = 0;
+      }
+      NSString *name = [sibling displayName];
+      uint32_t hash = 2166136261u;
+      NSUInteger i = 0;
+      for (i = 0; i < [name length]; i++) {
+        hash = (hash ^ [name characterAtIndex:i]) * 16777619u;
+      }
+      NSUInteger index = hash % 8;
+      while (used & (1u << index)) {
+        index = (index + 1) % 8;
+      }
+      used |= 1u << index;
+      [_branchIndexes setObject:[NSNumber numberWithUnsignedInteger:index] forKey:sibling];
+    }
+    branch = [_branchIndexes objectForKey:ancestor];
+  }
+  return LDBlendColor(palette[[branch unsignedIntegerValue]], background, 0.22 + MIN(depth, (NSUInteger)6) * 0.06);
 }
 
 + (NSData *)renderSwatchRGBAWithColor:(LDRGBColor)color
@@ -698,6 +885,7 @@ typedef struct {
 - (void)dealloc
 {
   free(_cells);
+  free(_frames);
 }
 
 @end

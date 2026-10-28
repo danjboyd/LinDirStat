@@ -261,4 +261,21 @@
   XCTAssertNil([_defaults objectForKey:@"ShowDeleteWarning"]);
 }
 
+// WinDirStat's TreeMapShowFolderFrames (off) and
+// TreeMapFolderFramesDrawThreshold (5, clamped to 3-128).
+- (void)testFolderFramePreferences
+{
+  XCTAssertFalse([_preferences treemapShowFolderFrames]);
+  XCTAssertEqual((NSInteger)5, [_preferences treemapFolderFramesDrawThreshold]);
+  XCTAssertFalse([_preferences treemapOptions].showFolderFrames);
+  XCTAssertEqual(5, [_preferences treemapOptions].folderFramesDrawThreshold);
+  [_preferences setTreemapShowFolderFrames:YES];
+  XCTAssertTrue([_preferences treemapOptions].showFolderFrames);
+  [_defaults setInteger:1 forKey:@"TreeMapFolderFramesDrawThreshold"];
+  XCTAssertEqual((NSInteger)3, [_preferences treemapFolderFramesDrawThreshold]);
+  [_defaults setInteger:500 forKey:@"TreeMapFolderFramesDrawThreshold"];
+  XCTAssertEqual((NSInteger)128, [_preferences treemapFolderFramesDrawThreshold]);
+}
+
 @end
+

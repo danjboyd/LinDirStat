@@ -8,6 +8,17 @@ static const int LDZoomFrameWidth = 4;
 // Delay before re-rendering after a resize; the stale bitmap is stretched meanwhile.
 static const NSTimeInterval LDResizeRenderDelay = 0.12;
 
+// A system colour as treemap RGB, in the current appearance.
+static LDRGBColor LDRGBFromColor(NSColor *color)
+{
+  NSColor *rgb = [color colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
+  if (!rgb) {
+    return LDRGB(255, 255, 255);
+  }
+  return LDRGB((int)lround([rgb redComponent] * 255.0), (int)lround([rgb greenComponent] * 255.0),
+               (int)lround([rgb blueComponent] * 255.0));
+}
+
 @interface LDTreemapView ()
 - (void)adoptTreemap:(LDTreemap *)treemap pixels:(NSData *)pixels;
 @end
@@ -86,7 +97,7 @@ static const NSTimeInterval LDResizeRenderDelay = 0.12;
   LDTreemapOptions options = [treemap options];
   if (!treemap || [treemap rootNode] != rootNode || [treemap metric] != metric || _renderTimer
       || [treemap width] != (int)size.width || [treemap height] != (int)size.height
-      || memcmp(&options, &_options, sizeof(options)) != 0
+      || memcmp(&options, &_options, sizeof(options)) != 0 || options.showFolderFrames
       || [pixels length] != (NSUInteger)[treemap width] * (NSUInteger)[treemap height] * 4) {
     return;
   }
@@ -244,8 +255,61 @@ NSRect LDWholePixelRectInside(NSRect rect)
     return;
   }
 
-  LDTreemap *treemap = [[LDTreemap alloc] initWithRootNode:root metric:_metric width:width height:height options:_options];
+  LDTreemap *treemap = nil;
+  if (_options.showFolderFrames) {
+    CGFloat scale = [self renderScale];
+    NSFont *font = [self folderHeaderFont];
+    LDTreemapFolderStyle style;
+    style.headerHeight = (int)ceil(([font ascender] - [font descender]) * scale) + 2;
+    style.background = LDRGBFromColor([NSColor controlBackgroundColor]);
+    style.text = LDRGBFromColor([NSColor controlTextColor]);
+    NSDictionary *attributes = @{NSFontAttributeName: font};
+    treemap = [[LDTreemap alloc] initWithRootNode:root metric:_metric width:width height:height options:_options
+                                      folderStyle:style
+                                        textWidth:^double(NSString *text) {
+                                          return [text sizeWithAttributes:attributes].width * scale;
+                                        }];
+  } else {
+    treemap = [[LDTreemap alloc] initWithRootNode:root metric:_metric width:width height:height options:_options];
+  }
   [self adoptTreemap:treemap pixels:[treemap renderRGBAWithColorIndexes:_colorIndexes]];
+}
+
+// The folder headers' font: the system's small font, as WinDirStat uses
+// its UI font.
+- (NSFont *)folderHeaderFont
+{
+  return [NSFont systemFontOfSize:[NSFont smallSystemFontSize]];
+}
+
+// The folder names in their headers, in the text colour (the header strips
+// themselves are in the bitmap).
+- (void)drawFolderHeaders
+{
+  NSDictionary *attributes = @{NSFontAttributeName: [self folderHeaderFont],
+                               NSForegroundColorAttributeName: [NSColor controlTextColor]};
+  CGFloat scale = [self renderScale];
+  [_treemap enumerateFolderFramesUsingBlock:^(LDFileNode *node, LDTreemapRect frame, LDTreemapRect header) {
+    (void)frame;
+    if (LDTreemapRectWidth(header) <= 0) {
+      return;
+    }
+    NSRect rect = [self viewRectForCellRect:header];
+    NSString *name = [node displayName];
+    NSSize size = [name sizeWithAttributes:attributes];
+    rect = NSInsetRect(rect, 3.0 / scale, 0.0);
+    rect.origin.y += floor((rect.size.height - size.height) / 2.0);
+    rect.size.height = size.height;
+    [name drawInRect:rect withAttributes:attributes];
+  }];
+}
+
+// Header colours follow the appearance.
+- (void)viewDidChangeEffectiveAppearance
+{
+  if (_options.showFolderFrames) {
+    [self invalidateRender];
+  }
 }
 
 - (void)adoptTreemap:(LDTreemap *)treemap pixels:(NSData *)pixels
@@ -301,6 +365,9 @@ NSRect LDWholePixelRectInside(NSRect rect)
   // CTreeMap::DrawTreemap fills it with COLOR_WINDOW.
   if (_bitmap && ![_treemap isEmpty]) {
     [self drawBitmapInRect:area];
+    if (_options.showFolderFrames && !_renderTimer) {
+      [self drawFolderHeaders];
+    }
   }
 
   // WinDirStat draws a 1px shadow line on the right and bottom edges.
