@@ -566,7 +566,7 @@ static NSString *LDRowDescription(NSUInteger row)
     }
     return NO;
   }
-  fputs("\"Hash Prefix\",\"Name\",\"Logical Size\",\"Physical Size\",\"Last Change\",\"Attributes\"\r\n", file);
+  fputs("\"Hash Prefix\",\"Name\",\"Logical Size\",\"Physical Size\",\"Last Change\",\"Attributes\",\"Sampled hash\"\r\n", file);
   for (NSArray *row in rows) {
     LDDuplicateGroup *group = [row objectAtIndex:0];
     LDFileNode *node = [row objectAtIndex:1];
@@ -580,7 +580,9 @@ static NSString *LDRowDescription(NSUInteger row)
     fprintf(file, ",%llu,%llu,%04d-%02d-%02dT%02d:%02d:%02dZ,", [node size], [node allocatedSize],
             utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday, utc.tm_hour, utc.tm_min, utc.tm_sec);
     LDWriteQuotedString(file, [LDFileAttributes attributeStringForNode:node]);
-    fputs("\r\n", file);
+    // WinDirStat 2.9 hashes very large files from samples when asked to;
+    // LinDirStat always hashes whole files.
+    fputs(",false\r\n", file);
   }
   BOOL failed = ferror(file) != 0;
   if (fclose(file) != 0) {

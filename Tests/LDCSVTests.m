@@ -386,4 +386,71 @@ static NSString *const LDCSVTestHeader =
   XCTAssertEqual([root fileCount], [reloaded fileCount]);
 }
 
+- (NSString *)fixture:(NSString *)name
+{
+  return [[[NSFileManager defaultManager] currentDirectoryPath]
+           stringByAppendingPathComponent:[@"Tests/Fixtures/csv" stringByAppendingPathComponent:name]];
+}
+
+// A results file as WinDirStat 2.9.3 writes it (CsvLoader.cpp
+// SaveResultsCsv): rows preceded by CRLF, hex type and index, no Owner.
+- (void)testReadsWinDirStat293Export
+{
+  NSError *error = nil;
+  LDFileNode *root = [LDCSV readTreeFromPath:[self fixture:@"windirstat-2.9.3.csv"] error:&error];
+  XCTAssertNotNil(root, @"%@", error);
+  XCTAssertEqualObjects(@"D:\\Projects", [root path]);
+  XCTAssertEqual((unsigned long long)7340, [root aggregateSize]);
+  XCTAssertEqual((unsigned long long)12288, [root aggregateAllocatedSize]);
+  XCTAssertEqual((NSUInteger)3, [root fileCount]);
+  // The root folder counts itself.
+  XCTAssertEqual((NSUInteger)3, [root directoryCount]);
+  // Sorted by physical size, as WinDirStat does after loading.
+  XCTAssertEqualObjects(@"app", [[[root children] objectAtIndex:0] displayName]);
+  LDFileNode *app = [self childNamed:@"app" of:root];
+  LDFileNode *icon = [self childNamed:@"icon.ico" of:[self childNamed:@"res" of:app]];
+  XCTAssertEqual((unsigned long long)3000, [icon size]);
+  XCTAssertEqual((unsigned long long)4096, [icon allocatedSize]);
+  // Only the read-only and hidden letters have a counterpart on Linux.
+  XCTAssertEqualObjects(@"R", [LDFileAttributes attributeStringForNode:[self childNamed:@"README.md" of:root]]);
+  XCTAssertEqual((NSTimeInterval)1790777100, [app aggregateModificationTime]);
+}
+
+// Upstream after 2.9.3 (51f123b2, 589e83c5) appends ScanOutcome and
+// ScanError and leaves Physical Size blank when it is unknown (a cloud file
+// not stored locally). Columns are matched by name, so the extra ones are
+// ignored; a blank size reads as 0 bytes on disk.
+- (void)testReadsScanOutcomeColumnsAndBlankPhysicalSize
+{
+  NSError *error = nil;
+  LDFileNode *root = [LDCSV readTreeFromPath:[self fixture:@"windirstat-master-scan-outcome.csv"] error:&error];
+  XCTAssertNotNil(root, @"%@", error);
+  LDFileNode *cloud = [self childNamed:@"cloud" of:root];
+  LDFileNode *video = [self childNamed:@"video.mp4" of:cloud];
+  XCTAssertEqual((unsigned long long)1048576, [video size]);
+  XCTAssertEqual((unsigned long long)0, [video allocatedSize]);
+  XCTAssertEqual((unsigned long long)1048916, [root aggregateSize]);
+  XCTAssertEqual((unsigned long long)4096, [root aggregateAllocatedSize]);
+  // The folder that could not be read is there, empty; its quoted error
+  // (with a comma) does not shift the columns.
+  LDFileNode *locked = [self childNamed:@"locked" of:root];
+  XCTAssertNotNil(locked);
+  XCTAssertEqual((NSUInteger)0, [[locked children] count]);
+  XCTAssertEqual((NSUInteger)2, [root fileCount]);
+  XCTAssertEqual((NSUInteger)3, [root directoryCount]);
+}
+
+// The duplicates export has WinDirStat 2.9's columns, Sampled hash last.
+- (void)testDuplicatesHeaderMatchesWinDirStat293
+{
+  NSString *path = [self pathFor:@"dupes.csv"];
+  NSError *error = nil;
+  XCTAssertTrue([LDCSV writeDuplicateGroups:@[] toPath:path error:&error], @"%@", error);
+  NSString *ours = [[[self contentsOf:path] componentsSeparatedByString:@"\r\n"] firstObject];
+  NSString *theirs = [[[self contentsOf:[self fixture:@"windirstat-2.9.3-duplicates.csv"]]
+                       componentsSeparatedByString:@"\r\n"] firstObject];
+  XCTAssertEqualObjects(theirs, ours);
+  XCTAssertTrue([ours hasSuffix:@",\"Sampled hash\""]);
+}
+
 @end

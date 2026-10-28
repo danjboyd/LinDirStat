@@ -56,7 +56,7 @@ entries="$(find "$work/tree" | wc -l | tr -d ' ')"
 grep -q "^\"$work/tree\",6,1," "$work/out.csv" || fail "root row: $(sed -n 2p "$work/out.csv")"
 grep -q "^\"$work/tree/src/main.m\",0,0," "$work/out.csv" || fail "file row for src/main.m"
 
-dupes_header='"Hash Prefix","Name","Logical Size","Physical Size","Last Change","Attributes"'
+dupes_header='"Hash Prefix","Name","Logical Size","Physical Size","Last Change","Attributes","Sampled hash"'
 [ "$(head -n 1 "$work/dupes.csv" | tr -d '\r')" = "$dupes_header" ] || fail "duplicates header"
 grep -q "\"$work/tree/copy-1.txt\",19," "$work/dupes.csv" || fail "copy-1.txt is not listed as a duplicate"
 grep -q "\"$work/tree/src/copy-2.txt\",19," "$work/dupes.csv" || fail "copy-2.txt is not listed as a duplicate"
