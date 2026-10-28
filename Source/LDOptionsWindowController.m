@@ -75,6 +75,8 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   NSSlider *_brightness;
   NSSlider *_cushionShading;
   NSSlider *_height;
+  NSPopUpButton *_treemapPreset;
+  NSTextField *_gridColorLabel;
   NSSlider *_scaleFactor;
   NSSlider *_lightX;
   NSSlider *_lightY;
@@ -678,19 +680,25 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
        height:NSHeight([previewTitle frame]) mask:NSViewMinXMargin];
 
   [self addSectionTitle:LDLocalized(@"Layout")];
+  // WinDirStat 2.9's colour presets, Custom last (CPageTreeMap).
+  _treemapPreset = [self popUpWithTitles:@[LDLocalized(@"Classic"), LDLocalized(@"Calm"), LDLocalized(@"Flat"),
+                                           LDLocalized(@"Pastel"), LDLocalized(@"High Contrast"), LDLocalized(@"Custom")]
+                                  action:@selector(treemapPresetChanged:)];
+  [_treemapPreset setFrameSize:NSMakeSize(MAX(NSWidth([_treemapPreset frame]), 160.0), NSHeight([_treemapPreset frame]))];
+  [self addRow:LDLocalized(@"Color Presets") controls:@[_treemapPreset]];
   _treemapStyle = [self popUpWithTitles:@[LDLocalized(@"KDirStat"), @"SequoiaView"] action:@selector(treemapChanged:)];
   [_treemapStyle setFrameSize:NSMakeSize(MAX(NSWidth([_treemapStyle frame]), 160.0), NSHeight([_treemapStyle frame]))];
   [self addRow:LDLocalized(@"Style") controls:@[_treemapStyle]];
   _treemapGrid = [self addCheckbox:LDLocalized(@"Show grid") action:@selector(treemapChanged:)];
   _gridColor = [self colorWellWithAction:@selector(treemapColorChanged:)];
-  [self addRow:LDLocalized(@"Grid color") controls:@[_gridColor]];
+  _gridColorLabel = [self addRow:LDLocalized(@"Grid color") controls:@[_gridColor]];
   _highlightColor = [self colorWellWithAction:@selector(treemapColorChanged:)];
   [self addRow:LDLocalized(@"Highlight color") controls:@[_highlightColor]];
 
   [self addSectionTitle:LDLocalized(@"Cushions")];
   _brightness = [self addSliderRow:LDLocalized(@"Brightness") from:0 to:100];
   _cushionShading = [self addSliderRow:LDLocalized(@"Cushion shading") from:0 to:100];
-  _height = [self addSliderRow:LDLocalized(@"Height") from:0 to:100];
+  _height = [self addSliderRow:LDLocalized(@"Height") from:0 to:200];
   _scaleFactor = [self addSliderRow:LDLocalized(@"Scale factor") from:0 to:100];
 
   [self addSectionTitle:LDLocalized(@"Light Source")];
@@ -899,7 +907,10 @@ static NSInteger LDState(BOOL flag)
   [self updateLabelForSlider:_levelCount];
 
   [_treemapStyle selectItemAtIndex:[preferences treemapStyle]];
-  [self setColor:[preferences treemapGridColor] ofWell:_gridColor];
+  // Auto shows the colour it stands for (CTreeMap::GetGridColor) and says so.
+  BOOL autoGrid = [preferences treemapGridColor] == LDTreemapGridColorAuto;
+  [self setColor:autoGrid ? [self autoGridColor] : [preferences treemapGridColor] ofWell:_gridColor];
+  [_gridColorLabel setStringValue:autoGrid ? LDLocalized(@"Grid color (Auto)") : LDLocalized(@"Grid color")];
   [self setColor:[preferences treemapHighlightColor] ofWell:_highlightColor];
   [_treemapGrid setState:LDState([preferences treemapGrid])];
   [_brightness setIntegerValue:[preferences treemapBrightness]];
@@ -1188,9 +1199,15 @@ static NSInteger LDState(BOOL flag)
   [label setStringValue:[NSString stringWithFormat:format, (long)[slider integerValue]]];
 }
 
-// Renders WinDirStat's demo tree with the current settings.
+// Renders WinDirStat's demo tree with the current settings, and shows the
+// preset they match (CPageTreeMap::UpdatePresetSelection).
 - (void)updateTreemapPreview
 {
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  NSInteger preset = [preferences matchingTreemapPreset];
+  [_treemapPreset selectItemAtIndex:preset >= 0 ? preset : LDTreemapPresetCount];
+  [[_treemapPreset itemAtIndex:LDTreemapPresetCount] setEnabled:[preferences hasCustomTreemapPreset] || preset < 0];
+
   NSRect bounds = [_treemapPreview bounds];
   int width = (int)NSWidth(bounds);
   int height = (int)NSHeight(bounds);
@@ -1198,7 +1215,9 @@ static NSInteger LDState(BOOL flag)
     return;
   }
   LDTreemapPreview *preview = [LDTreemapPreview sharedPreview];
-  NSData *pixels = [preview renderRGBAWithWidth:width height:height options:[[LDPreferences sharedPreferences] treemapOptions]];
+  NSData *pixels = [preview renderRGBAWithWidth:width height:height options:[[LDPreferences sharedPreferences] treemapOptions]
+                                     background:LDRGBFromColor([NSColor controlBackgroundColor])
+                                           text:LDRGBFromColor([NSColor controlTextColor])];
   NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL
                                                                   pixelsWide:width
                                                                   pixelsHigh:height
@@ -1226,6 +1245,27 @@ static NSInteger LDState(BOOL flag)
     }
   }];
   [self updateTreemapPreview];
+}
+
+// The theme's colour for an Auto grid.
+- (uint32_t)autoGridColor
+{
+  uint32_t background = LDRGBFromColor([NSColor controlBackgroundColor]);
+  uint32_t text = LDRGBFromColor([NSColor controlTextColor]);
+  return LDRGB((int)(LDRGBRed(background) * 0.88 + LDRGBRed(text) * 0.12),
+               (int)(LDRGBGreen(background) * 0.88 + LDRGBGreen(text) * 0.12),
+               (int)(LDRGBBlue(background) * 0.88 + LDRGBBlue(text) * 0.12));
+}
+
+// CPageTreeMap::OnPresetChanged: a preset's appearance, or the saved
+// custom one.
+- (void)treemapPresetChanged:(id)sender
+{
+  NSInteger preset = [(NSPopUpButton *)sender indexOfSelectedItem];
+  [self apply:^(LDPreferences *preferences) {
+    [preferences applyTreemapPreset:preset];
+  }];
+  [self refreshControls];
 }
 
 - (void)treemapChanged:(id)sender

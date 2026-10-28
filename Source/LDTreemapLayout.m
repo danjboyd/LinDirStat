@@ -17,8 +17,10 @@ static const double LDKDirStatMinProportion = 0.4;
 LDTreemapOptions LDTreemapDefaultOptions(void)
 {
   // TreeMap.h DefaultOptions. The header comments (0.84/0.40/0.90/0.15) are
-  // stale; these are the values WinDirStat actually uses.
+  // stale; these are the values WinDirStat actually uses. Zeroed first, so
+  // options compare equal with memcmp.
   LDTreemapOptions options;
+  memset(&options, 0, sizeof(options));
   options.style = LDTreemapStyleKDirStat;
   options.grid = NO;
   options.gridColor = LDRGB(0, 0, 0);
@@ -28,9 +30,92 @@ LDTreemapOptions LDTreemapDefaultOptions(void)
   options.ambientLight = 0.13;
   options.lightSourceX = -1.0;
   options.lightSourceY = -1.0;
+  options.saturation = 1.0;
   options.showFolderFrames = NO;
   options.folderFramesDrawThreshold = 5;
   return options;
+}
+
+LDTreemapOptions LDTreemapPresetOptions(LDTreemapPreset preset)
+{
+  LDTreemapOptions options = LDTreemapDefaultOptions();
+  if (preset == LDTreemapPresetClassic) {
+    return options;
+  }
+  options.grid = YES;
+  options.gridColor = LDTreemapGridColorAuto;
+  options.brightness = 0.72;
+  options.saturation = 0.65;
+  options.height = 0.15;
+  options.scaleFactor = 0.80;
+  options.ambientLight = 0.70;
+  switch (preset) {
+    case LDTreemapPresetFlat:
+      options.saturation = 0.85;
+      options.height = 0.0;
+      options.ambientLight = 1.0;
+      break;
+    case LDTreemapPresetPastel:
+      options.brightness = 0.82;
+      options.saturation = 0.40;
+      options.height = 0.10;
+      options.ambientLight = 0.85;
+      break;
+    case LDTreemapPresetHighContrast:
+      options.gridColor = LDRGB(0, 0, 0);
+      options.brightness = 0.62;
+      options.saturation = 1.0;
+      options.height = 0.0;
+      options.ambientLight = 1.0;
+      break;
+    default:
+      break;
+  }
+  return options;
+}
+
+LDTreemapOptions LDTreemapOptionsWithAppearance(LDTreemapOptions options, LDTreemapOptions appearance)
+{
+  options.grid = appearance.grid;
+  options.gridColor = appearance.gridColor;
+  options.brightness = appearance.brightness;
+  options.saturation = appearance.saturation;
+  options.ambientLight = appearance.ambientLight;
+  options.height = appearance.height;
+  options.scaleFactor = appearance.scaleFactor;
+  options.lightSourceX = appearance.lightSourceX;
+  options.lightSourceY = appearance.lightSourceY;
+  return options;
+}
+
+// CTreeMap::Options::RoundDouble.
+static int LDPercent(double value)
+{
+  double scaled = value * 100.0;
+  return (int)(scaled + (scaled < 0.0 ? -0.5 : 0.5));
+}
+
+static BOOL LDSameAppearance(LDTreemapOptions a, LDTreemapOptions b)
+{
+  return a.grid == b.grid && (!a.grid || a.gridColor == b.gridColor)
+         && LDPercent(a.brightness) == LDPercent(b.brightness) && LDPercent(a.saturation) == LDPercent(b.saturation)
+         && LDPercent(a.ambientLight) == LDPercent(b.ambientLight) && LDPercent(a.height) == LDPercent(b.height)
+         && LDPercent(a.scaleFactor) == LDPercent(b.scaleFactor)
+         && LDPercent(a.lightSourceX) == LDPercent(b.lightSourceX) && LDPercent(a.lightSourceY) == LDPercent(b.lightSourceY);
+}
+
+BOOL LDTreemapMatchingPreset(LDTreemapOptions options, LDTreemapPreset *preset)
+{
+  int candidate = 0;
+  for (candidate = 0; candidate < LDTreemapPresetCount; candidate++) {
+    if (LDSameAppearance(options, LDTreemapPresetOptions((LDTreemapPreset)candidate))) {
+      if (preset) {
+        *preset = (LDTreemapPreset)candidate;
+      }
+      return YES;
+    }
+  }
+  return NO;
 }
 
 // A folder that got a frame (CTreeMap's FolderDrawInfo).
@@ -350,189 +435,130 @@ static void LDDrawCushion(uint8_t *bitmap, int stride, LDTreemapRect rect, const
   free(sizes);
 }
 
-// Port of CTreeMap::KDirStat_CalculateNextRow.
-static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, double parentSize,
-                                         NSUInteger nextChild, double width,
-                                         NSUInteger *childrenUsed, double *childWidth)
-{
-  double sizeUsed = 0.0;
-  double rowHeight = 0.0;
-  NSUInteger i = nextChild;
-  for (; i < count; i++) {
-    double childSize = sizes[i];
-    sizeUsed += childSize;
-    double virtualRowHeight = sizeUsed / parentSize;
-    double proposedWidth = childSize / parentSize * width / virtualRowHeight;
-    if (proposedWidth / virtualRowHeight < LDKDirStatMinProportion && i > nextChild) {
-      break;
-    }
-    rowHeight = virtualRowHeight;
-  }
-
-  *childrenUsed = i - nextChild;
-  double rowSize = parentSize * rowHeight;
-  NSUInteger j = 0;
-  for (j = 0; j < *childrenUsed; j++) {
-    childWidth[nextChild + j] = sizes[nextChild + j] / rowSize;
-  }
-  return rowHeight;
-}
-
-// Port of the KDirStat branch of CTreeMap::DrawTreeMap.
+// Port of TreeMapLayout.cpp's ArrangeRows (v2.9.3; KDirStat style). sizes
+// hold the children's integer sizes (exact as doubles), largest first and
+// none zero, so its zero-weight cases do not arise.
 - (void)layoutKDirStatChildren:(NSArray *)children sizes:(const double *)sizes count:(NSUInteger)count
-                        ofCell:(NSInteger)index inRect:(LDTreemapRect)parentRect
+                        ofCell:(NSInteger)index inRect:(LDTreemapRect)bounds
 {
-  double parentSize = (double)[self sizeOfNode:_cells[index].node];
+  double parentWeight = (double)[self sizeOfNode:_cells[index].node];
+  int boundsWidth = LDTreemapRectWidth(bounds);
+  int boundsHeight = LDTreemapRectHeight(bounds);
+  BOOL horizontalRows = boundsWidth >= boundsHeight;
+  double normalizedWidth = horizontalRows ? (double)boundsWidth / boundsHeight : (double)boundsHeight / boundsWidth;
+  int rowExtent = horizontalRows ? boundsHeight : boundsWidth;
+  int columnExtent = horizontalRows ? boundsWidth : boundsHeight;
 
-  double *childWidth = malloc(count * sizeof(double));
-  double *rows = malloc(count * sizeof(double));
-  NSUInteger *childrenPerRow = malloc(count * sizeof(NSUInteger));
-  NSUInteger rowCount = 0;
-
-  int parentWidth = LDTreemapRectWidth(parentRect);
-  int parentHeight = LDTreemapRectHeight(parentRect);
-  BOOL horizontalRows = parentWidth >= parentHeight;
-  double width = 1.0;
-  if (horizontalRows) {
-    if (parentHeight > 0) {
-      width = (double)parentWidth / parentHeight;
-    }
-  } else if (parentWidth > 0) {
-    width = (double)parentHeight / parentWidth;
-  }
-
-  NSUInteger nextChild = 0;
-  while (nextChild < count) {
-    NSUInteger used = 0;
-    rows[rowCount] = LDKDirStatCalculateNextRow(sizes, count, parentSize, nextChild, width, &used, childWidth);
-    childrenPerRow[rowCount] = used;
-    rowCount++;
-    nextChild += used;
-  }
-
-  int rowExtent = horizontalRows ? parentHeight : parentWidth;
-  int childExtent = horizontalRows ? parentWidth : parentHeight;
-  double top = horizontalRows ? parentRect.top : parentRect.left;
-  NSUInteger c = 0;
-  NSUInteger row = 0;
-  for (row = 0; row < rowCount; row++) {
-    double fBottom = top + rows[row] * rowExtent;
-    int bottom = (int)fBottom;
-    if (row == rowCount - 1) {
-      bottom = horizontalRows ? parentRect.bottom : parentRect.right;
-    }
-    double left = horizontalRows ? parentRect.left : parentRect.top;
-    NSUInteger k = 0;
-    for (k = 0; k < childrenPerRow[row]; k++, c++) {
-      double fRight = left + childWidth[c] * childExtent;
-      int right = (int)fRight;
-      if (k == childrenPerRow[row] - 1) {
-        right = horizontalRows ? parentRect.right : parentRect.bottom;
+  double top = horizontalRows ? bounds.top : bounds.left;
+  NSUInteger rowBegin = 0;
+  while (rowBegin < count) {
+    double rowWeight = 0.0;
+    double rowFraction = 0.0;
+    NSUInteger rowEnd = rowBegin;
+    for (; rowEnd < count; rowEnd++) {
+      double childWeight = sizes[rowEnd];
+      rowWeight += childWeight;
+      double candidateFraction = rowWeight / parentWeight;
+      double childWidth = childWeight / parentWeight * normalizedWidth / candidateFraction;
+      if (childWidth / candidateFraction < LDKDirStatMinProportion) {
+        rowWeight -= childWeight;
+        break;
       }
+      rowFraction = candidateFraction;
+    }
+    if (rowEnd == rowBegin) {
+      return;
+    }
 
+    double nextTop = top + rowFraction * rowExtent;
+    int bottom = rowEnd == count ? (horizontalRows ? bounds.bottom : bounds.right) : (int)nextTop;
+    double left = horizontalRows ? bounds.left : bounds.top;
+    NSUInteger i = 0;
+    for (i = rowBegin; i < rowEnd; i++) {
+      double nextLeft = left + sizes[i] / rowWeight * columnExtent;
+      int right = i + 1 == rowEnd ? (horizontalRows ? bounds.right : bounds.bottom) : (int)nextLeft;
       LDTreemapRect childRect;
       if (horizontalRows) {
-        childRect.left = (int)left;
-        childRect.right = right;
-        childRect.top = (int)top;
-        childRect.bottom = bottom;
+        childRect = (LDTreemapRect){(int)left, (int)top, right, bottom};
       } else {
-        childRect.left = (int)top;
-        childRect.right = bottom;
-        childRect.top = (int)left;
-        childRect.bottom = right;
+        childRect = (LDTreemapRect){(int)top, (int)left, bottom, right};
       }
-      [self appendCellForNode:[children objectAtIndex:c] rect:childRect];
-      left = fRight;
+      [self appendCellForNode:[children objectAtIndex:i] rect:childRect];
+      left = nextLeft;
     }
-    top = fBottom;
+    top = nextTop;
+    rowBegin = rowEnd;
   }
-
-  free(childWidth);
-  free(rows);
-  free(childrenPerRow);
 }
 
-// Port of the SequoiaView branch of CTreeMap::DrawTreeMap.
+// Port of TreeMapLayout.cpp's ArrangeSquarified (v2.9.3; SequoiaView style).
 - (void)layoutSequoiaChildren:(NSArray *)children sizes:(const double *)sizes count:(NSUInteger)count
                        ofCell:(NSInteger)index inRect:(LDTreemapRect)remaining
 {
-  double remainingSize = (double)[self sizeOfNode:_cells[index].node];
-  double sizePerSquarePixel = remainingSize / LDTreemapRectWidth(remaining) / LDTreemapRectHeight(remaining);
+  double remainingWeight = (double)[self sizeOfNode:_cells[index].node];
+  double weightPerPixel = remainingWeight / LDTreemapRectWidth(remaining) / LDTreemapRectHeight(remaining);
   NSUInteger head = 0;
 
-  while (head < count) {
+  while (head < count && LDTreemapRectWidth(remaining) > 0 && LDTreemapRectHeight(remaining) > 0) {
     BOOL horizontal = LDTreemapRectWidth(remaining) >= LDTreemapRectHeight(remaining);
-    int height = horizontal ? LDTreemapRectHeight(remaining) : LDTreemapRectWidth(remaining);
-    double hh = (double)height * height * sizePerSquarePixel;
+    int rowThickness = horizontal ? LDTreemapRectHeight(remaining) : LDTreemapRectWidth(remaining);
+    double squaredRowWeight = (double)rowThickness * rowThickness * weightPerPixel;
 
     NSUInteger rowBegin = head;
     NSUInteger rowEnd = head;
     double worst = DBL_MAX;
-    double rmax = sizes[rowBegin];
-    double sum = 0.0;
+    double largest = sizes[rowBegin];
+    double rowWeight = 0.0;
     while (rowEnd < count) {
-      double rmin = sizes[rowEnd];
-      double ss = (sum + rmin) * (sum + rmin);
-      double nextWorst = MAX(hh * rmax / ss, ss / hh / rmin);
+      double childWeight = sizes[rowEnd];
+      double nextWeight = rowWeight + childWeight;
+      double squaredWeight = nextWeight * nextWeight;
+      double nextWorst = MAX(squaredRowWeight * largest / squaredWeight, squaredWeight / squaredRowWeight / childWeight);
       if (nextWorst > worst) {
         break;
       }
-      sum += rmin;
+      rowWeight += childWeight;
       rowEnd++;
       worst = nextWorst;
     }
-
-    int width = horizontal ? LDTreemapRectWidth(remaining) : LDTreemapRectHeight(remaining);
-    if (sum < remainingSize) {
-      width = (int)(sum / remainingSize * width);
-    }
-
-    LDTreemapRect rowRect = remaining;
-    if (horizontal) {
-      rowRect.right = rowRect.left + width;
-    } else {
-      rowRect.bottom = rowRect.top + width;
-    }
-
-    double fBegin = horizontal ? rowRect.top : rowRect.left;
-    NSUInteger i = 0;
-    for (i = rowBegin; i < rowEnd; i++) {
-      double childSize = sizes[i];
-      double fraction = childSize / sum;
-      double fEnd = fBegin + fraction * (horizontal ? LDTreemapRectHeight(rowRect) : LDTreemapRectWidth(rowRect));
-      int end = (int)fEnd;
-      if (i == rowEnd - 1) {
-        end = horizontal ? rowRect.bottom : rowRect.right;
-      }
-
-      LDTreemapRect childRect;
-      if (horizontal) {
-        childRect.left = rowRect.left;
-        childRect.right = rowRect.right;
-        childRect.top = (int)fBegin;
-        childRect.bottom = end;
-      } else {
-        childRect.left = (int)fBegin;
-        childRect.right = end;
-        childRect.top = rowRect.top;
-        childRect.bottom = rowRect.bottom;
-      }
-      [self appendCellForNode:[children objectAtIndex:i] rect:childRect];
-      fBegin = fEnd;
-    }
-
-    if (horizontal) {
-      remaining.left += width;
-    } else {
-      remaining.top += width;
-    }
-    remainingSize -= sum;
-    head += rowEnd - rowBegin;
-
-    if (LDTreemapRectWidth(remaining) <= 0 || LDTreemapRectHeight(remaining) <= 0) {
+    if (rowWeight == 0.0) {
       break;
     }
+
+    int remainingExtent = horizontal ? LDTreemapRectWidth(remaining) : LDTreemapRectHeight(remaining);
+    int rowWidth = remainingExtent;
+    if (rowWeight < remainingWeight) {
+      rowWidth = MIN(MAX((int)(rowWeight / remainingWeight * remainingExtent), 1), remainingExtent);
+    }
+    LDTreemapRect rowBounds = remaining;
+    if (horizontal) {
+      rowBounds.right = rowBounds.left + rowWidth;
+    } else {
+      rowBounds.bottom = rowBounds.top + rowWidth;
+    }
+
+    double begin = horizontal ? rowBounds.top : rowBounds.left;
+    NSUInteger i = 0;
+    for (i = rowBegin; i < rowEnd; i++) {
+      double next = begin + sizes[i] / rowWeight * (horizontal ? LDTreemapRectHeight(rowBounds) : LDTreemapRectWidth(rowBounds));
+      int end = i + 1 == rowEnd ? (horizontal ? rowBounds.bottom : rowBounds.right) : (int)next;
+      LDTreemapRect childRect;
+      if (horizontal) {
+        childRect = (LDTreemapRect){rowBounds.left, (int)begin, rowBounds.right, end};
+      } else {
+        childRect = (LDTreemapRect){(int)begin, rowBounds.top, end, rowBounds.bottom};
+      }
+      [self appendCellForNode:[children objectAtIndex:i] rect:childRect];
+      begin = next;
+    }
+
+    if (horizontal) {
+      remaining.left += rowWidth;
+    } else {
+      remaining.top += rowWidth;
+    }
+    remainingWeight -= rowWeight;
+    head += rowEnd - rowBegin;
   }
 }
 
@@ -643,6 +669,20 @@ static double LDKDirStatCalculateNextRow(const double *sizes, NSUInteger count, 
 
 // The flag handling of CTreeMap::RenderRectangle: returns the brightness to
 // draw with and strips the flags from color.
+// The saturation step of PrepareRenderColor (v2.9.3): the colour blended
+// towards its grey by 1 - saturation.
+static LDRGBColor LDDesaturate(LDRGBColor color, double saturation)
+{
+  if (saturation >= 1.0) {
+    return color;
+  }
+  double amount = 1.0 - MAX(saturation, 0.0);
+  int gray = (int)((LDRGBRed(color) + LDRGBGreen(color) + LDRGBBlue(color)) / 3);
+  return LDRGB((int)(LDRGBRed(color) * (1.0 - amount) + gray * amount),
+               (int)(LDRGBGreen(color) * (1.0 - amount) + gray * amount),
+               (int)(LDRGBBlue(color) * (1.0 - amount) + gray * amount));
+}
+
 static double LDResolveColorFlags(LDRGBColor *color, double brightness)
 {
   LDRGBColor flags = *color & LDRGBColorFlagMask;
@@ -683,7 +723,7 @@ typedef struct {
     return data;
   }
 
-  LDDrawSolidRect(bitmap, _width, area, _options.gridColor, LDPaletteBrightness);
+  LDDrawSolidRect(bitmap, _width, area, [self gridColor], LDPaletteBrightness);
   BOOL cushions = LDTreemapOptionsUseCushions(_options);
   NSMutableDictionary *colorCache = [NSMutableDictionary dictionary];
 
@@ -730,6 +770,7 @@ typedef struct {
         color = [LDHardLinks treemapColor];
       }
       double brightness = LDResolveColorFlags(&color, _options.brightness);
+      color = LDDesaturate(color, _options.saturation);
       if (cushions) {
         LDDrawCushion(bitmap, _width, rect, frame.surface, color, brightness, _options);
       } else {
@@ -783,6 +824,15 @@ typedef struct {
     }
   }
   return data;
+}
+
+// CTreeMap::GetGridColor.
+- (LDRGBColor)gridColor
+{
+  if (_options.gridColor == LDTreemapGridColorAuto) {
+    return LDBlendColor(_folderStyle.background, _folderStyle.text, 0.12);
+  }
+  return _options.gridColor;
 }
 
 - (void)enumerateFolderFramesUsingBlock:(void (^)(LDFileNode *node, LDTreemapRect frame, LDTreemapRect header))block
@@ -873,6 +923,7 @@ typedef struct {
   }
   LDTreemapRect rect = {0, 0, width, height};
   double surface[4] = {0.0, 0.0, 0.0, 0.0};
+  color = LDDesaturate(color, options.saturation);
   LDAddRidge(rect, surface, options.height * options.scaleFactor);
   if (LDTreemapOptionsUseCushions(options)) {
     LDDrawCushion([data mutableBytes], width, rect, surface, color, options.brightness, options);

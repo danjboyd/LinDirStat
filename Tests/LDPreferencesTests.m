@@ -277,5 +277,42 @@
   XCTAssertEqual((NSInteger)128, [_preferences treemapFolderFramesDrawThreshold]);
 }
 
+// WinDirStat 2.9: TreeMapSaturation (100, 0-100), Height up to 200, an Auto
+// grid colour, the colour presets and the saved custom appearance.
+- (void)testColorPresetPreferences
+{
+  XCTAssertEqual((NSInteger)100, [_preferences treemapSaturation]);
+  XCTAssertEqual((NSInteger)0, [_preferences matchingTreemapPreset]);
+  XCTAssertFalse([_preferences hasCustomTreemapPreset]);
+  [_preferences setTreemapHeight:150];
+  XCTAssertEqual((NSInteger)150, [_preferences treemapHeight]);
+  [_preferences setTreemapHeight:500];
+  XCTAssertEqual((NSInteger)200, [_preferences treemapHeight]);
+  // That appearance matches no preset, so it is the custom one.
+  XCTAssertEqual((NSInteger)-1, [_preferences matchingTreemapPreset]);
+  XCTAssertTrue([_preferences hasCustomTreemapPreset]);
+
+  XCTAssertTrue([_preferences applyTreemapPreset:LDTreemapPresetCalm]);
+  XCTAssertEqual((NSInteger)LDTreemapPresetCalm, [_preferences matchingTreemapPreset]);
+  XCTAssertEqual(LDTreemapGridColorAuto, [_preferences treemapGridColor]);
+  XCTAssertEqual(LDTreemapGridColorAuto, [_preferences treemapOptions].gridColor);
+  XCTAssertTrue([_preferences treemapGrid]);
+  XCTAssertEqual((NSInteger)65, [_preferences treemapSaturation]);
+  XCTAssertEqual((NSInteger)70, [_preferences treemapCushionShading]);
+
+  // Custom brings back the appearance from before.
+  XCTAssertTrue([_preferences applyTreemapPreset:LDTreemapPresetCount]);
+  XCTAssertEqual((NSInteger)200, [_preferences treemapHeight]);
+  XCTAssertFalse([_preferences treemapGrid]);
+  XCTAssertEqual((NSInteger)-1, [_preferences matchingTreemapPreset]);
+
+  [_preferences setTreemapGridColor:0x123456];
+  XCTAssertEqual((uint32_t)0x123456, [_preferences treemapGridColor]);
+  XCTAssertTrue([_preferences applyTreemapPreset:LDTreemapPresetHighContrast]);
+  XCTAssertEqual((uint32_t)0x000000, [_preferences treemapGridColor]);
+  XCTAssertFalse([_preferences applyTreemapPreset:99]);
+}
+
 @end
+
 

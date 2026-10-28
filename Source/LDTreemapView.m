@@ -9,7 +9,7 @@ static const int LDZoomFrameWidth = 4;
 static const NSTimeInterval LDResizeRenderDelay = 0.12;
 
 // A system colour as treemap RGB, in the current appearance.
-static LDRGBColor LDRGBFromColor(NSColor *color)
+static LDRGBColor LDThemeRGB(NSColor *color)
 {
   NSColor *rgb = [color colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
   if (!rgb) {
@@ -98,6 +98,7 @@ static LDRGBColor LDRGBFromColor(NSColor *color)
   if (!treemap || [treemap rootNode] != rootNode || [treemap metric] != metric || _renderTimer
       || [treemap width] != (int)size.width || [treemap height] != (int)size.height
       || memcmp(&options, &_options, sizeof(options)) != 0 || options.showFolderFrames
+      || options.gridColor == LDTreemapGridColorAuto
       || [pixels length] != (NSUInteger)[treemap width] * (NSUInteger)[treemap height] * 4) {
     return;
   }
@@ -255,23 +256,22 @@ NSRect LDWholePixelRectInside(NSRect rect)
     return;
   }
 
-  LDTreemap *treemap = nil;
+  // The theme colours: for folder frames and the Auto grid colour.
+  CGFloat scale = [self renderScale];
+  NSFont *font = [self folderHeaderFont];
+  LDTreemapFolderStyle style;
+  style.headerHeight = (int)ceil(([font ascender] - [font descender]) * scale) + 2;
+  style.background = LDThemeRGB([NSColor controlBackgroundColor]);
+  style.text = LDThemeRGB([NSColor controlTextColor]);
+  LDTreemapTextWidth textWidth = nil;
   if (_options.showFolderFrames) {
-    CGFloat scale = [self renderScale];
-    NSFont *font = [self folderHeaderFont];
-    LDTreemapFolderStyle style;
-    style.headerHeight = (int)ceil(([font ascender] - [font descender]) * scale) + 2;
-    style.background = LDRGBFromColor([NSColor controlBackgroundColor]);
-    style.text = LDRGBFromColor([NSColor controlTextColor]);
     NSDictionary *attributes = @{NSFontAttributeName: font};
-    treemap = [[LDTreemap alloc] initWithRootNode:root metric:_metric width:width height:height options:_options
-                                      folderStyle:style
-                                        textWidth:^double(NSString *text) {
-                                          return [text sizeWithAttributes:attributes].width * scale;
-                                        }];
-  } else {
-    treemap = [[LDTreemap alloc] initWithRootNode:root metric:_metric width:width height:height options:_options];
+    textWidth = ^double(NSString *text) {
+      return [text sizeWithAttributes:attributes].width * scale;
+    };
   }
+  LDTreemap *treemap = [[LDTreemap alloc] initWithRootNode:root metric:_metric width:width height:height
+                                                   options:_options folderStyle:style textWidth:textWidth];
   [self adoptTreemap:treemap pixels:[treemap renderRGBAWithColorIndexes:_colorIndexes]];
 }
 
@@ -307,7 +307,7 @@ NSRect LDWholePixelRectInside(NSRect rect)
 // Header colours follow the appearance.
 - (void)viewDidChangeEffectiveAppearance
 {
-  if (_options.showFolderFrames) {
+  if (_options.showFolderFrames || _options.gridColor == LDTreemapGridColorAuto) {
     [self invalidateRender];
   }
 }
