@@ -40,7 +40,8 @@ typedef enum {
 + (LDFileNode *)readTreeFromPath:(NSString *)path error:(NSError **)error;
 
 // WinDirStat's duplicates export: "Hash Prefix","Name","Logical Size",
-// "Physical Size","Last Change","Attributes", one row per file.
+// "Physical Size","Last Change","Attributes","Sampled hash", one row per
+// file. Sampled hash is always false: LinDirStat hashes whole files.
 // groups holds LDDuplicateGroup objects.
 + (BOOL)writeDuplicateGroups:(NSArray *)groups toPath:(NSString *)path error:(NSError **)error;
 
