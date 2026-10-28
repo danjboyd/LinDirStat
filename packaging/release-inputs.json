@@ -2,8 +2,8 @@
   "comment": "Inputs release builds take from other repositories, each pinned to a tag checked against its revision (scripts/pinned-checkout.sh). libs-back has its own lock file, with its patches (packaging/linux/libs-back). Local builds can still point at their own trees with ADWAITA_THEME, GNUSTEP_PACKAGER and TOOLS_XCTEST_ROOT; release-linux.sh --publish refuses a tree that is not at its pin. See docs/packaging.md.",
   "adwaita": {
     "url": "https://github.com/danjboyd/plugins-themes-Adwaita.git",
-    "tag": "0.1.0-alpha17",
-    "revision": "10225c7c9ec98af4f3d420b3310b0ef64488ae51"
+    "tag": "0.1.0-alpha18",
+    "revision": "3083b0aee26001c5f5ffe073bed4e82a668eb0cd"
   },
   "gnustep-packager": {
     "url": "https://github.com/danjboyd/gnustep-packager.git",
