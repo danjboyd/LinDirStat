@@ -15,7 +15,9 @@ fi
 cd "$repo_root"
 make
 
-openapp Source/LinDirStat.app &
+# An explicit fixture: without a path the app scans its working directory's
+# fixture, or the home folder, which a screenshot run must never walk.
+LINDIRSTAT_SCAN_PATH="$repo_root/Tests/Fixtures/basic-tree" openapp Source/LinDirStat.app &
 app_pid=$!
 trap 'kill "$app_pid" >/dev/null 2>&1 || true' EXIT
 
