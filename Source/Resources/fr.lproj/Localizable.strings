@@ -75,8 +75,8 @@
 "Level colors" = "Couleur de la proportion de taille";
 "Light Source" = "Incidence de la lumière";
 "List Style" = "Style de la liste";
-"Load Results From CSV" = "Charger les résultats depuis un fichier CSV/JSON";
-"Load Results From CSV…" = "Charger les résultats depuis un fichier CSV…";
+"Load Results From CSV/JSON" = "Charger les résultats depuis un fichier CSV/JSON";
+"Load Results From CSV/JSON…" = "Charger les résultats depuis un fichier CSV/JSON…";
 "Logical Size" = "Taille Logique";
 "Logical Size:" = "Taille Logique:";
 "Memory: %@" = "Utilisation de la mémoire RAM : %@";
@@ -118,10 +118,10 @@
 "Reset Zoom" = "Réinitialiser le zoom";
 "Resume" = "Reprendre";
 "Resume Scan" = "Reprendre";
-"Save Duplicates To CSV" = "Enregistrer les doublons en CSV/JSON";
-"Save Duplicates To CSV…" = "Enregistrer les doublons en CSV…";
-"Save Results To CSV" = "Enregistrer les résultats dans un fichier CSV/JSON";
-"Save Results To CSV…" = "Enregistrer les résultats dans un fichier CSV…";
+"Save Duplicates To CSV/JSON" = "Enregistrer les doublons en CSV/JSON";
+"Save Duplicates To CSV/JSON…" = "Enregistrer les doublons en CSV/JSON…";
+"Save Results To CSV/JSON" = "Enregistrer les résultats dans un fichier CSV/JSON";
+"Save Results To CSV/JSON…" = "Enregistrer les résultats dans un fichier CSV/JSON…";
 "Scale factor" = "Facteur d'agrandissement";
 "Scan and display hard link information" = "Analyser les lecteurs et afficher les informations sur les liens physiques";
 "Scan for duplicate files" = "Détecter les fichiers en double (impacte les performances)";

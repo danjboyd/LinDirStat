@@ -76,8 +76,8 @@
 "Level colors" = "Colore proporzione dimensionale";
 "Light Source" = "Incidenza luce";
 "List Style" = "Stile elenco";
-"Load Results From CSV" = "Carica risultati da CSV/JSON";
-"Load Results From CSV…" = "Carica Risultati da CSV…";
+"Load Results From CSV/JSON" = "Carica risultati da CSV/JSON";
+"Load Results From CSV/JSON…" = "Carica risultati da CSV/JSON…";
 "Logical Size" = "Dimensione logica";
 "Logical Size:" = "Dimensione logica:";
 "Memory: %@" = "Uso RAM: %@";
@@ -120,10 +120,10 @@
 "Reset Zoom" = "Ripristina zoom";
 "Resume" = "Riprendi";
 "Resume Scan" = "Riprendi";
-"Save Duplicates To CSV" = "Salva i duplicati in file CSV/JSON";
-"Save Duplicates To CSV…" = "Salva i duplicati in CSV…";
-"Save Results To CSV" = "Salva risultati in file CSV/JSON";
-"Save Results To CSV…" = "Salva risultati su CSV…";
+"Save Duplicates To CSV/JSON" = "Salva i duplicati in file CSV/JSON";
+"Save Duplicates To CSV/JSON…" = "Salva i duplicati in file CSV/JSON…";
+"Save Results To CSV/JSON" = "Salva risultati in file CSV/JSON";
+"Save Results To CSV/JSON…" = "Salva risultati in file CSV/JSON…";
 "Scale factor" = "Fattore di scala";
 "Scan and display hard link information" = "Analizza unità e visualizza info sui collegamenti fisici";
 "Scan for duplicate files" = "Scansione file duplicati (influenza le prestazioni)";

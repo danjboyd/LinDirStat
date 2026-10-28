@@ -210,11 +210,11 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   NSMenu *fileMenu = [self addSubmenuTitled:LDLocalized(@"File") to:mainMenu];
   [self addItemTo:fileMenu title:LDLocalized(@"Select Target…") action:@selector(openPath:) key:@"o" target:self];
   [fileMenu addItem:[NSMenuItem separatorItem]];
-  NSMenuItem *loadCSV = (NSMenuItem *)[self addItemTo:fileMenu title:LDLocalized(@"Load Results From CSV…") action:@selector(loadResultsFromCSV:) key:@"l" target:self];
+  NSMenuItem *loadCSV = (NSMenuItem *)[self addItemTo:fileMenu title:LDLocalized(@"Load Results From CSV/JSON…") action:@selector(loadResultsFromCSV:) key:@"l" target:self];
   [loadCSV setKeyEquivalentModifierMask:NSControlKeyMask | NSAlternateKeyMask];
-  NSMenuItem *saveCSV = (NSMenuItem *)[self addItemTo:fileMenu title:LDLocalized(@"Save Results To CSV…") action:@selector(saveResultsToCSV:) key:@"s" target:self];
+  NSMenuItem *saveCSV = (NSMenuItem *)[self addItemTo:fileMenu title:LDLocalized(@"Save Results To CSV/JSON…") action:@selector(saveResultsToCSV:) key:@"s" target:self];
   [saveCSV setKeyEquivalentModifierMask:NSControlKeyMask | NSAlternateKeyMask];
-  [self addItemTo:fileMenu title:LDLocalized(@"Save Duplicates To CSV…") action:@selector(saveDuplicatesToCSV:) key:nil target:self];
+  [self addItemTo:fileMenu title:LDLocalized(@"Save Duplicates To CSV/JSON…") action:@selector(saveDuplicatesToCSV:) key:nil target:self];
   [fileMenu addItem:[NSMenuItem separatorItem]];
   NSMenuItem *refreshAll = (NSMenuItem *)[self addItemTo:fileMenu title:LDLocalized(@"Refresh All") action:@selector(rescan:) key:[self functionKey:NSF5FunctionKey] target:self];
   [refreshAll setKeyEquivalentModifierMask:NSShiftKeyMask];

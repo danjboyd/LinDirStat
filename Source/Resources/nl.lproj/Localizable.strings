@@ -74,8 +74,8 @@
 "Level colors" = "Kleur van grootteverhouding";
 "Light Source" = "Lichtinval";
 "List Style" = "Lijststijl";
-"Load Results From CSV" = "Resultaten laden vanuit CSV/JSON";
-"Load Results From CSV…" = "Resultaten laden vanuit CSV…";
+"Load Results From CSV/JSON" = "Resultaten laden vanuit CSV/JSON";
+"Load Results From CSV/JSON…" = "Resultaten laden vanuit CSV/JSON…";
 "Logical Size" = "Logische Grootte";
 "Logical Size:" = "Logische Grootte:";
 "Memory: %@" = "Geheugengebruik: %@";
@@ -117,10 +117,10 @@
 "Reset Zoom" = "Zoom herstellen";
 "Resume" = "Hervatten";
 "Resume Scan" = "Hervatten";
-"Save Duplicates To CSV" = "Duplicaten naar CSV/JSON opslaan";
-"Save Duplicates To CSV…" = "Duplicaten naar CSV opslaan…";
-"Save Results To CSV" = "Resultaten opslaan in CSV/JSON";
-"Save Results To CSV…" = "Resultaten opslaan in CSV…";
+"Save Duplicates To CSV/JSON" = "Duplicaten naar CSV/JSON opslaan";
+"Save Duplicates To CSV/JSON…" = "Duplicaten naar CSV/JSON opslaan…";
+"Save Results To CSV/JSON" = "Resultaten opslaan in CSV/JSON";
+"Save Results To CSV/JSON…" = "Resultaten opslaan in CSV/JSON…";
 "Scale factor" = "Schaalfactor";
 "Scan and display hard link information" = "Stations scannen en hardlink-informatie weergeven";
 "Scan for duplicate files" = "Scannen op duplicaatbestanden (beïnvloedt de prestaties)";

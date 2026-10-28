@@ -1,0 +1,74 @@
+[
+{
+  "Name": "C:\\",
+  "Files": 3,
+  "Folders": 2,
+  "Logical Size": 1610612836,
+  "Physical Size": 1610620928,
+  "Attributes": "HS",
+  "Last Change": "2024-05-01T08:30:00Z",
+  "WinDirStat Attributes": "0x30000002",
+  "Index": "0x0005000000000005",
+  "Owner": "NT AUTHORITY\\SYSTEM"
+},
+{
+  "Name": "C:\\pagefile.sys",
+  "Files": 0,
+  "Folders": 0,
+  "Logical Size": 1610612736,
+  "Physical Size": 1610612736,
+  "Attributes": "HSA",
+  "Last Change": "2024-05-01T08:30:00Z",
+  "WinDirStat Attributes": "0x20000008",
+  "Index": "0x0001000000000123",
+  "Owner": "NT AUTHORITY\\SYSTEM"
+},
+{
+  "Name": "C:\\Users",
+  "Files": 2,
+  "Folders": 1,
+  "Logical Size": 100,
+  "Physical Size": 8192,
+  "Attributes": "R",
+  "Last Change": "2024-04-02T10:00:05Z",
+  "WinDirStat Attributes": "0x20000004",
+  "Index": "0x0002000000000200",
+  "Owner": "NT AUTHORITY\\SYSTEM"
+},
+{
+  "Name": "C:\\Users\\dan",
+  "Files": 2,
+  "Folders": 0,
+  "Logical Size": 100,
+  "Physical Size": 8192,
+  "Attributes": "",
+  "Last Change": "2024-04-02T10:00:05Z",
+  "WinDirStat Attributes": "0x20000004",
+  "Index": "0x0003000000000300",
+  "Owner": "PC\\dan"
+},
+{
+  "Name": "C:\\Users\\dan\\notes, final.txt",
+  "Files": 0,
+  "Folders": 0,
+  "Logical Size": 60,
+  "Physical Size": 4096,
+  "Attributes": "A",
+  "Last Change": "2024-04-02T10:00:05Z",
+  "WinDirStat Attributes": "0x20000008",
+  "Index": "0x0004000000000301",
+  "Owner": "PC\\dan"
+},
+{
+  "Name": "C:\\Users\\dan\\Ünïcode.md",
+  "Files": 0,
+  "Folders": 0,
+  "Logical Size": 40,
+  "Physical Size": 4096,
+  "Attributes": "RA",
+  "Last Change": "2023-12-31T23:59:59Z",
+  "WinDirStat Attributes": "0x20000008",
+  "Index": "0x0004000000000302",
+  "Owner": "PC\\dan"
+}
+]

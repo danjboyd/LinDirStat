@@ -113,6 +113,33 @@
   XCTAssertEqualObjects([[self temporaryRoot] stringByAppendingPathComponent:@"saved.csv"], [commandLine loadFromCSVPath]);
 }
 
+// WinDirStat 2.6 renamed the flags (/saveto, /savedupesto, /loadfrom) when
+// they gained JSON; the old names still work.
+- (void)testWinDirStat26FlagNames
+{
+  [self makeFolder:@"folder"];
+  LDCommandLine *commandLine = [self parse:@[@"/SaveTo", @"out.json", @"folder"]];
+  XCTAssertTrue([commandLine isHeadless]);
+  XCTAssertEqualObjects([[self temporaryRoot] stringByAppendingPathComponent:@"out.json"], [commandLine saveToCSVPath]);
+  commandLine = [self parse:@[@"--savedupesto", @"/abs/dupes.json"]];
+  XCTAssertEqualObjects(@"/abs/dupes.json", [commandLine saveDuplicatesToCSVPath]);
+  commandLine = [self parse:@[@"-loadfrom", @"saved.json"]];
+  XCTAssertFalse([commandLine isHeadless]);
+  XCTAssertEqualObjects([[self temporaryRoot] stringByAppendingPathComponent:@"saved.json"], [commandLine loadFromCSVPath]);
+}
+
+- (void)testSaveToJSONWritesTheScannedTree
+{
+  [self write:@"hello" to:@"tree/a.txt"];
+  NSMutableArray *messages = [NSMutableArray array];
+  int status = [self run:@[@"--saveto", @"out.json", @"tree"] messages:messages];
+  XCTAssertEqual(0, status);
+  NSString *json = [self contentsOf:@"out.json"];
+  XCTAssertTrue([json hasPrefix:@"[\r\n{\r\n  \"Name\": "], @"%@", json);
+  NSArray *items = [NSJSONSerialization JSONObjectWithData:[json dataUsingEncoding:NSUTF8StringEncoding] options:0 error:NULL];
+  XCTAssertEqual((NSUInteger)2, [items count]);
+}
+
 - (void)testFlagWithoutFileNameIsAnError
 {
   LDCommandLine *commandLine = [self parse:@[@"--savetocsv"]];

@@ -77,8 +77,8 @@
 "Level colors" = "Barva deleža velikosti";
 "Light Source" = "Vpad svetlobe";
 "List Style" = "Slog seznama";
-"Load Results From CSV" = "Naloži rezultate iz CSV/JSON";
-"Load Results From CSV…" = "Naloži rezultate iz CSV…";
+"Load Results From CSV/JSON" = "Naloži rezultate iz CSV/JSON";
+"Load Results From CSV/JSON…" = "Naloži rezultate iz CSV/JSON…";
 "Logical Size" = "Logična velikost";
 "Logical Size:" = "Logična velikost:";
 "Memory: %@" = "Uporaba pomnilnika: %@";
@@ -121,10 +121,10 @@
 "Reset Zoom" = "Ponastavi povečavo";
 "Resume" = "Nadaljuj";
 "Resume Scan" = "Nadaljuj";
-"Save Duplicates To CSV" = "Shrani podvojene v CSV/JSON";
-"Save Duplicates To CSV…" = "Shrani podvojene v CSV…";
-"Save Results To CSV" = "Shrani rezultate v CSV/JSON";
-"Save Results To CSV…" = "Shrani rezultate v CSV…";
+"Save Duplicates To CSV/JSON" = "Shrani podvojene v CSV/JSON";
+"Save Duplicates To CSV/JSON…" = "Shrani podvojene v CSV/JSON…";
+"Save Results To CSV/JSON" = "Shrani rezultate v CSV/JSON";
+"Save Results To CSV/JSON…" = "Shrani rezultate v CSV/JSON…";
 "Scale factor" = "Faktor povečave";
 "Scan and display hard link information" = "Skeniraj pogone in prikaži informacije o trdih povezavah";
 "Scan for duplicate files" = "Poišči podvojene datoteke (vpliva na zmogljivost)";

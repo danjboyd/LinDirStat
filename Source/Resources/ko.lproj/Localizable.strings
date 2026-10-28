@@ -77,8 +77,8 @@
 "Level colors" = "크기 비율 색상";
 "Light Source" = "밝기 감소";
 "List Style" = "목록 스타일";
-"Load Results From CSV" = "CSV/JSON에서 결과 불러오기";
-"Load Results From CSV…" = "CSV에서 결과 불러오기…";
+"Load Results From CSV/JSON" = "CSV/JSON에서 결과 불러오기";
+"Load Results From CSV/JSON…" = "CSV/JSON에서 결과 불러오기…";
 "Logical Size" = "논리적 크기";
 "Logical Size:" = "논리적 크기:";
 "Memory: %@" = "메모리 사용량: %@";
@@ -121,10 +121,10 @@
 "Reset Zoom" = "줌 초기화";
 "Resume" = "다시 계속";
 "Resume Scan" = "다시 계속";
-"Save Duplicates To CSV" = "중복 파일을 CSV/JSON으로 저장";
-"Save Duplicates To CSV…" = "중복 파일을 CSV로 저장…";
-"Save Results To CSV" = "결과를 CSV/JSON으로 저장";
-"Save Results To CSV…" = "결과를 CSV로 저장…";
+"Save Duplicates To CSV/JSON" = "중복 파일을 CSV/JSON으로 저장";
+"Save Duplicates To CSV/JSON…" = "중복 파일을 CSV/JSON으로 저장…";
+"Save Results To CSV/JSON" = "결과를 CSV/JSON으로 저장";
+"Save Results To CSV/JSON…" = "결과를 CSV/JSON으로 저장…";
 "Scale factor" = "배율계수";
 "Scan and display hard link information" = "드라이브를 검사하고 하드 링크 정보를 표시";
 "Scan for duplicate files" = "중복 파일 검색 (성능에 영향 미침)";

@@ -77,8 +77,8 @@
 "Level colors" = "空间占比配色";
 "Light Source" = "光照";
 "List Style" = "列表显示样式";
-"Load Results From CSV" = "读取 CSV/JSON 扫描记录";
-"Load Results From CSV…" = "从 CSV 加载结果…";
+"Load Results From CSV/JSON" = "读取 CSV/JSON 扫描记录";
+"Load Results From CSV/JSON…" = "读取 CSV/JSON 扫描记录…";
 "Logical Size" = "逻辑大小";
 "Logical Size:" = "逻辑大小:";
 "Memory: %@" = "内存占用：%@";
@@ -121,10 +121,10 @@
 "Reset Zoom" = "重置缩放";
 "Resume" = "继续";
 "Resume Scan" = "继续";
-"Save Duplicates To CSV" = "导出重复文件到 CSV/JSON";
-"Save Duplicates To CSV…" = "将重复项保存到 CSV…";
-"Save Results To CSV" = "保存扫描结果为 CSV/JSON";
-"Save Results To CSV…" = "将结果保存到 CSV…";
+"Save Duplicates To CSV/JSON" = "导出重复文件到 CSV/JSON";
+"Save Duplicates To CSV/JSON…" = "导出重复文件到 CSV/JSON…";
+"Save Results To CSV/JSON" = "保存扫描结果为 CSV/JSON";
+"Save Results To CSV/JSON…" = "保存扫描结果为 CSV/JSON…";
 "Scale factor" = "缩放系数";
 "Scan and display hard link information" = "扫描并展示磁盘硬链接信息";
 "Scan for duplicate files" = "扫描重复文件（会影响运行性能）";

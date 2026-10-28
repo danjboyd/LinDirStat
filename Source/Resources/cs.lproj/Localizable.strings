@@ -77,8 +77,8 @@
 "Level colors" = "Barva poměru velikosti";
 "Light Source" = "Dopad světla";
 "List Style" = "Vzhled seznamu";
-"Load Results From CSV" = "Načíst výsledky z CSV/JSON";
-"Load Results From CSV…" = "Načíst výsledky z CSV…";
+"Load Results From CSV/JSON" = "Načíst výsledky z CSV/JSON";
+"Load Results From CSV/JSON…" = "Načíst výsledky z CSV/JSON…";
 "Logical Size" = "Logická velikost";
 "Logical Size:" = "Logická velikost:";
 "Memory: %@" = "Využití paměti: %@";
@@ -121,10 +121,10 @@
 "Reset Zoom" = "Resetovat lupu";
 "Resume" = "Pokračovat";
 "Resume Scan" = "Pokračovat";
-"Save Duplicates To CSV" = "Uložit duplikáty do CSV/JSON";
-"Save Duplicates To CSV…" = "Uložit duplikáty do CSV…";
-"Save Results To CSV" = "Uložit výsledky do CSV/JSON";
-"Save Results To CSV…" = "Uložit výsledky do CSV…";
+"Save Duplicates To CSV/JSON" = "Uložit duplikáty do CSV/JSON";
+"Save Duplicates To CSV/JSON…" = "Uložit duplikáty do CSV/JSON…";
+"Save Results To CSV/JSON" = "Uložit výsledky do CSV/JSON";
+"Save Results To CSV/JSON…" = "Uložit výsledky do CSV/JSON…";
 "Scale factor" = "Měřítko";
 "Scan and display hard link information" = "Prohledat jednotky a zobrazit informace o pevných odkazech";
 "Scan for duplicate files" = "Hledat duplicitní soubory (ovlivní výkon)";

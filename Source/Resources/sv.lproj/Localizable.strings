@@ -76,8 +76,8 @@
 "Level colors" = "Färg för storleksandel";
 "Light Source" = "Ljusinfall";
 "List Style" = "Liststil";
-"Load Results From CSV" = "Ladda resultat från CSV/JSON";
-"Load Results From CSV…" = "Ladda resultat från CSV…";
+"Load Results From CSV/JSON" = "Ladda resultat från CSV/JSON";
+"Load Results From CSV/JSON…" = "Ladda resultat från CSV/JSON…";
 "Logical Size" = "Logisk storlek";
 "Logical Size:" = "Logisk storlek:";
 "Memory: %@" = "Minnesanvändning: %@";
@@ -120,10 +120,10 @@
 "Reset Zoom" = "Återställ zoom";
 "Resume" = "Återuppta";
 "Resume Scan" = "Återuppta";
-"Save Duplicates To CSV" = "Spara dubbletter till CSV/JSON";
-"Save Duplicates To CSV…" = "Spara dubbletter till CSV…";
-"Save Results To CSV" = "Spara resultat till CSV/JSON";
-"Save Results To CSV…" = "Spara resultat till CSV…";
+"Save Duplicates To CSV/JSON" = "Spara dubbletter till CSV/JSON";
+"Save Duplicates To CSV/JSON…" = "Spara dubbletter till CSV/JSON…";
+"Save Results To CSV/JSON" = "Spara resultat till CSV/JSON";
+"Save Results To CSV/JSON…" = "Spara resultat till CSV/JSON…";
 "Scale factor" = "Skalfaktor";
 "Scan and display hard link information" = "Skanna enheter och visa information om hårda länkar";
 "Scan for duplicate files" = "Sök efter dubbletter av filer (påverkar prestandan)";

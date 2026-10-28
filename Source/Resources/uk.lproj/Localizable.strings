@@ -77,8 +77,8 @@
 "Level colors" = "Колір частки розміру";
 "Light Source" = "Джерело світла";
 "List Style" = "Стиль списку";
-"Load Results From CSV" = "Завантажити результати з CSV/JSON";
-"Load Results From CSV…" = "Завантажити результати з CSV…";
+"Load Results From CSV/JSON" = "Завантажити результати з CSV/JSON";
+"Load Results From CSV/JSON…" = "Завантажити результати з CSV/JSON…";
 "Logical Size" = "Логічний розмір";
 "Logical Size:" = "Логічний розмір:";
 "Memory: %@" = "Використання RAM: %@";
@@ -121,10 +121,10 @@
 "Reset Zoom" = "Скинути масштаб";
 "Resume" = "Продовжити";
 "Resume Scan" = "Продовжити";
-"Save Duplicates To CSV" = "Зберегти дублікати у CSV/JSON";
-"Save Duplicates To CSV…" = "Зберегти дублікати у CSV…";
-"Save Results To CSV" = "Зберегти результати у CSV/JSON";
-"Save Results To CSV…" = "Зберегти результати у CSV…";
+"Save Duplicates To CSV/JSON" = "Зберегти дублікати у CSV/JSON";
+"Save Duplicates To CSV/JSON…" = "Зберегти дублікати у CSV/JSON…";
+"Save Results To CSV/JSON" = "Зберегти результати у CSV/JSON";
+"Save Results To CSV/JSON…" = "Зберегти результати у CSV/JSON…";
 "Scale factor" = "Масштаб";
 "Scan and display hard link information" = "Сканувати диски та відображати відомості про жорсткі посилання";
 "Scan for duplicate files" = "Сканувати дублікати файлів (впливає на продуктивність)";
