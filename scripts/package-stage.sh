@@ -195,6 +195,9 @@ notice libdispatch.txt "libdispatch (swift-corelibs-libdispatch)" "Apache-2.0" \
   "https://github.com/swiftlang/swift-corelibs-libdispatch" "$license_texts/libdispatch-LICENSE"
 notice Adwaita-theme.txt "Adwaita GNUstep theme (plugins-themes-adwaita)" "LGPL-2.1-or-later" \
   "https://github.com/danjboyd/plugins-themes-Adwaita" "$adwaita_theme/../COPYING.LIB"
+notice Adwaita-theme-icons.txt "Adwaita GNUstep theme: the GNOME icons and cursors in Themes/Adwaita.theme (its THIRD-PARTY-NOTICES follows), (C) the GNOME Project" \
+  "LGPL-3.0-or-later OR CC-BY-SA-3.0 (US); the LGPL-3.0 text is in Adwaita-icons.txt" \
+  "https://gitlab.gnome.org/GNOME/adwaita-icon-theme" "$adwaita_theme/Resources/THIRD-PARTY-NOTICES"
 notice gnustep-packager-updater.txt "gnustep-packager updater (GPUpdaterCore, GPUpdaterUI, gp-update-helper)" "MIT" \
   "https://github.com/danjboyd/gnustep-packager" "$repo_root/vendor/gnustep-packager-updater/LICENSE"
 notice URW-fonts.txt "URW Nimbus Sans L 1.05 (GNUstep Back's Fonts/Helvetica.nfont), (URW)++ 1999" \
