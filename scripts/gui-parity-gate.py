@@ -54,8 +54,10 @@ MAIN_MENU = ["File", "Edit", "Clean Up", "Treemap", "Options"]
 TOOLBAR = ["SelectTarget", "Refresh", "Suspend", "Stop", "NSToolbarFlexibleSpaceItem",
            "Search", "Trash", "SelectParent", "ZoomOut", "ZoomIn"]
 # Item.h / FileTreeView.cpp: fixed columns, then the optional ones in order.
-TREE_FIXED = ["Name", "Subtree Percentage", "Percentage"]
-TREE_OPTIONAL = ["Physical Size", "Logical Size", "Items", "Files", "Folders", "Last Change", "Attributes", "Owner"]
+# WinDirStat 2.6: Subtree Percentage became Size Proportion (#78), and
+# Percentage is one of the optional columns, shown by default (#82).
+TREE_FIXED = ["Name", "Size Proportion"]
+TREE_OPTIONAL = ["Percentage", "Physical Size", "Logical Size", "Items", "Files", "Folders", "Last Change", "Attributes", "Owner"]
 EXTENSION_COLUMNS = ["Extension", "Color", "Description", "Bytes", "% Bytes", "Files"]
 LARGEST_COLUMNS = ["Name", "Physical Size", "Logical Size", "Last Change"]
 DUPLICATE_COLUMNS = ["Hash Prefix / Name", "Items", "Physical Size", "Logical Size", "Last Change"]
@@ -67,9 +69,9 @@ CONTEXT_MENU = ["Open", "Copy Path", "Refresh Selected", "Properties", "Move to 
 # Size on, which LinDirStat leaves off on Linux).
 STYLES = {
     "light": {"color_scheme": "default", "defaults": {},
-              "columns": ["Physical Size", "Files", "Last Change"]},
+              "columns": ["Percentage", "Physical Size", "Files", "Last Change"]},
     "dark": {"color_scheme": "prefer-dark", "defaults": {"ShowColumnSizeLogical": True},
-             "columns": ["Physical Size", "Logical Size", "Files", "Last Change"]},
+             "columns": ["Percentage", "Physical Size", "Logical Size", "Files", "Last Change"]},
 }
 
 TREEMAP_THRESHOLDS = {"exact_pixel_match_min": 0.999, "max_channel_delta_max": 2, "rect_mismatch_max": 0}
