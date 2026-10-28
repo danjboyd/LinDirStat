@@ -53,12 +53,15 @@ gnustep-config --variable=GNUSTEP_MAKEFILES
 [ "$setup_only" = 1 ] && exit 0
 
 if [ "$gui_gate" = 1 ]; then
-  # scripts/gui-parity-gate.sh reads themes from ~/GNUstep/Library and checks
-  # the Adwaita header bar, so the pinned theme goes there first.
+  # scripts/gui-parity-gate.sh reads themes from the user's GNUstep/Library
+  # and checks the Adwaita header bar, so the pinned theme goes there first.
+  # The gate takes the home folder from the password database, which in the
+  # workflow's container (/root) isn't $HOME (/github/home).
   step "Adwaita $("$repo_root/scripts/pinned-checkout.sh" --field adwaita tag)"
   theme="$(ADWAITA_BUILD_DIR="$work/adwaita" "$repo_root/scripts/build-adwaita.sh")"
-  mkdir -p "$HOME/GNUstep/Library/Themes"
-  ln -sfn "$theme" "$HOME/GNUstep/Library/Themes/Adwaita.theme"
+  themes="$(getent passwd "$(id -u)" | cut -d: -f6)/GNUstep/Library/Themes"
+  mkdir -p "$themes"
+  ln -sfn "$theme" "$themes/Adwaita.theme"
 
   step "GUI parity gate"
   cd "$repo_root"
