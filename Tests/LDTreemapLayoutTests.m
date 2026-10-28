@@ -494,7 +494,10 @@
   LDFileNode *root = [self treeWithSizes:[NSArray arrayWithObject:[NSNumber numberWithInt:10]]];
   LDTreemap *treemap = [[LDTreemap alloc] initWithRootNode:root metric:LDSizeMetricPhysical width:4 height:4 options:options];
   NSDictionary *colors = [NSDictionary dictionaryWithObject:[NSNumber numberWithInt:0] forKey:@"bin"];
-  const uint8_t *pixels = [[treemap renderRGBAWithColorIndexes:colors] bytes];
+  // Held, so the bytes outlive the statement (GNUstep's ARC frees the
+  // NSData at once otherwise).
+  NSData *rendered = [treemap renderRGBAWithColorIndexes:colors];
+  const uint8_t *pixels = [rendered bytes];
   LDRGBColor palette = [LDExtensionColor paletteColorAtIndex:0];
   int gray = (LDRGBRed(palette) + LDRGBGreen(palette) + LDRGBBlue(palette)) / 3;
   XCTAssertEqual((int)(LDRGBRed(palette) * 0.5 + gray * 0.5), pixels[0]);
@@ -511,13 +514,13 @@
   LDTreemapFolderStyle dark = {0, LDRGB(30, 30, 30), LDRGB(230, 230, 230)};
   LDTreemap *treemap = [[LDTreemap alloc] initWithRootNode:root metric:LDSizeMetricPhysical width:20 height:10
                                                    options:options folderStyle:dark textWidth:nil];
-  const uint8_t *pixels = [[treemap renderRGBAWithColorIndexes:nil] bytes];
+  NSData *rendered = [treemap renderRGBAWithColorIndexes:nil];
+  const uint8_t *pixels = [rendered bytes];
   // The top-left pixel is a leaf's grid line.
   XCTAssertEqual((int)(30 * 0.88 + 230 * 0.12), pixels[0]);
-  LDTreemap *plain = [self treemapForRoot:root width:20 height:10];
-  (void)plain;
   LDTreemap *light = [[LDTreemap alloc] initWithRootNode:root metric:LDSizeMetricPhysical width:20 height:10 options:options];
-  XCTAssertEqual(224, ((const uint8_t *)[[light renderRGBAWithColorIndexes:nil] bytes])[0]);
+  NSData *lightPixels = [light renderRGBAWithColorIndexes:nil];
+  XCTAssertEqual(224, ((const uint8_t *)[lightPixels bytes])[0]);
 }
 
 @end
