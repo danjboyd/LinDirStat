@@ -537,7 +537,7 @@
   return rects;
 }
 
-- (LDTreemap *)curveTreemap:(LDTreemapStyle)style sizes:(NSArray *)sizes width:(int)width height:(int)height
+- (LDTreemap *)treemapWithStyle:(LDTreemapStyle)style sizes:(NSArray *)sizes width:(int)width height:(int)height
 {
   LDTreemapOptions options = LDTreemapDefaultOptions();
   options.style = style;
@@ -551,8 +551,8 @@
 {
   NSArray *expected = @[@[@0, @0, @75, @40], @[@75, @0, @100, @40]];
   NSArray *sizes = @[@30, @10];
-  NSArray *hilbert = [self childRectsOf:[self curveTreemap:LDTreemapStyleHilbert sizes:sizes width:100 height:40]];
-  NSArray *moore = [self childRectsOf:[self curveTreemap:LDTreemapStyleMoore sizes:sizes width:100 height:40]];
+  NSArray *hilbert = [self childRectsOf:[self treemapWithStyle:LDTreemapStyleHilbert sizes:sizes width:100 height:40]];
+  NSArray *moore = [self childRectsOf:[self treemapWithStyle:LDTreemapStyleMoore sizes:sizes width:100 height:40]];
   XCTAssertEqualObjects(expected, hilbert);
   XCTAssertEqualObjects(expected, moore);
 }
@@ -564,7 +564,7 @@
   int style = 0;
   for (style = LDTreemapStyleHilbert; style <= LDTreemapStyleMoore; style++) {
     NSArray *equal = @[@10, @10, @10, @10];
-    NSArray *rects = [self childRectsOf:[self curveTreemap:(LDTreemapStyle)style sizes:equal width:80 height:80]];
+    NSArray *rects = [self childRectsOf:[self treemapWithStyle:(LDTreemapStyle)style sizes:equal width:80 height:80]];
     XCTAssertEqual((NSUInteger)4, [rects count]);
     long area = 0;
     for (NSArray *r in rects) {
@@ -589,7 +589,7 @@
   }
   int style = 0;
   for (style = LDTreemapStyleHilbert; style <= LDTreemapStyleMoore; style++) {
-    NSArray *rects = [self childRectsOf:[self curveTreemap:(LDTreemapStyle)style sizes:sizes width:300 height:200]];
+    NSArray *rects = [self childRectsOf:[self treemapWithStyle:(LDTreemapStyle)style sizes:sizes width:300 height:200]];
     XCTAssertEqual((NSUInteger)25, [rects count]);
     long area = 0;
     for (NSArray *r in rects) {
@@ -610,7 +610,7 @@
   int style = 0;
   for (style = LDTreemapStyleHilbert; style <= LDTreemapStyleMoore; style++) {
     NSArray *sizes = @[@1000, @1, @1, @1];
-    NSArray *rects = [self childRectsOf:[self curveTreemap:(LDTreemapStyle)style sizes:sizes width:40 height:20]];
+    NSArray *rects = [self childRectsOf:[self treemapWithStyle:(LDTreemapStyle)style sizes:sizes width:40 height:20]];
     XCTAssertTrue([rects count] >= 1 && [rects count] < 4, @"%@", rects);
     long area = 0;
     for (NSArray *r in rects) {
@@ -620,6 +620,36 @@
       area += w * h;
     }
     XCTAssertEqual(40L * 20L, area, @"%@", rects);
+  }
+}
+
+// The KDirStat and SequoiaView layouts leave out empty regions too (the
+// skip is in upstream's pushChildren, for every style). KDirStat: fifty tiny
+// children share a 1-pixel row. SequoiaView: 5 rounds to nothing in a
+// 2-pixel column (found with the parity gate's oracle).
+- (void)testRowLayoutsSkipChildrenWithEmptyRegions
+{
+  NSMutableArray *tiny = [NSMutableArray arrayWithObject:@1000];
+  int i = 0;
+  for (i = 0; i < 50; i++) {
+    [tiny addObject:@1];
+  }
+  NSArray *cases = @[@[@(LDTreemapStyleKDirStat), tiny, @40, @20], @[@(LDTreemapStyleSequoiaView), @[@1000, @100, @5, @1], @2, @30]];
+  for (NSArray *c in cases) {
+    LDTreemapStyle style = (LDTreemapStyle)[[c objectAtIndex:0] intValue];
+    NSArray *sizes = [c objectAtIndex:1];
+    int width = [[c objectAtIndex:2] intValue];
+    int height = [[c objectAtIndex:3] intValue];
+    NSArray *rects = [self childRectsOf:[self treemapWithStyle:style sizes:sizes width:width height:height]];
+    XCTAssertTrue([rects count] >= 1 && [rects count] < [sizes count], @"style %d: %@", style, rects);
+    long area = 0;
+    for (NSArray *r in rects) {
+      long w = [[r objectAtIndex:2] longValue] - [[r objectAtIndex:0] longValue];
+      long h = [[r objectAtIndex:3] longValue] - [[r objectAtIndex:1] longValue];
+      XCTAssertTrue(w > 0 && h > 0, @"style %d: %@", style, rects);
+      area += w * h;
+    }
+    XCTAssertEqual((long)width * height, area, @"style %d: %@", style, rects);
   }
 }
 
