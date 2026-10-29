@@ -1,0 +1,33 @@
+# Temporary diagnostic for #117 (the app's gdnc connection breaking about 5 s
+# after launch in the CI container). Not for merging.
+name: debug-117
+on:
+  push:
+    branches: [debug-gdnc-117]
+permissions:
+  contents: read
+jobs:
+  launch:
+    strategy:
+      fail-fast: false
+      matrix:
+        init: [false, true]
+    runs-on: ubuntu-24.04
+    container:
+      image: debian:trixie
+      options: ${{ matrix.init && '--init' || '--label no-init' }}
+    timeout-minutes: 20
+    steps:
+      - name: Packages
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates curl procps strace \
+            xvfb xauth x11-utils fonts-cantarell fonts-dejavu-core
+      - uses: actions/checkout@v4
+      - name: Launch probe
+        run: scripts/debug-gdnc-117.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: probe-init-${{ matrix.init }}
+          path: /tmp/probe
