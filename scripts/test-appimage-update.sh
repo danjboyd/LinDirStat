@@ -194,8 +194,12 @@ PY
       fail "$name: the installed AppImage was not replaced"
       return
     fi
-    if ! wait_for '[ "$(helper_status "$state")" = completed ] && [ -n "$(app_pids)" ] && [ "$(main_window_count)" -ge 1 ]' 60; then
-      fail "$name: the updated AppImage did not start again"
+    # The relaunched app's updater deletes a successful outcome as soon as it
+    # starts (GPStandardUpdaterController -start, _presentPreviousInstallOutcome),
+    # so by the time its window is up the state file may be gone. Gone counts
+    # as completed only with the new AppImage installed and the app running.
+    if ! wait_for '{ [ "$(helper_status "$state")" = completed ] || [ ! -e "$state" ]; } && [ "$(sha "$work/install/LinDirStat.AppImage" 2>/dev/null)" = "$new_sha" ] && [ -n "$(app_pids)" ] && [ "$(main_window_count)" -ge 1 ]' 60; then
+      fail "$name: the updated AppImage did not start again (helper: $(helper_status "$state"))"
       return
     fi
     echo "test-appimage-update: $name: replaced by the new AppImage, which started again"
