@@ -105,15 +105,17 @@ The steps follow 0.1.4's (#51–#55, `docs/packaging.md`, `docs/updates.md` "Rel
 
 ## 0.1.6 (milestone 0.1.6)
 
-Nothing merges for 0.1.6 until `v0.1.5` is tagged. After that, the held PRs
-land in this order: #118, #110, then #111.
+`v0.1.5` was published on 2026-10-29. The held PRs then landed in order: the
+gnustep-packager v0.1.6 pin (#124), #118, #110, #111 and #121.
 
 | Issue | Gap | Owner | Reviewer | Status |
 |---|---|---|---|---|
-| #113 | `release-linux.sh --from-ci` dry-runs a pull request's Release run; `--publish` still needs a `main` run | Linux | lead | reviewed (#118), held |
-| #107 | Full-window GUI parity gate in Linux CI | Linux | lead | 189/189 in CI (#110), held |
-| #106 | Treemap Hilbert and Moore layouts | macOS | Linux (Adwaita), lead | #111: skip empty rounded regions as upstream does (`TreeMap.cpp:766`), then Linux's Adwaita check |
-| #117 | CI container: gdnc connection breaks about 5 s after launch (#115 only survives it) | Linux | macOS | |
+| — | gnustep-packager pin v0.1.5 → v0.1.6 | Linux | lead, macOS (DMG) | done (#124) |
+| #113 | `release-linux.sh --from-ci` dry-runs a pull request's Release run; `--publish` still needs a `main` run | Linux | lead | done (#118) |
+| #107 | Full-window GUI parity gate in Linux CI | Linux | lead | done (#110) |
+| #106 | Treemap Hilbert and Moore layouts | macOS | Linux (Adwaita), lead | done (#111) |
+| #120 | KDirStat and SequoiaView layouts skip empty rounded regions too | macOS | Linux (Adwaita), lead | done (#121) |
+| #117 | CI container: gdnc connection breaks about 5 s after launch (#115 only survives it) | Linux | macOS | investigating (diagnostic branch `debug-gdnc-117`) |
 | #109 | Sizes with 2 decimals (WinDirStat 322ee29b) or keep 1 | Dan decides | — | |
 | #108 | M13 macOS validation matrix | macOS | — | needs Dan's Intel Mac |
 
