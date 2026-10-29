@@ -57,7 +57,7 @@ checks every PR on its own platform before it is merged.
 
 ## 0.1.5: WinDirStat 2.6–2.9 catch-up (milestone 0.1.5)
 
-Items 0–7 (#58–#65) are done. The rest is split by who owns the code:
+Items 0–7 (#58–#65) are done. Also done: #104, launch never falls back to scanning ~ (#105). The rest is split by who owns the code:
 `AppController*.m` work goes to **Linux**, shared model and treemap
 drawing to **macOS**. A Mac-affecting PR is checked on macOS before merge,
 and a treemap PR on Adwaita.
@@ -68,11 +68,11 @@ and a treemap PR on Adwaita.
 | #85 | A loaded Windows CSV joins paths with "/", so saving and loading it again fails | Linux | — | done (#88) |
 | #66 | Extension list: double-click searches; group unregistered extensions (UTType backend on macOS) | Linux | macOS | done (#90) |
 | #69 | File Watcher: regex quick filter, toolbar controls, autoscroll | Linux | macOS | done (#92) |
-| #67 | Seconds in timestamps; several folders in Select Target; any number of custom cleanups | Linux | macOS (part b) | |
-| #83 | Header sorted by clicking keeps room for its sort arrow on macOS | Linux | macOS | |
+| #67 | Seconds in timestamps; several folders in Select Target; any number of custom cleanups | Linux | macOS (part b) | done (#95) |
+| #83 | Header sorted by clicking keeps room for its sort arrow on macOS | Linux | macOS | done (#97) |
 | #57 | Treemap is solid black on an unreadable 0 B root | macOS | Linux (Adwaita) | done (#87) |
 | #68 | JSON save and load in upstream's format | macOS | Linux | done (#91) |
-| #70 | Treemap folder frames, headers, style presets (Hilbert/Moore stretch, may move to 0.1.6) | macOS | Linux (Adwaita) | frames done (#93); presets in progress |
+| #70 | Treemap folder frames, headers, style presets | macOS | Linux (Adwaita) | done (#93, #102); Hilbert/Moore moved to 0.1.6 (#106) |
 
 The release itself (tag, AppImage, DMG) waits for Dan's approval.
 
