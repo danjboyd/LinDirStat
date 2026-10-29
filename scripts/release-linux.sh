@@ -9,7 +9,11 @@
 # Run it from a clean checkout of main at the commit to release. Built here,
 # the version is package.version in package.manifest.json. With --from-ci it
 # is the version the run packaged (a release candidate such as 0.1.4-rc1, or
-# package.version), and the checkout must be at the run's commit. The release
+# package.version), and the checkout must be at the run's commit; for a pull
+# request's run (a dry run only) that is GitHub's merge commit, which it
+# built and its provenance names (git fetch origin <sha>; pull/N/merge while
+# the pull request is open). Use a clone, not a git worktree: the sandbox
+# can't follow a worktree's link to its repository. The release
 # is tag v<version> in the public releases repository (updates.github in the
 # manifest).
 #
@@ -113,12 +117,22 @@ if [ -z "$run_id" ]; then
   built_by="Built from danjboyd/LinDirStat \`${commit:0:7}\`"
 else
   # 1. Take a release workflow run's artifacts, and check them.
-  run_json="$(gh run view "$run_id" --json workflowName,headSha,status,conclusion,url)" || die "no workflow run $run_id"
+  run_json="$(gh run view "$run_id" --json workflowName,headSha,status,conclusion,url,event)" || die "no workflow run $run_id"
   [ "$(printf '%s' "$run_json" | python3 -c 'import json,sys; r=json.load(sys.stdin); print(r["workflowName"], r["status"], r["conclusion"])')" = "Release completed success" ] ||
     die "run $run_id is not a successful Release workflow run"
   run_sha="$(printf '%s' "$run_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["headSha"])')"
   run_url="$(printf '%s' "$run_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["url"])')"
-  [ "$run_sha" = "$commit" ] || die "run $run_id built ${run_sha:0:7}; check out that commit (HEAD is ${commit:0:7})"
+  run_event="$(printf '%s' "$run_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["event"])')"
+  if [ "$run_event" = pull_request ]; then
+    # A pull request's run builds GitHub's merge of the branch into main
+    # (refs/pull/N/merge), and its provenance names that merge: check it
+    # out (git fetch origin pull/N/merge). Dry runs only.
+    [ "$publish" = 0 ] || die "run $run_id is a pull request's; publish a run on main"
+    [ "$(git rev-parse -q --verify "$commit^2" || true)" = "$run_sha" ] ||
+      die "run $run_id is pull request ${run_sha:0:7}'s; check out the merge commit its provenance names (git fetch origin <sha>)"
+  else
+    [ "$run_sha" = "$commit" ] || die "run $run_id built ${run_sha:0:7}; check out that commit (HEAD is ${commit:0:7})"
+  fi
 
   ci="dist/ci/run-$run_id"
   rm -rf "$ci"

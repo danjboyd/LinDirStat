@@ -8,6 +8,7 @@
 #import "AppController.h"
 #import "AppController+Private.h"
 #import "LDColumnChooser.h"
+#import "LDCommandLine.h"
 #import "LDCommandRules.h"
 #import "LDExtensionStats.h"
 #import "LDFileOperations.h"
@@ -18,6 +19,7 @@
 #import "LDOptionsWindowController.h"
 #import "LDScanSession.h"
 #import "LDSearch.h"
+#import "LDSelectTargetPanel.h"
 #import "LDSizeFormatter.h"
 #import "LDSpaceItems.h"
 #import "LDTreeCells.h"
@@ -50,6 +52,7 @@
 - (void)toggleLogicalSize:(id)sender;
 - (void)toggleAbsolutePercentages:(id)sender;
 - (void)toggleGroupUnregisteredTypes:(id)sender;
+- (NSArray *)initialScanPaths:(LDCommandLine *)commandLine;
 - (NSMenu *)customCleanupMenu;
 - (void)addWatcherEvents:(NSArray *)events;
 - (void)startWatching:(id)sender;
@@ -77,6 +80,7 @@
 {
   NSUInteger _scansFinished;
   NSUInteger _idleBeforeAdoption;
+  NSUInteger _selectTargetRequests;
 }
 @end
 
@@ -94,6 +98,9 @@
 
 - (NSUInteger)scansFinished { return _scansFinished; }
 - (NSUInteger)idleBeforeAdoption { return _idleBeforeAdoption; }
+// Select Target is a modal panel: counted instead of shown.
+- (void)openPath:(id)sender { (void)sender; _selectTargetRequests++; }
+- (NSUInteger)selectTargetRequests { return _selectTargetRequests; }
 - (NSWindow *)window { return _window; }
 - (LDOutlineView *)tree { return _directoryTable; }
 - (NSTableView *)extensionTable { return _extensionTable; }
@@ -823,6 +830,49 @@
 
   [_controller toggleFileWatcher:nil];
   XCTAssertFalse([_controller isWatching]);
+}
+
+// #104: a launch with no folder asks with Select Target (WinDirStat.cpp
+// 487-490) instead of scanning the home folder; folders from the command
+// line (Open With LinDirStat too) still scan, and a checkout's fixture only
+// from the checkout.
+- (void)testLaunchWithoutAFolderAsksInsteadOfScanningHome
+{
+  if (!_controller) {
+    return;
+  }
+  // NSProcessInfo reads the environment once, so LINDIRSTAT_SCAN_PATH can
+  // only be checked when the runner leaves it unset.
+  if ([[[NSProcessInfo processInfo] environment] objectForKey:@"LINDIRSTAT_SCAN_PATH"]) {
+    return;
+  }
+  NSFileManager *files = [NSFileManager defaultManager];
+  NSString *previousDirectory = [files currentDirectoryPath];
+  XCTAssertTrue([files changeCurrentDirectoryPath:_workRoot]);
+
+  LDCommandLine *plain = [LDCommandLine commandLineWithArguments:@[@"LinDirStat"] currentDirectory:_workRoot];
+  XCTAssertEqualObjects(@[], [_controller initialScanPaths:plain]);
+  LDCommandLine *folder = [LDCommandLine commandLineWithArguments:@[@"LinDirStat", _tree] currentDirectory:_workRoot];
+  XCTAssertEqualObjects(@[[_tree stringByStandardizingPath]], [_controller initialScanPaths:folder]);
+  // Started from a checkout, the fixture.
+  NSString *fixture = [_workRoot stringByAppendingPathComponent:@"Tests/Fixtures/basic-tree"];
+  XCTAssertTrue([files createDirectoryAtPath:fixture withIntermediateDirectories:YES attributes:nil error:NULL]);
+  XCTAssertEqualObjects(@[fixture], [_controller initialScanPaths:plain]);
+  [files removeItemAtPath:[_workRoot stringByAppendingPathComponent:@"Tests"] error:NULL];
+
+  // macOS opens a launch-time folder (a cold Open With, a Dock drop) before
+  // the window is up; it's kept for applicationDidFinishLaunching:.
+  AppController *launching = [[AppController alloc] init];
+  [launching application:NSApp openFiles:@[_tree]];
+  XCTAssertEqualObjects(@[[_tree stringByStandardizingPath]], [launching valueForKey:@"launchFolders"]);
+
+  // Refresh with nothing scanned asks too.
+  NSUInteger asked = [_controller selectTargetRequests];
+  [_controller rescan:nil];
+  XCTAssertEqual(asked + 1, [_controller selectTargetRequests]);
+  XCTAssertNil([_controller root]);
+
+  [files changeCurrentDirectoryPath:previousDirectory];
 }
 
 #pragma mark - Refresh engine
@@ -1722,6 +1772,76 @@
   XCTAssertFalse([[LDPreferences sharedPreferences] groupUnregisteredTypes]);
   XCTAssertEqual(NSNotFound, [self extensionRowForKey:LDExtensionGroupKey]);
   XCTAssertNotEqual(NSNotFound, [self extensionRowForKey:@"lindirstatzz"]);
+}
+
+// GNUstep's distributed notifications go over a DO connection to gdnc; when
+// gdnc goes away, a request raises NSPortTimeoutException out of the modal
+// loop (#100's AppImage smoke launch, in the release workflow's container).
+// Select Target stays open, and Cancel still closes it.
+- (void)testSelectTargetSurvivesADeadNotificationServer
+{
+  if (!_controller) {
+    return;
+  }
+  __block NSUInteger runs = 0;
+  __block NSWindow *firstPanel = nil;
+  __block BOOL samePanel = NO;
+  [LDSelectTargetPanel setModalRunnerForTesting:^NSInteger(NSWindow *panel) {
+    runs++;
+    if (runs == 1) {
+      firstPanel = panel;
+      [NSException raise:NSPortTimeoutException format:@"method request - port was invalidated"];
+    }
+    samePanel = panel == firstPanel;
+    return NSModalResponseCancel;
+  }];
+  NSArray *paths = nil;
+  @try {
+    paths = [LDSelectTargetPanel runWithInitialFolder:_tree];
+  }
+  @finally {
+    [LDSelectTargetPanel setModalRunnerForTesting:nil];
+  }
+  XCTAssertNil(paths);
+  XCTAssertEqual((NSUInteger)2, runs);
+  XCTAssertNotNil(firstPanel);
+  XCTAssertTrue(samePanel);
+
+  // A connection that fails every session gives up as if cancelled, after
+  // a few tries, rather than spinning.
+  runs = 0;
+  [LDSelectTargetPanel setModalRunnerForTesting:^NSInteger(NSWindow *panel) {
+    (void)panel;
+    runs++;
+    [NSException raise:NSPortTimeoutException format:@"method request - port was invalidated"];
+    return NSModalResponseOK;
+  }];
+  @try {
+    paths = [LDSelectTargetPanel runWithInitialFolder:_tree];
+  }
+  @finally {
+    [LDSelectTargetPanel setModalRunnerForTesting:nil];
+  }
+  XCTAssertNil(paths);
+  XCTAssertEqual((NSUInteger)4, runs);
+
+  // Anything else still propagates.
+  [LDSelectTargetPanel setModalRunnerForTesting:^NSInteger(NSWindow *panel) {
+    (void)panel;
+    [NSException raise:NSInternalInconsistencyException format:@"not a DO timeout"];
+    return NSModalResponseCancel;
+  }];
+  BOOL raised = NO;
+  @try {
+    [LDSelectTargetPanel runWithInitialFolder:_tree];
+  }
+  @catch (NSException *exception) {
+    raised = [[exception name] isEqualToString:NSInternalInconsistencyException];
+  }
+  @finally {
+    [LDSelectTargetPanel setModalRunnerForTesting:nil];
+  }
+  XCTAssertTrue(raised);
 }
 
 // WinDirStat's "Extension - Search", also on a double-click (0cdff4c3):
