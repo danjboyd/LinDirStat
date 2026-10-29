@@ -10,4 +10,8 @@
 // duplicates checkbox in LDPreferences.
 + (NSArray *)runWithInitialFolder:(NSString *)folder;
 
+// For tests: runs the dialog with RUNNER instead of -[NSApp
+// runModalForWindow:]; nil restores it.
++ (void)setModalRunnerForTesting:(NSInteger (^)(NSWindow *panel))runner;
+
 @end
