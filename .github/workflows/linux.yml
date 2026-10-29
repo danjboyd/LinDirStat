@@ -1,6 +1,7 @@
 # The GNUstep build on Debian 13 (scripts/ci-linux.sh): the gnustep-cli-new
 # managed toolchain and a pinned tools-xctest, then the app and
-# the unit, command-line and UI coordination tests (on Xvfb).
+# the unit, command-line and UI coordination tests (on Xvfb), then the
+# full-window GUI parity gate with the pinned Adwaita theme.
 name: Linux
 
 on:
@@ -28,9 +29,17 @@ jobs:
           apt-get install -y --no-install-recommends \
             ca-certificates curl git make pkg-config python3 sudo \
             nettle-dev \
-            xvfb xauth x11-utils
+            xvfb xauth x11-utils \
+            xdotool imagemagick fonts-cantarell fonts-dejavu-core \
+            shared-mime-info gsettings-desktop-schemas
 
       - uses: actions/checkout@v4
 
       - name: Build and test
         run: scripts/ci-linux.sh
+
+      # scripts/gui-parity-gate.sh (docs/regression-gate.md): the app on its
+      # own Xvfb in the light and dark styles, checked against WinDirStat's
+      # layout and the Adwaita theme. It reads themes from ~/GNUstep/Library.
+      - name: GUI parity gate
+        run: scripts/ci-linux.sh --gui-gate
