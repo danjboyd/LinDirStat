@@ -54,14 +54,21 @@ AppImageUpdate and AppImageLauncher can update it too.
 
 Open the DMG and drag LinDirStat to Applications.
 
-The app is not notarized by Apple yet, so the first launch is blocked with a
-message that Apple cannot check it for malicious software. To open it anyway:
+The app is not notarized by Apple yet, so macOS blocks the first launch with
+the message “LinDirStat” Not Opened: Apple could not verify that it is free of
+malware. To avoid that, run this in Terminal before you open it for the first
+time:
 
-1. Try to open LinDirStat once, then dismiss the message.
+    xattr -dr com.apple.quarantine /Applications/LinDirStat.app
+
+If macOS has already blocked it:
+
+1. In the message, click **Done**, not **Move to Trash** (the default button).
 2. Open **System Settings › Privacy & Security**, scroll down to the message
    about LinDirStat and click **Open Anyway**.
 
-Or, in Terminal: `xattr -dr com.apple.quarantine /Applications/LinDirStat.app`
+Once macOS has blocked the app, the Terminal command above may fail with
+“Operation not permitted”; use **Open Anyway** then.
 
 To scan your whole disk, give LinDirStat **Full Disk Access** in
 **System Settings › Privacy & Security**. Without it, macOS hides some folders

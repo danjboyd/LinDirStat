@@ -61,9 +61,13 @@ There is no Apple Developer account, so the app is ad-hoc signed
 the Mac that built it. On another Mac, Gatekeeper blocks the first launch of
 a downloaded copy:
 
-- macOS 15 and later: open it once, then System Settings › Privacy & Security
-  › "Open Anyway".
-- Or remove the quarantine flag: `xattr -dr com.apple.quarantine LinDirStat.app`.
+- Before the first launch, remove the quarantine flag:
+  `xattr -dr com.apple.quarantine LinDirStat.app`.
+- Once it has been blocked: click "Done" in the message (the default button is
+  "Move to Trash" on macOS 26), then System Settings › Privacy & Security ›
+  "Open Anyway". `xattr` may then fail with "Operation not permitted": App
+  Management protects a bundle Gatekeeper has assessed, and terminals lack
+  that permission by default (seen on macOS 26 with the 0.1.5-rc1 DMG).
 
 Set `SIGN_ID` to sign with a real identity later (`make -C macos SIGN_ID="Developer ID Application: …"`).
 
