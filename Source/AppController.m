@@ -1270,7 +1270,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   CGFloat selectionWidth = 190.0;
   _memoryField = [self statusLabel];
   // Wide enough for the label in any language with a four-digit size.
-  NSString *widest = [NSString stringWithFormat:LDLocalized(@"Memory: %@"), @"9999.9 MB"];
+  NSString *widest = [NSString stringWithFormat:LDLocalized(@"Memory: %@"), @"9999.99 MB"];
   CGFloat memoryWidth = MAX(130.0, ceil([widest sizeWithAttributes:@{NSFontAttributeName: [_memoryField font]}].width) + 8.0);
   [_memoryField setAlignment:NSRightTextAlignment];
   [_memoryField setFrame:NSMakeRect(bounds.size.width - memoryWidth - 12, 6, memoryWidth, 18)];
