@@ -703,7 +703,8 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
                                   action:@selector(treemapPresetChanged:)];
   [_treemapPreset setFrameSize:NSMakeSize(MAX(NSWidth([_treemapPreset frame]), 160.0), NSHeight([_treemapPreset frame]))];
   [self addRow:LDLocalized(@"Color Presets") controls:@[_treemapPreset]];
-  _treemapStyle = [self popUpWithTitles:@[LDLocalized(@"KDirStat"), @"SequoiaView"] action:@selector(treemapChanged:)];
+  _treemapStyle = [self popUpWithTitles:@[LDLocalized(@"KDirStat"), @"SequoiaView", LDLocalized(@"Hilbert"), LDLocalized(@"Moore")]
+                                 action:@selector(treemapChanged:)];
   [_treemapStyle setFrameSize:NSMakeSize(MAX(NSWidth([_treemapStyle frame]), 160.0), NSHeight([_treemapStyle frame]))];
   [self addRow:LDLocalized(@"Style") controls:@[_treemapStyle]];
   _treemapGrid = [self addCheckbox:LDLocalized(@"Show grid") action:@selector(treemapChanged:)];

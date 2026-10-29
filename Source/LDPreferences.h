@@ -171,7 +171,7 @@ typedef enum {
 - (uint32_t)fileTreeColorForDepth:(NSUInteger)depth;
 
 // Treemap. Stored as the WinDirStat percentages.
-- (NSInteger)treemapStyle;               // 0 KDirStat, 1 SequoiaView
+- (NSInteger)treemapStyle;               // 0 KDirStat, 1 SequoiaView, 2 Hilbert, 3 Moore
 - (void)setTreemapStyle:(NSInteger)style;
 - (BOOL)treemapGrid;
 - (void)setTreemapGrid:(BOOL)flag;

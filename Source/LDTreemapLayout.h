@@ -7,8 +7,10 @@
 // cushion shading. Pure Foundation; the view only blits the rendered pixels.
 
 typedef enum {
-  LDTreemapStyleKDirStat = 0,   // Children laid out in rows (WinDirStat default)
-  LDTreemapStyleSequoiaView = 1 // Classic squarification
+  LDTreemapStyleKDirStat = 0,    // Children laid out in rows (WinDirStat default)
+  LDTreemapStyleSequoiaView = 1, // Classic squarification
+  LDTreemapStyleHilbert = 2,     // Along a Hilbert curve (WinDirStat 2.9)
+  LDTreemapStyleMoore = 3        // Along a Moore curve (WinDirStat 2.9)
 } LDTreemapStyle;
 
 // gridColor's "Auto" (WinDirStat's CLR_DEFAULT): the window colour tinted
@@ -106,6 +108,9 @@ typedef struct {
   int _width;
   int _height;
   LDTreemapCell *_cells;
+  // The Hilbert and Moore layouts' orientation per cell, carried from a
+  // folder to its children; NULL for the other styles.
+  uint8_t *_curveStates;
   NSUInteger _cellCount;
   NSUInteger _cellCapacity;
   LDTreemapFolderStyle _folderStyle;

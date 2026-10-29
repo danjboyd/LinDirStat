@@ -380,6 +380,18 @@
   XCTAssertFalse([_preferences applyTreemapPreset:99]);
 }
 
+// WinDirStat 2.9's four layout styles: Rows, Squarified, Hilbert, Moore.
+- (void)testTreemapStyleTakesTheCurveLayouts
+{
+  [_preferences setTreemapStyle:2];
+  XCTAssertEqual(LDTreemapStyleHilbert, [_preferences treemapOptions].style);
+  [_preferences setTreemapStyle:3];
+  XCTAssertEqual(LDTreemapStyleMoore, [_preferences treemapOptions].style);
+  [_preferences setTreemapStyle:9];
+  XCTAssertEqual((NSInteger)3, [_preferences treemapStyle]);
+}
+
 @end
+
 
 

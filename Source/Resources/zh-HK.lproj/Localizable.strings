@@ -72,6 +72,7 @@
 "Help" = "說明";
 "High Contrast" = "高對比度";
 "Highlight color" = "已選取邊框顏色";
+"Hilbert" = "希爾伯特";
 "Individual drives" = "個別磁碟機";
 "Invalid filter" = "無效的篩選";
 "Invalid filter: %@" = "無效的篩選: %@";
@@ -90,6 +91,7 @@
 "Logical Size:" = "邏輯大小:";
 "Memory: %@" = "記憶體使用：%@";
 "Modified" = "已修改";
+"Moore" = "摩爾";
 "Move Down" = "向下移動";
 "Move To" = "移動至";
 "Move To…" = "移動至…";

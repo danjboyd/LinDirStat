@@ -523,6 +523,107 @@
   XCTAssertEqual(224, ((const uint8_t *)[lightPixels bytes])[0]);
 }
 
+#pragma mark - Hilbert and Moore layouts (WinDirStat 2.9: 33f92966)
+
+- (NSArray *)childRectsOf:(LDTreemap *)treemap
+{
+  NSMutableArray *rects = [NSMutableArray array];
+  const LDTreemapCell *cells = [treemap cells];
+  uint32_t i = 0;
+  for (i = 0; i < cells[0].childCount; i++) {
+    LDTreemapRect r = [treemap rectOfCell:(NSUInteger)cells[0].firstChild + i];
+    [rects addObject:@[@(r.left), @(r.top), @(r.right), @(r.bottom)]];
+  }
+  return rects;
+}
+
+- (LDTreemap *)curveTreemap:(LDTreemapStyle)style sizes:(NSArray *)sizes width:(int)width height:(int)height
+{
+  LDTreemapOptions options = LDTreemapDefaultOptions();
+  options.style = style;
+  return [[LDTreemap alloc] initWithRootNode:[self treeWithSizes:sizes] metric:LDSizeMetricPhysical
+                                       width:width height:height options:options];
+}
+
+// Two children split the rectangle along x by weight (Hilbert2 and Moore2
+// cut the same way; Moore also turns them).
+- (void)testCurveLayoutsSplitTwoChildrenByWeight
+{
+  NSArray *expected = @[@[@0, @0, @75, @40], @[@75, @0, @100, @40]];
+  NSArray *sizes = @[@30, @10];
+  NSArray *hilbert = [self childRectsOf:[self curveTreemap:LDTreemapStyleHilbert sizes:sizes width:100 height:40]];
+  NSArray *moore = [self childRectsOf:[self curveTreemap:LDTreemapStyleMoore sizes:sizes width:100 height:40]];
+  XCTAssertEqualObjects(expected, hilbert);
+  XCTAssertEqualObjects(expected, moore);
+}
+
+// Four equal children in a square: the template closest to square cells
+// gives four quadrants, which tile the square.
+- (void)testCurveLayoutsTileFourEqualChildren
+{
+  int style = 0;
+  for (style = LDTreemapStyleHilbert; style <= LDTreemapStyleMoore; style++) {
+    NSArray *equal = @[@10, @10, @10, @10];
+    NSArray *rects = [self childRectsOf:[self curveTreemap:(LDTreemapStyle)style sizes:equal width:80 height:80]];
+    XCTAssertEqual((NSUInteger)4, [rects count]);
+    long area = 0;
+    for (NSArray *r in rects) {
+      long w = [[r objectAtIndex:2] longValue] - [[r objectAtIndex:0] longValue];
+      long h = [[r objectAtIndex:3] longValue] - [[r objectAtIndex:1] longValue];
+      XCTAssertEqual(40, w, @"%@", rects);
+      XCTAssertEqual(40, h, @"%@", rects);
+      area += w * h;
+    }
+    XCTAssertEqual(80L * 80L, area);
+  }
+}
+
+// Many children: every one gets a region inside the parent, and together
+// they cover it (the curve's runs are laid out recursively).
+- (void)testCurveLayoutsCoverTheParentWithManyChildren
+{
+  NSMutableArray *sizes = [NSMutableArray array];
+  int i = 0;
+  for (i = 0; i < 25; i++) {
+    [sizes addObject:@(1000 - i * 30)];
+  }
+  int style = 0;
+  for (style = LDTreemapStyleHilbert; style <= LDTreemapStyleMoore; style++) {
+    NSArray *rects = [self childRectsOf:[self curveTreemap:(LDTreemapStyle)style sizes:sizes width:300 height:200]];
+    XCTAssertEqual((NSUInteger)25, [rects count]);
+    long area = 0;
+    for (NSArray *r in rects) {
+      XCTAssertTrue([[r objectAtIndex:0] intValue] >= 0 && [[r objectAtIndex:2] intValue] <= 300);
+      XCTAssertTrue([[r objectAtIndex:1] intValue] >= 0 && [[r objectAtIndex:3] intValue] <= 200);
+      area += ([[r objectAtIndex:2] longValue] - [[r objectAtIndex:0] longValue])
+              * ([[r objectAtIndex:3] longValue] - [[r objectAtIndex:1] longValue]);
+    }
+    XCTAssertEqual(300L * 200L, area);
+  }
+}
+
+// Children whose rounded region is empty are left out, as upstream's
+// pushChildren skips them (TreeMap.cpp: childRegion.bounds.IsEmpty()); the
+// large one still covers the parent.
+- (void)testCurveLayoutsSkipChildrenWithEmptyRegions
+{
+  int style = 0;
+  for (style = LDTreemapStyleHilbert; style <= LDTreemapStyleMoore; style++) {
+    NSArray *sizes = @[@1000, @1, @1, @1];
+    NSArray *rects = [self childRectsOf:[self curveTreemap:(LDTreemapStyle)style sizes:sizes width:40 height:20]];
+    XCTAssertTrue([rects count] >= 1 && [rects count] < 4, @"%@", rects);
+    long area = 0;
+    for (NSArray *r in rects) {
+      long w = [[r objectAtIndex:2] longValue] - [[r objectAtIndex:0] longValue];
+      long h = [[r objectAtIndex:3] longValue] - [[r objectAtIndex:1] longValue];
+      XCTAssertTrue(w > 0 && h > 0, @"%@", rects);
+      area += w * h;
+    }
+    XCTAssertEqual(40L * 20L, area, @"%@", rects);
+  }
+}
+
 @end
+
 
 
