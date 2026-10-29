@@ -57,7 +57,7 @@ checks every PR on its own platform before it is merged.
 
 ## 0.1.5: WinDirStat 2.6–2.9 catch-up (milestone 0.1.5)
 
-Items 0–7 (#58–#65) are done. The rest is split by who owns the code:
+Items 0–7 (#58–#65) are done. Also done: #104, launch never falls back to scanning ~ (#105). The rest is split by who owns the code:
 `AppController*.m` work goes to **Linux**, shared model and treemap
 drawing to **macOS**. A Mac-affecting PR is checked on macOS before merge,
 and a treemap PR on Adwaita.
@@ -68,11 +68,11 @@ and a treemap PR on Adwaita.
 | #85 | A loaded Windows CSV joins paths with "/", so saving and loading it again fails | Linux | — | done (#88) |
 | #66 | Extension list: double-click searches; group unregistered extensions (UTType backend on macOS) | Linux | macOS | done (#90) |
 | #69 | File Watcher: regex quick filter, toolbar controls, autoscroll | Linux | macOS | done (#92) |
-| #67 | Seconds in timestamps; several folders in Select Target; any number of custom cleanups | Linux | macOS (part b) | |
-| #83 | Header sorted by clicking keeps room for its sort arrow on macOS | Linux | macOS | |
+| #67 | Seconds in timestamps; several folders in Select Target; any number of custom cleanups | Linux | macOS (part b) | done (#95) |
+| #83 | Header sorted by clicking keeps room for its sort arrow on macOS | Linux | macOS | done (#97) |
 | #57 | Treemap is solid black on an unreadable 0 B root | macOS | Linux (Adwaita) | done (#87) |
 | #68 | JSON save and load in upstream's format | macOS | Linux | done (#91) |
-| #70 | Treemap folder frames, headers, style presets (Hilbert/Moore stretch, may move to 0.1.6) | macOS | Linux (Adwaita) | frames done (#93); presets in progress |
+| #70 | Treemap folder frames, headers, style presets | macOS | Linux (Adwaita) | done (#93, #102); Hilbert/Moore moved to 0.1.6 (#106) |
 
 The release itself (tag, AppImage, DMG) waits for Dan's approval.
 
@@ -102,6 +102,20 @@ The steps follow 0.1.4's (#51–#55, `docs/packaging.md`, `docs/updates.md` "Rel
    the Linux machine that holds the update key. It creates the release with
    every asset and `SHA256SUMS`, publishes the signed feed, and pushes tag
    `v0.1.5` last. Then check the live feed (`docs/updates.md`).
+
+## 0.1.6 (milestone 0.1.6)
+
+Nothing merges for 0.1.6 until `v0.1.5` is tagged. After that, the held PRs
+land in this order: #118, #110, then #111.
+
+| Issue | Gap | Owner | Reviewer | Status |
+|---|---|---|---|---|
+| #113 | `release-linux.sh --from-ci` dry-runs a pull request's Release run; `--publish` still needs a `main` run | Linux | lead | reviewed (#118), held |
+| #107 | Full-window GUI parity gate in Linux CI | Linux | lead | 189/189 in CI (#110), held |
+| #106 | Treemap Hilbert and Moore layouts | macOS | Linux (Adwaita), lead | #111: skip empty rounded regions as upstream does (`TreeMap.cpp:766`), then Linux's Adwaita check |
+| #117 | CI container: gdnc connection breaks about 5 s after launch (#115 only survives it) | Linux | macOS | |
+| #109 | Sizes with 2 decimals (WinDirStat 322ee29b) or keep 1 | Dan decides | — | |
+| #108 | M13 macOS validation matrix | macOS | — | needs Dan's Intel Mac |
 
 ## Intentional differences (not gaps)
 
