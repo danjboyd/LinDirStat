@@ -15,7 +15,7 @@ launch() { # $1: run name, rest: command prefix
   env -i APPIMAGE_EXTRACT_AND_RUN=1 DBUS_SESSION_BUS_ADDRESS="unix:path=$E/runtime/no-session-bus" DISPLAY=:0 \
     GNUSTEP_HOME="$E/home" HOME="$E/home" LANG=C.UTF-8 PATH=/usr/bin:/bin TMPDIR="$E/tmp" \
     XDG_CACHE_HOME="$E/home/.cache" XDG_CONFIG_HOME="$E/home/.config" XDG_DATA_HOME="$E/home/.local/share" \
-    XDG_RUNTIME_DIR="$E/runtime" XDG_STATE_HOME="$E/home/.local/state" LINDIRSTAT_SCAN_PATH=/usr/share/zoneinfo \
+    XDG_RUNTIME_DIR="$E/runtime" XDG_STATE_HOME="$E/home/.local/state" \
     "$@" "$P/app.AppImage" > "$P/$name.log" 2>&1 &
   local app=$!
   for i in $(seq 1 24); do
