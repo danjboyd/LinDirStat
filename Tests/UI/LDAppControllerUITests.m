@@ -19,6 +19,7 @@
 #import "LDOptionsWindowController.h"
 #import "LDScanSession.h"
 #import "LDSearch.h"
+#import "LDSelectTargetPanel.h"
 #import "LDSizeFormatter.h"
 #import "LDSpaceItems.h"
 #import "LDTreeCells.h"
@@ -1771,6 +1772,76 @@
   XCTAssertFalse([[LDPreferences sharedPreferences] groupUnregisteredTypes]);
   XCTAssertEqual(NSNotFound, [self extensionRowForKey:LDExtensionGroupKey]);
   XCTAssertNotEqual(NSNotFound, [self extensionRowForKey:@"lindirstatzz"]);
+}
+
+// GNUstep's distributed notifications go over a DO connection to gdnc; when
+// gdnc goes away, a request raises NSPortTimeoutException out of the modal
+// loop (#100's AppImage smoke launch, in the release workflow's container).
+// Select Target stays open, and Cancel still closes it.
+- (void)testSelectTargetSurvivesADeadNotificationServer
+{
+  if (!_controller) {
+    return;
+  }
+  __block NSUInteger runs = 0;
+  __block NSWindow *firstPanel = nil;
+  __block BOOL samePanel = NO;
+  [LDSelectTargetPanel setModalRunnerForTesting:^NSInteger(NSWindow *panel) {
+    runs++;
+    if (runs == 1) {
+      firstPanel = panel;
+      [NSException raise:NSPortTimeoutException format:@"method request - port was invalidated"];
+    }
+    samePanel = panel == firstPanel;
+    return NSModalResponseCancel;
+  }];
+  NSArray *paths = nil;
+  @try {
+    paths = [LDSelectTargetPanel runWithInitialFolder:_tree];
+  }
+  @finally {
+    [LDSelectTargetPanel setModalRunnerForTesting:nil];
+  }
+  XCTAssertNil(paths);
+  XCTAssertEqual((NSUInteger)2, runs);
+  XCTAssertNotNil(firstPanel);
+  XCTAssertTrue(samePanel);
+
+  // A connection that fails every session gives up as if cancelled, after
+  // a few tries, rather than spinning.
+  runs = 0;
+  [LDSelectTargetPanel setModalRunnerForTesting:^NSInteger(NSWindow *panel) {
+    (void)panel;
+    runs++;
+    [NSException raise:NSPortTimeoutException format:@"method request - port was invalidated"];
+    return NSModalResponseOK;
+  }];
+  @try {
+    paths = [LDSelectTargetPanel runWithInitialFolder:_tree];
+  }
+  @finally {
+    [LDSelectTargetPanel setModalRunnerForTesting:nil];
+  }
+  XCTAssertNil(paths);
+  XCTAssertEqual((NSUInteger)4, runs);
+
+  // Anything else still propagates.
+  [LDSelectTargetPanel setModalRunnerForTesting:^NSInteger(NSWindow *panel) {
+    (void)panel;
+    [NSException raise:NSInternalInconsistencyException format:@"not a DO timeout"];
+    return NSModalResponseCancel;
+  }];
+  BOOL raised = NO;
+  @try {
+    [LDSelectTargetPanel runWithInitialFolder:_tree];
+  }
+  @catch (NSException *exception) {
+    raised = [[exception name] isEqualToString:NSInternalInconsistencyException];
+  }
+  @finally {
+    [LDSelectTargetPanel setModalRunnerForTesting:nil];
+  }
+  XCTAssertTrue(raised);
 }
 
 // WinDirStat's "Extension - Search", also on a double-click (0cdff4c3):
