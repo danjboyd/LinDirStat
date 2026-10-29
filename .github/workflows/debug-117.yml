@@ -21,8 +21,16 @@ jobs:
       - name: Packages
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends ca-certificates curl procps strace \
-            xvfb xauth x11-utils fonts-cantarell fonts-dejavu-core
+          # The release job's packages (release.yml), plus procps and strace.
+          apt-get install -y --no-install-recommends \
+            ca-certificates curl git make pkg-config python3 sudo file binutils \
+            nettle-dev \
+            libx11-dev libxext-dev libxft-dev libxrender-dev libfreetype-dev \
+            libfontconfig-dev libcairo2-dev libglib2.0-dev \
+            xvfb xauth x11-utils fonts-cantarell fonts-dejavu-core \
+            desktop-file-utils procps strace
+          apt-get install -y --no-install-recommends \
+            gnome-shell dbus dbus-x11 xdotool fuse3
       - uses: actions/checkout@v4
       - name: Launch probe
         run: scripts/debug-gdnc-117.sh
