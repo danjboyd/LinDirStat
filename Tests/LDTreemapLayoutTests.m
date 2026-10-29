@@ -602,6 +602,27 @@
   }
 }
 
+// Children whose rounded region is empty are left out, as upstream's
+// pushChildren skips them (TreeMap.cpp: childRegion.bounds.IsEmpty()); the
+// large one still covers the parent.
+- (void)testCurveLayoutsSkipChildrenWithEmptyRegions
+{
+  int style = 0;
+  for (style = LDTreemapStyleHilbert; style <= LDTreemapStyleMoore; style++) {
+    NSArray *sizes = @[@1000, @1, @1, @1];
+    NSArray *rects = [self childRectsOf:[self curveTreemap:(LDTreemapStyle)style sizes:sizes width:40 height:20]];
+    XCTAssertTrue([rects count] >= 1 && [rects count] < 4, @"%@", rects);
+    long area = 0;
+    for (NSArray *r in rects) {
+      long w = [[r objectAtIndex:2] longValue] - [[r objectAtIndex:0] longValue];
+      long h = [[r objectAtIndex:3] longValue] - [[r objectAtIndex:1] longValue];
+      XCTAssertTrue(w > 0 && h > 0, @"%@", rects);
+      area += w * h;
+    }
+    XCTAssertEqual(40L * 20L, area, @"%@", rects);
+  }
+}
+
 @end
 
 

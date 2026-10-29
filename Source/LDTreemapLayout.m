@@ -897,7 +897,12 @@ static LDTreemapRect LDCurvePixelRect(LDCurveRegion region, LDTreemapRect parent
                         _curveStates ? _curveStates[index] : 0};
   LDCurveLayoutRange(root, prefix, 0, count, _options.style == LDTreemapStyleMoore, regions);
   for (i = 0; i < count; i++) {
-    NSInteger child = [self appendCellForNode:[children objectAtIndex:i] rect:LDCurvePixelRect(regions[i], bounds)];
+    // Upstream's pushChildren skips a child whose rounded region is empty.
+    LDTreemapRect rect = LDCurvePixelRect(regions[i], bounds);
+    if (LDTreemapRectWidth(rect) <= 0 || LDTreemapRectHeight(rect) <= 0) {
+      continue;
+    }
+    NSInteger child = [self appendCellForNode:[children objectAtIndex:i] rect:rect];
     _curveStates[child] = regions[i].state;
   }
   free(prefix);
