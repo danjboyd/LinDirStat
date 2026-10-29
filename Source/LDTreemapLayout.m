@@ -687,6 +687,16 @@ static LDTreemapRect LDCurvePixelRect(LDCurveRegion region, LDTreemapRect parent
   return (NSInteger)_cellCount++;
 }
 
+// A child's cell, or -1 for a child whose region is empty: upstream's
+// pushChildren (TreeMap.cpp) skips those whatever the style.
+- (NSInteger)appendChildCellForNode:(LDFileNode *)node rect:(LDTreemapRect)rect
+{
+  if (LDTreemapRectWidth(rect) <= 0 || LDTreemapRectHeight(rect) <= 0) {
+    return -1;
+  }
+  return [self appendCellForNode:node rect:rect];
+}
+
 - (LDTreemapRect)rectOfCell:(NSUInteger)index
 {
   LDTreemapCell *cell = &_cells[index];
@@ -873,7 +883,7 @@ static LDTreemapRect LDCurvePixelRect(LDCurveRegion region, LDTreemapRect parent
       } else {
         childRect = (LDTreemapRect){(int)top, (int)left, bottom, right};
       }
-      [self appendCellForNode:[children objectAtIndex:i] rect:childRect];
+      [self appendChildCellForNode:[children objectAtIndex:i] rect:childRect];
       left = nextLeft;
     }
     top = nextTop;
@@ -897,13 +907,11 @@ static LDTreemapRect LDCurvePixelRect(LDCurveRegion region, LDTreemapRect parent
                         _curveStates ? _curveStates[index] : 0};
   LDCurveLayoutRange(root, prefix, 0, count, _options.style == LDTreemapStyleMoore, regions);
   for (i = 0; i < count; i++) {
-    // Upstream's pushChildren skips a child whose rounded region is empty.
-    LDTreemapRect rect = LDCurvePixelRect(regions[i], bounds);
-    if (LDTreemapRectWidth(rect) <= 0 || LDTreemapRectHeight(rect) <= 0) {
-      continue;
+    NSInteger child = [self appendChildCellForNode:[children objectAtIndex:i]
+                                              rect:LDCurvePixelRect(regions[i], bounds)];
+    if (child >= 0) {
+      _curveStates[child] = regions[i].state;
     }
-    NSInteger child = [self appendCellForNode:[children objectAtIndex:i] rect:rect];
-    _curveStates[child] = regions[i].state;
   }
   free(prefix);
   free(regions);
@@ -966,7 +974,7 @@ static LDTreemapRect LDCurvePixelRect(LDCurveRegion region, LDTreemapRect parent
       } else {
         childRect = (LDTreemapRect){(int)begin, rowBounds.top, end, rowBounds.bottom};
       }
-      [self appendCellForNode:[children objectAtIndex:i] rect:childRect];
+      [self appendChildCellForNode:[children objectAtIndex:i] rect:childRect];
       begin = next;
     }
 
