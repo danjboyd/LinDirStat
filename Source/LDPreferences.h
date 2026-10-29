@@ -129,7 +129,7 @@ typedef enum {
 - (void)resetAll;
 
 // General
-// Sizes as "1.2 GB" (YES) or "1,234,567 bytes" (NO).
+// Sizes as "1.23 GB" (YES) or "1,234,567 bytes" (NO).
 - (BOOL)humanFormat;
 - (void)setHumanFormat:(BOOL)flag;
 // WinDirStat 2.8's ShowTimeSeconds (b14022fd, default off): timestamps in
