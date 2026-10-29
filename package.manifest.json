@@ -8,7 +8,7 @@
     "id": "org.lindirstat.LinDirStat",
     "name": "LinDirStat",
     "displayName": "LinDirStat",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "manufacturer": "Daniel Boyd",
     "summary": "GNUstep disk usage viewer inspired by WinDirStat.",
     "license": "GPL-3.0-or-later",
@@ -145,7 +145,7 @@
     "runtimeNotices": [
       {
         "name": "LinDirStat",
-        "version": "0.1.4",
+        "version": "0.1.5",
         "license": "GPL-3.0-or-later",
         "source": "LinDirStat application source",
         "homepage": "https://github.com/danjboyd/LinDirStat",
@@ -200,6 +200,13 @@
         "source": "runtime/System/Library/Themes/Adwaita.theme",
         "homepage": "https://github.com/danjboyd/plugins-themes-Adwaita",
         "stageRelativePath": "metadata/licenses/Adwaita-theme.txt"
+      },
+      {
+        "name": "Adwaita icon theme (icons and cursors in the Adwaita GNUstep theme)",
+        "license": "LGPL-3.0-or-later OR CC-BY-SA-3.0",
+        "source": "runtime/System/Library/Themes/Adwaita.theme/Resources (its THIRD-PARTY-NOTICES)",
+        "homepage": "https://gitlab.gnome.org/GNOME/adwaita-icon-theme",
+        "stageRelativePath": "metadata/licenses/Adwaita-theme-icons.txt"
       },
       {
         "name": "gnustep-packager updater",
@@ -298,7 +305,7 @@
         "runtimeNotices": [
           {
             "name": "LinDirStat",
-            "version": "0.1.4",
+            "version": "0.1.5",
             "license": "GPL-3.0-or-later",
             "source": "LinDirStat application source",
             "homepage": "https://github.com/danjboyd/LinDirStat",

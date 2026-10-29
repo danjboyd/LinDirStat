@@ -5,6 +5,7 @@
 #
 #   scripts/ci-linux.sh         # set up, build and test
 #   scripts/ci-linux.sh setup   # only set up the toolchain (the release workflow)
+#   scripts/ci-linux.sh --gui-gate  # after a build: the GUI parity gate
 #
 # Inputs, all pinned here:
 # - the gnustep-cli-new managed toolchain (its v0.1.0 bootstrap, checked
@@ -18,7 +19,11 @@
 set -euo pipefail
 
 setup_only=0
-[ "${1:-}" = setup ] && setup_only=1
+gui_gate=0
+case "${1:-}" in
+  setup) setup_only=1 ;;
+  --gui-gate) gui_gate=1 ;;
+esac
 
 bootstrap_url="https://github.com/danjboyd/gnustep-cli-new/releases/download/v0.1.0/gnustep-bootstrap.sh"
 bootstrap_sha256="3bdfa7a29a6442ce1bb994b027bfcba78beec649ae820391f009ac9eeb40ba63"
@@ -46,6 +51,20 @@ set -u
 gnustep-config --variable=GNUSTEP_MAKEFILES
 
 [ "$setup_only" = 1 ] && exit 0
+
+if [ "$gui_gate" = 1 ]; then
+  # scripts/gui-parity-gate.sh reads themes from ~/GNUstep/Library and checks
+  # the Adwaita header bar, so the pinned theme goes there first.
+  step "Adwaita $("$repo_root/scripts/pinned-checkout.sh" --field adwaita tag)"
+  theme="$(ADWAITA_BUILD_DIR="$work/adwaita" "$repo_root/scripts/build-adwaita.sh")"
+  themes="$HOME/GNUstep/Library/Themes"
+  mkdir -p "$themes"
+  ln -sfn "$theme" "$themes/Adwaita.theme"
+
+  step "GUI parity gate"
+  cd "$repo_root"
+  exec scripts/gui-parity-gate.sh
+fi
 
 step "tools-xctest $("$repo_root/scripts/pinned-checkout.sh" --field tools-xctest tag)"
 tools_xctest="$(TOOLS_XCTEST_BUILD_DIR="$work/tools-xctest" "$repo_root/scripts/build-tools-xctest.sh")"
