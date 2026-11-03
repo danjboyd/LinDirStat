@@ -9,7 +9,7 @@
 
 - (void)testFormatsByteValuesForDisplay
 {
-  XCTAssertEqualObjects(@"40 B", [LDSizeFormatter stringForBytes:40]);
+  XCTAssertEqualObjects(@"40 bytes", [LDSizeFormatter stringForBytes:40]);
   XCTAssertEqualObjects(@"1.50 KB", [LDSizeFormatter stringForBytes:1536]);
   XCTAssertEqualObjects(@"10.00 KB", [LDSizeFormatter stringForBytes:10240]);
 }
@@ -18,7 +18,7 @@
 // from zero, and each unit from half a step below it.
 - (void)testFollowsWinDirStatUnitsAndRounding
 {
-  XCTAssertEqualObjects(@"1023 B", [LDSizeFormatter stringForBytes:1023]);
+  XCTAssertEqualObjects(@"1023 bytes", [LDSizeFormatter stringForBytes:1023]);
   XCTAssertEqualObjects(@"1.00 KB", [LDSizeFormatter stringForBytes:1024]);
   XCTAssertEqualObjects(@"1.01 KB", [LDSizeFormatter stringForBytes:1030]);
   XCTAssertEqualObjects(@"123.46 KB", [LDSizeFormatter stringForBytes:126422]);

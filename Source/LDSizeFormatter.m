@@ -44,7 +44,8 @@ static BOOL LDHumanReadable = YES;
     long long hundredths = llround((double)bytes / (double)units[i].bytes * 100.0);
     return [NSString stringWithFormat:@"%lld.%02lld %@", hundredths / 100, hundredths % 100, units[i].unit];
   }
-  return [NSString stringWithFormat:@"%llu B", bytes];
+  // Under 1 KB, WinDirStat writes the count and IDS_SPEC_BYTES ("bytes").
+  return [NSString stringWithFormat:@"%llu %@", bytes, LDLocalized(@"bytes")];
 }
 
 @end
