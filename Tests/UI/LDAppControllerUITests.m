@@ -1910,7 +1910,15 @@
   // always-visible scroller narrows ("% Used" ran under it on macOS).
   NSScrollView *scroll = [table enclosingScrollView];
   [scroll tile];
-  XCTAssertLessThanOrEqual(floor(used), ceil(NSWidth([[scroll contentView] frame])) + 1.0);
+  NSRect clip = [[scroll contentView] frame];
+  CGFloat visible = NSWidth(clip);
+  // A scroller drawn over the table (macOS overlay that never fades) hides
+  // what lies under it: the columns end left of it.
+  NSScroller *scroller = [scroll verticalScroller];
+  if ([scroll hasVerticalScroller] && scroller && ![scroller isHidden]) {
+    visible -= NSWidth(NSIntersectionRect(clip, [scroller frame]));
+  }
+  XCTAssertLessThanOrEqual(floor(used), ceil(visible) + 1.0);
 }
 
 // GNUstep's distributed notifications go over a DO connection to gdnc; when

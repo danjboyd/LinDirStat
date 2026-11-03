@@ -229,7 +229,15 @@ typedef enum {
   // once the scroll view has tiled it.
   NSScrollView *scroll = [_table enclosingScrollView];
   [scroll tile];
-  CGFloat available = NSWidth([[scroll contentView] frame]);
+  NSRect clip = [[scroll contentView] frame];
+  CGFloat available = NSWidth(clip);
+  // An overlay scroller that stays drawn (macOS with a mouse attached)
+  // covers the table's right edge: the last column ends left of it. A
+  // scroller beside the clip view (GNUstep) overlaps nothing.
+  NSScroller *scroller = [scroll verticalScroller];
+  if ([scroll hasVerticalScroller] && scroller && ![scroller isHidden]) {
+    available -= NSWidth(NSIntersectionRect(clip, [scroller frame]));
+  }
   [name setWidth:MAX(120.0, floor(available - others - [_table intercellSpacing].width))];
 }
 
