@@ -462,23 +462,55 @@
 
 // Two-decimal sizes (#126): the lists whose size columns aren't fitted to
 // their rows cut "1023.48 MB" to "1023.4…" at the old 80 and 90 points, and
-// a sorted "Physical Size" to "Physical …".
+// a sorted "Physical Size" to "Physical …". Narrower saved widths (0.1.5
+// saved those) are seeded here, so a clean defaults domain catches a fit
+// that the column autosave undoes.
+- (NSDictionary *)sizeColumnsOf:(LDUITestController *)controller
+{
+  return @{@"bytes": @[[controller extensionTable]],
+           @"physicalSize": @[[controller largestTable], [controller searchTable], [controller duplicatesTable]],
+           @"logicalSize": @[[controller largestTable], [controller searchTable], [controller duplicatesTable], [controller watcherTable]]};
+}
+
 - (void)testFixedSizeColumnsFitTheWidestTwoDecimalSize
 {
   if (!_controller) {
     return;
   }
-  NSDictionary *columns = @{@"bytes": @[[_controller extensionTable]],
-                            @"physicalSize": @[[_controller largestTable], [_controller searchTable], [_controller duplicatesTable]],
-                            @"logicalSize": @[[_controller largestTable], [_controller searchTable], [_controller duplicatesTable], [_controller watcherTable]]};
+  // Each size column narrowed as far as it goes, which the autosave keeps.
+  NSDictionary *columns = [self sizeColumnsOf:_controller];
+  for (NSString *identifier in columns) {
+    for (NSTableView *table in [columns objectForKey:identifier]) {
+      NSTableColumn *column = [table tableColumnWithIdentifier:identifier];
+      [column setWidth:[column minWidth]];
+      if ([identifier isEqualToString:@"physicalSize"]) {
+        // Short of the sorted title, as 0.1.5's 90 points are.
+        XCTAssertLessThan([column width], [_controller headerWidthOfColumn:column sorted:YES], @"%@ in %@", identifier, [table autosaveName]);
+      }
+    }
+  }
+  [[NSUserDefaults standardUserDefaults] synchronize];
+
+  // The next launch restores those widths, then fits the size columns.
+  static NSMutableArray *narrowed = nil;
+  if (!narrowed) {
+    narrowed = [NSMutableArray array];
+  }
+  [_controller tearDownForTest];
+  [narrowed addObject:_controller];
+  _controller = [[LDUITestController alloc] init];
+  [_controller applicationWillFinishLaunching:[NSNotification notificationWithName:NSApplicationWillFinishLaunchingNotification object:NSApp]];
+  [_controller setUpMainWindow];
+
+  columns = [self sizeColumnsOf:_controller];
   for (NSString *identifier in columns) {
     for (NSTableView *table in [columns objectForKey:identifier]) {
       NSTableColumn *column = [table tableColumnWithIdentifier:identifier];
       XCTAssertNotNil(column, @"%@", identifier);
       NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
       CGFloat text = [@"1023.99 MB" sizeWithAttributes:attributes].width;
-      XCTAssertGreaterThanOrEqual([column width], text + 12.0, @"%@ in %@", identifier, [table autosaveName]);
       XCTAssertGreaterThanOrEqual([column minWidth], text + 12.0, @"%@ in %@", identifier, [table autosaveName]);
+      XCTAssertGreaterThanOrEqual([column width], text + 12.0, @"%@ in %@", identifier, [table autosaveName]);
       // These lists sort by size: the title keeps room for the indicator.
       XCTAssertGreaterThanOrEqual([column width], [_controller headerWidthOfColumn:column sorted:YES], @"%@ in %@", identifier, [table autosaveName]);
     }

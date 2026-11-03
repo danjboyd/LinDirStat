@@ -1011,21 +1011,27 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   return column;
 }
 
-// A size column that isn't fitted to its rows is wide enough for the widest
-// two-decimal size, "1023.99 MB" (anything larger moves up a unit), which a
-// fixed 80 or 90 points cut to "1023.4…" under Adwaita; as the minimum it
-// also holds against a narrower width saved by an older version. It starts
-// wide enough for its title and sort indicator too, since these lists sort
-// by size ("Physical Size" was cut to "Physical …").
-- (void)fitSizeColumn:(NSTableColumn *)column
+// The size columns of a list that doesn't fit its columns to its rows are
+// wide enough for the widest two-decimal size, "1023.99 MB" (anything larger
+// moves up a unit), which a fixed 80 or 90 points cut to "1023.4…" under
+// Adwaita, and for their title with its sort indicator, since these lists
+// sort by size ("Physical Size" was cut to "Physical …"). Called once the
+// table's saved widths are restored: 0.1.5 saved those 80 and 90 points.
+// Only the value width is the minimum, so a user can still narrow the title.
+- (void)fitSizeColumnsOfTable:(NSTableView *)table
 {
-  NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
-  CGFloat value = ceil([@"1023.99 MB" sizeWithAttributes:attributes].width + 12.0);
-  CGFloat width = MAX(value, [self headerWidthOfColumn:column sorted:YES]);
-  [column setMinWidth:MAX([column minWidth], value)];
-  if ([column width] < width) {
-    [column setWidth:width];
-    [_naturalColumnWidths setObject:@(width) forKey:column];
+  for (NSTableColumn *column in [table tableColumns]) {
+    if (![@[@"bytes", @"physicalSize", @"logicalSize"] containsObject:[column identifier]]) {
+      continue;
+    }
+    NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
+    CGFloat value = ceil([@"1023.99 MB" sizeWithAttributes:attributes].width + 12.0);
+    CGFloat width = MAX(value, [self headerWidthOfColumn:column sorted:YES]);
+    [column setMinWidth:MAX([column minWidth], value)];
+    [_naturalColumnWidths setObject:@(MAX(width, [[_naturalColumnWidths objectForKey:column] doubleValue])) forKey:column];
+    if ([column width] < width) {
+      [column setWidth:width];
+    }
   }
 }
 
@@ -1237,7 +1243,6 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [[description dataCell] setLineBreakMode:NSLineBreakByTruncatingTail];
   [self setSortPrototypeForColumn:description ascending:YES];
   NSTableColumn *bytes = [self addColumn:@"bytes" title:LDLocalized(@"Bytes") width:80 right:YES toTable:_extensionTable];
-  [self fitSizeColumn:bytes];
   [self setSortPrototypeForColumn:bytes ascending:NO];
   NSTableColumn *percent = [self addColumn:@"percent" title:LDLocalized(@"% Bytes") width:80 right:YES toTable:_extensionTable];
   [self setSortPrototypeForColumn:percent ascending:NO];
@@ -1256,6 +1261,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [_extensionTable setDoubleAction:@selector(extensionListDoubleClicked:)];
   [_extensionTable setAutosaveName:@"LinDirStatExtensionList3"];
   [_extensionTable setAutosaveTableColumns:YES];
+  [self fitSizeColumnsOfTable:_extensionTable];
   [_extensionTable setDataSource:self];
   [_extensionTable setDelegate:self];
   [_extensionTable setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"bytes" ascending:NO]]];
