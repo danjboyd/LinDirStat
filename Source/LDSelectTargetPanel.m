@@ -333,13 +333,15 @@ typedef enum {
   // A header click sorts; selecting the column would clear the rows.
   [_table setAllowsColumnSelection:NO];
   [_table setColumnAutoresizingStyle:NSTableViewFirstColumnOnlyAutoresizingStyle];
-  CGFloat fixedWidths = 80.0 + 80.0 + 110.0 + 70.0;
+  CGFloat fixedWidths = 80.0 + 80.0 + 80.0 + 70.0;
   [self addColumn:LDSelectTargetColumnName title:LDLocalized(@"Name")
             width:MAX(120.0, contentSize.width - fixedWidths - 5 * [_table intercellSpacing].width)
             right:NO ascending:YES];
   [self fitSizeColumn:[self addColumn:LDSelectTargetColumnTotal title:LDLocalized(@"Total") width:80.0 right:YES ascending:NO]];
   [self fitSizeColumn:[self addColumn:LDSelectTargetColumnFree title:LDLocalized(@"Free") width:80.0 right:YES ascending:NO]];
-  NSTableColumn *used = [self addColumn:LDSelectTargetColumnUsed title:LDLocalized(@"Used") width:110.0 right:NO ascending:NO];
+  // The usage bar gives up 30 points to the fitted Total and Free, so the
+  // columns still fit the panel with always-visible scroll bars on macOS.
+  NSTableColumn *used = [self addColumn:LDSelectTargetColumnUsed title:LDLocalized(@"Used") width:80.0 right:NO ascending:NO];
   [used setDataCell:[[LDVolumeUsageCell alloc] init]];
   [self addColumn:LDSelectTargetColumnPercent title:LDLocalized(@"% Used") width:70.0 right:YES ascending:NO];
   // WinDirStat 2.6's header column chooser; Name takes the room a hidden
