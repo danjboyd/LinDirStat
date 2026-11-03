@@ -11,7 +11,7 @@ static NSLocale *LDFormatLocale = nil;
 
 static NSString *LDDecimalSeparator(void)
 {
-  NSString *separator = [(LDFormatLocale ?: [NSLocale currentLocale]) decimalSeparator];
+  NSString *separator = [(LDFormatLocale ?: [NSLocale currentLocale]) objectForKey:NSLocaleDecimalSeparator];
   return [separator length] ? separator : @".";
 }
 
