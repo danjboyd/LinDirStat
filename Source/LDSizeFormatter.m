@@ -5,11 +5,33 @@
 
 static BOOL LDHumanReadable = YES;
 
+// WinDirStat's GetLocaleDecimalSeparator: the user's locale, as its default
+// "Use Windows locale setting" does.
+static NSLocale *LDFormatLocale = nil;
+
+static NSString *LDDecimalSeparator(void)
+{
+  NSString *separator = [(LDFormatLocale ?: [NSLocale currentLocale]) objectForKey:NSLocaleDecimalSeparator];
+  return [separator length] ? separator : @".";
+}
+
+// WinDirStat's FormatDouble: two decimals, rounded half away from zero.
+static NSString *LDFormatDouble(double value)
+{
+  long long hundredths = llround(value * 100.0);
+  return [NSString stringWithFormat:@"%lld%@%02lld", hundredths / 100, LDDecimalSeparator(), hundredths % 100];
+}
+
 @implementation LDSizeFormatter
 
 + (void)setHumanReadable:(BOOL)humanReadable
 {
   LDHumanReadable = humanReadable;
+}
+
++ (void)setLocaleForTesting:(NSLocale *)locale
+{
+  LDFormatLocale = locale;
 }
 
 + (NSString *)stringForBytes:(unsigned long long)bytes
@@ -47,11 +69,20 @@ static BOOL LDHumanReadable = YES;
     if (bytes < units[i].threshold) {
       continue;
     }
-    long long hundredths = llround((double)bytes / (double)units[i].bytes * 100.0);
-    return [NSString stringWithFormat:@"%lld.%02lld %@", hundredths / 100, hundredths % 100, [names objectAtIndex:i]];
+    return [NSString stringWithFormat:@"%@ %@", LDFormatDouble((double)bytes / (double)units[i].bytes), [names objectAtIndex:i]];
   }
   // Under 1 KB, WinDirStat writes the count and IDS_SPEC_BYTES ("bytes").
   return [NSString stringWithFormat:@"%llu %@", bytes, LDLocalized(@"bytes")];
+}
+
++ (NSString *)stringForDouble:(double)value
+{
+  return LDFormatDouble(value);
+}
+
++ (NSString *)stringForPercent:(double)percent
+{
+  return [LDFormatDouble(percent) stringByAppendingString:@"%"];
 }
 
 @end

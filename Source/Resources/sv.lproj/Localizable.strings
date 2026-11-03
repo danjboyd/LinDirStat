@@ -167,7 +167,7 @@
 "Show time spent during scan" = "Visa tid tillbringad under sökningen";
 "Size Proportion" = "Storleksandel";
 "Size Proportion Color" = "Färg för storleksandel";
-"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Storleksandel av hela genomsökningen: %.1f%%\nStorleksandel av den överordnade mappen: %.1f%%";
+"Size proportion of total scan: %@%%\nSize proportion of parent folder: %@%%" = "Storleksandel av hela genomsökningen: %@%%\nStorleksandel av den överordnade mappen: %@%%";
 "Start File Watcher" = "Starta filövervakning";
 "Stop" = "Stoppa";
 "Style" = "Stil";

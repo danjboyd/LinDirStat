@@ -157,9 +157,9 @@
 - (void)testPercentString
 {
   XCTAssertEqualObjects(@"", [LDSelectTargetRules percentStringForVolume:[self volumeAt:@"/" label:nil total:0 free:0]]);
-  XCTAssertEqualObjects(@"25.0%", [LDSelectTargetRules percentStringForVolume:[self volumeAt:@"/" label:nil total:400 free:300]]);
-  XCTAssertEqualObjects(@"33.3%", [LDSelectTargetRules percentStringForVolume:[self volumeAt:@"/" label:nil total:3 free:2]]);
-  XCTAssertEqualObjects(@"0.0%", [LDSelectTargetRules percentStringForVolume:[self volumeAt:@"/" label:nil total:100 free:200]]);
+  XCTAssertEqualObjects(@"25.00%", [LDSelectTargetRules percentStringForVolume:[self volumeAt:@"/" label:nil total:400 free:300]]);
+  XCTAssertEqualObjects(@"33.33%", [LDSelectTargetRules percentStringForVolume:[self volumeAt:@"/" label:nil total:3 free:2]]);
+  XCTAssertEqualObjects(@"0.00%", [LDSelectTargetRules percentStringForVolume:[self volumeAt:@"/" label:nil total:100 free:200]]);
   LDVolume *failed = [self volumeAt:@"/" label:nil total:0 free:0];
   [failed markQueryFailed];
   XCTAssertEqualObjects(@"", [LDSelectTargetRules percentStringForVolume:failed]);
