@@ -46,6 +46,10 @@
 // column can be left to the table instead of being fitted by hand.
 + (BOOL)tablesAutoresizeColumns;
 
+// The font a header cell draws its title in when the table is sorted by
+// that column: AppKit draws it bold, GNUstep (and Adwaita) in the cell's own.
++ (NSFont *)sortedHeaderFontForCell:(NSTableHeaderCell *)cell;
+
 // After a scan of the disk (not a CSV load): on macOS, if folders were
 // hidden by privacy protection and the app lacks Full Disk Access, explains
 // how to grant it (once per launch, unless the user said not to ask again).

@@ -115,8 +115,8 @@ gnustep-packager v0.1.6 pin (#124), #118, #110, #111 and #121.
 | #107 | Full-window GUI parity gate in Linux CI | Linux | lead | done (#110) |
 | #106 | Treemap Hilbert and Moore layouts | macOS | Linux (Adwaita), lead | done (#111) |
 | #120 | KDirStat and SequoiaView layouts skip empty rounded regions too | macOS | Linux (Adwaita), lead | done (#121) |
-| #117 | CI container: gdnc connection breaks about 5 s after launch (#115 only survives it) | Linux | macOS | investigating (diagnostic branch `debug-gdnc-117`) |
-| #109 | Sizes with 2 decimals (WinDirStat 322ee29b) or keep 1 | Dan decides | — | |
+| #117 | CI container: gdnc connection breaks about 5 s after launch (#115 only survives it) | Linux | lead | done (#129): the smoke's own teardown; the release container runs with `--init` |
+| #109 | Sizes with 2 decimals (WinDirStat 322ee29b) or keep 1 | macOS | Linux (Adwaita), lead | done (#126): Dan chose 2 decimals |
 | #108 | M13 macOS validation matrix | macOS | — | deferred indefinitely (Dan, 2026-11-03): no Intel Mac; out of the milestone |
 
 ### Release checklist
@@ -148,6 +148,21 @@ This is 0.1.5's checklist plus what 0.1.5 taught us. The release itself waits fo
    tag `v0.1.6` peels to the run's commit, that the release has its six assets
    (AppImage, `.zsync`, `update-feed.json`, DMG, `.dmg.sha256`,
    `SHA256SUMS`), and that the live feed offers 0.1.6. Close the milestone.
+
+## 0.1.7 (milestone 0.1.7)
+
+`v0.1.6` was published on 2026-11-03 (tag on 2387de2). Since then #135 gave
+the CI checks distinct names, and `main` is protected: a merge needs "Linux
+build-and-test" and "macOS build-and-test" green, admins included.
+
+| Issue | Gap | Owner | Reviewer | Status |
+|---|---|---|---|---|
+| #131 | `docs/windirstat-parity.md`: stale status rows | Linux | macOS (Mac rows), lead | |
+| #132 | Size format: KiB/MiB units, "N bytes", locale decimal separator | Dan decides | macOS prepares the ask | |
+| #133 | Track WinDirStat's next release (pinned at v2.9.3) | Linux | macOS, lead | waits for an upstream release |
+| #134 | `check-appimage-alt-f4.sh`: silence `/proc/<pid>/environ` errors | Linux | lead | |
+| #136 | macOS: sorted "Physical Size" header measured in the regular, not bold, font | Linux | macOS | |
+| #108 | M13 macOS validation matrix | macOS | — | deferred indefinitely (Dan): no Intel Mac; no milestone |
 
 ## Intentional differences (not gaps)
 

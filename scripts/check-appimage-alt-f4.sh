@@ -64,7 +64,7 @@ cleanup() {
     fusermount3 -u "$mount" 2>/dev/null || fusermount -u "$mount" 2>/dev/null || true
   done
   for pid in $(pgrep -u "$(id -u)" dbus-daemon 2>/dev/null); do
-    if tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -qx "XDG_RUNTIME_DIR=$root/run"; then
+    if tr '\0' '\n' 2>/dev/null < "/proc/$pid/environ" | grep -qx "XDG_RUNTIME_DIR=$root/run"; then
       kill "$pid" 2>/dev/null || true
     fi
   done
@@ -107,8 +107,8 @@ app_pid=$!
 shell_bus() {
   local pid
   for pid in $(pgrep -u "$(id -u)" -x gnome-shell 2>/dev/null); do
-    if tr '\0' '\n' < "/proc/$pid/environ" 2>/dev/null | grep -qx "XDG_RUNTIME_DIR=$root/run"; then
-      tr '\0' '\n' < "/proc/$pid/environ" | sed -n 's/^DBUS_SESSION_BUS_ADDRESS=//p'
+    if tr '\0' '\n' 2>/dev/null < "/proc/$pid/environ" | grep -qx "XDG_RUNTIME_DIR=$root/run"; then
+      tr '\0' '\n' 2>/dev/null < "/proc/$pid/environ" | sed -n 's/^DBUS_SESSION_BUS_ADDRESS=//p'
       return 0
     fi
   done
