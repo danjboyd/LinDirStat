@@ -1857,6 +1857,70 @@
   XCTAssertNotEqual(NSNotFound, [self extensionRowForKey:@"lindirstatzz"]);
 }
 
+- (NSTableView *)tableInView:(NSView *)view
+{
+  if ([view isKindOfClass:[NSTableView class]]) {
+    return (NSTableView *)view;
+  }
+  for (NSView *subview in [view subviews]) {
+    NSTableView *table = [self tableInView:subview];
+    if (table) {
+      return table;
+    }
+  }
+  return nil;
+}
+
+// Select Target's Total and Free fit the widest two-decimal size, in the
+// user's language, as the main window's size columns do: at 80 points they
+// cut "603.95 GiB" to "603.95…". Name still fills the rest of the list.
+- (void)testSelectTargetSizeColumnsFitTheWidestTwoDecimalSize
+{
+  if (!_controller) {
+    return;
+  }
+  __block NSTableView *table = nil;
+  [LDSelectTargetPanel setModalRunnerForTesting:^NSInteger(NSWindow *panel) {
+    table = [self tableInView:[panel contentView]];
+    return NSModalResponseCancel;
+  }];
+  @try {
+    [LDSelectTargetPanel runWithInitialFolder:_tree];
+  }
+  @finally {
+    [LDSelectTargetPanel setModalRunnerForTesting:nil];
+  }
+  XCTAssertNotNil(table);
+  CGFloat used = 0.0;
+  for (NSString *identifier in @[@"total", @"free"]) {
+    NSTableColumn *column = [table tableColumnWithIdentifier:identifier];
+    XCTAssertNotNil(column, @"%@", identifier);
+    NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
+    CGFloat text = [[@"1023.99 " stringByAppendingString:LDLocalized(@"MiB")] sizeWithAttributes:attributes].width;
+    XCTAssertGreaterThanOrEqual([column width], text + 12.0, @"%@", identifier);
+    XCTAssertGreaterThanOrEqual([column minWidth], text + 12.0, @"%@", identifier);
+  }
+  NSTableColumn *percent = [table tableColumnWithIdentifier:@"percent"];
+  NSDictionary *percentAttributes = @{NSFontAttributeName: [[percent dataCell] font] ?: [NSFont systemFontOfSize:0]};
+  XCTAssertGreaterThanOrEqual([percent width], [[LDSizeFormatter stringForPercent:100.0] sizeWithAttributes:percentAttributes].width + 12.0);
+  for (NSTableColumn *column in [table tableColumns]) {
+    used += [column width] + [table intercellSpacing].width;
+  }
+  // Name absorbs the difference: the columns fit the clip view, which an
+  // always-visible scroller narrows ("% Used" ran under it on macOS).
+  NSScrollView *scroll = [table enclosingScrollView];
+  [scroll tile];
+  NSRect clip = [[scroll contentView] frame];
+  CGFloat visible = NSWidth(clip);
+  // A scroller drawn over the table (macOS overlay that never fades) hides
+  // what lies under it: the columns end left of it.
+  NSScroller *scroller = [scroll verticalScroller];
+  if ([scroll hasVerticalScroller] && scroller && ![scroller isHidden]) {
+    visible -= NSWidth(NSIntersectionRect(clip, [scroller frame]));
+  }
+  XCTAssertLessThanOrEqual(floor(used), ceil(visible) + 1.0);
+}
+
 // GNUstep's distributed notifications go over a DO connection to gdnc; when
 // gdnc goes away, a request raises NSPortTimeoutException out of the modal
 // loop (#100's AppImage smoke launch, in the release workflow's container).
