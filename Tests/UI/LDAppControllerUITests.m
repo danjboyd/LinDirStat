@@ -1857,6 +1857,56 @@
   XCTAssertNotEqual(NSNotFound, [self extensionRowForKey:@"lindirstatzz"]);
 }
 
+- (NSTableView *)tableInView:(NSView *)view
+{
+  if ([view isKindOfClass:[NSTableView class]]) {
+    return (NSTableView *)view;
+  }
+  for (NSView *subview in [view subviews]) {
+    NSTableView *table = [self tableInView:subview];
+    if (table) {
+      return table;
+    }
+  }
+  return nil;
+}
+
+// Select Target's Total and Free fit the widest two-decimal size, in the
+// user's language, as the main window's size columns do: at 80 points they
+// cut "603.95 GiB" to "603.95…". Name still fills the rest of the list.
+- (void)testSelectTargetSizeColumnsFitTheWidestTwoDecimalSize
+{
+  if (!_controller) {
+    return;
+  }
+  __block NSTableView *table = nil;
+  [LDSelectTargetPanel setModalRunnerForTesting:^NSInteger(NSWindow *panel) {
+    table = [self tableInView:[panel contentView]];
+    return NSModalResponseCancel;
+  }];
+  @try {
+    [LDSelectTargetPanel runWithInitialFolder:_tree];
+  }
+  @finally {
+    [LDSelectTargetPanel setModalRunnerForTesting:nil];
+  }
+  XCTAssertNotNil(table);
+  CGFloat used = 0.0;
+  for (NSString *identifier in @[@"total", @"free"]) {
+    NSTableColumn *column = [table tableColumnWithIdentifier:identifier];
+    XCTAssertNotNil(column, @"%@", identifier);
+    NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
+    CGFloat text = [[@"1023.99 " stringByAppendingString:LDLocalized(@"MiB")] sizeWithAttributes:attributes].width;
+    XCTAssertGreaterThanOrEqual([column width], text + 12.0, @"%@", identifier);
+    XCTAssertGreaterThanOrEqual([column minWidth], text + 12.0, @"%@", identifier);
+  }
+  for (NSTableColumn *column in [table tableColumns]) {
+    used += [column width] + [table intercellSpacing].width;
+  }
+  // Name absorbs the difference: the columns still fit the list.
+  XCTAssertLessThanOrEqual(floor(used), ceil([[table enclosingScrollView] contentSize].width) + 1.0);
+}
+
 // GNUstep's distributed notifications go over a DO connection to gdnc; when
 // gdnc goes away, a request raises NSPortTimeoutException out of the modal
 // loop (#100's AppImage smoke launch, in the release workflow's container).

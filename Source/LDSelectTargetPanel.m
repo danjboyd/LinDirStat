@@ -202,6 +202,21 @@ typedef enum {
   return column;
 }
 
+// Total and Free are wide enough for the widest two-decimal size, as the
+// main window's size columns are: "1023.99 MiB" in the user's language
+// (anything larger moves up a unit). At 80 points two-decimal sizes were
+// cut to "603.95…".
+- (void)fitSizeColumn:(NSTableColumn *)column
+{
+  NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
+  NSString *widest = [@"1023.99 " stringByAppendingString:LDLocalized(@"MiB")];
+  CGFloat value = ceil([widest sizeWithAttributes:attributes].width + 12.0);
+  [column setMinWidth:MAX([column minWidth], value)];
+  if ([column width] < value) {
+    [column setWidth:value];
+  }
+}
+
 - (void)fitNameColumn
 {
   NSTableColumn *name = [_table tableColumnWithIdentifier:LDSelectTargetColumnName];
@@ -322,8 +337,8 @@ typedef enum {
   [self addColumn:LDSelectTargetColumnName title:LDLocalized(@"Name")
             width:MAX(120.0, contentSize.width - fixedWidths - 5 * [_table intercellSpacing].width)
             right:NO ascending:YES];
-  [self addColumn:LDSelectTargetColumnTotal title:LDLocalized(@"Total") width:80.0 right:YES ascending:NO];
-  [self addColumn:LDSelectTargetColumnFree title:LDLocalized(@"Free") width:80.0 right:YES ascending:NO];
+  [self fitSizeColumn:[self addColumn:LDSelectTargetColumnTotal title:LDLocalized(@"Total") width:80.0 right:YES ascending:NO]];
+  [self fitSizeColumn:[self addColumn:LDSelectTargetColumnFree title:LDLocalized(@"Free") width:80.0 right:YES ascending:NO]];
   NSTableColumn *used = [self addColumn:LDSelectTargetColumnUsed title:LDLocalized(@"Used") width:110.0 right:NO ascending:NO];
   [used setDataCell:[[LDVolumeUsageCell alloc] init]];
   [self addColumn:LDSelectTargetColumnPercent title:LDLocalized(@"% Used") width:70.0 right:YES ascending:NO];
@@ -343,6 +358,8 @@ typedef enum {
   [_table setDoubleAction:@selector(tableDoubleClicked:)];
   [scroll setDocumentView:_table];
   [_columnChooser applyPreferences];
+  // Name gives up the room the fitted size columns take.
+  [self fitNameColumn];
   // Overlay scrollbars: a corner view would hide the last column's title.
   [_table setCornerView:nil];
   [content addSubview:scroll];
