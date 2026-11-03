@@ -7,6 +7,7 @@
 #endif
 #import "AppController.h"
 #import "AppController+Private.h"
+#import "LDPlatformUI.h"
 #import "LDColumnChooser.h"
 #import "LDCommandLine.h"
 #import "LDCommandRules.h"
@@ -513,6 +514,30 @@
       XCTAssertGreaterThanOrEqual([column width], text + 12.0, @"%@ in %@", identifier, [table autosaveName]);
       // These lists sort by size: the title keeps room for the indicator.
       XCTAssertGreaterThanOrEqual([column width], [_controller headerWidthOfColumn:column sorted:YES], @"%@ in %@", identifier, [table autosaveName]);
+    }
+  }
+}
+
+// AppKit draws a sorted title bold: the size columns leave room for the
+// title in the font it is drawn in, plus the sort indicator, so a sorted
+// "Physical Size" isn't cut to "Physical Si…" (#136).
+- (void)testSortedSizeColumnsFitTheirTitleAsDrawn
+{
+  if (!_controller) {
+    return;
+  }
+  NSDictionary *columns = [self sizeColumnsOf:_controller];
+  for (NSString *identifier in columns) {
+    for (NSTableView *table in [columns objectForKey:identifier]) {
+      NSTableColumn *column = [table tableColumnWithIdentifier:identifier];
+      NSTableHeaderCell *header = (NSTableHeaderCell *)[column headerCell];
+      NSFont *drawn = [LDPlatformUI sortedHeaderFontForCell:header];
+      XCTAssertNotNil(drawn);
+      CGFloat text = [[header stringValue] sizeWithAttributes:@{NSFontAttributeName: drawn}].width;
+      NSRect indicator = [header sortIndicatorRectForBounds:NSMakeRect(0, 0, text + 100.0, 24)];
+      CGFloat needed = text + NSWidth(indicator);
+      XCTAssertGreaterThanOrEqual([_controller headerWidthOfColumn:column sorted:YES], needed, @"%@ in %@", identifier, [table autosaveName]);
+      XCTAssertGreaterThanOrEqual([column width], needed, @"%@ in %@", identifier, [table autosaveName]);
     }
   }
 }

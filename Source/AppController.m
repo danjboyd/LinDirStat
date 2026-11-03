@@ -1452,6 +1452,17 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   CGFloat title = [header cellSize].width;
   CGFloat width = title;
   if (sorted) {
+    // AppKit draws the sorted title bold, which the cell size (measured in
+    // the regular font) leaves out: "Physical Size" was cut to "Physical
+    // Si…" on macOS (#136). The difference, plus a point of padding.
+    NSFont *regular = [header font] ?: [NSFont systemFontOfSize:0];
+    NSFont *drawn = [LDPlatformUI sortedHeaderFontForCell:header];
+    if (drawn && ![drawn isEqual:regular]) {
+      NSString *text = [header stringValue];
+      CGFloat extra = [text sizeWithAttributes:@{NSFontAttributeName: drawn}].width
+        - [text sizeWithAttributes:@{NSFontAttributeName: regular}].width;
+      title += ceil(MAX(extra, 0.0)) + 1.0;
+    }
     // The room the indicator takes from the right of the cell: its width
     // and the inset the cell draws it at (AppKit's is wider than GNUstep's,
     // so "Physical Size" was cut to "Physical S…" there, #83).
