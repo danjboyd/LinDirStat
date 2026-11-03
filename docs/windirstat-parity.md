@@ -53,21 +53,21 @@ Status values:
 
 | Area | Status | Notes |
 | --- | --- | --- |
-| Linux GNUstep build | partial | Builds through `gnustep-cli-new`. |
+| Linux GNUstep build | matched | Builds through `gnustep-cli-new`, locally and in CI: the Linux workflow builds and runs the unit, command-line and UI tests on `debian:trixie` for every pull request and push to `main` (`scripts/ci-linux.sh`), and the release workflow builds the AppImage from the same tree. |
 | Linux Adwaita default | done | The payload bundles `Adwaita.theme` and makes it the default through a `GlobalDefaults.plist` beside a relocatable `GNUstep.conf`, below the user's own defaults (`ifUnset`); the package contracts require the bundled theme. See `docs/packaging.md`. |
 | Linux AppImage | matched | The stage script produces a self-contained payload (GNUstep, libobjc2, libdispatch, nettle and the other non-host libraries, Adwaita, icon, notices) that starts, applies Adwaita and scans from the `AppRun` environment without build-machine paths. `GlobalDefaults.plist` ships the theme's header-bar and Ctrl-shortcut settings below the user's own. Packaged (about 29 MB) and validated with the packager's `-RunSmoke` on a private display with gnustep-packager `main`. |
-| macOS app | partial | Builds and runs natively against Apple's AppKit, with the test suite passing on macOS; see `docs/macos.md`. |
-| macOS DMG packaging | deferred | Requires a new `gnustep-packager` macOS DMG-style backend. |
+| macOS app | matched | Builds and runs natively against Apple's AppKit; see `docs/macos.md`. The macOS workflow builds it, runs the unit and UI tests (`make -C macos test`) and verifies its signature for every pull request and push to `main`, and every release since 0.1.0 has shipped it. |
+| macOS DMG packaging | matched | Built by `gnustep-packager`'s `dmg` backend (`backends.dmg` in `package.manifest.json`; `scripts/ci-release-macos.sh` packages and validates it with the launch smoke). A universal DMG has shipped with every release since v0.1.0. It is ad-hoc signed and not notarized (`backends.dmg.notarization` is off). |
 
 ## Quality Gates
 
 | Area | Status | Notes |
 | --- | --- | --- |
 | Unit/regression tests | done | `tools-xctest` covers model, scan, layout, formatting, and action planning. `Tests/UI` (`scripts/run-ui-tests.sh`, private Xvfb) drives the real `AppController` and window: selection sync between the tree, treemap, extension list and every file tab; multi-selection sizes; Refresh Selected (totals, expansion, selection, "This Computer" volumes); Move to Trash and Delete Permanently (tree, extensions, treemap, lists); detached nodes; command enablement (idle/busy, roots, volumes, mount points, `<Free Space>`/`<Unknown>`/`<Hardlinks>`); Options toggles. Linux and macOS (`make -C macos ui-test`); Move to Trash is tested on Linux only. |
-| GUI screenshot review | partial | Window-only capture script exists; screenshots must be reviewed for GUI-affecting changes. |
+| GUI screenshot review | done | The GUI parity gates check every screenshot automatically: on Linux in CI (the Linux workflow's GUI parity gate step, `scripts/ci-linux.sh --gui-gate`, #110) and on macOS with `make -C macos gui-gate`; see the two Full-window GUI parity rows. `scripts/capture-gui-review.sh` still takes a single window for a manual review of a GUI-affecting change. |
 | Full-window GUI parity (Linux) | done | `scripts/gui-parity-gate.sh`: headless on a private Xvfb, light and dark, seven states; pane proportions, WinDirStat columns and menus, toolbar, status bar, overlaps, clipped titles, treemap density and pixels vs. the Phase 11 renderer. Strict; part of `scripts/regression-gate.sh`. |
 | Full-window GUI parity (macOS) | done | `make -C macos gui-gate` (`scripts/gui-parity-gate-macos.py`): the Linux gate's fixture, states and checks on the real screen, light and dark, 189 checks. The app is driven through its own accessibility elements (`macos/gui-gate/macgate.swift`), never the mouse; its defaults are backed up and restored. macOS counterparts for the menu bar (application menu, Window, Help), the system title bar and the context menu (read from the dump's `openMenus`); the system's chrome views are not counted as overlaps, and treemap pixels under the window's rounded corners are not compared. |
-| Cross-platform validation | deferred | Linux local validation exists. macOS validation matrix remains. |
+| Cross-platform validation | done | Every pull request and push to `main` builds and tests on both platforms (the Linux and macOS workflows, required checks "Linux build-and-test" and "macOS build-and-test"), and each release candidate is validated on both (`release-linux.sh --from-ci` and the DMG check). The macOS version matrix (M13, #108) is deferred indefinitely (Dan, 2026-11-03). |
 | Performance profiling | done | `scripts/bench-scan.sh` (headless) and `LINDIRSTAT_PROFILE=1` (app: completion steps, Stop-to-display, main-thread stalls). Finalize is parallel, the completion work (extension list, Largest Files, treemap) runs on the scanning thread, duplicate updates are prepared off the main thread, duplicate candidates share folder paths. 1.2M files: completion to display 1.6 s to ~0.1 s, Stop to display 2.2 s to 0.6 s, duplicate memory −40%. See `docs/performance.md`. |
 
 ## Automated Visual Parity
