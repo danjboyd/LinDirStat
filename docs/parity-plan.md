@@ -117,13 +117,13 @@ gnustep-packager v0.1.6 pin (#124), #118, #110, #111 and #121.
 | #120 | KDirStat and SequoiaView layouts skip empty rounded regions too | macOS | Linux (Adwaita), lead | done (#121) |
 | #117 | CI container: gdnc connection breaks about 5 s after launch (#115 only survives it) | Linux | macOS | investigating (diagnostic branch `debug-gdnc-117`) |
 | #109 | Sizes with 2 decimals (WinDirStat 322ee29b) or keep 1 | Dan decides | — | |
-| #108 | M13 macOS validation matrix | macOS | — | needs Dan's Intel Mac |
+| #108 | M13 macOS validation matrix | macOS | — | deferred indefinitely (Dan, 2026-11-03): no Intel Mac; out of the milestone |
 
 ### Release checklist
 
 This is 0.1.5's checklist plus what 0.1.5 taught us. The release itself waits for Dan's go.
 
-1. Every issue above is closed or moved to a later milestone by Dan.
+1. Every issue above is closed, or deferred by Dan (#108).
    `./scripts/run-tests.sh`, the WinDirStat and GUI parity gates, and
    `make -C macos test` are green on `main`.
 2. Release notes PR: `packaging/linux/release-notes/0.1.6.md` and the Mac
