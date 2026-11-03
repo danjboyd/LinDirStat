@@ -6,5 +6,8 @@
 // NO shows exact byte counts with digit grouping ("1,234,567 bytes"), as
 // WinDirStat does when its human-readable format is off. Default YES.
 + (void)setHumanReadable:(BOOL)humanReadable;
+// The locale whose decimal separator sizes use; nil (the default) is the
+// user's current locale.
++ (void)setLocaleForTesting:(NSLocale *)locale;
 
 @end

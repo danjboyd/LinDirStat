@@ -7,6 +7,16 @@
 
 @implementation LDSizeFormatterTests
 
+- (void)setUp
+{
+  [LDSizeFormatter setLocaleForTesting:[NSLocale localeWithLocaleIdentifier:@"en_US"]];
+}
+
+- (void)tearDown
+{
+  [LDSizeFormatter setLocaleForTesting:nil];
+}
+
 - (void)testFormatsByteValuesForDisplay
 {
   XCTAssertEqualObjects(@"40 B", [LDSizeFormatter stringForBytes:40]);
@@ -28,6 +38,15 @@
   XCTAssertEqualObjects(@"1.00 GB", [LDSizeFormatter stringForBytes:(1ULL << 30) - (1ULL << 19)]);
   XCTAssertEqualObjects(@"1023.50 MB", [LDSizeFormatter stringForBytes:(1ULL << 30) - (1ULL << 19) - 1]);
   XCTAssertEqualObjects(@"2048.00 TB", [LDSizeFormatter stringForBytes:1ULL << 51]);
+}
+
+// WinDirStat's GetLocaleDecimalSeparator: the user's locale decides.
+- (void)testUsesTheLocalesDecimalSeparator
+{
+  [LDSizeFormatter setLocaleForTesting:[NSLocale localeWithLocaleIdentifier:@"de_DE"]];
+  XCTAssertEqualObjects(@"1,50 KB", [LDSizeFormatter stringForBytes:1536]);
+  XCTAssertEqualObjects(@"2,50 GB", [LDSizeFormatter stringForBytes:2684354560ULL]);
+  XCTAssertEqualObjects(@"40 B", [LDSizeFormatter stringForBytes:40]);
 }
 
 @end

@@ -5,11 +5,26 @@
 
 static BOOL LDHumanReadable = YES;
 
+// WinDirStat's GetLocaleDecimalSeparator: the user's locale, as its default
+// "Use Windows locale setting" does.
+static NSLocale *LDFormatLocale = nil;
+
+static NSString *LDDecimalSeparator(void)
+{
+  NSString *separator = [(LDFormatLocale ?: [NSLocale currentLocale]) decimalSeparator];
+  return [separator length] ? separator : @".";
+}
+
 @implementation LDSizeFormatter
 
 + (void)setHumanReadable:(BOOL)humanReadable
 {
   LDHumanReadable = humanReadable;
+}
+
++ (void)setLocaleForTesting:(NSLocale *)locale
+{
+  LDFormatLocale = locale;
 }
 
 + (NSString *)stringForBytes:(unsigned long long)bytes
@@ -42,7 +57,7 @@ static BOOL LDHumanReadable = YES;
       continue;
     }
     long long hundredths = llround((double)bytes / (double)units[i].bytes * 100.0);
-    return [NSString stringWithFormat:@"%lld.%02lld %@", hundredths / 100, hundredths % 100, units[i].unit];
+    return [NSString stringWithFormat:@"%lld%@%02lld %@", hundredths / 100, LDDecimalSeparator(), hundredths % 100, units[i].unit];
   }
   return [NSString stringWithFormat:@"%llu B", bytes];
 }
