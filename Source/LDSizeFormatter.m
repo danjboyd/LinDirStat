@@ -47,25 +47,32 @@ static NSString *LDFormatDouble(double value)
   }
   // WinDirStat's FormatSizeSuffixes and FormatDouble (HelpersInterface.cpp):
   // a unit starts half a step below its size, so rounding never shows
-  // "1024.00 KB", and the value always has two decimals (322ee29b).
+  // "1024.00 KiB", and the value always has two decimals (322ee29b).
   static const struct {
     unsigned long long bytes;
     unsigned long long threshold;
-    __unsafe_unretained NSString *unit;
   } units[] = {
-    {1ULL << 40, (1ULL << 40) - (1ULL << 29), @"TB"},
-    {1ULL << 30, (1ULL << 30) - (1ULL << 19), @"GB"},
-    {1ULL << 20, (1ULL << 20) - (1ULL << 9), @"MB"},
-    {1ULL << 10, 1ULL << 10, @"KB"},
+    {1ULL << 40, (1ULL << 40) - (1ULL << 29)},
+    {1ULL << 30, (1ULL << 30) - (1ULL << 19)},
+    {1ULL << 20, (1ULL << 20) - (1ULL << 9)},
+    {1ULL << 10, 1ULL << 10},
   };
+  // WinDirStat's IDS_SPEC_TiB … IDS_SPEC_KiB.
+  // Once, whichever thread asks first: scans format sizes off the main thread.
+  static NSArray *names = nil;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    names = @[LDLocalized(@"TiB"), LDLocalized(@"GiB"), LDLocalized(@"MiB"), LDLocalized(@"KiB")];
+  });
   NSUInteger i = 0;
   for (i = 0; i < sizeof(units) / sizeof(units[0]); i++) {
     if (bytes < units[i].threshold) {
       continue;
     }
-    return [NSString stringWithFormat:@"%@ %@", LDFormatDouble((double)bytes / (double)units[i].bytes), units[i].unit];
+    return [NSString stringWithFormat:@"%@ %@", LDFormatDouble((double)bytes / (double)units[i].bytes), [names objectAtIndex:i]];
   }
-  return [NSString stringWithFormat:@"%llu B", bytes];
+  // Under 1 KB, WinDirStat writes the count and IDS_SPEC_BYTES ("bytes").
+  return [NSString stringWithFormat:@"%llu %@", bytes, LDLocalized(@"bytes")];
 }
 
 + (NSString *)stringForDouble:(double)value

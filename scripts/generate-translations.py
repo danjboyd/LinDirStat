@@ -42,7 +42,10 @@ MANUAL = {
     # Not mapped: Show in Finder/Files and Open Terminal Here, whose
     # WinDirStat strings name Explorer and the Command Prompt.
     "Open": "IDS_CLEANUP_OPEN_SELECTED",
-    "Size proportion of total scan: %@%%\nSize proportion of parent folder: %@%%": "IDS_SIZE_PROPORTION_TOOLTIPss",
+    # The unit after a size under 1 KiB, not the Bytes column title.
+    "bytes": "IDS_SPEC_BYTES",
+    "Size proportion of total scan: %@%%
+Size proportion of parent folder: %@%%": "IDS_SIZE_PROPORTION_TOOLTIPss",
     "Move to Trash": "IDS_MENU_DELETE_BIN",
     "Delete Permanently…": "IDS_MENU_DELETE",
     "Empty Folder…": "IDS_MENU_EMPTY_FOLDER",
