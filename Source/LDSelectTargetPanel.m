@@ -205,11 +205,10 @@ typedef enum {
 // Total and Free are wide enough for the widest two-decimal size, as the
 // main window's size columns are: "1023.99 MiB" in the user's language
 // (anything larger moves up a unit). At 80 points two-decimal sizes were
-// cut to "603.95…".
-- (void)fitSizeColumn:(NSTableColumn *)column
+// cut to "603.95…". % Used fits "100.00%" with the locale's separator.
+- (void)fitColumn:(NSTableColumn *)column toWidest:(NSString *)widest
 {
   NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
-  NSString *widest = [@"1023.99 " stringByAppendingString:LDLocalized(@"MiB")];
   CGFloat value = ceil([widest sizeWithAttributes:attributes].width + 12.0);
   [column setMinWidth:MAX([column minWidth], value)];
   if ([column width] < value) {
@@ -226,7 +225,11 @@ typedef enum {
       others += [column width] + [_table intercellSpacing].width;
     }
   }
-  CGFloat available = [[_table enclosingScrollView] contentSize].width;
+  // The clip view's width leaves out an always-visible (legacy) scroller,
+  // once the scroll view has tiled it.
+  NSScrollView *scroll = [_table enclosingScrollView];
+  [scroll tile];
+  CGFloat available = NSWidth([[scroll contentView] frame]);
   [name setWidth:MAX(120.0, floor(available - others - [_table intercellSpacing].width))];
 }
 
@@ -337,13 +340,17 @@ typedef enum {
   [self addColumn:LDSelectTargetColumnName title:LDLocalized(@"Name")
             width:MAX(120.0, contentSize.width - fixedWidths - 5 * [_table intercellSpacing].width)
             right:NO ascending:YES];
-  [self fitSizeColumn:[self addColumn:LDSelectTargetColumnTotal title:LDLocalized(@"Total") width:80.0 right:YES ascending:NO]];
-  [self fitSizeColumn:[self addColumn:LDSelectTargetColumnFree title:LDLocalized(@"Free") width:80.0 right:YES ascending:NO]];
+  NSString *widestSize = [@"1023.99 " stringByAppendingString:LDLocalized(@"MiB")];
+  [self fitColumn:[self addColumn:LDSelectTargetColumnTotal title:LDLocalized(@"Total") width:80.0 right:YES ascending:NO]
+         toWidest:widestSize];
+  [self fitColumn:[self addColumn:LDSelectTargetColumnFree title:LDLocalized(@"Free") width:80.0 right:YES ascending:NO]
+         toWidest:widestSize];
   // The usage bar gives up 30 points to the fitted Total and Free, so the
   // columns still fit the panel with always-visible scroll bars on macOS.
   NSTableColumn *used = [self addColumn:LDSelectTargetColumnUsed title:LDLocalized(@"Used") width:80.0 right:NO ascending:NO];
   [used setDataCell:[[LDVolumeUsageCell alloc] init]];
-  [self addColumn:LDSelectTargetColumnPercent title:LDLocalized(@"% Used") width:70.0 right:YES ascending:NO];
+  [self fitColumn:[self addColumn:LDSelectTargetColumnPercent title:LDLocalized(@"% Used") width:70.0 right:YES ascending:NO]
+         toWidest:[LDSizeFormatter stringForPercent:100.0]];
   // WinDirStat 2.6's header column chooser; Name takes the room a hidden
   // column leaves (or gives it back).
   _columnChooser = [[LDColumnChooser alloc] initWithTable:_table
@@ -395,6 +402,10 @@ typedef enum {
     : (_mode == LDSelectTargetIndividualDrives ? (NSView *)_table : (NSView *)_allRadio);
   [_panel setInitialFirstResponder:first];
   [_panel center];
+  // Name takes what the other columns leave, now that the rows are in and
+  // the scroll view knows whether its scroller takes room (macOS's
+  // always-visible scroll bars do): "% Used" ran under the scroller.
+  [self fitNameColumn];
   NSInteger result = LDRunPanelModally(_panel);
   _finished = YES;
   [_panel orderOut:nil];

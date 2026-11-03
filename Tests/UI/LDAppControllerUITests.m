@@ -1900,11 +1900,17 @@
     XCTAssertGreaterThanOrEqual([column width], text + 12.0, @"%@", identifier);
     XCTAssertGreaterThanOrEqual([column minWidth], text + 12.0, @"%@", identifier);
   }
+  NSTableColumn *percent = [table tableColumnWithIdentifier:@"percent"];
+  NSDictionary *percentAttributes = @{NSFontAttributeName: [[percent dataCell] font] ?: [NSFont systemFontOfSize:0]};
+  XCTAssertGreaterThanOrEqual([percent width], [[LDSizeFormatter stringForPercent:100.0] sizeWithAttributes:percentAttributes].width + 12.0);
   for (NSTableColumn *column in [table tableColumns]) {
     used += [column width] + [table intercellSpacing].width;
   }
-  // Name absorbs the difference: the columns still fit the list.
-  XCTAssertLessThanOrEqual(floor(used), ceil([[table enclosingScrollView] contentSize].width) + 1.0);
+  // Name absorbs the difference: the columns fit the clip view, which an
+  // always-visible scroller narrows ("% Used" ran under it on macOS).
+  NSScrollView *scroll = [table enclosingScrollView];
+  [scroll tile];
+  XCTAssertLessThanOrEqual(floor(used), ceil(NSWidth([[scroll contentView] frame])) + 1.0);
 }
 
 // GNUstep's distributed notifications go over a DO connection to gdnc; when
