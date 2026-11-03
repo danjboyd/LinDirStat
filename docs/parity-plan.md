@@ -119,6 +119,36 @@ gnustep-packager v0.1.6 pin (#124), #118, #110, #111 and #121.
 | #109 | Sizes with 2 decimals (WinDirStat 322ee29b) or keep 1 | Dan decides | — | |
 | #108 | M13 macOS validation matrix | macOS | — | needs Dan's Intel Mac |
 
+### Release checklist
+
+This is 0.1.5's checklist plus what 0.1.5 taught us. The release itself waits for Dan's go.
+
+1. Every issue above is closed or moved to a later milestone by Dan.
+   `./scripts/run-tests.sh`, the WinDirStat and GUI parity gates, and
+   `make -C macos test` are green on `main`.
+2. Release notes PR: `packaging/linux/release-notes/0.1.6.md` and the Mac
+   notes cover the Hilbert and Moore layouts, empty cells skipped in every
+   style, two-decimal sizes, and anything else user-visible.
+3. Pins PR: re-check `packaging/release-inputs.json`. gnustep-packager is
+   already at v0.1.6 (#124). A newer Adwaita tag needs Dan's approval first.
+4. Version PR: set `package.version` and the runtime notices to 0.1.6.
+5. Release candidate: `gh workflow run release.yml --ref main -f
+   version=0.1.6-rc1`. Linux runs `scripts/release-linux.sh --from-ci <run>`
+   from a checkout at the run's commit; that includes
+   `scripts/test-appimage-update.sh`. macOS checks the DMG from the run's
+   `release` artifact: first open with the README's xattr step, a scan of an
+   explicit fixture (never `~`), the Save and Open panels, and Preferences ›
+   Treemap with each style (Hilbert and Moore are new). Both post results on
+   the release PR.
+6. Final candidate: a manual Release run on `main` without a version, then
+   the same dry run and DMG check.
+7. **With Dan's go:** on the Linux machine that holds the update key, with the
+   `main` *branch* checked out (a detached HEAD at the same commit is refused),
+   run `scripts/release-linux.sh --from-ci <run> --publish`. Then check that
+   tag `v0.1.6` peels to the run's commit, that the release has its six assets
+   (AppImage, `.zsync`, `update-feed.json`, DMG, `.dmg.sha256`,
+   `SHA256SUMS`), and that the live feed offers 0.1.6. Close the milestone.
+
 ## Intentional differences (not gaps)
 
 Properties panel, POSIX regular expressions in Search, Logical Size off by
