@@ -34,6 +34,8 @@
                        width:(CGFloat)width
                        right:(BOOL)rightAligned
                      toTable:(NSTableView *)table;
+- (void)fitSizeColumnsOfTable:(NSTableView *)table;
+- (CGFloat)headerWidthOfColumn:(NSTableColumn *)column sorted:(BOOL)sorted;
 - (void)setSortPrototypeForColumn:(NSTableColumn *)column ascending:(BOOL)ascending;
 - (NSString *)selectedExtensionKey;
 - (void)updateWatcherControls;

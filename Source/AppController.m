@@ -1011,6 +1011,30 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   return column;
 }
 
+// The size columns of a list that doesn't fit its columns to its rows are
+// wide enough for the widest two-decimal size, "1023.99 MB" (anything larger
+// moves up a unit), which a fixed 80 or 90 points cut to "1023.4…" under
+// Adwaita, and for their title with its sort indicator, since these lists
+// sort by size ("Physical Size" was cut to "Physical …"). Called once the
+// table's saved widths are restored: 0.1.5 saved those 80 and 90 points.
+// Only the value width is the minimum, so a user can still narrow the title.
+- (void)fitSizeColumnsOfTable:(NSTableView *)table
+{
+  for (NSTableColumn *column in [table tableColumns]) {
+    if (![@[@"bytes", @"physicalSize", @"logicalSize"] containsObject:[column identifier]]) {
+      continue;
+    }
+    NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
+    CGFloat value = ceil([@"1023.99 MB" sizeWithAttributes:attributes].width + 12.0);
+    CGFloat width = MAX(value, [self headerWidthOfColumn:column sorted:YES]);
+    [column setMinWidth:MAX([column minWidth], value)];
+    [_naturalColumnWidths setObject:@(MAX(width, [[_naturalColumnWidths objectForKey:column] doubleValue])) forKey:column];
+    if ([column width] < width) {
+      [column setWidth:width];
+    }
+  }
+}
+
 - (void)setSortPrototypeForColumn:(NSTableColumn *)column ascending:(BOOL)ascending
 {
   [column setSortDescriptorPrototype:[[NSSortDescriptor alloc] initWithKey:[column identifier] ascending:ascending]];
@@ -1237,6 +1261,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [_extensionTable setDoubleAction:@selector(extensionListDoubleClicked:)];
   [_extensionTable setAutosaveName:@"LinDirStatExtensionList3"];
   [_extensionTable setAutosaveTableColumns:YES];
+  [self fitSizeColumnsOfTable:_extensionTable];
   [_extensionTable setDataSource:self];
   [_extensionTable setDelegate:self];
   [_extensionTable setSortDescriptors:@[[[NSSortDescriptor alloc] initWithKey:@"bytes" ascending:NO]]];
@@ -1270,7 +1295,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   CGFloat selectionWidth = 190.0;
   _memoryField = [self statusLabel];
   // Wide enough for the label in any language with a four-digit size.
-  NSString *widest = [NSString stringWithFormat:LDLocalized(@"Memory: %@"), @"9999.9 MB"];
+  NSString *widest = [NSString stringWithFormat:LDLocalized(@"Memory: %@"), @"9999.99 MB"];
   CGFloat memoryWidth = MAX(130.0, ceil([widest sizeWithAttributes:@{NSFontAttributeName: [_memoryField font]}].width) + 8.0);
   [_memoryField setAlignment:NSRightTextAlignment];
   [_memoryField setFrame:NSMakeRect(bounds.size.width - memoryWidth - 12, 6, memoryWidth, 18)];
@@ -1416,11 +1441,17 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 // the sorted column ("Percentage", by default) would be cut to "Perce…".
 - (CGFloat)headerWidthOfColumn:(NSTableColumn *)column inTable:(NSTableView *)table
 {
+  NSString *sortKey = [[[table sortDescriptors] firstObject] key];
+  return [self headerWidthOfColumn:column
+                            sorted:sortKey && [sortKey isEqualToString:[[column sortDescriptorPrototype] key]]];
+}
+
+- (CGFloat)headerWidthOfColumn:(NSTableColumn *)column sorted:(BOOL)sorted
+{
   NSTableHeaderCell *header = (NSTableHeaderCell *)[column headerCell];
   CGFloat title = [header cellSize].width;
   CGFloat width = title;
-  NSString *sortKey = [[[table sortDescriptors] firstObject] key];
-  if (sortKey && [sortKey isEqualToString:[[column sortDescriptorPrototype] key]]) {
+  if (sorted) {
     // The room the indicator takes from the right of the cell: its width
     // and the inset the cell draws it at (AppKit's is wider than GNUstep's,
     // so "Physical Size" was cut to "Physical S…" there, #83).
