@@ -151,9 +151,9 @@ This is 0.1.5's checklist plus what 0.1.5 taught us. The release itself waits fo
 
 ## 0.1.7 (milestone 0.1.7)
 
-Nothing merges to `main` until `v0.1.6` is published. Then #135 (distinct CI
-check names) lands first, and `main` gets branch protection requiring both
-the Linux and the macOS build-and-test checks.
+`v0.1.6` was published on 2026-11-03 (tag on 2387de2). Since then #135 gave
+the CI checks distinct names, and `main` is protected: a merge needs "Linux
+build-and-test" and "macOS build-and-test" green, admins included.
 
 | Issue | Gap | Owner | Reviewer | Status |
 |---|---|---|---|---|
