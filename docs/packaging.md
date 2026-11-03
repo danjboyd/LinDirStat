@@ -120,6 +120,25 @@ The AppImage lands at `dist/packages/LinDirStat-0.1.0-x86_64.AppImage` (about
 The `-RunSmoke` step launches the AppImage on `$DISPLAY`. Run it on a private
 X server (`Xvfb :N`, `DISPLAY=:N`), not on a desktop someone is using.
 
+**The smoke log's "Broken pipe" lines are its own teardown (#117).** The
+smoke waits out its startup window (`startupSeconds`, 5 s by default), then
+sends one TERM to the launch and to every process with its `GNUSTEP_HOME`,
+which includes the app's `gdnc`. `gdnc` exits first, so the app logs, about
+5 s after launch:
+
+```
+write attempt failed - Error Domain=NSPOSIXErrorDomain Code=32 "Broken pipe"
+No handle for event rport on descriptor 17
+```
+
+and, with Select Target open, `NSPortTimeoutException ... keeping the dialog
+open` (#115). Nothing ends `gdnc` before that: launched from a shell or
+through PowerShell's `Start-Process` as the smoke does, and left running for
+12 s, the app's connection held in the release container, with and without an
+init. The release job's container runs with `--init` so the processes the
+smoke stops are reaped; without it they stay as zombies, which the smoke
+reports as "still running after KILL".
+
 `build` runs `scripts/package-build.sh` (the normal `gnustep-cli-new` build).
 `stage` runs `scripts/package-stage.sh dist/stage`, which can also be run on
 its own to inspect the payload.

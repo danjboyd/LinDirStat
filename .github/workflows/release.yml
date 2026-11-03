@@ -67,7 +67,12 @@ jobs:
   linux:
     needs: version
     runs-on: ubuntu-24.04
-    container: debian:trixie
+    container:
+      image: debian:trixie
+      # An init as PID 1 reaps what the packager's smoke stops (its gdnc,
+      # the app), which otherwise stay as zombies that it reports as
+      # "still running after KILL" (#117).
+      options: --init
     timeout-minutes: 90
     steps:
       - name: Packages
