@@ -168,7 +168,7 @@
 "Show time spent during scan" = "Näytä tarkistukseen käytetty aika";
 "Size Proportion" = "Koon osuus";
 "Size Proportion Color" = "Koon osuuden väri";
-"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Osuus skannauksen kokonaiskoosta: %.1f%%\nOsuus yläkansion koosta: %.1f%%";
+"Size proportion of total scan: %@%%\nSize proportion of parent folder: %@%%" = "Osuus skannauksen kokonaiskoosta: %@%%\nOsuus yläkansion koosta: %@%%";
 "Start File Watcher" = "Käynnistä tiedostovalvonta";
 "Stop" = "Pysäytä";
 "Style" = "Tyyli";

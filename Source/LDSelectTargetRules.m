@@ -1,5 +1,6 @@
 #import "LDSelectTargetRules.h"
 #import "LDVolumes.h"
+#import "LDSizeFormatter.h"
 
 NSString *const LDSelectTargetColumnName = @"name";
 NSString *const LDSelectTargetColumnTotal = @"total";
@@ -142,7 +143,8 @@ static NSString *LDFolderKey(NSString *path)
   if (![volume isQueried]) {
     return @"";
   }
-  return [NSString stringWithFormat:@"%.1f%%", [volume usedFraction] * 100.0];
+  // WinDirStat's SelectDrivesDlg: FormatDouble(used * 100) + "%".
+  return [LDSizeFormatter stringForPercent:[volume usedFraction] * 100.0];
 }
 
 // A column's sort value; -1 until the volume is queried.

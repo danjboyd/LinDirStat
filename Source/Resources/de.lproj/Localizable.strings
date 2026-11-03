@@ -166,7 +166,7 @@
 "Show time spent during scan" = "Verbrauchte Zeit während des Einlesens anzeigen";
 "Size Proportion" = "Größenverhältnis";
 "Size Proportion Color" = "Farbe des Größenverhältnisses";
-"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Größenanteil am gesamten Scan: %.1f%%\nGrößenanteil am übergeordneten Ordner: %.1f%%";
+"Size proportion of total scan: %@%%\nSize proportion of parent folder: %@%%" = "Größenanteil am gesamten Scan: %@%%\nGrößenanteil am übergeordneten Ordner: %@%%";
 "Start File Watcher" = "Dateiüberwachung starten";
 "Stop" = "Stoppen";
 "Style" = "Stil";

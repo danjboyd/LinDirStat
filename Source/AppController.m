@@ -2710,7 +2710,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 - (NSString *)percentStringForFraction:(double)fraction
 {
-  return [NSString stringWithFormat:@"%.1f%%", fraction * 100.0];
+  return [LDSizeFormatter stringForPercent:fraction * 100.0];
 }
 
 - (id)tableView:(NSTableView *)tableView objectValueForTableColumn:(NSTableColumn *)tableColumn row:(NSInteger)row
@@ -2784,8 +2784,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 // WinDirStat 2.6's Size Proportion tooltip (IDS_SIZE_PROPORTION_TOOLTIPss).
 - (NSString *)sizeProportionToolTipForNode:(LDFileNode *)node
 {
-  return [NSString stringWithFormat:LDLocalized(@"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%"),
-                   [node fractionOfRootForMetric:_sizeMetric] * 100.0, [self fractionOfParentForNode:node] * 100.0];
+  return [NSString stringWithFormat:LDLocalized(@"Size proportion of total scan: %@%%\nSize proportion of parent folder: %@%%"),
+                   [LDSizeFormatter stringForDouble:[node fractionOfRootForMetric:_sizeMetric] * 100.0],
+                   [LDSizeFormatter stringForDouble:[self fractionOfParentForNode:node] * 100.0]];
 }
 
 - (NSString *)listView:(NSTableView *)view toolTipAtRow:(NSInteger)row column:(NSInteger)column
