@@ -50,6 +50,7 @@ static NSString *const LDTabWatcher = @"watcher";
   NSArray *columns = @[@[@"physicalSize", LDLocalized(@"Physical Size")], @[@"logicalSize", LDLocalized(@"Logical Size")]];
   for (NSArray *spec in columns) {
     NSTableColumn *column = [self addColumn:[spec objectAtIndex:0] title:[spec objectAtIndex:1] width:90 right:YES toTable:table];
+    [self fitSizeColumn:column];
     [self setSortPrototypeForColumn:column ascending:NO];
   }
   NSTableColumn *lastChange = [self addColumn:@"lastChange" title:LDLocalized(@"Last Change") width:140 right:NO toTable:table];
@@ -463,7 +464,9 @@ static NSString *const LDTabWatcher = @"watcher";
   [self setSortPrototypeForColumn:name ascending:YES];
   [self setSortPrototypeForColumn:[self addColumn:@"time" title:LDLocalized(@"Time") width:150 right:NO toTable:table] ascending:NO];
   [self setSortPrototypeForColumn:[self addColumn:@"operation" title:LDLocalized(@"Operation") width:120 right:NO toTable:table] ascending:YES];
-  [self setSortPrototypeForColumn:[self addColumn:@"logicalSize" title:LDLocalized(@"Logical Size") width:90 right:YES toTable:table] ascending:NO];
+  NSTableColumn *logicalSize = [self addColumn:@"logicalSize" title:LDLocalized(@"Logical Size") width:90 right:YES toTable:table];
+  [self fitSizeColumn:logicalSize];
+  [self setSortPrototypeForColumn:logicalSize ascending:NO];
   [self addColumnChooserForTable:table list:LDColumnListWatcher required:nil changed:nil];
   [table setColumnAutoresizingStyle:NSTableViewNoColumnAutoresizing];
   [table setAllowsMultipleSelection:YES];

@@ -460,6 +460,31 @@
   XCTAssertFalse([[_controller window] isReleasedWhenClosed]);
 }
 
+// Two-decimal sizes (#126): the lists whose size columns aren't fitted to
+// their rows cut "1023.48 MB" to "1023.4…" at the old 80 and 90 points, and
+// a sorted "Physical Size" to "Physical …".
+- (void)testFixedSizeColumnsFitTheWidestTwoDecimalSize
+{
+  if (!_controller) {
+    return;
+  }
+  NSDictionary *columns = @{@"bytes": @[[_controller extensionTable]],
+                            @"physicalSize": @[[_controller largestTable], [_controller searchTable], [_controller duplicatesTable]],
+                            @"logicalSize": @[[_controller largestTable], [_controller searchTable], [_controller duplicatesTable], [_controller watcherTable]]};
+  for (NSString *identifier in columns) {
+    for (NSTableView *table in [columns objectForKey:identifier]) {
+      NSTableColumn *column = [table tableColumnWithIdentifier:identifier];
+      XCTAssertNotNil(column, @"%@", identifier);
+      NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
+      CGFloat text = [@"1023.99 MB" sizeWithAttributes:attributes].width;
+      XCTAssertGreaterThanOrEqual([column width], text + 12.0, @"%@ in %@", identifier, [table autosaveName]);
+      XCTAssertGreaterThanOrEqual([column minWidth], text + 12.0, @"%@ in %@", identifier, [table autosaveName]);
+      // These lists sort by size: the title keeps room for the indicator.
+      XCTAssertGreaterThanOrEqual([column width], [_controller headerWidthOfColumn:column sorted:YES], @"%@ in %@", identifier, [table autosaveName]);
+    }
+  }
+}
+
 - (void)testTreeSelectionSelectsInTreemap
 {
   if (!_controller || ![self scanTree]) {

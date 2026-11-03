@@ -1011,6 +1011,24 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   return column;
 }
 
+// A size column that isn't fitted to its rows is wide enough for the widest
+// two-decimal size, "1023.99 MB" (anything larger moves up a unit), which a
+// fixed 80 or 90 points cut to "1023.4…" under Adwaita; as the minimum it
+// also holds against a narrower width saved by an older version. It starts
+// wide enough for its title and sort indicator too, since these lists sort
+// by size ("Physical Size" was cut to "Physical …").
+- (void)fitSizeColumn:(NSTableColumn *)column
+{
+  NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
+  CGFloat value = ceil([@"1023.99 MB" sizeWithAttributes:attributes].width + 12.0);
+  CGFloat width = MAX(value, [self headerWidthOfColumn:column sorted:YES]);
+  [column setMinWidth:MAX([column minWidth], value)];
+  if ([column width] < width) {
+    [column setWidth:width];
+    [_naturalColumnWidths setObject:@(width) forKey:column];
+  }
+}
+
 - (void)setSortPrototypeForColumn:(NSTableColumn *)column ascending:(BOOL)ascending
 {
   [column setSortDescriptorPrototype:[[NSSortDescriptor alloc] initWithKey:[column identifier] ascending:ascending]];
@@ -1219,6 +1237,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [[description dataCell] setLineBreakMode:NSLineBreakByTruncatingTail];
   [self setSortPrototypeForColumn:description ascending:YES];
   NSTableColumn *bytes = [self addColumn:@"bytes" title:LDLocalized(@"Bytes") width:80 right:YES toTable:_extensionTable];
+  [self fitSizeColumn:bytes];
   [self setSortPrototypeForColumn:bytes ascending:NO];
   NSTableColumn *percent = [self addColumn:@"percent" title:LDLocalized(@"% Bytes") width:80 right:YES toTable:_extensionTable];
   [self setSortPrototypeForColumn:percent ascending:NO];
@@ -1416,11 +1435,17 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 // the sorted column ("Percentage", by default) would be cut to "Perce…".
 - (CGFloat)headerWidthOfColumn:(NSTableColumn *)column inTable:(NSTableView *)table
 {
+  NSString *sortKey = [[[table sortDescriptors] firstObject] key];
+  return [self headerWidthOfColumn:column
+                            sorted:sortKey && [sortKey isEqualToString:[[column sortDescriptorPrototype] key]]];
+}
+
+- (CGFloat)headerWidthOfColumn:(NSTableColumn *)column sorted:(BOOL)sorted
+{
   NSTableHeaderCell *header = (NSTableHeaderCell *)[column headerCell];
   CGFloat title = [header cellSize].width;
   CGFloat width = title;
-  NSString *sortKey = [[[table sortDescriptors] firstObject] key];
-  if (sortKey && [sortKey isEqualToString:[[column sortDescriptorPrototype] key]]) {
+  if (sorted) {
     // The room the indicator takes from the right of the cell: its width
     // and the inset the cell draws it at (AppKit's is wider than GNUstep's,
     // so "Physical Size" was cut to "Physical S…" there, #83).
