@@ -163,7 +163,7 @@
 "Show time spent during scan" = "Bestede tijd tijdens scan weergeven";
 "Size Proportion" = "Grootteverhouding";
 "Size Proportion Color" = "Kleur van grootteverhouding";
-"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Grootteverhouding ten opzichte van de volledige scan: %.1f%%\nGrootteverhouding ten opzichte van de bovenliggende map: %.1f%%";
+"Size proportion of total scan: %@%%\nSize proportion of parent folder: %@%%" = "Grootteverhouding ten opzichte van de volledige scan: %@%%\nGrootteverhouding ten opzichte van de bovenliggende map: %@%%";
 "Start File Watcher" = "Bestandsbewaking starten";
 "Stop" = "Stoppen";
 "Style" = "Stijl";

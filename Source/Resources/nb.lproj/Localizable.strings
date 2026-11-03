@@ -166,7 +166,7 @@
 "Show time spent during scan" = "Vis tid brukt under skanning";
 "Size Proportion" = "Størrelsesforhold";
 "Size Proportion Color" = "Farge for størrelsesforhold";
-"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Størrelsesandel av hele skanningen: %.1f%%\nStørrelsesandel av den overordnede mappen: %.1f%%";
+"Size proportion of total scan: %@%%\nSize proportion of parent folder: %@%%" = "Størrelsesandel av hele skanningen: %@%%\nStørrelsesandel av den overordnede mappen: %@%%";
 "Start File Watcher" = "Start filovervåking";
 "Stop" = "Stopp";
 "Style" = "Stil";

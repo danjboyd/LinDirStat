@@ -15,6 +15,13 @@ static NSString *LDDecimalSeparator(void)
   return [separator length] ? separator : @".";
 }
 
+// WinDirStat's FormatDouble: two decimals, rounded half away from zero.
+static NSString *LDFormatDouble(double value)
+{
+  long long hundredths = llround(value * 100.0);
+  return [NSString stringWithFormat:@"%lld%@%02lld", hundredths / 100, LDDecimalSeparator(), hundredths % 100];
+}
+
 @implementation LDSizeFormatter
 
 + (void)setHumanReadable:(BOOL)humanReadable
@@ -56,10 +63,19 @@ static NSString *LDDecimalSeparator(void)
     if (bytes < units[i].threshold) {
       continue;
     }
-    long long hundredths = llround((double)bytes / (double)units[i].bytes * 100.0);
-    return [NSString stringWithFormat:@"%lld%@%02lld %@", hundredths / 100, LDDecimalSeparator(), hundredths % 100, units[i].unit];
+    return [NSString stringWithFormat:@"%@ %@", LDFormatDouble((double)bytes / (double)units[i].bytes), units[i].unit];
   }
   return [NSString stringWithFormat:@"%llu B", bytes];
+}
+
++ (NSString *)stringForDouble:(double)value
+{
+  return LDFormatDouble(value);
+}
+
++ (NSString *)stringForPercent:(double)percent
+{
+  return [LDFormatDouble(percent) stringByAppendingString:@"%"];
 }
 
 @end

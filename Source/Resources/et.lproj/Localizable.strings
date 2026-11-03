@@ -168,7 +168,7 @@
 "Show time spent during scan" = "Näita ajakulgu skaneerimisel";
 "Size Proportion" = "Suuruse osakaal";
 "Size Proportion Color" = "Suuruse osakaalu värv";
-"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Osakaal skannitud andmete kogumahust: %.1f%%\nOsakaal ülemkausta mahust: %.1f%%";
+"Size proportion of total scan: %@%%\nSize proportion of parent folder: %@%%" = "Osakaal skannitud andmete kogumahust: %@%%\nOsakaal ülemkausta mahust: %@%%";
 "Start File Watcher" = "Käivita failijälgija";
 "Stop" = "Peata";
 "Style" = "Stiil";

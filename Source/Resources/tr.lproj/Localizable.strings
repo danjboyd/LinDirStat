@@ -167,7 +167,7 @@
 "Show time spent during scan" = "Tarama sırasında harcanan zamanı göster";
 "Size Proportion" = "Boyut Oranı";
 "Size Proportion Color" = "Boyut Oranı Rengi";
-"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "Toplam taranan boyuta oranı: %.1f%%\nÜst klasörün boyutuna oranı: %.1f%%";
+"Size proportion of total scan: %@%%\nSize proportion of parent folder: %@%%" = "Toplam taranan boyuta oranı: %@%%\nÜst klasörün boyutuna oranı: %@%%";
 "Start File Watcher" = "Dosya izleyiciyi başlat";
 "Stop" = "Durdur";
 "Style" = "Stil";

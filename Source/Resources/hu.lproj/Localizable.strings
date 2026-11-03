@@ -168,7 +168,7 @@
 "Show time spent during scan" = "Vizsgálat alatt eltelt idő mutatása";
 "Size Proportion" = "Méretarány";
 "Size Proportion Color" = "Méretarány színe";
-"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "A teljes vizsgálat méretéhez viszonyított arány: %.1f%%\nA szülőmappa méretéhez viszonyított arány: %.1f%%";
+"Size proportion of total scan: %@%%\nSize proportion of parent folder: %@%%" = "A teljes vizsgálat méretéhez viszonyított arány: %@%%\nA szülőmappa méretéhez viszonyított arány: %@%%";
 "Start File Watcher" = "Fájlfelügyelő indítása";
 "Stop" = "Leállítás";
 "Style" = "Stílus";

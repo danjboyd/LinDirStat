@@ -1966,7 +1966,7 @@
     return [_controller outlineView:tree objectValueForTableColumn:percent byItem:node];
   };
   NSString *(^formatted)(double) = ^NSString *(double fraction) {
-    return [NSString stringWithFormat:@"%.1f%%", fraction * 100.0];
+    return [LDSizeFormatter stringForPercent:fraction * 100.0];
   };
   LDSizeMetric metric = [[LDPreferences sharedPreferences] useLogicalSize] ? LDSizeMetricLogical : LDSizeMetricPhysical;
 
@@ -1977,14 +1977,14 @@
   while ([root parent]) {
     root = [root parent];
   }
-  XCTAssertEqualObjects(@"100.0%", shown(root));
-  XCTAssertNotEqualObjects(@"100.0%", shown(deep));
+  XCTAssertEqualObjects(@"100.00%", shown(root));
+  XCTAssertNotEqualObjects(@"100.00%", shown(deep));
 
   [_controller toggleAbsolutePercentages:nil];
   XCTAssertFalse([[LDPreferences sharedPreferences] useAbsolutePercentages]);
   XCTAssertEqual(NSOffState, [self menuStateFor:@selector(toggleAbsolutePercentages:)]);
   // deep.txt is the only file in a/sub.
-  XCTAssertEqualObjects(@"100.0%", shown(deep));
+  XCTAssertEqualObjects(@"100.00%", shown(deep));
   XCTAssertEqualObjects(formatted([[deep parent] fractionOfParentForMetric:metric]), shown([deep parent]));
   XCTAssertNotEqualObjects(shown([deep parent]), formatted([[deep parent] fractionOfRootForMetric:metric]));
 }
@@ -2020,8 +2020,9 @@
   NSInteger row = [tree rowForItem:sub];
   NSInteger index = [[tree tableColumns] indexOfObject:column];
   XCTAssertTrue(row >= 0);
-  NSString *expected = [NSString stringWithFormat:@"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%",
-                                 [sub fractionOfRootForMetric:metric] * 100.0, [sub fractionOfParentForMetric:metric] * 100.0];
+  NSString *expected = [NSString stringWithFormat:@"Size proportion of total scan: %@%%\nSize proportion of parent folder: %@%%",
+                                 [LDSizeFormatter stringForDouble:[sub fractionOfRootForMetric:metric] * 100.0],
+                                 [LDSizeFormatter stringForDouble:[sub fractionOfParentForMetric:metric] * 100.0]];
   XCTAssertEqualObjects(expected, [_controller listView:tree toolTipAtRow:row column:index]);
   XCTAssertNil([_controller listView:tree toolTipAtRow:row column:0]);
 

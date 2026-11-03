@@ -49,4 +49,17 @@
   XCTAssertEqualObjects(@"40 B", [LDSizeFormatter stringForBytes:40]);
 }
 
+// Percentages are WinDirStat's FormatDouble plus "%" (Item.Extended.cpp,
+// ExtensionListControl.cpp, SelectDrivesDlg.cpp).
+- (void)testFormatsPercentagesAsWinDirStatDoes
+{
+  XCTAssertEqualObjects(@"89.60%", [LDSizeFormatter stringForPercent:89.6]);
+  XCTAssertEqualObjects(@"100.00%", [LDSizeFormatter stringForPercent:100.0]);
+  XCTAssertEqualObjects(@"0.00%", [LDSizeFormatter stringForPercent:0.0]);
+  XCTAssertEqualObjects(@"33.33%", [LDSizeFormatter stringForPercent:100.0 / 3.0]);
+  XCTAssertEqualObjects(@"0.01%", [LDSizeFormatter stringForPercent:0.005]);
+  [LDSizeFormatter setLocaleForTesting:[NSLocale localeWithLocaleIdentifier:@"de_DE"]];
+  XCTAssertEqualObjects(@"89,60%", [LDSizeFormatter stringForPercent:89.6]);
+}
+
 @end

@@ -170,7 +170,7 @@
 "Show time spent during scan" = "掃描時顯示所需時間";
 "Size Proportion" = "大小比例";
 "Size Proportion Color" = "大小比例顏色";
-"Size proportion of total scan: %.1f%%\nSize proportion of parent folder: %.1f%%" = "佔整個掃描的大小比例：%.1f%%\n佔上層資料夾的大小比例：%.1f%%";
+"Size proportion of total scan: %@%%\nSize proportion of parent folder: %@%%" = "佔整個掃描的大小比例：%@%%\n佔上層資料夾的大小比例：%@%%";
 "Start File Watcher" = "啟動檔案監視器";
 "Stop" = "停止";
 "Style" = "風格";
