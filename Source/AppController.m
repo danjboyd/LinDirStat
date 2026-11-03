@@ -1025,7 +1025,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
       continue;
     }
     NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
-    CGFloat value = ceil([@"1023.99 MiB" sizeWithAttributes:attributes].width + 12.0);
+    CGFloat value = ceil([[@"1023.99 " stringByAppendingString:LDLocalized(@"MiB")] sizeWithAttributes:attributes].width + 12.0);
     CGFloat width = MAX(value, [self headerWidthOfColumn:column sorted:YES]);
     [column setMinWidth:MAX([column minWidth], value)];
     [_naturalColumnWidths setObject:@(MAX(width, [[_naturalColumnWidths objectForKey:column] doubleValue])) forKey:column];
@@ -1295,7 +1295,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   CGFloat selectionWidth = 190.0;
   _memoryField = [self statusLabel];
   // Wide enough for the label in any language with a four-digit size.
-  NSString *widest = [NSString stringWithFormat:LDLocalized(@"Memory: %@"), @"9999.99 MiB"];
+  NSString *widest = [NSString stringWithFormat:LDLocalized(@"Memory: %@"), [@"9999.99 " stringByAppendingString:LDLocalized(@"MiB")]];
   CGFloat memoryWidth = MAX(130.0, ceil([widest sizeWithAttributes:@{NSFontAttributeName: [_memoryField font]}].width) + 8.0);
   [_memoryField setAlignment:NSRightTextAlignment];
   [_memoryField setFrame:NSMakeRect(bounds.size.width - memoryWidth - 12, 6, memoryWidth, 18)];

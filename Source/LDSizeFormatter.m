@@ -36,10 +36,12 @@ static BOOL LDHumanReadable = YES;
     {1ULL << 10, 1ULL << 10},
   };
   // WinDirStat's IDS_SPEC_TiB … IDS_SPEC_KiB.
+  // Once, whichever thread asks first: scans format sizes off the main thread.
   static NSArray *names = nil;
-  if (!names) {
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
     names = @[LDLocalized(@"TiB"), LDLocalized(@"GiB"), LDLocalized(@"MiB"), LDLocalized(@"KiB")];
-  }
+  });
   NSUInteger i = 0;
   for (i = 0; i < sizeof(units) / sizeof(units[0]); i++) {
     if (bytes < units[i].threshold) {

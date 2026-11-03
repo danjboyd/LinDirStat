@@ -16,6 +16,7 @@
 #import "LDFileTypeDescriptions.h"
 #import "LDFileWatcher.h"
 #import "LDHardLinks.h"
+#import "LDLocalization.h"
 #import "LDPreferences.h"
 #import "LDOptionsWindowController.h"
 #import "LDScanSession.h"
@@ -509,7 +510,7 @@
       NSTableColumn *column = [table tableColumnWithIdentifier:identifier];
       XCTAssertNotNil(column, @"%@", identifier);
       NSDictionary *attributes = @{NSFontAttributeName: [[column dataCell] font] ?: [NSFont systemFontOfSize:0]};
-      CGFloat text = [@"1023.99 MiB" sizeWithAttributes:attributes].width;
+      CGFloat text = [[@"1023.99 " stringByAppendingString:LDLocalized(@"MiB")] sizeWithAttributes:attributes].width;
       XCTAssertGreaterThanOrEqual([column minWidth], text + 12.0, @"%@ in %@", identifier, [table autosaveName]);
       XCTAssertGreaterThanOrEqual([column width], text + 12.0, @"%@ in %@", identifier, [table autosaveName]);
       // These lists sort by size: the title keeps room for the indicator.
