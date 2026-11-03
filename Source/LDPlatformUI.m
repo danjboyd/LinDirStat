@@ -155,6 +155,12 @@ static NSImage *LDSmallIcon(NSImage *icon)
   return YES;
 }
 
++ (NSFont *)sortedHeaderFontForCell:(NSTableHeaderCell *)cell
+{
+  NSFont *font = [cell font] ?: [NSFont systemFontOfSize:[NSFont smallSystemFontSize]];
+  return [[NSFontManager sharedFontManager] convertFont:font toHaveTrait:NSBoldFontMask];
+}
+
 static NSString *const LDSuppressFullDiskAccessKey = @"LDSuppressFullDiskAccessPrompt";
 static NSString *const LDFullDiskAccessSettingsURL =
   @"x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles";
@@ -396,6 +402,11 @@ static NSString *const LDFullDiskAccessSettingsURL =
 + (BOOL)tablesAutoresizeColumns
 {
   return NO;
+}
+
++ (NSFont *)sortedHeaderFontForCell:(NSTableHeaderCell *)cell
+{
+  return [cell font] ?: [NSFont systemFontOfSize:0];
 }
 
 + (void)scanDidFinishWithRoot:(LDFileNode *)root window:(NSWindow *)window
