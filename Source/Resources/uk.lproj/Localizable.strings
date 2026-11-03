@@ -64,6 +64,7 @@
 "Free" = "Вільно";
 "Full row selection" = "Виділяти весь рядок";
 "General" = "Загальні";
+"GiB" = "ГіБ";
 "Grid color" = "Колір сітки";
 "Grid color (Auto)" = "Колір сітки (авто)";
 "Group Unregistered Types" = "Групувати незареєстровані типи";
@@ -76,6 +77,7 @@
 "Invalid filter" = "Неправильний фільтр";
 "Invalid filter: %@" = "Неправильний фільтр: %@";
 "Items" = "Елементи";
+"KiB" = "КіБ";
 "Language" = "Мова";
 "Large Toolbar Icons" = "Великі піктограми панелі інструментів";
 "Largest Files" = "Найбільші файли";
@@ -89,6 +91,7 @@
 "Logical Size" = "Логічний розмір";
 "Logical Size:" = "Логічний розмір:";
 "Memory: %@" = "Використання RAM: %@";
+"MiB" = "МіБ";
 "Modified" = "Змінено";
 "Move Down" = "Вниз";
 "Move To" = "Перемістити в";
@@ -174,6 +177,7 @@
 "Style" = "Стиль";
 "Suspend" = "Призупинити";
 "Suspend Scan" = "Призупинити";
+"TiB" = "ТіБ";
 "Time" = "Час";
 "Title" = "Назва";
 "Tools" = "Інструменти";
