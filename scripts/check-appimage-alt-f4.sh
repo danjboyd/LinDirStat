@@ -23,6 +23,7 @@ set -euo pipefail
 # Runs again inside a private-home bwrap sandbox (scripts/sandbox.sh).
 . "$(dirname "${BASH_SOURCE[0]}")/sandbox.sh"
 ld_sandbox "$@"
+. "$(dirname "${BASH_SOURCE[0]}")/run-processes.sh"
 
 appimage="$(realpath "$1")"
 # Without a FUSE device (a container) the AppImage cannot mount itself; it
@@ -53,11 +54,14 @@ xvfb_pid=""
 shell_pid=""
 app_pid=""
 cleanup() {
+  local status=$?
   [ -n "$app_pid" ] && kill -- "-$app_pid" 2>/dev/null || true
   [ -n "$shell_pid" ] && kill "$shell_pid" 2>/dev/null || true
   sleep 1
   [ -n "$app_pid" ] && kill -KILL -- "-$app_pid" 2>/dev/null || true
   [ -n "$xvfb_pid" ] && kill "$xvfb_pid" 2>/dev/null || true
+  # The app's gdnc is in its own session, outside that group.
+  ld_stop_run_processes "$root/home" || status=1
   # The private session bus starts gvfs and the document portal, which mount
   # FUSE file systems in the runtime folder, and an accessibility bus.
   for mount in "$root/run/gvfs" "$root/run/doc"; do
@@ -69,6 +73,7 @@ cleanup() {
     fi
   done
   rm -rf "$root" "$gs_tmp" 2>/dev/null || true
+  exit "$status"
 }
 trap cleanup EXIT
 

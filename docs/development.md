@@ -150,6 +150,11 @@ LinDirStat and global defaults are compared before and after each run.
 `LINDIRSTAT_SANDBOX=off` skips it, `required` fails without bwrap; CI runs
 unsandboxed.
 
+The app starts `gdnc` as a daemon in its own session, so ending the app leaves
+it running. The checks and the GUI parity gate stop the processes that carry
+their run's private `GNUSTEP_HOME` (`scripts/run-processes.sh`), and fail if
+one won't stop; other runs' daemons and your session's are left alone.
+
 Run GUI checks on a private X server so synthetic input never reaches the
 desktop you are working on, and with private defaults so test runs do not
 change your LinDirStat settings:

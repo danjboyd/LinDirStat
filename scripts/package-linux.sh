@@ -29,6 +29,7 @@ set -euo pipefail
 # Runs again inside a private-home bwrap sandbox (scripts/sandbox.sh).
 . "$(dirname "${BASH_SOURCE[0]}")/sandbox.sh"
 ld_sandbox "$@"
+. "$(dirname "${BASH_SOURCE[0]}")/run-processes.sh"
 
 release=0
 version_override=""
@@ -112,7 +113,9 @@ for file in "$appimage" "$appimage.zsync" "$feed"; do
   [ -f "$file" ] || die "packaging did not produce $file"
 done
 
-# The release checks.
+# The release checks. Each stops the daemons its app started (#147); this
+# looks for them another way, so a teardown that stops matching them fails too.
+daemons_before="$(ld_check_daemons)"
 scripts/check-appimage-first-launch.sh "$appimage" || die "the AppImage does not start for a new user"
 scripts/check-appimage-open-folder.sh "$appimage" || die "the AppImage does not offer to open folders, or does not scan the folder it is given"
 alt_f4_log="$work/alt-f4.log"
@@ -123,6 +126,8 @@ elif grep -q "alt-f4: SKIPPED" "$alt_f4_log"; then
 else
   alt_f4=failed
 fi
+daemons_left="$(ld_check_daemons | grep -vxF -e "$daemons_before" || true)"
+[ -z "$daemons_left" ] || die "the release checks left gdnc running: $(echo $daemons_left)"
 if [ "$alt_f4" != passed ]; then
   [ "$alt_f4_mode" = required ] && die "Alt+F4 under GNOME Shell: $alt_f4"
   warn "Alt+F4 under GNOME Shell: $alt_f4; run scripts/check-appimage-alt-f4.sh on this AppImage before publishing it"
