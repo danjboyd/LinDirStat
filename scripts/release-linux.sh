@@ -29,7 +29,7 @@
 #      in this checkout and that the build IDs of the Adwaita theme and
 #      libs-back inside the AppImage are the provenance's and those of local
 #      builds of the pins (scripts/build-adwaita.sh, build-libs-back.sh), then
-#      runs the first-launch, open-folder and Alt+F4 checks on the AppImage
+#      runs the first-launch, open-folder, Alt+F4 and window-front checks on the AppImage
 #      again here, on a desktop machine rather than a container;
 #   2. checks the feed describes this release and its files (URL, sha256,
 #      size), then signs it with the update key (UPDATE_ED_PRIVATE_KEY, else
@@ -186,6 +186,7 @@ PY
   scripts/check-appimage-first-launch.sh "$appimage" || die "the AppImage does not start for a new user"
   scripts/check-appimage-open-folder.sh "$appimage" || die "the AppImage does not offer to open folders, or does not scan the folder it is given"
   LINDIRSTAT_ALT_F4_REQUIRED=1 scripts/check-appimage-alt-f4.sh "$appimage" || die "Alt+F4 under GNOME Shell does not close the AppImage's windows cleanly"
+  LINDIRSTAT_WINDOW_FRONT_REQUIRED=1 scripts/check-appimage-window-front.sh "$appimage" || die "the main window does not come up on top under GNOME Shell"
   built_by="Built by the release workflow ($run_url) from danjboyd/LinDirStat \`${commit:0:7}\`"
 fi
 
