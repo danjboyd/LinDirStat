@@ -1385,8 +1385,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 }
 
 // Gives one column whatever width its table's pane has left, as GTK's
-// expanding columns do. GNUstep's autoresizing styles resize every column and
-// are not applied until the table resizes, so this is done by hand.
+// expanding columns do. GNUstep's -setColumnAutoresizingStyle: is an empty
+// stub, so no style can name that column, and this is done by hand.
 - (void)fitColumn:(NSString *)identifier ofTable:(NSTableView *)table
 {
   NSTableColumn *flexible = [table tableColumnWithIdentifier:identifier];
