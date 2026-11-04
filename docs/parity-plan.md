@@ -157,12 +157,32 @@ build-and-test" and "macOS build-and-test" green, admins included.
 
 | Issue | Gap | Owner | Reviewer | Status |
 |---|---|---|---|---|
-| #131 | `docs/windirstat-parity.md`: stale status rows | Linux | macOS (Mac rows), lead | |
-| #132 | Size format: KiB/MiB units, "N bytes", locale decimal separator | Dan decides | macOS prepares the ask | |
-| #133 | Track WinDirStat's next release (pinned at v2.9.3) | Linux | macOS, lead | waits for an upstream release |
-| #134 | `check-appimage-alt-f4.sh`: silence `/proc/<pid>/environ` errors | Linux | lead | |
-| #136 | macOS: sorted "Physical Size" header measured in the regular, not bold, font | Linux | macOS | |
+| #131 | `docs/windirstat-parity.md`: stale status rows | Linux | macOS (Mac rows), lead | done (#140) |
+| #132 | Size format: KiB/MiB units, "N bytes", locale decimal separator | macOS | Linux (Adwaita), lead | done (#141, #142, #143): Dan chose all three, with two-decimal percentages |
+| #133 | Track WinDirStat's next release (pinned at v2.9.3) | Linux | macOS, lead | moved to 0.1.8 |
+| #134 | `check-appimage-alt-f4.sh`: silence `/proc/<pid>/environ` errors | Linux | lead | done (#139) |
+| #136 | macOS: sorted "Physical Size" header measured in the regular, not bold, font | Linux | macOS | done (#138) |
+| — | Select Target: Total, Free and % Used cut off | Linux | macOS | done (#145) |
 | #108 | M13 macOS validation matrix | macOS | — | deferred indefinitely (Dan): no Intel Mac; no milestone |
+
+`v0.1.7` was published on 2026-11-03 (tag on 4bf6b00). The 0.1.6 release
+checklist applies unchanged.
+
+## 0.1.8 (milestone 0.1.8)
+
+Maintenance (Dan, 2026-11-03): port each new WinDirStat release, fix reported
+bugs, and ship a tested 0.1.x when there is something worth shipping. Upstream
+is checked weekly on #133.
+
+| Issue | Gap | Owner | Reviewer | Status |
+|---|---|---|---|---|
+| #147 | AppImage check scripts leave their gdnc running | Linux | lead | |
+| #133 | Track WinDirStat's next release (pinned at v2.9.3) | Linux | macOS, lead | waits for an upstream release (none as of 2026-11-04) |
+| #150 | Shared code: Foundation/AppKit API that GNUstep lacks or stubs (after #143) | macOS (audit), Linux (fix) | lead | audit done; `setColumnAutoresizingStyle:` is a no-op on GNUstep, Linux checks Options and Select Target on resize |
+| — | `LDSizeFormatter`: the lazy `grouped` formatter isn't thread-safe | macOS | Linux, lead | #149 |
+
+Use the 0.1.6 release checklist, with 0.1.8 for the version. Merges need
+Dan's go for 0.1.8; the 0.1.6 and 0.1.7 goes don't carry over.
 
 ## Intentional differences (not gaps)
 
