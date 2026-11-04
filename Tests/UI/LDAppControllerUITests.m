@@ -1921,6 +1921,46 @@
   XCTAssertLessThanOrEqual(floor(used), ceil(visible) + 1.0);
 }
 
+// -setColumnAutoresizingStyle: is an empty stub on GNUstep (#150), so nothing
+// would widen these windows' columns. They can't be resized and their tables'
+// scroll views don't grow sideways; a window that becomes resizable has to fit
+// its columns by hand, as -fitColumn:ofTable: does for the main window.
+- (void)assertTableWidthIsFixedInWindow:(NSWindow *)window
+{
+  XCTAssertEqual((NSUInteger)0, (NSUInteger)([window styleMask] & NSResizableWindowMask), @"%@", [window title]);
+  NSScrollView *scroll = [[self tableInView:[window contentView]] enclosingScrollView];
+  XCTAssertNotNil(scroll, @"%@", [window title]);
+  XCTAssertEqual((NSUInteger)0, (NSUInteger)([scroll autoresizingMask] & NSViewWidthSizable), @"%@", [window title]);
+}
+
+- (void)testSelectTargetTableWidthIsFixed
+{
+  if (!_controller) {
+    return;
+  }
+  [LDSelectTargetPanel setModalRunnerForTesting:^NSInteger(NSWindow *panel) {
+    [self assertTableWidthIsFixedInWindow:panel];
+    return NSModalResponseCancel;
+  }];
+  @try {
+    [LDSelectTargetPanel runWithInitialFolder:_tree];
+  }
+  @finally {
+    [LDSelectTargetPanel setModalRunnerForTesting:nil];
+  }
+}
+
+- (void)testOptionsCleanupTableWidthIsFixed
+{
+  if (!_controller) {
+    return;
+  }
+  LDOptionsWindowController *options = [LDOptionsWindowController sharedController];
+  [options showPage:LDOptionsPageCleanups];
+  [self assertTableWidthIsFixedInWindow:[options window]];
+  [[options window] orderOut:nil];
+}
+
 // GNUstep's distributed notifications go over a DO connection to gdnc; when
 // gdnc goes away, a request raises NSPortTimeoutException out of the modal
 // loop (#100's AppImage smoke launch, in the release workflow's container).
