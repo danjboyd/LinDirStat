@@ -163,6 +163,36 @@ def other_lindirstat_processes():
     return found
 
 
+def run_processes(home):
+    """This user's processes with GNUSTEP_HOME=home: the app's gdnc is a daemon
+    in its own session, so stopping the app leaves it running (#147)."""
+    marker = b"GNUSTEP_HOME=" + str(home).encode()
+    found = set()
+    for entry in Path("/proc").iterdir():
+        if entry.name.isdigit():
+            try:
+                if entry.stat().st_uid == os.getuid() and marker in (entry / "environ").read_bytes().split(b"\0"):
+                    found.add(int(entry.name))
+            except OSError:
+                pass
+    return found
+
+
+def stop_run_processes(home):
+    """Ends them, TERM then KILL after 3 seconds; returns any still running."""
+    for sig, attempts in ((signal.SIGTERM, 30), (signal.SIGKILL, 30)):
+        for pid in run_processes(home):
+            try:
+                os.kill(pid, sig)
+            except OSError:
+                pass
+        for _ in range(attempts):
+            if not run_processes(home):
+                return set()
+            time.sleep(0.1)
+    return run_processes(home)
+
+
 GLOBAL_DEFAULTS = {
     # The checks read English titles, whatever the machine's language.
     "NSLanguages": ["English"],
@@ -762,6 +792,8 @@ def run_style(gate, style_name, style, display, fixture_root, spec, parity, out_
             missing("preferences", "Preferences window")
     finally:
         app.stop()
+        left = stop_run_processes(home)
+        gate.check(style_name, "teardown", "no process of this run left running", not left, sorted(left))
     return states
 
 

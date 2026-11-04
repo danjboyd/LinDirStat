@@ -38,6 +38,9 @@ step() { printf '\n== %s\n' "$*"; }
 step "Pinned inputs"
 "$repo_root/scripts/test-pinned-inputs.sh"
 
+step "Run teardown"
+"$repo_root/scripts/test-run-processes.sh"
+
 step "GNUstep toolchain"
 if [ ! -f "$gnustep_root/System/Library/Makefiles/GNUstep.sh" ]; then
   curl -fsSL -o "$work/gnustep-bootstrap.sh" "$bootstrap_url"
