@@ -7,8 +7,8 @@
 # with another app's window focused and filling the screen. Then:
 #
 # 1. starts the AppImage with a folder: its main window must end up on top;
-# 2. starts it with nothing to scan and closes Select Target: the main window
-#    must end up on top. (Cancel: OK needs a folder or a drive, and which
+# 2. starts it with nothing to scan and closes Select Target with Escape: the
+#    main window must end up on top. (OK needs a folder or a drive, and which
 #    drives there are depends on the machine. Both take the same way out.)
 #
 # libs-back writes _NET_WM_USER_TIME 0 on a window mapped before any input, so
@@ -186,13 +186,6 @@ panel="$(xdotool search --name '^Select Target$' 2>/dev/null | tail -1)"
 sleep 2
 xdotool windowactivate --sync "$panel" 2>/dev/null || true
 sleep 0.5
-eval "$(xdotool getwindowgeometry --shell "$panel" | grep -E '^(X|Y)=')"
-# Cancel, from the panel's left and top edges. Slowly: GNUstep misses a press
-# and release in the same instant after a jump of the pointer.
-xdotool mousemove "$((X + 428))" "$((Y + 491))"
-sleep 0.3
-xdotool mousedown 1
-sleep 0.15
-xdotool mouseup 1
+xdotool key Escape
 wait_for_top '^LinDirStat$' || fail "after Select Target closed, the main window is not on top (top: $(top_title))"
 echo "window-front: after Select Target closed, the main window is on top"
