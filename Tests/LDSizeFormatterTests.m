@@ -15,6 +15,7 @@
 - (void)tearDown
 {
   [LDSizeFormatter setLocaleForTesting:nil];
+  [LDSizeFormatter setHumanReadable:YES];
 }
 
 - (void)testFormatsByteValuesForDisplay
@@ -60,6 +61,29 @@
   XCTAssertEqualObjects(@"0.01%", [LDSizeFormatter stringForPercent:0.005]);
   [LDSizeFormatter setLocaleForTesting:[NSLocale localeWithLocaleIdentifier:@"de_DE"]];
   XCTAssertEqualObjects(@"89,60%", [LDSizeFormatter stringForPercent:89.6]);
+}
+
+// With the human-readable format off, the count is digit-grouped and the
+// same from every thread, including several asking for the first time at once.
+- (void)testFormatsExactByteCountsFromConcurrentThreads
+{
+  [LDSizeFormatter setHumanReadable:NO];
+  NSUInteger count = 64;
+  NSMutableArray *results = [NSMutableArray arrayWithCapacity:count];
+  NSLock *lock = [[NSLock alloc] init];
+  dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
+    NSString *result = [LDSizeFormatter stringForBytes:1234567];
+    [lock lock];
+    [results addObject:result ?: @""];
+    [lock unlock];
+  });
+  XCTAssertEqual(count, [results count]);
+  NSString *first = [results objectAtIndex:0];
+  NSString *digits = [[first componentsSeparatedByCharactersInSet:[[NSCharacterSet decimalDigitCharacterSet] invertedSet]]
+                         componentsJoinedByString:@""];
+  XCTAssertEqualObjects(@"1234567", digits);
+  XCTAssertTrue([first hasSuffix:@" bytes"]);
+  XCTAssertEqual((NSUInteger)1, [[NSSet setWithArray:results] count]);
 }
 
 @end
