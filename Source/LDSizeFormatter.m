@@ -38,11 +38,12 @@ static NSString *LDFormatDouble(double value)
 {
   if (!LDHumanReadable) {
     static NSNumberFormatter *grouped = nil;
-    if (!grouped) {
+    static dispatch_once_t groupedOnce;
+    dispatch_once(&groupedOnce, ^{
       grouped = [[NSNumberFormatter alloc] init];
       [grouped setNumberStyle:NSNumberFormatterDecimalStyle];
       [grouped setUsesGroupingSeparator:YES];
-    }
+    });
     return [NSString stringWithFormat:LDLocalized(@"%@ bytes"), [grouped stringFromNumber:[NSNumber numberWithUnsignedLongLong:bytes]]];
   }
   // WinDirStat's FormatSizeSuffixes and FormatDouble (HelpersInterface.cpp):
