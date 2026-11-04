@@ -99,10 +99,12 @@ macOS packaging is intentionally not enabled yet. `gnustep-packager` needs a nat
 The Adwaita theme draws GNOME's window shadow and rounded corners only when
 libs-back carries the theme's patches (`Docs/upstream-patches/` in
 `~/git/gnustep/plugins-themes-adwaita`). Stock libs-back gives square corners
-and no shadow; nothing in LinDirStat controls this.
-
-On this machine the patched backend from `~/git/gnustep/libs-back-series`
-(branch `ai-policy/csd-series`) is installed into the `gnustep-cli` prefix:
+and no shadow; nothing in LinDirStat controls this. The AppImage ships them,
+backported to its libs-back revision (`packaging/linux/libs-back`, #156). A
+build run from the `gnustep-cli` prefix has them only if the patched backend
+from `~/git/gnustep/libs-back-series` (branch `ai-policy/csd-series`) is
+installed there; `strings` on the installed bundle finds
+`GSBackWindowShadows` when it is. To install it:
 
 ```sh
 . ~/.local/share/gnustep-cli/System/Library/Makefiles/GNUstep.sh

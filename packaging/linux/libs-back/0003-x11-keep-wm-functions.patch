@@ -1,0 +1,41 @@
+From dbfbe53 Mon Sep 17 00:00:00 2001
+From: Daniel Boyd <danieljboyd@icloud.com>
+Subject: [PATCH] x11: keep the window manager functions of windows the gui decorates
+
+Backport to back-0_32_0 of the source change in ai-policy/csd-series (dbfbe53), from plugins-themes-Adwaita 0.1.0-alpha18's Docs/upstream-patches/, without its ChangeLog entry and tests.
+
+---
+diff --git a/Source/x11/XGServerWindow.m b/Source/x11/XGServerWindow.m
+index 33102d5..6323e16 100644
+--- a/Source/x11/XGServerWindow.m
++++ b/Source/x11/XGServerWindow.m
+@@ -337,8 +337,7 @@ static void setWindowHintsForStyle (Display *dpy, Window window,
+   hints->functions = 0;
+ 
+   /* Now add to the hints from the styleMask */
+-  if (styleMask == NSBorderlessWindowMask
+-      || !handlesWindowDecorations)
++  if (styleMask == NSBorderlessWindowMask)
+     {
+       hints->flags |= MWM_HINTS_DECORATIONS;
+       hints->flags |= MWM_HINTS_FUNCTIONS;
+@@ -382,6 +381,19 @@ static void setWindowHintsForStyle (Display *dpy, Window window,
+ 	  hints->functions |= MWM_FUNC_MAXIMIZE;
+ 	  hints->functions |= MWM_FUNC_MOVE;
+         }
++      if (!handlesWindowDecorations)
++	{
++	  /* The gui library draws the decorations: ask for none, but keep
++	     the functions, so that the window manager still moves,
++	     resizes, maximizes, minimizes and closes the window when the
++	     user or the decorations ask it to (_NET_WM_MOVERESIZE, its
++	     window menu, keyboard shortcuts). With functions 0 a window
++	     manager such as Mutter refuses all of them. */
++	  hints->flags |= MWM_HINTS_DECORATIONS;
++	  hints->flags |= MWM_HINTS_FUNCTIONS;
++	  hints->decorations = 0;
++	  hints->functions |= MWM_FUNC_MOVE;
++	}
+       if (styleMask & NSIconWindowMask)
+ 	{
+ 	  // FIXME
