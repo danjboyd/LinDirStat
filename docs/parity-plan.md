@@ -178,8 +178,8 @@ is checked weekly on #133.
 |---|---|---|---|---|
 | #147 | AppImage check scripts leave their gdnc running | Linux | lead | |
 | #133 | Track WinDirStat's next release (pinned at v2.9.3) | Linux | macOS, lead | waits for an upstream release (none as of 2026-11-04) |
-| — | Shared code: Foundation/AppKit API that GNUstep lacks (after #143) | macOS | Linux, lead | audit |
-| — | `LDSizeFormatter`: the lazy `grouped` formatter isn't thread-safe | macOS | Linux, lead | |
+| #150 | Shared code: Foundation/AppKit API that GNUstep lacks or stubs (after #143) | macOS (audit), Linux (fix) | lead | audit done; `setColumnAutoresizingStyle:` is a no-op on GNUstep, Linux checks Options and Select Target on resize |
+| — | `LDSizeFormatter`: the lazy `grouped` formatter isn't thread-safe | macOS | Linux, lead | #149 |
 
 Use the 0.1.6 release checklist, with 0.1.8 for the version. Merges need
 Dan's go for 0.1.8; the 0.1.6 and 0.1.7 goes don't carry over.
