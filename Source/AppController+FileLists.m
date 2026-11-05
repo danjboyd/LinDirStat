@@ -452,7 +452,9 @@ static NSString *const LDTabWatcher = @"watcher";
       self->_searchRunning = NO;
       [LDProfiling logStep:@"search" since:started];
       if (root == self->_rootNode) {
+        NSTimeInterval shown = [LDProfiling now];
         [self showSearchResult:result forOptions:options];
+        [LDProfiling logStep:@"search results shown" since:shown];
       }
       [self refreshCommandState];
     });
