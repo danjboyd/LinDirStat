@@ -14,6 +14,7 @@
 #import "LDSearch.h"
 #import "LDSizeFormatter.h"
 #import "LDTreemapView.h"
+#import "LDUpdateThrottle.h"
 
 static NSString *const LDTabAllFiles = @"all";
 static NSString *const LDTabLargest = @"largest";
@@ -25,6 +26,10 @@ static NSString *const LDTabWatcher = @"watcher";
 // Files, Duplicate Files (when duplicate detection is on), Search Results
 // (after a search) and File Watcher (while Tools › Start File Watcher is
 // on). Each list's selection drives the treemap and commands.
+// The Duplicates list may take this much of the main thread while hashing.
+static const double LDDuplicateUpdateBusyShare = 0.05;
+static const NSTimeInterval LDDuplicateUpdateMinimumInterval = 0.5;
+
 @implementation AppController (FileLists)
 
 #pragma mark - Building
@@ -138,6 +143,8 @@ static NSString *const LDTabWatcher = @"watcher";
   (void)tabView;
   if (item == _largestTab) {
     [self updateLargestFiles];
+  } else if (item == _duplicatesTab) {
+    [self showPendingDuplicateGroupsForced:YES];
   }
   // A list in a hidden tab has no width to fit into until it is shown.
   [self fitFlexibleColumns];
@@ -285,6 +292,9 @@ static NSString *const LDTabWatcher = @"watcher";
     return;
   }
   _duplicateFinder = collector;
+  _pendingDuplicateGroups = nil;
+  _duplicateUpdateThrottle = [[LDUpdateThrottle alloc] initWithBusyShare:LDDuplicateUpdateBusyShare
+                                                         minimumInterval:LDDuplicateUpdateMinimumInterval];
   [self setDuplicatesSearching:YES];
   [collector setUpdateHandler:^(NSArray *groups, BOOL finished) {
     if (collector != _duplicateFinder) {
@@ -294,8 +304,47 @@ static NSString *const LDTabWatcher = @"watcher";
       _duplicateFinder = nil;
       [self setDuplicatesSearching:NO];
     }
-    [self showDuplicateGroupsKeepingSelection:groups];
+    [self receiveDuplicateGroups:groups finished:finished];
   }];
+}
+
+// Updates arrive twice a second while hashing, and on a large tree sorting and
+// reloading the list took most of the main thread's time (#170). The list
+// updates at the throttle's pace while it's showing, and otherwise when it's
+// shown; the final groups always go in.
+- (void)receiveDuplicateGroups:(NSArray *)groups finished:(BOOL)finished
+{
+  _pendingDuplicateGroups = groups;
+  [self showPendingDuplicateGroupsForced:finished];
+}
+
+- (void)showPendingDuplicateGroupsForced:(BOOL)forced
+{
+  [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(pendingDuplicateGroupsDue) object:nil];
+  if (!_pendingDuplicateGroups) {
+    return;
+  }
+  if (!forced) {
+    if ([_fileTabs selectedTabViewItem] != _duplicatesTab) {
+      return;
+    }
+    NSTimeInterval wait = [_duplicateUpdateThrottle waitAt:[NSDate timeIntervalSinceReferenceDate]];
+    if (wait > 0.0) {
+      // No later delivery may come while one large file hashes.
+      [self performSelector:@selector(pendingDuplicateGroupsDue) withObject:nil afterDelay:wait];
+      return;
+    }
+  }
+  NSArray *groups = _pendingDuplicateGroups;
+  _pendingDuplicateGroups = nil;
+  NSTimeInterval started = [NSDate timeIntervalSinceReferenceDate];
+  [self showDuplicateGroupsKeepingSelection:groups];
+  [_duplicateUpdateThrottle didUpdateAt:started duration:[NSDate timeIntervalSinceReferenceDate] - started];
+}
+
+- (void)pendingDuplicateGroupsDue
+{
+  [self showPendingDuplicateGroupsForced:NO];
 }
 
 // A scan with duplicate detection fills the tab as it goes. A tree that was
@@ -306,6 +355,7 @@ static NSString *const LDTabWatcher = @"watcher";
   if (collector) {
     if (_duplicateFinder != collector) {
       // The collector finished before the scan's completion arrived.
+      _pendingDuplicateGroups = nil;
       [self showDuplicateGroupsKeepingSelection:[collector groups]];
     }
     return;
@@ -313,6 +363,7 @@ static NSString *const LDTabWatcher = @"watcher";
   [_duplicateFinder cancel];
   _duplicateFinder = nil;
   _duplicateGroups = @[];
+  _pendingDuplicateGroups = nil;
   [_duplicatesTable reloadData];
   BOOL enabled = [[LDPreferences sharedPreferences] scanForDuplicates] && _rootNode;
   [self setTab:_duplicatesTab shown:enabled];
@@ -819,6 +870,7 @@ static NSString *const LDTabWatcher = @"watcher";
   _duplicateFinder = nil;
   _largestFiles = @[];
   _duplicateGroups = @[];
+  _pendingDuplicateGroups = nil;
   _searchRows = @[];
   [self setTab:_searchTab shown:NO];
   [self setTab:_duplicatesTab shown:NO];
@@ -950,6 +1002,7 @@ static NSString *const LDTabWatcher = @"watcher";
 - (void)saveDuplicatesToCSV:(id)sender
 {
   (void)sender;
+  [self showPendingDuplicateGroupsForced:YES];
   if ([_duplicateGroups count] == 0) {
     return;
   }

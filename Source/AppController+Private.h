@@ -70,6 +70,8 @@
 - (void)resetFileListsForScan;
 // After _scanSession has started: follows its duplicate collector, if any.
 - (void)fileListsDidStartScan;
+- (void)receiveDuplicateGroups:(NSArray *)groups finished:(BOOL)finished;
+- (void)showPendingDuplicateGroupsForced:(BOOL)forced;
 // Duplicate detection can go on after the scan; Stop stops it too.
 - (BOOL)isFindingDuplicates;
 - (void)stopDuplicateDetection;

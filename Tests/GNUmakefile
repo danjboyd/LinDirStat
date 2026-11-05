@@ -42,6 +42,7 @@ LinDirStatTests_OBJC_FILES = \
   LDFileWatcherTests.m \
   LDDesktopEntryTests.m \
   LDDesktopIntegrationTests.m \
+  LDUpdateThrottleTests.m \
   LDOpenWithTests.m \
   LDHardLinksTests.m \
   LDUpdatesTests.m \
@@ -93,6 +94,7 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDOpenWith.m \
   ../Source/LDOpenWithLinux.m \
   ../Source/LDDesktopIntegration.m \
+  ../Source/LDUpdateThrottle.m \
   ../Source/LDUpdates.m
 
 LinDirStatTests_INCLUDE_DIRS = -I../Source -I.

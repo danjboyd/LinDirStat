@@ -9,6 +9,8 @@
 @class LDTreemapView;
 @class LDFileWatcher;
 
+@class LDUpdateThrottle;
+
 @interface AppController : NSObject <NSApplicationDelegate, LDListViewCommands, NSTabViewDelegate>
 {
   NSWindow *_window;
@@ -60,6 +62,9 @@
   LDOutlineView *_duplicatesTable;
   NSArray *_largestFiles;
   NSArray *_duplicateGroups;
+  // Groups from the hashing not yet shown (#170), and when the list may next update.
+  NSArray *_pendingDuplicateGroups;
+  LDUpdateThrottle *_duplicateUpdateThrottle;
   NSArray *_searchRows;
   id _duplicateFinder;
   NSString *_loadedFile;
