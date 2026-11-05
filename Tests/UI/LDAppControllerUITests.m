@@ -78,6 +78,19 @@
 - (void)selectNodeAndNotify:(LDFileNode *)node;
 @end
 
+// A treemap view whose window is (or isn't) in a live resize, which tests
+// can't start for real.
+@interface LDLiveResizeTreemapView : LDTreemapView
+{
+@public
+  BOOL _live;
+}
+@end
+
+@implementation LDLiveResizeTreemapView
+- (BOOL)inLiveResize { return _live; }
+@end
+
 @interface LDUITestController : AppController
 {
   NSUInteger _scansFinished;
@@ -2245,6 +2258,63 @@
   XCTAssertEqualWithAccuracy([background redComponent], [pixel redComponent], 0.05);
   XCTAssertEqualWithAccuracy([background greenComponent], [pixel greenComponent], 0.05);
   XCTAssertEqualWithAccuracy([background blueComponent], [pixel blueComponent], 0.05);
+}
+
+// Draws view now: GNUstep draws on -display, macOS (for a window that isn't
+// on screen) on -cacheDisplayInRect:.
+- (void)drawView:(NSView *)view
+{
+  [view display];
+  NSBitmapImageRep *rep = [view bitmapImageRepForCachingDisplayInRect:[view bounds]];
+  [view cacheDisplayInRect:[view bounds] toBitmapImageRep:rep];
+}
+
+// #172: a resize stretches the old treemap and lays out once it settles,
+// after the debounce, or (macOS) when the live resize ends, however long the
+// drag pauses.
+- (void)testResizeLaysOutTheTreemapOnceItSettles
+{
+  LDFileNode *root = [LDFileNode nodeWithPath:@"/r" kind:LDFileNodeKindDirectory size:0];
+  NSUInteger i = 0;
+  for (i = 0; i < 20; i++) {
+    [root addChild:[LDFileNode nodeWithName:[NSString stringWithFormat:@"f%lu.bin", (unsigned long)i]
+                                       kind:LDFileNodeKindFile size:(i + 1) * 1000 allocatedSize:(i + 1) * 4096]];
+  }
+  [root recalculateAggregateSize];
+  [root sortChildrenByMetric:LDSizeMetricPhysical];
+  LDLiveResizeTreemapView *view = [[LDLiveResizeTreemapView alloc] initWithFrame:NSMakeRect(0, 0, 121, 81)];
+  NSWindow *window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 200, 100)
+                                                 styleMask:NSBorderlessWindowMask
+                                                   backing:NSBackingStoreBuffered
+                                                     defer:NO];
+  [window setReleasedWhenClosed:NO];
+  [[window contentView] addSubview:view];
+  [view setRootNode:root metric:LDSizeMetricPhysical colorIndexes:nil];
+  [self drawView:view];
+  XCTAssertEqual(120, [[view treemap] width]);
+
+  // Debounced: the old layout until the delay has passed.
+  [view setFrameSize:NSMakeSize(141, 81)];
+  [self drawView:view];
+  XCTAssertEqual(120, [[view treemap] width]);
+  [self spin:0.6];
+  [self drawView:view];
+  XCTAssertEqual(140, [[view treemap] width]);
+
+  // A live resize: no layout during it, even after a long pause.
+  view->_live = YES;
+  [view setFrameSize:NSMakeSize(161, 81)];
+  [self drawView:view];
+  [self spin:0.6];
+  [self drawView:view];
+  XCTAssertEqual(140, [[view treemap] width]);
+  XCTAssertNil([view nodeAtPoint:NSMakePoint(10, 10)]);
+  view->_live = NO;
+  [view viewDidEndLiveResize];
+  [self drawView:view];
+  XCTAssertEqual(160, [[view treemap] width]);
+  XCTAssertNotNil([view nodeAtPoint:NSMakePoint(10, 10)]);
+  [window close];
 }
 
 // WinDirStat 2.6's Treemap > Show Folder Frames: the folders get frames
