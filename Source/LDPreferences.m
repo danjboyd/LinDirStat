@@ -226,6 +226,7 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"FolderHistoryCount": @10,
     @"SearchMaxResults": @10000,
     @"ScanForDuplicates": @NO,
+    @"DesktopIntegrationDeclined": @NO,
     @"ShowDeletePermanentlyWarning": @YES,
     @"ShowDeleteToRecycleBinWarning": @YES,
     @"ShowEmptyRecycleBinPrompt": @YES,
@@ -588,6 +589,8 @@ static NSInteger LDPercentOf(double value)
   [self changed];
 }
 
+- (BOOL)desktopIntegrationDeclined { return [self boolForKey:@"DesktopIntegrationDeclined"]; }
+- (void)setDesktopIntegrationDeclined:(BOOL)flag { [self setBool:flag forKey:@"DesktopIntegrationDeclined"]; }
 - (BOOL)useLogicalSize { return [self boolForKey:@"UseLogicalSize"]; }
 - (void)setUseLogicalSize:(BOOL)flag { [self setBool:flag forKey:@"UseLogicalSize"]; }
 - (CGFloat)sizeProportionIndent { return (CGFloat)LDClamp([self integerForKey:@"SizeProportionIndent"], 0, 1000); }

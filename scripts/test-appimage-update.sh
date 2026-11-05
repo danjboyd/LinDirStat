@@ -172,7 +172,7 @@ PY
 
   GNUSTEP_HOME="$work/home" XDG_DATA_HOME="$work/xdg/data" XDG_CONFIG_HOME="$work/xdg/config" \
   XDG_CACHE_HOME="$work/xdg/cache" TMP="$work/tmp" TMPDIR="$work/tmp" DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent \
-  GP_UPDATER_FEED_URL="file://$work/release/stable.json" LINDIRSTAT_SCAN_PATH="$work/scan" \
+  GP_UPDATER_FEED_URL="file://$work/release/stable.json" LINDIRSTAT_SCAN_PATH="$work/scan" LINDIRSTAT_DESKTOP_PROMPT=off \
     "$work/install/LinDirStat.AppImage" >"$work/app-$name.log" 2>&1 &
   disown
 

@@ -120,6 +120,7 @@ done
 daemons_before="$(ld_check_daemons)"
 scripts/check-appimage-first-launch.sh "$appimage" || die "the AppImage does not start for a new user"
 scripts/check-appimage-open-folder.sh "$appimage" || die "the AppImage does not offer to open folders, or does not scan the folder it is given"
+scripts/check-appimage-desktop-integration.sh "$appimage" || die "the AppImage does not offer to add itself to the applications correctly"
 alt_f4_log="$work/alt-f4.log"
 if LINDIRSTAT_ALT_F4_REQUIRED=1 scripts/check-appimage-alt-f4.sh "$appimage" 2>&1 | tee "$alt_f4_log"; then
   alt_f4=passed
@@ -182,7 +183,7 @@ json.dump({
     # The toolchain the AppImage bundles (the gnustep-cli-new install it was
     # built against), to compare builds made on different machines.
     "toolchainBuildIds": dict(line.split("=", 1) for line in """$toolchain_ids""".split()),
-    "checks": {"validate+smoke": "passed", "first-launch": "passed", "open-folder": "passed", "alt-f4": "$alt_f4", "window-front": "$window_front"},
+    "checks": {"validate+smoke": "passed", "first-launch": "passed", "open-folder": "passed", "desktop-integration": "passed", "alt-f4": "$alt_f4", "window-front": "$window_front"},
 }, open(sys.argv[1], "w"), indent=2)
 open(sys.argv[1], "a").write("\n")
 PY

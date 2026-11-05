@@ -28,6 +28,7 @@
 #import "LDTreemapLayout.h"
 #import "LDTreemapView.h"
 #import "LDUpdates.h"
+#import "LDDesktopIntegration.h"
 #import "LDDesktop.h"
 #import "LDFileOperations.h"
 #import "LDMainWindow.h"
@@ -105,6 +106,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   LDCommandLine *commandLine = [LDCommandLine processCommandLine];
   if ([commandLine loadFromCSVPath]) {
     [self bringMainWindowForwardAfterMapping];
+    [self offerDesktopIntegrationSoon];
     [self loadResultsFromCSVFile:[commandLine loadFromCSVPath]];
     return;
   }
@@ -112,6 +114,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   _launchFolders = nil;
   if ([paths count] > 0) {
     [self bringMainWindowForwardAfterMapping];
+    [self offerDesktopIntegrationSoon];
     [self beginScanPaths:paths];
   } else {
     // WinDirStat.cpp:487-490: with nothing to scan, Select Drives opens
@@ -181,6 +184,12 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 - (void)bringMainWindowForwardAfterMapping
 {
   [_window performSelector:@selector(orderFront:) withObject:nil afterDelay:0.0];
+}
+
+// Once the main window is up and Select Target, if any, has closed.
+- (void)offerDesktopIntegrationSoon
+{
+  [[LDDesktopIntegration class] performSelector:@selector(offerAfterLaunch) withObject:nil afterDelay:0.5];
 }
 
 // GNUstep also hands the command line's folders to the delegate as files to
@@ -2231,6 +2240,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   // Focusing the main window doesn't raise it, and it was mapped below other
   // apps' windows (#155): without this the app looks as if it quit after OK.
   [_window makeKeyAndOrderFront:nil];
+  [self offerDesktopIntegrationSoon];
   if (paths) {
     [self beginScanPaths:paths];
   }

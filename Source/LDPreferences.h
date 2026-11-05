@@ -273,6 +273,10 @@ typedef enum {
 - (BOOL)showsPrompt:(LDPrompt)prompt;
 - (void)setShowsPrompt:(BOOL)flag forPrompt:(LDPrompt)prompt;
 
+// "Don't Ask Again" in the prompt to add an AppImage to the applications (#157).
+- (BOOL)desktopIntegrationDeclined;
+- (void)setDesktopIntegrationDeclined:(BOOL)flag;
+
 // Search dialog
 - (BOOL)searchUsesRegex;
 - (void)setSearchUsesRegex:(BOOL)flag;

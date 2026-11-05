@@ -41,6 +41,7 @@ LinDirStatTests_OBJC_FILES = \
   LDLanguagesTests.m \
   LDFileWatcherTests.m \
   LDDesktopEntryTests.m \
+  LDDesktopIntegrationTests.m \
   LDOpenWithTests.m \
   LDHardLinksTests.m \
   LDUpdatesTests.m \
@@ -91,6 +92,7 @@ LinDirStatTests_OBJC_FILES = \
   ../Source/LDMimeApps.m \
   ../Source/LDOpenWith.m \
   ../Source/LDOpenWithLinux.m \
+  ../Source/LDDesktopIntegration.m \
   ../Source/LDUpdates.m
 
 LinDirStatTests_INCLUDE_DIRS = -I../Source -I.
