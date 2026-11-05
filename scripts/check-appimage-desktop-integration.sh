@@ -103,7 +103,7 @@ no_alert() {
 entry="$data/applications/lindirstat.desktop"
 icon="$data/icons/hicolor/256x256/apps/lindirstat.png"
 
-# 1. The first launch asks; Add is the default button.
+# 1. The first launch asks.
 launch "$appimage"
 wait_for_main || fail "no main window"
 alert=""
@@ -114,10 +114,15 @@ for _ in $(seq 100); do
 done
 [ -n "$alert" ] || fail "the first launch did not ask"
 sleep 1
-[ -n "${LINDIRSTAT_INTEGRATION_SHOT:-}" ] && import -window root "$LINDIRSTAT_INTEGRATION_SHOT" 2>/dev/null
-xdotool windowfocus "$alert" 2>/dev/null || true
-sleep 0.5
-xdotool key Return
+# Click Add: the buttons sit at the bottom of the alert, and with no window
+# manager a key press has no focus to go to. Slowly: GNUstep misses a press and
+# release in the same instant after a jump of the pointer.
+eval "$(xdotool getwindowgeometry --shell "$alert" | grep -E '^(X|Y|WIDTH|HEIGHT)=')"
+xdotool mousemove "$((X + WIDTH / 2))" "$((Y + HEIGHT - 160))"
+sleep 0.3
+xdotool mousedown 1
+sleep 0.15
+xdotool mouseup 1
 for _ in $(seq 50); do
   [ -f "$entry" ] && break
   sleep 0.1
