@@ -147,6 +147,51 @@
   XCTAssertEqual(dir, [treemap nodeOfCell:(NSUInteger)[treemap cellIndexForNode:dir]]);
 }
 
+// #173: the extension index visits exactly the painted file and link cells
+// the highlight used to find by walking every cell, in cell order.
+- (void)testRenderedFileCellsByExtensionMatchAFullWalk
+{
+  LDFileNode *root = [LDFileNode nodeWithPath:@"/r" kind:LDFileNodeKindDirectory size:0];
+  LDFileNode *dir = [LDFileNode nodeWithName:@"dir.txt" kind:LDFileNodeKindDirectory size:0 allocatedSize:0];
+  NSUInteger i = 0;
+  for (i = 0; i < 40; i++) {
+    NSString *extension = [@[@"txt", @"jpg", @"bin"] objectAtIndex:i % 3];
+    LDFileNode *file = [LDFileNode nodeWithName:[NSString stringWithFormat:@"f%lu.%@", (unsigned long)i, extension]
+                                           kind:LDFileNodeKindFile size:(i + 1) * 100 allocatedSize:(i + 1) * 100];
+    [(i % 2 ? dir : root) addChild:file];
+  }
+  [dir addChild:[LDFileNode nodeWithName:@"link.txt" kind:LDFileNodeKindSymlink size:500 allocatedSize:500]];
+  // Too small to be painted at this size.
+  [root addChild:[LDFileNode nodeWithName:@"tiny.txt" kind:LDFileNodeKindFile size:1 allocatedSize:1]];
+  [root addChild:dir];
+  [root recalculateAggregateSize];
+  [root sortChildrenByMetric:LDSizeMetricPhysical];
+  LDTreemap *treemap = [self treemapForRoot:root width:200 height:120];
+
+  for (NSString *key in @[@"txt", @"jpg", @"bin", @"none"]) {
+    NSMutableArray *walked = [NSMutableArray array];
+    for (i = 0; i < [treemap cellCount]; i++) {
+      LDFileNode *node = [treemap nodeOfCell:i];
+      if ([treemap isCellRendered:i] && ([node kind] == LDFileNodeKindFile || [node kind] == LDFileNodeKindSymlink)
+          && [[node extensionKey] isEqualToString:key]) {
+        [walked addObject:[NSNumber numberWithUnsignedInteger:i]];
+      }
+    }
+    NSMutableArray *indexed = [NSMutableArray array];
+    [treemap enumerateRenderedFileCellsWithExtensionKey:key usingBlock:^(NSUInteger index) {
+      [indexed addObject:[NSNumber numberWithUnsignedInteger:index]];
+    }];
+    XCTAssertEqualObjects(walked, indexed, @"%@", key);
+    XCTAssertTrue([key isEqualToString:@"none"] || [indexed count] > 0, @"%@", key);
+  }
+  __block NSUInteger visits = 0;
+  [treemap enumerateRenderedFileCellsWithExtensionKey:nil usingBlock:^(NSUInteger index) {
+    (void)index;
+    visits++;
+  }];
+  XCTAssertEqual((NSUInteger)0, visits);
+}
+
 // WinDirStat 2.5.7 (86abc10a): hit testing stops at an item of size 0; here
 // such items are never subdivided, so their children are never hit.
 - (void)testHitTestingStopsAtZeroSizeItems

@@ -2,6 +2,7 @@
 #import "LDExtensionStats.h"
 #import "LDHardLinks.h"
 #import "LDPlatformUI.h"
+#import "LDProfiling.h"
 
 // WinDirStat's CTreeMapView::ZoomFrameWidth.
 static const int LDZoomFrameWidth = 4;
@@ -441,22 +442,31 @@ NSRect LDWholePixelRectInside(NSRect rect)
 
 - (void)drawExtensionHighlights
 {
-  NSUInteger count = [_treemap cellCount];
-  NSUInteger i = 0;
-  for (i = 0; i < count; i++) {
-    if (![_treemap isCellRendered:i]) {
-      continue;
-    }
-    LDFileNode *node = [_treemap nodeOfCell:i];
-    LDFileNodeKind kind = [node kind];
-    if (kind != LDFileNodeKindFile && kind != LDFileNodeKindSymlink) {
-      continue;
-    }
-    NSString *key = [node extensionKey];
-    if (_highlightedExtensionKeys ? [_highlightedExtensionKeys containsObject:key] : [key isEqualToString:_highlightedExtensionKey]) {
-      [self drawHighlightRect:[self viewRectForCellRect:[_treemap rectOfCell:i]]];
-    }
+  NSTimeInterval started = [LDProfiling now];
+  NSUInteger drawn = [self drawExtensionHighlightRects];
+  if ([LDProfiling isEnabled]) {
+    [LDProfiling log:[NSString stringWithFormat:@"extension highlight: %lu of %lu cells in %.1f ms",
+                      (unsigned long)drawn, (unsigned long)[_treemap cellCount],
+                      ([LDProfiling now] - started) * 1000.0]];
   }
+}
+
+// The number of cells highlighted.
+- (NSUInteger)drawExtensionHighlightRects
+{
+  __block NSUInteger drawn = 0;
+  void (^highlight)(NSUInteger) = ^(NSUInteger index) {
+    [self drawHighlightRect:[self viewRectForCellRect:[_treemap rectOfCell:index]]];
+    drawn++;
+  };
+  if (_highlightedExtensionKeys) {
+    for (NSString *key in _highlightedExtensionKeys) {
+      [_treemap enumerateRenderedFileCellsWithExtensionKey:key usingBlock:highlight];
+    }
+  } else {
+    [_treemap enumerateRenderedFileCellsWithExtensionKey:_highlightedExtensionKey usingBlock:highlight];
+  }
+  return drawn;
 }
 
 #pragma mark - Hit testing and navigation

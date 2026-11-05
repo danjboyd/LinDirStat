@@ -721,6 +721,40 @@ static LDTreemapRect LDCurvePixelRect(LDCurveRegion region, LDTreemapRect parent
   return [self cellIsLargeEnough:index] && [_cells[index].node isLeaf];
 }
 
+- (void)enumerateRenderedFileCellsWithExtensionKey:(NSString *)extensionKey
+                                        usingBlock:(void (^)(NSUInteger index))block
+{
+  if (!extensionKey) {
+    return;
+  }
+  if (!_renderedFileCellsByExtension) {
+    NSMutableDictionary *cellsByExtension = [NSMutableDictionary dictionary];
+    NSUInteger index = 0;
+    for (index = 0; index < _cellCount; index++) {
+      LDFileNode *node = _cells[index].node;
+      LDFileNodeKind kind = [node kind];
+      NSString *key = [node extensionKey];
+      if ((kind != LDFileNodeKindFile && kind != LDFileNodeKindSymlink) || !key || ![self isCellRendered:index]) {
+        continue;
+      }
+      NSMutableData *cells = [cellsByExtension objectForKey:key];
+      if (!cells) {
+        cells = [NSMutableData data];
+        [cellsByExtension setObject:cells forKey:key];
+      }
+      [cells appendBytes:&index length:sizeof(index)];
+    }
+    _renderedFileCellsByExtension = cellsByExtension;
+  }
+  NSData *cells = [_renderedFileCellsByExtension objectForKey:extensionKey];
+  const NSUInteger *indexes = [cells bytes];
+  NSUInteger count = [cells length] / sizeof(NSUInteger);
+  NSUInteger i = 0;
+  for (i = 0; i < count; i++) {
+    block(indexes[i]);
+  }
+}
+
 - (unsigned long long)sizeOfNode:(LDFileNode *)node
 {
   return [node aggregateSizeForMetric:_metric];
@@ -750,6 +784,7 @@ static LDTreemapRect LDCurvePixelRect(LDCurveRegion region, LDTreemapRect parent
 // creation order, which is breadth-first, so no explicit stack is needed.
 - (void)layout
 {
+  _renderedFileCellsByExtension = nil;
   free(_cells);
   _cells = NULL;
   _cellCount = 0;
