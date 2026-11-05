@@ -56,6 +56,7 @@
 // Shows a tree that was not scanned (loaded from CSV).
 - (void)showLoadedTree:(LDFileNode *)root fromFile:(NSString *)path results:(LDScanResults *)results;
 - (LDScanResultsRequest *)scanResultsRequest;
+- (void)releaseInBackground:(NSArray *)objects;
 @end
 
 // The file lists are tables whose data source and delegate are the controller.

@@ -82,7 +82,6 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   // Dock drop on macOS); applicationDidFinishLaunching: scans them.
   NSArray *_launchFolders;
 }
-- (void)releaseInBackground:(NSArray *)objects;
 - (void)startProfilingScan:(LDScanSession *)session;
 - (void)logProfileOfScanCompletion:(NSTimeInterval)started;
 - (void)reloadResultsWithScanResults:(LDScanResults *)results treemapIsCurrent:(BOOL)treemapIsCurrent;
@@ -204,7 +203,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     // DidFinish, before setUpMainWindow; GNUstep passes it on the command
     // line instead.
     _launchFolders = folders;
-  } else if (![self isBusy]) {
+  } else if (_resultsLoad || ![self isBusy]) {
+    // A folder opened from the desktop takes over from a results file being
+    // read; the app was blocked until the load finished before (#171).
     [self beginScanPaths:folders];
   }
   [application replyToOpenOrPrint:NSApplicationDelegateReplySuccess];
@@ -2144,6 +2145,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 - (void)showLoadedTree:(LDFileNode *)root fromFile:(NSString *)path results:(LDScanResults *)results
 {
+  // As when a scan starts, freeing the old tree is left to a background queue.
+  NSArray *previous = [NSArray arrayWithObjects:_rootNode ?: (id)[NSNull null], _scanSession ?: (id)[NSNull null], nil];
   [_scanSession cancel];
   _scanSession = nil;
   _scanAwaitingAdoption = NO;
@@ -2163,6 +2166,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [self refreshCommandState];
   [self fileListsDidFinishScanWithLargestFiles:[results largestFiles]];
   [self fitColumnsToContents];
+  [self releaseInBackground:previous];
 }
 
 - (void)suspendScan:(id)sender

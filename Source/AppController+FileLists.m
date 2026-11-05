@@ -997,26 +997,32 @@ static NSString *const LDTabWatcher = @"watcher";
   [self refreshCommandState];
   dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
     NSError *error = nil;
-    LDFileNode *root = [LDCSV readTreeFromPath:path processHardLinks:processHardLinks error:&error];
+    __block LDFileNode *root = [LDCSV readTreeFromPath:path processHardLinks:processHardLinks error:&error];
     if (root && [request metric] != LDSizeMetricPhysical) {
       [root sortChildrenByMetric:[request metric]];
     }
-    LDScanResults *results = root ? [LDScanResults resultsForRootNode:root request:request] : nil;
+    __block LDScanResults *results = root ? [LDScanResults resultsForRootNode:root request:request] : nil;
     dispatch_async(dispatch_get_main_queue(), ^{
-      [self resultsLoad:load finishedWithRoot:root results:results fromFile:path error:error];
+      if (load != _resultsLoad) {
+        // A scan took over. Freeing the tree here would stall the main thread.
+        if (root) {
+          NSArray *dropped = @[root, results];
+          root = nil;
+          results = nil;
+          [self releaseInBackground:dropped];
+        }
+        return;
+      }
+      [self resultsLoadFinishedWithRoot:root results:results fromFile:path error:error];
     });
   });
 }
 
-- (void)resultsLoad:(id)load
-    finishedWithRoot:(LDFileNode *)root
-             results:(LDScanResults *)results
-            fromFile:(NSString *)path
-               error:(NSError *)error
+- (void)resultsLoadFinishedWithRoot:(LDFileNode *)root
+                            results:(LDScanResults *)results
+                           fromFile:(NSString *)path
+                              error:(NSError *)error
 {
-  if (load != _resultsLoad) {
-    return;
-  }
   _resultsLoad = nil;
   if (!root) {
     [self showSummaryStatus];

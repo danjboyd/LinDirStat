@@ -730,7 +730,11 @@
     return;
   }
   [_controller loadResultsFromCSVFile:path];
-  XCTAssertTrue([self scanTree]);
+  // The way a scan can start meanwhile: a folder from the desktop.
+  NSUInteger finished = [_controller scansFinished];
+  [_controller application:NSApp openFiles:@[_tree]];
+  LDUITestController *controller = _controller;
+  XCTAssertTrue([self waitFor:^BOOL { return [controller scansFinished] > finished && ![controller isBusy]; } seconds:20.0]);
   // Long enough for the file to have arrived, were it still wanted.
   LDFileNode *scanned = [_controller rootNodeForTesting];
   [self waitFor:^BOOL { return NO; } seconds:2.0];
