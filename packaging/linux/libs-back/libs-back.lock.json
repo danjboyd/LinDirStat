@@ -25,6 +25,31 @@
       "path": "0002-x11-wm-delete-window.patch",
       "sha256": "a2f501b93ccf7d15e94b580fc03a9138d1a96a97f691c6fe1ecab8f0fe472c44",
       "upstream": "danjboyd/libs-back x11-wm-delete-window (1ecd259), not yet sent upstream"
+    },
+    {
+      "path": "0003-x11-keep-wm-functions.patch",
+      "sha256": "7647eab49b78e521434b8b88517ff738310b7862800e2b290dd575baee9567ae",
+      "upstream": "libs-back#244 (series dbfbe53), not yet merged"
+    },
+    {
+      "path": "0004-x11-window-types.patch",
+      "sha256": "e5a14f4195fbc26ed922e31b2f465a3069c110b9bf0516bc91aa90d9e56b2ba9",
+      "upstream": "danjboyd/libs-back x11-window-types (series 7ac2405), not yet sent upstream"
+    },
+    {
+      "path": "0005-x11-borderless-alpha.patch",
+      "sha256": "acb0748401d744b8ad9d5e8e0dc150297ad1ae0b6b935aca32ce2637e8c80e01",
+      "upstream": "danjboyd/libs-back x11-borderless-alpha (series 8589356), not yet sent upstream"
+    },
+    {
+      "path": "0006-x11-window-shadows.patch",
+      "sha256": "c3e18ad167f3f4723e71c0cb591b521d3b83aff98063d66f0478a33ab741b310",
+      "upstream": "danjboyd/libs-back x11-window-shadows (series 46dc8b2), not yet sent upstream"
+    },
+    {
+      "path": "0007-x11-popover-shadows.patch",
+      "sha256": "ea9065da28026345100642adaf3c27818d200074e4229f7c0d930b7f3493c9a3",
+      "upstream": "danjboyd/libs-back x11-popover-shadows (series fd6e241), not yet sent upstream"
     }
   ]
 }
