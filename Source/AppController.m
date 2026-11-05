@@ -863,7 +863,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
     return _rootNode != nil && ![self isBusy] && [[LDPreferences sharedPreferences] showFileTypes];
   }
   if (action == @selector(saveDuplicatesToCSV:)) {
-    return [_duplicateGroups count] > 0 && ![self isBusy];
+    return ([_duplicateGroups count] > 0 || [_pendingDuplicateGroups count] > 0) && ![self isBusy];
   }
   if (action == @selector(loadResultsFromCSV:)) {
     return ![self isBusy];

@@ -719,6 +719,12 @@
   [[_controller fileTabs] selectTabViewItem:[_controller allFilesTabForTesting]];
   [_controller receiveDuplicateGroups:@[] finished:YES];
   XCTAssertEqual((NSUInteger)0, [[_controller duplicateGroups] count]);
+
+  // Groups held back still count for Save Duplicates, which shows them first.
+  XCTAssertFalse([_controller validateAction:@selector(saveDuplicatesToCSV:)]);
+  [_controller receiveDuplicateGroups:found finished:NO];
+  XCTAssertEqual((NSUInteger)0, [[_controller duplicateGroups] count]);
+  XCTAssertTrue([_controller validateAction:@selector(saveDuplicatesToCSV:)]);
 }
 
 // WinDirStat 2.8: a whole duplicate group selected keeps the first copy and

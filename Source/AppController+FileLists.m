@@ -27,7 +27,7 @@ static NSString *const LDTabWatcher = @"watcher";
 // (after a search) and File Watcher (while Tools › Start File Watcher is
 // on). Each list's selection drives the treemap and commands.
 // The Duplicates list may take this much of the main thread while hashing.
-static const double LDDuplicateUpdateBusyShare = 0.05;
+static const double LDDuplicateUpdateBusyShare = 0.1;
 static const NSTimeInterval LDDuplicateUpdateMinimumInterval = 0.5;
 
 @implementation AppController (FileLists)
@@ -311,7 +311,10 @@ static const NSTimeInterval LDDuplicateUpdateMinimumInterval = 0.5;
 // Updates arrive twice a second while hashing, and on a large tree sorting and
 // reloading the list took most of the main thread's time (#170). The list
 // updates at the throttle's pace while it's showing, and otherwise when it's
-// shown; the final groups always go in.
+// shown; the final groups always go in. Whatever reads the list's selection
+// reads what's shown, and an older group is still true: its files have the same
+// content, it may just lack copies found since. Saving shows what's pending
+// first.
 - (void)receiveDuplicateGroups:(NSArray *)groups finished:(BOOL)finished
 {
   _pendingDuplicateGroups = groups;
