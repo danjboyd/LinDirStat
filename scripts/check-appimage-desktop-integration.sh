@@ -82,9 +82,9 @@ fail() {
   exit 1
 }
 
-# Every alert's title is " ".
+# An NSAlert's window is titled "Alert"; GNUstep's alert panels " ".
 alert_window() {
-  xwininfo -root -tree 2>/dev/null | sed -n 's/^ *\(0x[0-9a-f]*\) " ": ("LinDirStat".*/\1/p' | head -1
+  xwininfo -root -tree 2>/dev/null | sed -n 's/^ *\(0x[0-9a-f]*\) "\(Alert\| \)": ("LinDirStat".*/\1/p' | head -1
 }
 wait_for_main() {
   for _ in $(seq 200); do
