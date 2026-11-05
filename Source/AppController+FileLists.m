@@ -10,6 +10,7 @@
 #import "LDLargestFiles.h"
 #import "LDPlatformUI.h"
 #import "LDPreferences.h"
+#import "LDProfiling.h"
 #import "LDScanSession.h"
 #import "LDSearch.h"
 #import "LDSizeFormatter.h"
@@ -431,14 +432,35 @@ static NSString *const LDTabWatcher = @"watcher";
   }
 }
 
+// The search walks the tree on a background queue (#173). Nothing may change
+// the tree meanwhile: a running search makes the app busy, which disables
+// every command that edits it, until the results arrive on the main thread.
 - (void)showSearchResultsForOptions:(LDSearchOptions *)options
 {
   if (!_rootNode || [self isBusy]) {
     return;
   }
-  LDSearchResult *result = [LDSearch searchNode:_rootNode
-                                        options:options
-                                     maxResults:[[LDPreferences sharedPreferences] searchMaxResults]];
+  LDFileNode *root = _rootNode;
+  NSUInteger maxResults = [[LDPreferences sharedPreferences] searchMaxResults];
+  NSTimeInterval started = [LDProfiling now];
+  _searchRunning = YES;
+  [self refreshCommandState];
+  [self showStatus:LDLocalized(@"Searching…")];
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    LDSearchResult *result = [LDSearch searchNode:root options:options maxResults:maxResults];
+    dispatch_async(dispatch_get_main_queue(), ^{
+      self->_searchRunning = NO;
+      [LDProfiling logStep:@"search" since:started];
+      if (root == self->_rootNode) {
+        [self showSearchResult:result forOptions:options];
+      }
+      [self refreshCommandState];
+    });
+  });
+}
+
+- (void)showSearchResult:(LDSearchResult *)result forOptions:(LDSearchOptions *)options
+{
   _searchRows = [self sortedFileListRows:[result nodes] forTable:_searchTable];
   NSString *count = [NSString stringWithFormat:@"%lu%@", (unsigned long)[_searchRows count], [result isCapped] ? @"+" : @""];
   [_searchTab setLabel:[NSString stringWithFormat:LDLocalized(@"Search Results (%@)"), count]];

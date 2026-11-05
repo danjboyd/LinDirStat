@@ -779,7 +779,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 - (BOOL)isBusy
 {
-  return [self isScanning] || _scanAwaitingAdoption || _refreshQueue != nil || _fileOperationRunning;
+  return [self isScanning] || _scanAwaitingAdoption || _refreshQueue != nil || _fileOperationRunning || _searchRunning;
 }
 
 - (BOOL)validateAction:(SEL)action

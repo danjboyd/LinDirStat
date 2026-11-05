@@ -314,6 +314,14 @@
   [super tearDown];
 }
 
+// Search runs in the background (#173); its results arrive on the main
+// thread, after which the app is no longer busy.
+- (void)waitForSearch
+{
+  AppController *controller = _controller;
+  XCTAssertTrue([self waitFor:^BOOL { return ![controller isBusy]; } seconds:20.0]);
+}
+
 - (BOOL)waitFor:(BOOL (^)(void))condition seconds:(NSTimeInterval)seconds
 {
   NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:seconds];
@@ -654,6 +662,33 @@
   XCTAssertEqualObjects(@"", [[_controller selectionField] stringValue]);
 }
 
+// #173: Search walks the tree in the background. Until its results arrive
+// on the main thread the app is busy, so nothing can change the tree under
+// it: the commands that edit it are disabled.
+- (void)testSearchRunsInTheBackgroundWhileTheAppIsBusy
+{
+  if (!_controller || ![self scanTree]) {
+    return;
+  }
+  [self selectRow:0 inList:[_controller largestTable]];
+  XCTAssertTrue([_controller validateAction:@selector(toggleLogicalSize:)]);
+  XCTAssertTrue([_controller validateAction:@selector(moveToTrash:)]);
+  NSArray *before = [_controller searchRows];
+  [_controller showSearchResultsForOptions:[LDSearchOptions optionsWithTerm:@"deep"]];
+  XCTAssertTrue([_controller isBusy]);
+  XCTAssertTrue([_controller searchRows] == before);
+  XCTAssertFalse([_controller validateAction:@selector(toggleLogicalSize:)]);
+  XCTAssertFalse([_controller validateAction:@selector(moveToTrash:)]);
+  XCTAssertFalse([_controller validateAction:@selector(search:)]);
+  // A second search while one runs is ignored.
+  [_controller showSearchResultsForOptions:[LDSearchOptions optionsWithTerm:@"a1"]];
+  [self waitForSearch];
+  XCTAssertFalse([_controller isBusy]);
+  XCTAssertEqual((NSUInteger)1, [[_controller searchRows] count]);
+  XCTAssertEqual([self node:@"a/sub/deep.txt"], [[_controller searchRows] objectAtIndex:0]);
+  XCTAssertTrue([_controller validateAction:@selector(toggleLogicalSize:)]);
+}
+
 - (void)testLargestFilesAndSearchResultsDriveTreemap
 {
   if (!_controller || ![self scanTree]) {
@@ -670,6 +705,7 @@
   XCTAssertEqualObjects([self physicalSizeLabel:[self allocatedBytesOnDisk:@"b/b1.txt"]], [[_controller selectionField] stringValue]);
 
   [_controller showSearchResultsForOptions:[LDSearchOptions optionsWithTerm:@"deep"]];
+  [self waitForSearch];
   XCTAssertEqual([_controller searchTable], [_controller activeFileList]);
   XCTAssertEqual((NSUInteger)1, [[_controller searchRows] count]);
   XCTAssertEqualObjects(@"Search Results (1)", [[_controller searchTab] label]);
@@ -1296,6 +1332,7 @@
     return;
   }
   [_controller showSearchResultsForOptions:[LDSearchOptions optionsWithTerm:@"a1"]];
+  [self waitForSearch];
   XCTAssertEqual((NSUInteger)1, [[_controller searchRows] count]);
 
   LDFileNode *a = [self node:@"a"];
@@ -1329,6 +1366,7 @@
     return;
   }
   [_controller showSearchResultsForOptions:[LDSearchOptions optionsWithTerm:@"a1"]];
+  [self waitForSearch];
   [self selectRow:0 inList:[_controller searchTable]];
   LDFileNode *a1 = [self node:@"a/a1.txt"];
   XCTAssertEqualObjects(@[a1], [_controller selectedNodes]);
@@ -1348,6 +1386,7 @@
 
   // A file removed behind LinDirStat's back leaves the lists on refresh.
   [_controller showSearchResultsForOptions:[LDSearchOptions optionsWithTerm:@"a1"]];
+  [self waitForSearch];
   [self selectRow:0 inList:[_controller searchTable]];
   XCTAssertTrue([[NSFileManager defaultManager] removeItemAtPath:[self pathOf:@"a/a1.txt"] error:NULL]);
   [_controller refreshNodes:@[[self node:@"a"]]];
@@ -2050,6 +2089,7 @@
   XCTAssertEqualObjects(@"Extension - Search", [[menu itemAtIndex:0] title]);
 
   [_controller searchExtension:nil];
+  [self waitForSearch];
   XCTAssertEqual([_controller searchTab], [[_controller fileTabs] selectedTabViewItem]);
   NSMutableSet *found = [NSMutableSet set];
   for (LDFileNode *node in [_controller searchRows]) {
