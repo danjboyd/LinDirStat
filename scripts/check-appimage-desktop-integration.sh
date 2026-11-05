@@ -124,7 +124,7 @@ xdotool mousedown 1
 sleep 0.15
 xdotool mouseup 1
 for _ in $(seq 50); do
-  [ -f "$entry" ] && break
+  [ -f "$entry" ] && [ -s "$icon" ] && break
   sleep 0.1
 done
 [ -f "$entry" ] || fail "Add did not write $entry"
