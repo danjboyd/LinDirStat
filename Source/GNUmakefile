@@ -1,4 +1,5 @@
 include $(GNUSTEP_MAKEFILES)/common.make
+include ../optimization.make
 
 ADDITIONAL_OBJCFLAGS += -fobjc-arc
 

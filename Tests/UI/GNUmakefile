@@ -9,6 +9,7 @@
 GNUSTEP_BUILD_DIR = $(CURDIR)/build
 
 include $(GNUSTEP_MAKEFILES)/common.make
+include ../../optimization.make
 
 ADDITIONAL_OBJCFLAGS += -fobjc-arc -I$(GNUSTEP_MAKEFILES)/../../../include
 
