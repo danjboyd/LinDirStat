@@ -11,6 +11,7 @@
 #import "LDColumnChooser.h"
 #import "LDCommandLine.h"
 #import "LDCommandRules.h"
+#import "LDDialogs.h"
 #import "LDExtensionStats.h"
 #import "LDFileOperations.h"
 #import "LDFileTypeDescriptions.h"
@@ -1869,6 +1870,80 @@
     }
   }
   return nil;
+}
+
+- (void)assertWindow:(NSWindow *)window centredOver:(NSWindow *)parent
+{
+  NSRect frame = [window frame];
+  NSRect over = [parent frame];
+  XCTAssertEqualWithAccuracy(NSMidX(over), NSMidX(frame), 1.0, @"%@", [window title]);
+  XCTAssertEqualWithAccuracy(NSMidY(over), NSMidY(frame), 1.0, @"%@", [window title]);
+}
+
+// #168: panels open centred on the main window, as GTK dialogs centre on
+// their parent under Mutter, not on the screen.
+- (void)testPanelsOpenCentredOverTheMainWindow
+{
+  if (!_controller) {
+    return;
+  }
+  NSWindow *window = [_controller window];
+  NSRect saved = [window frame];
+  // Off the screen's centre, and small enough that the panels fit around
+  // it on any test display.
+  NSRect screen = [[window screen] ?: [NSScreen mainScreen] visibleFrame];
+  [window setFrame:NSMakeRect(NSMinX(screen) + 40.0, NSMaxY(screen) - 40.0 - 700.0, 900.0, 700.0) display:NO];
+  [window orderFront:nil];
+  __block NSRect panelFrame = NSZeroRect;
+  [LDSelectTargetPanel setModalRunnerForTesting:^NSInteger(NSWindow *panel) {
+    // A modal session centres a panel that isn't on screen yet (AppKit and
+    // GNUstep alike), so look once one has begun.
+    NSModalSession session = [NSApp beginModalSessionForWindow:panel];
+    panelFrame = [panel frame];
+    [NSApp endModalSession:session];
+    return NSModalResponseCancel;
+  }];
+  @try {
+    [LDSelectTargetPanel runWithInitialFolder:_tree];
+  }
+  @finally {
+    [LDSelectTargetPanel setModalRunnerForTesting:nil];
+  }
+  XCTAssertFalse(NSIsEmptyRect(panelFrame));
+  XCTAssertEqualWithAccuracy(NSMidX([window frame]), NSMidX(panelFrame), 1.0);
+  XCTAssertEqualWithAccuracy(NSMidY([window frame]), NSMidY(panelFrame), 1.0);
+
+  NSWindow *settings = [[LDOptionsWindowController sharedController] window];
+  [LDDialogs centerWindowOverParent:settings];
+  [self assertWindow:settings centredOver:window];
+  [window setFrame:saved display:NO];
+}
+
+// Without a main window on screen a panel is centred on the screen.
+- (void)testPanelsFallBackToTheScreenWithoutAMainWindow
+{
+  if (!_controller) {
+    return;
+  }
+  NSWindow *hidden = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 300, 200)
+                                                 styleMask:NSTitledWindowMask
+                                                   backing:NSBackingStoreBuffered
+                                                     defer:NO];
+  [hidden setReleasedWhenClosed:NO];
+  NSWindow *panel = [[NSPanel alloc] initWithContentRect:NSMakeRect(0, 0, 200, 100)
+                                               styleMask:NSTitledWindowMask
+                                                 backing:NSBackingStoreBuffered
+                                                   defer:NO];
+  NSWindow *reference = [[NSPanel alloc] initWithContentRect:NSMakeRect(0, 0, 200, 100)
+                                                   styleMask:NSTitledWindowMask
+                                                     backing:NSBackingStoreBuffered
+                                                       defer:NO];
+  [reference center];
+  [LDDialogs setParentWindow:hidden];
+  [LDDialogs centerWindowOverParent:panel];
+  [LDDialogs setParentWindow:[_controller window]];
+  XCTAssertEqualWithAccuracy(NSMinX([reference frame]), NSMinX([panel frame]), 1.0);
+  XCTAssertEqualWithAccuracy(NSMinY([reference frame]), NSMinY([panel frame]), 1.0);
 }
 
 // Select Target's Total and Free fit the widest two-decimal size, in the

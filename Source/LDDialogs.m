@@ -12,6 +12,7 @@ static const CGFloat LDDialogSpacing = 12.0;
 
 // Panels that are open; kept alive until they close.
 static NSMutableArray *LDOpenPanels = nil;
+static __weak NSWindow *LDParentWindow = nil;
 
 @interface LDDialogTarget : NSObject
 @end
@@ -164,7 +165,7 @@ static CGFloat LDLabelHeight(NSTextField *label, CGFloat width)
                                            selector:@selector(windowWillClose:)
                                                name:NSWindowWillCloseNotification
                                              object:panel];
-  [panel center];
+  [self orderModalPanelFrontOverParent:panel];
   NSInteger result = [NSApp runModalForWindow:panel];
   [[NSNotificationCenter defaultCenter] removeObserver:target name:NSWindowWillCloseNotification object:panel];
   if (checked && checkbox) {
@@ -314,7 +315,7 @@ static NSString *LDPermissionString(mode_t mode)
                                                name:NSWindowWillCloseNotification
                                              object:panel];
   [LDOpenPanels addObject:panel];
-  [panel center];
+  [self centerWindowOverParent:panel];
   [panel makeKeyAndOrderFront:nil];
 }
 
@@ -322,6 +323,35 @@ static NSString *LDPermissionString(mode_t mode)
 {
   NSArray *lines = [text componentsSeparatedByString:@"\n"];
   [self runListPanelWithTitle:title message:nil items:lines buttons:@[LDLocalized(@"Close")] defaultIndex:0 checkboxTitle:nil checked:NULL];
+}
+
++ (void)setParentWindow:(NSWindow *)window
+{
+  LDParentWindow = window;
+}
+
++ (void)centerWindowOverParent:(NSWindow *)window
+{
+  NSWindow *parent = LDParentWindow;
+  if (!parent || parent == window || ![parent isVisible] || [parent isMiniaturized]) {
+    [window center];
+    return;
+  }
+  NSRect frame = [window frame];
+  NSRect over = [parent frame];
+  NSPoint origin = NSMakePoint(NSMidX(over) - frame.size.width / 2.0, NSMidY(over) - frame.size.height / 2.0);
+  NSRect visible = [[parent screen] visibleFrame];
+  if (!NSIsEmptyRect(visible)) {
+    origin.x = MAX(MIN(origin.x, NSMaxX(visible) - frame.size.width), NSMinX(visible));
+    origin.y = MAX(MIN(origin.y, NSMaxY(visible) - frame.size.height), NSMinY(visible));
+  }
+  [window setFrameOrigin:NSMakePoint(round(origin.x), round(origin.y))];
+}
+
++ (void)orderModalPanelFrontOverParent:(NSWindow *)panel
+{
+  [self centerWindowOverParent:panel];
+  [panel orderFront:nil];
 }
 
 @end

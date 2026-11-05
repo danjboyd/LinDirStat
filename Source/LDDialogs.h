@@ -35,4 +35,15 @@
 // Selectable text in a panel (for hashes).
 + (void)showText:(NSString *)text title:(NSString *)title;
 
+// The window panels open over: the main window, once it is up.
++ (void)setParentWindow:(NSWindow *)window;
+// Centres window over the parent window, as GTK dialogs centre on their
+// parent under Mutter (#168), kept on the parent's screen. Without a parent
+// on screen, -center.
++ (void)centerWindowOverParent:(NSWindow *)window;
+// The same for a panel about to run modally, which is ordered in too: a
+// modal session centres a panel on the screen if it isn't up yet (AppKit
+// and GNUstep alike).
++ (void)orderModalPanelFrontOverParent:(NSWindow *)panel;
+
 @end
