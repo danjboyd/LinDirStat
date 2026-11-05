@@ -1895,12 +1895,12 @@
   [window setFrame:NSMakeRect(NSMinX(screen) + 40.0, NSMaxY(screen) - 40.0 - 700.0, 900.0, 700.0) display:NO];
   [window orderFront:nil];
   __block NSRect panelFrame = NSZeroRect;
+  __block BOOL panelVisible = NO;
   [LDSelectTargetPanel setModalRunnerForTesting:^NSInteger(NSWindow *panel) {
-    // A modal session centres a panel that isn't on screen yet (AppKit and
-    // GNUstep alike), so look once one has begun.
-    NSModalSession session = [NSApp beginModalSessionForWindow:panel];
+    // The modal session would centre a panel that isn't on screen yet on the
+    // screen (AppKit and GNUstep alike), so it must already be up, in place.
+    panelVisible = [panel isVisible];
     panelFrame = [panel frame];
-    [NSApp endModalSession:session];
     return NSModalResponseCancel;
   }];
   @try {
@@ -1909,6 +1909,7 @@
   @finally {
     [LDSelectTargetPanel setModalRunnerForTesting:nil];
   }
+  XCTAssertTrue(panelVisible);
   XCTAssertFalse(NSIsEmptyRect(panelFrame));
   XCTAssertEqualWithAccuracy(NSMidX([window frame]), NSMidX(panelFrame), 1.0);
   XCTAssertEqualWithAccuracy(NSMidY([window frame]), NSMidY(panelFrame), 1.0);
@@ -1916,6 +1917,7 @@
   NSWindow *settings = [[LDOptionsWindowController sharedController] window];
   [LDDialogs centerWindowOverParent:settings];
   [self assertWindow:settings centredOver:window];
+  [settings orderOut:nil];
   [window setFrame:saved display:NO];
 }
 
