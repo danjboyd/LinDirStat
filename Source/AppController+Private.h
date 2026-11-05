@@ -24,6 +24,9 @@
 // fresh sizes. Call before -didChangeTree after a scan or refresh. Returns
 // NO when the tree is certainly unchanged.
 - (BOOL)updateSpaceItems;
+// Applies the Show Free Space and Show Unknown settings now, or once the
+// running scan, refresh or search is done.
+- (void)applySpaceItems;
 // node was replaced (or removed when replacement is nil).
 - (void)forgetNode:(LDFileNode *)node replacement:(LDFileNode *)replacement;
 - (void)configureScanSession:(LDScanSession *)session;

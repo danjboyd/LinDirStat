@@ -456,6 +456,9 @@ static NSString *const LDTabWatcher = @"watcher";
         [self showSearchResult:result forOptions:options];
         [LDProfiling logStep:@"search results shown" since:shown];
       }
+      if (self->_spaceItemsPending) {
+        [self applySpaceItems];
+      }
       [self refreshCommandState];
     });
   });

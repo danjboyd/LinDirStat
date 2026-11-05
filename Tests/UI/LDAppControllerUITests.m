@@ -682,7 +682,15 @@
   XCTAssertFalse([_controller validateAction:@selector(search:)]);
   // A second search while one runs is ignored.
   [_controller showSearchResultsForOptions:[LDSearchOptions optionsWithTerm:@"a1"]];
+  // Show Free Space stays available and is applied once the search is done,
+  // as after a scan.
+  LDPreferences *preferences = [LDPreferences sharedPreferences];
+  BOOL showFreeSpace = [preferences showFreeSpace];
+  [_controller toggleFreeSpace:nil];
+  XCTAssertTrue([[_controller valueForKey:@"spaceItemsPending"] boolValue]);
   [self waitForSearch];
+  XCTAssertFalse([[_controller valueForKey:@"spaceItemsPending"] boolValue]);
+  [preferences setShowFreeSpace:showFreeSpace];
   XCTAssertFalse([_controller isBusy]);
   XCTAssertEqual((NSUInteger)1, [[_controller searchRows] count]);
   XCTAssertEqual([self node:@"a/sub/deep.txt"], [[_controller searchRows] objectAtIndex:0]);
