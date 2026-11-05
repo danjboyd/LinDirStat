@@ -273,6 +273,13 @@ typedef enum {
 - (BOOL)showsPrompt:(LDPrompt)prompt;
 - (void)setShowsPrompt:(BOOL)flag forPrompt:(LDPrompt)prompt;
 
+// "Don't Ask Again" in the prompt to add an AppImage to the applications (#157).
+- (BOOL)desktopIntegrationDeclined;
+- (void)setDesktopIntegrationDeclined:(BOOL)flag;
+// When the prompt's Not Now was last chosen, or nil.
+- (NSDate *)desktopIntegrationSnoozedAt;
+- (void)setDesktopIntegrationSnoozedAt:(NSDate *)date;
+
 // Search dialog
 - (BOOL)searchUsesRegex;
 - (void)setSearchUsesRegex:(BOOL)flag;

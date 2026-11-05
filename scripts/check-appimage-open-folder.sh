@@ -76,6 +76,7 @@ setsid env -i \
   TMP="$gs_tmp" TEMP="$gs_tmp" TMPDIR="$gs_tmp" \
   DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent \
   LANG=C.UTF-8 \
+  LINDIRSTAT_DESKTOP_PROMPT=off \
   ${appimage_env[@]+"${appimage_env[@]}"} \
   "$appimage" "$fixture" > "$root/app.log" 2>&1 &
 app_pid=$!

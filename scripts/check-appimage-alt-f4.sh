@@ -103,6 +103,7 @@ setsid env -i "${session_env[@]}" \
   TMP="$gs_tmp" TEMP="$gs_tmp" TMPDIR="$gs_tmp" \
   DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent \
   LANG=C.UTF-8 \
+  LINDIRSTAT_DESKTOP_PROMPT=off \
   LINDIRSTAT_SCAN_PATH="$fixture" \
   ${appimage_env[@]+"${appimage_env[@]}"} \
   "$appimage" > "$root/app.log" 2>&1 &

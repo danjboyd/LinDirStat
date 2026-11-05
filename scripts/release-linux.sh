@@ -185,6 +185,7 @@ PY
   # The release checks, here, on the AppImage CI built.
   scripts/check-appimage-first-launch.sh "$appimage" || die "the AppImage does not start for a new user"
   scripts/check-appimage-open-folder.sh "$appimage" || die "the AppImage does not offer to open folders, or does not scan the folder it is given"
+  scripts/check-appimage-desktop-integration.sh "$appimage" || die "the AppImage does not offer to add itself to the applications correctly"
   LINDIRSTAT_ALT_F4_REQUIRED=1 scripts/check-appimage-alt-f4.sh "$appimage" || die "Alt+F4 under GNOME Shell does not close the AppImage's windows cleanly"
   LINDIRSTAT_WINDOW_FRONT_REQUIRED=1 scripts/check-appimage-window-front.sh "$appimage" || die "the main window does not come up on top under GNOME Shell"
   built_by="Built by the release workflow ($run_url) from danjboyd/LinDirStat \`${commit:0:7}\`"

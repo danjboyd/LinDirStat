@@ -149,6 +149,9 @@ themselves inside a bwrap sandbox with an empty home bound over yours
 (`scripts/sandbox.sh`): the AppImage's AppRun points GNUstep at a defaults
 folder under your passwd home, which no environment variable redirects. Your
 LinDirStat and global defaults are compared before and after each run.
+The AppImage offers once to add itself to your applications
+(`LDDesktopIntegration`, #157); `LINDIRSTAT_DESKTOP_PROMPT=off` stops the
+offer, which the other checks set.
 `LINDIRSTAT_SANDBOX=off` skips it, `required` fails without bwrap; CI runs
 unsandboxed.
 

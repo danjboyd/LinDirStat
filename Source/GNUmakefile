@@ -66,6 +66,7 @@ LinDirStat_OBJC_FILES = \
   LDMimeApps.m \
   LDOpenWith.m \
   LDOpenWithLinux.m \
+  LDDesktopIntegration.m \
   LDUpdates.m
 
 LinDirStat_RESOURCE_FILES = Resources/Info-gnustep.plist Resources/LinDirStat.png $(wildcard Resources/Icons/*.png) $(wildcard Resources/*.lproj)

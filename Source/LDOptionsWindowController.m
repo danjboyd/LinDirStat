@@ -7,6 +7,7 @@
 #import "LDScanOptions.h"
 #import "LDTreeCells.h"
 #import "LDTreemapPreview.h"
+#import "LDDesktopIntegration.h"
 
 static const CGFloat LDOptionsMargin = 18.0;
 static const CGFloat LDOptionsRowSpacing = 6.0;
@@ -89,6 +90,7 @@ static const CGFloat LDTreemapPreviewHeight = 160.0;
   // Cleanups
   NSMutableArray *_cleanups;
   NSTableView *_cleanupTable;
+  NSButton *_desktopIntegrationButton;
   NSButton *_addCleanup;
   NSButton *_removeCleanup;
   NSButton *_moveUp;
@@ -835,6 +837,17 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
   }
   [self addNote:LDLocalized(@"Empty Folder deletes permanently, so it asks under Delete Permanently.")
           color:[NSColor secondaryLabelColor] lines:1];
+
+  // Only for an AppImage whose entry is ours or missing (#157).
+  LDDesktopIntegrationState state = [[self desktopIntegration] state];
+  if (state != LDDesktopIntegrationUnavailable && state != LDDesktopIntegrationExternal) {
+    [self addSectionTitle:LDLocalized(@"Desktop")];
+    // Sized for its longer title.
+    _desktopIntegrationButton = [self pushButtonWithTitle:LDLocalized(@"Remove from Applications")
+                                                   action:@selector(toggleDesktopIntegration:)];
+    [self addRow:LDLocalized(@"LinDirStat in your applications") controls:@[_desktopIntegrationButton]];
+    [self refreshDesktopIntegrationButton];
+  }
 }
 
 - (void)buildAdvancedPage
@@ -868,6 +881,32 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
   [self addSectionTitle:LDLocalized(@"Reset")];
   NSButton *reset = [self pushButtonWithTitle:LDLocalized(@"Reset All Preferences…") action:@selector(resetAll:)];
   [self addRow:LDLocalized(@"Restore every setting to its default") controls:@[reset]];
+}
+
+- (LDDesktopIntegration *)desktopIntegration
+{
+  return [LDDesktopIntegration integrationForEnvironment:[[NSProcessInfo processInfo] environment]];
+}
+
+- (void)refreshDesktopIntegrationButton
+{
+  BOOL installed = [[self desktopIntegration] state] != LDDesktopIntegrationNotInstalled;
+  [_desktopIntegrationButton setTitle:installed ? LDLocalized(@"Remove from Applications") : LDLocalized(@"Add to Applications")];
+}
+
+- (void)toggleDesktopIntegration:(id)sender
+{
+  (void)sender;
+  LDDesktopIntegration *integration = [self desktopIntegration];
+  NSError *error = nil;
+  BOOL done = [integration state] == LDDesktopIntegrationNotInstalled ? [integration install:&error] : [integration remove:&error];
+  if (!done) {
+    NSAlert *alert = [[NSAlert alloc] init];
+    [alert setMessageText:LDLocalized(@"LinDirStat's desktop entry couldn't be changed.")];
+    [alert setInformativeText:[error localizedDescription] ?: @""];
+    [alert runModal];
+  }
+  [self refreshDesktopIntegrationButton];
 }
 
 #pragma mark - Refreshing

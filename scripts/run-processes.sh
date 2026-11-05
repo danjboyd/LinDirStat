@@ -37,7 +37,7 @@ ld_stop_run_processes() {
 ld_check_daemons() {
   local pid
   for pid in $(pgrep -u "$(id -u)" -x gdnc 2>/dev/null); do
-    if tr '\0' '\n' 2>/dev/null < "/proc/$pid/environ" | grep -qE '^TMPDIR=/tmp/ld(fl|of|af|wf)-tmp\.'; then
+    if tr '\0' '\n' 2>/dev/null < "/proc/$pid/environ" | grep -qE '^TMPDIR=/tmp/ld(fl|of|af|wf|in)-tmp\.'; then
       echo "$pid"
     fi
   done
