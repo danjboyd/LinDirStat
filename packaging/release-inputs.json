@@ -7,8 +7,8 @@
   },
   "gnustep-packager": {
     "url": "https://github.com/danjboyd/gnustep-packager.git",
-    "tag": "v0.1.6",
-    "revision": "a79076895e8e1cba25ad4447f932098e4cb21690"
+    "tag": "v0.1.7",
+    "revision": "6f361b8aaa08aeb7d1048e2f5b80218223c469fa"
   },
   "tools-xctest": {
     "url": "https://github.com/danjboyd/tools-xctest.git",
