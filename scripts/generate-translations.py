@@ -44,8 +44,7 @@ MANUAL = {
     "Open": "IDS_CLEANUP_OPEN_SELECTED",
     # The unit after a size under 1 KiB, not the Bytes column title.
     "bytes": "IDS_SPEC_BYTES",
-    "Size proportion of total scan: %@%%
-Size proportion of parent folder: %@%%": "IDS_SIZE_PROPORTION_TOOLTIPss",
+    "Size proportion of total scan: %@%%\nSize proportion of parent folder: %@%%": "IDS_SIZE_PROPORTION_TOOLTIPss",
     "Move to Trash": "IDS_MENU_DELETE_BIN",
     "Delete Permanently…": "IDS_MENU_DELETE",
     "Empty Folder…": "IDS_MENU_EMPTY_FOLDER",
