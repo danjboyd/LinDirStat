@@ -182,8 +182,8 @@ is checked weekly on #133.
 | — | `LDSizeFormatter`: the lazy `grouped` formatter isn't thread-safe | macOS | Linux, lead | done (#149) |
 | #152 | Pin gnustep-packager v0.1.7 | Linux | macOS (DMG), lead | #154; Mac DMG check passed (0.1.8-rc1 from run 41910822581) |
 | #155 | GNOME/Wayland: main window opens behind other windows after Select Target | Linux | macOS | #158; Mac check passed (no visible change on macOS) |
-| #156 | AppImage: ship the Adwaita CSD libs-back patches | Linux | lead | #159 (draft; packaging only, no Mac check) |
-| #157 | GNOME shows a generic icon for the window | Linux | lead | macOS not affected (bundle icon checked) |
+| #156 | AppImage: ship the Adwaita CSD libs-back patches | Linux | lead | #159 (draft; packaging only, no Mac check); needs Dan's explicit OK |
+| #157 | GNOME shows a generic icon for the window | Linux | lead | no code fix; the first-run desktop entry is Dan's decision; macOS not affected (bundle icon checked) |
 | — | macOS GUI gate expected the tree without Percentage (after af5d619) | macOS | lead | #160; 189 of 189 checks pass on main |
 
 Use the 0.1.6 release checklist, with 0.1.8 for the version. Dan granted the
