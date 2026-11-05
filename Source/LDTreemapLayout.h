@@ -118,6 +118,8 @@ typedef struct {
   struct LDTreemapFrame *_frames;
   NSUInteger _frameCount;
   NSMapTable *_branchIndexes;
+  // Extension key -> NSData of NSUInteger cell indexes; built on first use.
+  NSDictionary *_renderedFileCellsByExtension;
 }
 
 // Lays out rootNode (sizes from metric) in a width x height area at (0, 0).
@@ -151,6 +153,11 @@ typedef struct {
 - (BOOL)isCellRendered:(NSUInteger)index;
 // Visits painted leaves depth-first with their depth below the root.
 - (void)enumerateRenderedCellsUsingBlock:(void (^)(NSUInteger index, NSUInteger depth))block;
+// Visits the painted file and symbolic link cells with extensionKey, in cell
+// order: what an extension highlight outlines. The cells of every extension
+// are indexed the first time, so later calls don't walk the whole treemap.
+- (void)enumerateRenderedFileCellsWithExtensionKey:(NSString *)extensionKey
+                                        usingBlock:(void (^)(NSUInteger index))block;
 
 // Port of CTreeMap::FindItemByPoint. Returns -1 outside the area.
 - (NSInteger)cellIndexAtX:(int)x y:(int)y;
