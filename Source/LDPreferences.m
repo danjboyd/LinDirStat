@@ -227,6 +227,7 @@ static const uint32_t LDDefaultFileTreeColors[LDFileTreeColorSlots] = {
     @"SearchMaxResults": @10000,
     @"ScanForDuplicates": @NO,
     @"DesktopIntegrationDeclined": @NO,
+    @"DesktopIntegrationSnoozedAt": @0.0,
     @"ShowDeletePermanentlyWarning": @YES,
     @"ShowDeleteToRecycleBinWarning": @YES,
     @"ShowEmptyRecycleBinPrompt": @YES,
@@ -591,6 +592,16 @@ static NSInteger LDPercentOf(double value)
 
 - (BOOL)desktopIntegrationDeclined { return [self boolForKey:@"DesktopIntegrationDeclined"]; }
 - (void)setDesktopIntegrationDeclined:(BOOL)flag { [self setBool:flag forKey:@"DesktopIntegrationDeclined"]; }
+- (NSDate *)desktopIntegrationSnoozedAt
+{
+  double seconds = [_defaults doubleForKey:@"DesktopIntegrationSnoozedAt"];
+  return seconds > 0.0 ? [NSDate dateWithTimeIntervalSince1970:seconds] : nil;
+}
+- (void)setDesktopIntegrationSnoozedAt:(NSDate *)date
+{
+  [_defaults setObject:@([date timeIntervalSince1970]) forKey:@"DesktopIntegrationSnoozedAt"];
+  [self changed];
+}
 - (BOOL)useLogicalSize { return [self boolForKey:@"UseLogicalSize"]; }
 - (void)setUseLogicalSize:(BOOL)flag { [self setBool:flag forKey:@"UseLogicalSize"]; }
 - (CGFloat)sizeProportionIndent { return (CGFloat)LDClamp([self integerForKey:@"SizeProportionIndent"], 0, 1000); }

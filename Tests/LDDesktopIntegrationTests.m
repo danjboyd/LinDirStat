@@ -2,6 +2,7 @@
 #import <XCTest/XCTest.h>
 #import "LDDesktopEntry.h"
 #import "LDDesktopIntegration.h"
+#import "LDPreferences.h"
 
 #if !defined(__APPLE__)
 
@@ -145,6 +146,27 @@
   XCTAssertFalse([manager fileExistsAtPath:[integration iconPath]]);
   XCTAssertEqual(LDDesktopIntegrationNotInstalled, [integration state]);
   XCTAssertTrue([integration remove:NULL]);
+}
+
+- (void)testNotNowWaitsSevenDaysAndDontAskAgainStays
+{
+  LDPreferences *preferences = [[LDPreferences alloc] initWithUserDefaults:[NSUserDefaults standardUserDefaults]];
+  [preferences resetAll];
+  NSDate *start = [NSDate dateWithTimeIntervalSince1970:1000000000.0];
+  NSTimeInterval week = 7.0 * 24.0 * 60.0 * 60.0;
+  XCTAssertTrue([LDDesktopIntegration mayOfferWithPreferences:preferences now:start]);
+  [preferences setDesktopIntegrationSnoozedAt:start];
+  XCTAssertEqualObjects(start, [preferences desktopIntegrationSnoozedAt]);
+  XCTAssertFalse([LDDesktopIntegration mayOfferWithPreferences:preferences now:start]);
+  XCTAssertFalse([LDDesktopIntegration mayOfferWithPreferences:preferences now:[start dateByAddingTimeInterval:week - 1.0]]);
+  XCTAssertTrue([LDDesktopIntegration mayOfferWithPreferences:preferences now:[start dateByAddingTimeInterval:week]]);
+  // A clock set back doesn't silence it for good.
+  XCTAssertTrue([LDDesktopIntegration mayOfferWithPreferences:preferences now:[start dateByAddingTimeInterval:-1.0]]);
+  [preferences setDesktopIntegrationDeclined:YES];
+  XCTAssertFalse([LDDesktopIntegration mayOfferWithPreferences:preferences now:[start dateByAddingTimeInterval:10.0 * week]]);
+  [preferences resetAll];
+  XCTAssertNil([preferences desktopIntegrationSnoozedAt]);
+  XCTAssertTrue([LDDesktopIntegration mayOfferWithPreferences:preferences now:start]);
 }
 
 - (void)writeIcon:(NSString *)text atPath:(NSString *)path

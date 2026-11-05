@@ -9,6 +9,7 @@
 #import "LDMimeApps.h"
 #import "LDPreferences.h"
 
+static const NSTimeInterval LDSnoozeSeconds = 7.0 * 24.0 * 60.0 * 60.0;
 static NSString *const LDEntryName = @"lindirstat.desktop";
 static NSString *const LDIconName = @"lindirstat.png";
 static NSString *const LDWindowClass = @"LinDirStat";
@@ -200,6 +201,17 @@ static NSString *const LDIconOwnerKey = @"X-LinDirStat-Icon";
   return YES;
 }
 
++ (BOOL)mayOfferWithPreferences:(LDPreferences *)preferences now:(NSDate *)now
+{
+  if ([preferences desktopIntegrationDeclined]) {
+    return NO;
+  }
+  NSDate *snoozed = [preferences desktopIntegrationSnoozedAt];
+  NSTimeInterval since = snoozed ? [now timeIntervalSinceDate:snoozed] : LDSnoozeSeconds;
+  // A date ahead of the clock can't be waited out.
+  return since >= LDSnoozeSeconds || since < 0.0;
+}
+
 + (void)offerAfterLaunch
 {
   static BOOL offered = NO;
@@ -215,7 +227,7 @@ static NSString *const LDIconOwnerKey = @"X-LinDirStat-Icon";
     return;
   }
   LDPreferences *preferences = [LDPreferences sharedPreferences];
-  if (state != LDDesktopIntegrationNotInstalled || [preferences desktopIntegrationDeclined]
+  if (state != LDDesktopIntegrationNotInstalled || ![self mayOfferWithPreferences:preferences now:[NSDate date]]
       || [[environment objectForKey:@"LINDIRSTAT_DESKTOP_PROMPT"] isEqualToString:@"off"]) {
     return;
   }
@@ -228,6 +240,8 @@ static NSString *const LDIconOwnerKey = @"X-LinDirStat-Icon";
   NSInteger response = [alert runModal];
   if (response == NSAlertThirdButtonReturn) {
     [preferences setDesktopIntegrationDeclined:YES];
+  } else if (response == NSAlertSecondButtonReturn) {
+    [preferences setDesktopIntegrationSnoozedAt:[NSDate date]];
   } else if (response == NSAlertFirstButtonReturn) {
     NSError *error = nil;
     if (![integration install:&error]) {
@@ -252,6 +266,7 @@ static NSString *const LDIconOwnerKey = @"X-LinDirStat-Icon";
 - (NSString *)entryPath { return nil; }
 - (NSString *)iconPath { return nil; }
 - (NSString *)entryText { return nil; }
++ (BOOL)mayOfferWithPreferences:(LDPreferences *)preferences now:(NSDate *)now { (void)preferences; (void)now; return NO; }
 + (void)offerAfterLaunch {}
 
 @end
