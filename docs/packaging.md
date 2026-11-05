@@ -41,6 +41,11 @@ after their sha256 is checked, in `out/libs-back`:
 | --- | --- | --- |
 | `0001-x11-reject-zero-frame-extents.patch` | Recent Mutter answers `_NET_REQUEST_FRAME_EXTENTS` with zeros; windows the window manager decorates ended up one title bar too short after a resize | libs-back#227 (`170c643`) |
 | `0002-x11-wm-delete-window.patch` | Windows the gui decorates (all of them with the Adwaita theme) didn't list `WM_DELETE_WINDOW`, so Alt+F4 under GNOME Shell killed the app | danjboyd/libs-back `x11-wm-delete-window`, not sent yet |
+| `0003-x11-keep-wm-functions.patch` | Keeps the window manager functions of windows the gui decorates, in their Motif hints. | libs-back#244, open |
+| `0004-x11-window-types.patch` | Types menus, tool tips, drag images and modal panels as GTK does. | Adwaita's series; not yet sent upstream |
+| `0005-x11-borderless-alpha.patch` | An alpha channel for borderless windows, when a theme asks. | Adwaita's series; not yet sent upstream |
+| `0006-x11-window-shadows.patch` | Window shadows and rounded corners for windows the gui decorates (#156). The window grows by the shadow margin, and `_GTK_FRAME_EXTENTS` tells the window manager. | Adwaita's series; not yet sent upstream |
+| `0007-x11-popover-shadows.patch` | Popover shadows for menus, when a theme asks. | Adwaita's series; not yet sent upstream |
 
 The configure settings in the lock file turn off what the toolchain's
 build doesn't have (GLX, RandR, Xcursor, Xfixes, Xmu), so the bundle
