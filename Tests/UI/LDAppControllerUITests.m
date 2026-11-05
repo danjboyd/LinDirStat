@@ -127,6 +127,7 @@
 - (NSArray *)largestFiles { return _largestFiles; }
 - (NSArray *)searchRows { return _searchRows; }
 - (NSArray *)duplicateGroups { return _duplicateGroups; }
+- (NSTabViewItem *)allFilesTabForTesting { return _allFilesTab; }
 - (NSArray *)watcherRows { return _watcherRows; }
 - (NSSearchField *)watcherFilterField { return _watcherFilterField; }
 - (BOOL)isWatching { return _fileWatcher != nil; }
@@ -682,6 +683,48 @@
   [[_controller window] makeFirstResponder:[_controller treemap]];
   [[_controller treemap] setSelectedNode:[self node:@"c.bin"]];
   XCTAssertEqualObjects(@[[self node:@"c.bin"]], [_controller selectedNodes]);
+}
+
+// While hashing, updates wait for the Duplicates list to show, then for the
+// throttle; the final groups always go in (#170).
+- (void)testDuplicateUpdatesWaitWhileTheListIsHidden
+{
+  if (!_controller) {
+    return;
+  }
+  [self writeFile:@"dup-one.dat" size:8000 seed:9];
+  [self writeFile:@"a/dup-two.dat" size:8000 seed:9];
+  [[LDPreferences sharedPreferences] setScanForDuplicates:YES];
+  if (![self scanTree]) {
+    return;
+  }
+  LDUITestController *controller = _controller;
+  XCTAssertTrue([self waitFor:^BOOL { return ![controller isFindingDuplicates]; } seconds:20.0]);
+  NSArray *found = [_controller duplicateGroups];
+  XCTAssertEqual((NSUInteger)1, [found count]);
+
+  // Hidden: kept back until the tab is shown.
+  [[_controller fileTabs] selectTabViewItem:[_controller allFilesTabForTesting]];
+  [_controller receiveDuplicateGroups:@[] finished:NO];
+  XCTAssertEqual((NSUInteger)1, [[_controller duplicateGroups] count]);
+  [[_controller fileTabs] selectTabViewItem:[_controller duplicatesTab]];
+  XCTAssertEqual((NSUInteger)0, [[_controller duplicateGroups] count]);
+
+  // Showing, just updated: the throttle holds the next one back.
+  [_controller receiveDuplicateGroups:found finished:NO];
+  XCTAssertEqual((NSUInteger)0, [[_controller duplicateGroups] count]);
+  XCTAssertTrue([self waitFor:^BOOL { return [[controller duplicateGroups] count] == 1; } seconds:5.0]);
+
+  // Hidden again: the final groups don't wait.
+  [[_controller fileTabs] selectTabViewItem:[_controller allFilesTabForTesting]];
+  [_controller receiveDuplicateGroups:@[] finished:YES];
+  XCTAssertEqual((NSUInteger)0, [[_controller duplicateGroups] count]);
+
+  // Groups held back still count for Save Duplicates, which shows them first.
+  XCTAssertFalse([_controller validateAction:@selector(saveDuplicatesToCSV:)]);
+  [_controller receiveDuplicateGroups:found finished:NO];
+  XCTAssertEqual((NSUInteger)0, [[_controller duplicateGroups] count]);
+  XCTAssertTrue([_controller validateAction:@selector(saveDuplicatesToCSV:)]);
 }
 
 // WinDirStat 2.8: a whole duplicate group selected keeps the first copy and

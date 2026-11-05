@@ -87,6 +87,11 @@ times vary by ±50% between runs; the other numbers are steadier.
 The scanner's per-node layout is unchanged (`/usr`, 522k files: 101 MB RSS
 after the scan before and after).
 
+- While hashing, the Duplicates list updates only while it's showing, and
+  then at a pace (`LDUpdateThrottle`) that keeps sorting and reloading it to 10%
+  of the main thread's time, however many groups there are (#170). The final
+  groups always go in.
+
 ## Results
 
 Headless (`lindirstat-bench`, same tree, logical sizes):
