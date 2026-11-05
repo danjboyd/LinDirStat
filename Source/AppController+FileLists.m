@@ -1257,7 +1257,7 @@ static NSString *const LDTabWatcher = @"watcher";
   [_okButton setKeyEquivalent:@"\r"];
   [self validate];
 
-  [panel center];
+  [LDDialogs orderModalPanelFrontOverParent:panel];
   [panel setInitialFirstResponder:_termField];
   [panel makeFirstResponder:_termField];
   NSInteger result = [NSApp runModalForWindow:panel];

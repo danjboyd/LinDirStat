@@ -1,5 +1,6 @@
 #import "LDSelectTargetPanel.h"
 #import "LDColumnChooser.h"
+#import "LDDialogs.h"
 #import "LDLocalization.h"
 #import "LDPlatformUI.h"
 #import "LDPreferences.h"
@@ -409,11 +410,11 @@ typedef enum {
   NSView *first = _mode == LDSelectTargetFolder ? (NSView *)_folderCombo
     : (_mode == LDSelectTargetIndividualDrives ? (NSView *)_table : (NSView *)_allRadio);
   [_panel setInitialFirstResponder:first];
-  [_panel center];
   // Name takes what the other columns leave, now that the rows are in and
   // the scroll view knows whether its scroller takes room (macOS's
   // always-visible scroll bars do): "% Used" ran under the scroller.
   [self fitNameColumn];
+  [LDDialogs orderModalPanelFrontOverParent:_panel];
   NSInteger result = LDRunPanelModally(_panel);
   _finished = YES;
   [_panel orderOut:nil];

@@ -1,4 +1,5 @@
 #import "LDOptionsWindowController.h"
+#import "LDDialogs.h"
 #import "LDLocalization.h"
 #import "LDLanguages.h"
 #import "LDPlatformUI.h"
@@ -159,7 +160,7 @@ NSString *const LDOptionsFiltersDidChangeNotification = @"LDOptionsFiltersDidCha
     [_cleanupTable reloadData];
     [_cleanupTable selectRow:0 byExtendingSelection:NO];
     [self refreshControls];
-    [window center];
+    [LDDialogs centerWindowOverParent:window];
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(preferencesDidChange:)
                                                  name:LDPreferencesDidChangeNotification
