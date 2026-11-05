@@ -15,7 +15,9 @@
 # and validate with the smoke launch on a private Xvfb; then a new user's
 # first launch without GNUstep (check-appimage-first-launch.sh), opening a
 # folder (check-appimage-open-folder.sh) and Alt+F4 under GNOME Shell
-# (check-appimage-alt-f4.sh). LINDIRSTAT_ALT_F4 is "required" (the default:
+# (check-appimage-alt-f4.sh), and the main window coming up over other apps'
+# (check-appimage-window-front.sh). LINDIRSTAT_ALT_F4, for the two that need
+# GNOME Shell, is "required" (the default:
 # a skip or failure fails) or "try" (the result is recorded; the workflow,
 # where gnome-shell may not run, uses this and the local publish step runs
 # the check again).
@@ -126,11 +128,23 @@ elif grep -q "alt-f4: SKIPPED" "$alt_f4_log"; then
 else
   alt_f4=failed
 fi
+window_front_log="$work/window-front.log"
+if LINDIRSTAT_WINDOW_FRONT_REQUIRED=1 scripts/check-appimage-window-front.sh "$appimage" 2>&1 | tee "$window_front_log"; then
+  window_front=passed
+elif grep -q "window-front: SKIPPED" "$window_front_log"; then
+  window_front=skipped
+else
+  window_front=failed
+fi
 daemons_left="$(ld_check_daemons | grep -vxF -e "$daemons_before" || true)"
 [ -z "$daemons_left" ] || die "the release checks left gdnc running: $(echo $daemons_left)"
 if [ "$alt_f4" != passed ]; then
   [ "$alt_f4_mode" = required ] && die "Alt+F4 under GNOME Shell: $alt_f4"
   warn "Alt+F4 under GNOME Shell: $alt_f4; run scripts/check-appimage-alt-f4.sh on this AppImage before publishing it"
+fi
+if [ "$window_front" != passed ]; then
+  [ "$alt_f4_mode" = required ] && die "main window on top under GNOME Shell: $window_front"
+  warn "main window on top under GNOME Shell: $window_front; run scripts/check-appimage-window-front.sh on this AppImage before publishing it"
 fi
 
 # Provenance: what went in, and the build IDs of what came out.
@@ -168,7 +182,7 @@ json.dump({
     # The toolchain the AppImage bundles (the gnustep-cli-new install it was
     # built against), to compare builds made on different machines.
     "toolchainBuildIds": dict(line.split("=", 1) for line in """$toolchain_ids""".split()),
-    "checks": {"validate+smoke": "passed", "first-launch": "passed", "open-folder": "passed", "alt-f4": "$alt_f4"},
+    "checks": {"validate+smoke": "passed", "first-launch": "passed", "open-folder": "passed", "alt-f4": "$alt_f4", "window-front": "$window_front"},
 }, open(sys.argv[1], "w"), indent=2)
 open(sys.argv[1], "a").write("\n")
 PY

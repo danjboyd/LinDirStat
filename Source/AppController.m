@@ -104,12 +104,14 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [self startLayoutDumpIfRequested];
   LDCommandLine *commandLine = [LDCommandLine processCommandLine];
   if ([commandLine loadFromCSVPath]) {
+    [self bringMainWindowForwardAfterMapping];
     [self loadResultsFromCSVFile:[commandLine loadFromCSVPath]];
     return;
   }
   NSArray *paths = [_launchFolders count] > 0 ? _launchFolders : [self initialScanPaths:commandLine];
   _launchFolders = nil;
   if ([paths count] > 0) {
+    [self bringMainWindowForwardAfterMapping];
     [self beginScanPaths:paths];
   } else {
     // WinDirStat.cpp:487-490: with nothing to scan, Select Drives opens
@@ -171,6 +173,14 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
                                                 userInfo:nil
                                                  repeats:YES];
   [self updateMemoryField:nil];
+}
+
+// Mutter maps a GNUstep window that has no user input to its name yet below
+// the focused window (#155). Raising it once it is mapped brings it up, as it
+// is the window Mutter focused.
+- (void)bringMainWindowForwardAfterMapping
+{
+  [_window performSelector:@selector(orderFront:) withObject:nil afterDelay:0.0];
 }
 
 // GNUstep also hands the command line's folders to the delegate as files to
@@ -2218,6 +2228,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   (void)sender;
   NSString *folder = [_currentScanPaths count] == 1 ? [_currentScanPaths objectAtIndex:0] : nil;
   NSArray *paths = [LDSelectTargetPanel runWithInitialFolder:folder];
+  // Focusing the main window doesn't raise it, and it was mapped below other
+  // apps' windows (#155): without this the app looks as if it quit after OK.
+  [_window makeKeyAndOrderFront:nil];
   if (paths) {
     [self beginScanPaths:paths];
   }
