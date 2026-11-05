@@ -176,13 +176,19 @@ is checked weekly on #133.
 
 | Issue | Gap | Owner | Reviewer | Status |
 |---|---|---|---|---|
-| #147 | AppImage check scripts leave their gdnc running | Linux | lead | |
-| #133 | Track WinDirStat's next release (pinned at v2.9.3) | Linux | macOS, lead | waits for an upstream release (none as of 2026-11-04) |
-| #150 | Shared code: Foundation/AppKit API that GNUstep lacks or stubs (after #143) | macOS (audit), Linux (fix) | lead | audit done; `setColumnAutoresizingStyle:` is a no-op on GNUstep, Linux checks Options and Select Target on resize |
-| — | `LDSizeFormatter`: the lazy `grouped` formatter isn't thread-safe | macOS | Linux, lead | #149 |
+| #147 | AppImage check scripts leave their gdnc running | Linux | lead | done (#151) |
+| #133 | Track WinDirStat's next release (pinned at v2.9.3) | Linux | macOS, lead | waits for an upstream release (none as of 2026-11-05) |
+| #150 | Shared code: Foundation/AppKit API that GNUstep lacks or stubs (after #143) | macOS (audit), Linux (fix) | lead | done: audit on #150, fixed-width tables pinned by tests (#153); TSan run of the Mac suite clean (false positives only) |
+| — | `LDSizeFormatter`: the lazy `grouped` formatter isn't thread-safe | macOS | Linux, lead | done (#149) |
+| #152 | Pin gnustep-packager v0.1.7 | Linux | macOS (DMG), lead | #154; Mac DMG check passed (0.1.8-rc1 from run 41910822581) |
+| #155 | GNOME/Wayland: main window opens behind other windows after Select Target | Linux | macOS | #158; Mac check passed (no visible change on macOS) |
+| #156 | AppImage: ship the Adwaita CSD libs-back patches | Linux | lead | #159 (draft; packaging only, no Mac check) |
+| #157 | GNOME shows a generic icon for the window | Linux | lead | macOS not affected (bundle icon checked) |
+| — | macOS GUI gate expected the tree without Percentage (after af5d619) | macOS | lead | #160; 189 of 189 checks pass on main |
 
-Use the 0.1.6 release checklist, with 0.1.8 for the version. Merges need
-Dan's go for 0.1.8; the 0.1.6 and 0.1.7 goes don't carry over.
+Use the 0.1.6 release checklist, with 0.1.8 for the version. Dan granted the
+standing 0.1.8 merge go on 2026-11-04 (AIManager ask 2058), with the same
+conditions as for 0.1.6 and 0.1.7.
 
 ## Intentional differences (not gaps)
 
