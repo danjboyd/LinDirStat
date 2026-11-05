@@ -54,10 +54,13 @@ OVERLAP_CHECKS = ("no overlapping sibling views", "no overlapping views in Setti
 SYSTEM_CHROME = ("NSVisualEffectView", "NSTitlebar", "_NSTitlebar", "BackdropView", "_NSScrollViewContentBackgroundView",
                  "NSThemeFrame", "_NSThemeWidget", "NSToolbarView")
 
+# Percentage is on by default, as in WinDirStat 2.6 (#82; the Linux gate's
+# STYLES since af5d619).
 STYLES = {
-    "light": {"appearance": "light", "defaults": {}, "columns": ["Physical Size", "Files", "Last Change"]},
+    "light": {"appearance": "light", "defaults": {},
+              "columns": ["Percentage", "Physical Size", "Files", "Last Change"]},
     "dark": {"appearance": "dark", "defaults": {"ShowColumnSizeLogical": True},
-             "columns": ["Physical Size", "Logical Size", "Files", "Last Change"]},
+             "columns": ["Percentage", "Physical Size", "Logical Size", "Files", "Last Change"]},
 }
 
 
