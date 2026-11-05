@@ -6,6 +6,9 @@
 @class LDSearchOptions;
 
 // Shared between AppController's files.
+@class LDScanResults;
+@class LDScanResultsRequest;
+
 @interface AppController (Private)
 - (NSArray *)selectedNodes;
 - (NSString *)statusForSelection:(NSArray *)nodes;
@@ -51,7 +54,8 @@
 - (void)updateSelectionField;
 - (void)fitFlexibleColumns;
 // Shows a tree that was not scanned (loaded from CSV).
-- (void)showLoadedTree:(LDFileNode *)root fromFile:(NSString *)path;
+- (void)showLoadedTree:(LDFileNode *)root fromFile:(NSString *)path results:(LDScanResults *)results;
+- (LDScanResultsRequest *)scanResultsRequest;
 @end
 
 // The file lists are tables whose data source and delegate are the controller.

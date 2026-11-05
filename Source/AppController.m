@@ -82,7 +82,6 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   // Dock drop on macOS); applicationDidFinishLaunching: scans them.
   NSArray *_launchFolders;
 }
-- (LDScanResultsRequest *)scanResultsRequest;
 - (void)releaseInBackground:(NSArray *)objects;
 - (void)startProfilingScan:(LDScanSession *)session;
 - (void)logProfileOfScanCompletion:(NSTimeInterval)started;
@@ -779,7 +778,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 - (BOOL)isBusy
 {
-  return [self isScanning] || _scanAwaitingAdoption || _refreshQueue != nil || _fileOperationRunning;
+  return [self isScanning] || _scanAwaitingAdoption || _resultsLoad != nil || _refreshQueue != nil || _fileOperationRunning;
 }
 
 - (BOOL)validateAction:(SEL)action
@@ -1616,6 +1615,8 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   [_refreshSession cancel];
   _refreshSession = nil;
   _refreshQueue = nil;
+  // A scan takes over from a results file still being read.
+  _resultsLoad = nil;
   _currentScanPath = [scanPath copy];
   _loadedFile = nil;
   [self clearResults];
@@ -2141,7 +2142,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   return cursor;
 }
 
-- (void)showLoadedTree:(LDFileNode *)root fromFile:(NSString *)path
+- (void)showLoadedTree:(LDFileNode *)root fromFile:(NSString *)path results:(LDScanResults *)results
 {
   [_scanSession cancel];
   _scanSession = nil;
@@ -2152,18 +2153,15 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
   _loadedFile = [path copy];
   _currentScanPath = [[root path] copy];
   _currentScanPaths = [root isComputer] ? nil : @[_currentScanPath];
-  if (_sizeMetric != LDSizeMetricPhysical) {
-    [root sortChildrenByMetric:_sizeMetric];
-  }
   _rootNode = root;
-  [self reloadResults];
+  [self reloadResultsWithScanResults:results treemapIsCurrent:YES];
   [_directoryTable expandItem:root];
   _titleBase = [NSString stringWithFormat:@"%@ (%@)", [self displayPath:[root path]], [path lastPathComponent]];
   _titlePrefix = nil;
   [_window setTitle:_titleBase];
   [self showSummaryStatus];
   [self refreshCommandState];
-  [self fileListsDidFinishScanWithLargestFiles:nil];
+  [self fileListsDidFinishScanWithLargestFiles:[results largestFiles]];
   [self fitColumnsToContents];
 }
 
