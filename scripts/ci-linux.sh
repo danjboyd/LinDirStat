@@ -35,6 +35,13 @@ mkdir -p "$work"
 
 step() { printf '\n== %s\n' "$*"; }
 
+step "Python scripts compile"
+# Most of them only run by hand (#143 left generate-translations.py unable
+# to parse), so compile each one here; nothing is written to disk.
+python3 -c 'import sys
+for path in sys.argv[1:]:
+    compile(open(path, encoding="utf-8").read(), path, "exec")' "$repo_root"/scripts/*.py
+
 step "Pinned inputs"
 "$repo_root/scripts/test-pinned-inputs.sh"
 
