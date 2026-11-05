@@ -3,6 +3,13 @@
 Parity plan item L13: scans of a million files and more, the time from
 Stop to the final display, and the memory of duplicate detection.
 
+## Build
+
+Linux builds use `-O2 -DNDEBUG` (`optimization.make`), and the bundled libs-back
+`-O2` (its lock's `cflags`), as the gnustep-cli toolchain's gnustep-make adds no
+`-O` of its own (#179). Numbers below from before 0.1.9 were taken at `-O0`.
+The toolchain's libs-base and libs-gui are still unoptimized.
+
 ## Measuring
 
 Headless (model only, no display):

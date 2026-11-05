@@ -3,6 +3,7 @@
 shared = no
 
 include $(GNUSTEP_MAKEFILES)/common.make
+include ../../../optimization.make
 
 LIBRARY_NAME = GPUpdaterCore
 

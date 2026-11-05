@@ -1,4 +1,5 @@
 include $(GNUSTEP_MAKEFILES)/common.make
+include ../../../optimization.make
 
 TOOL_NAME = gp-update-helper
 

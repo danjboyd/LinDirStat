@@ -25,6 +25,7 @@ url="$(field url)"
 revision="$(field revision)"
 mapfile -t configure_args < <(field configure)
 mapfile -t make_args < <(field make)
+cflags="$(field cflags | tr '\n' ' ')"
 
 if [[ ! -d "$build_dir/.git" ]]; then
   mkdir -p "$(dirname "$build_dir")"
@@ -56,7 +57,7 @@ for p in json.load(open(sys.argv[1]))["patches"]:
   # put the install's path, under the build user's home, into the bundle;
   # mapped to a fixed name, builds on different machines are identical.
   prefix_map="-fmacro-prefix-map=$gnustep_root=/gnustep-cli"
-  make -j"$(nproc)" "${make_args[@]}" AUXILIARY_OBJCFLAGS="$prefix_map" AUXILIARY_CFLAGS="$prefix_map" \
+  make -j"$(nproc)" "${make_args[@]}" AUXILIARY_OBJCFLAGS="$cflags$prefix_map" AUXILIARY_CFLAGS="$cflags$prefix_map" \
     > "$build_dir/make.out" 2>&1 || { tail -20 "$build_dir/make.out" >&2; exit 1; }
 ) || die "the build failed (logs in $build_dir)"
 

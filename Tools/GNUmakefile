@@ -1,4 +1,5 @@
 include $(GNUSTEP_MAKEFILES)/common.make
+include ../optimization.make
 
 ADDITIONAL_OBJCFLAGS += -fobjc-arc -I$(GNUSTEP_MAKEFILES)/../../../include
 ADDITIONAL_TOOL_LIBS += -ldispatch -lnettle
