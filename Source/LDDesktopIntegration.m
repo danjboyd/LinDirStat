@@ -172,13 +172,14 @@ static NSString *const LDIconOwnerKey = @"X-LinDirStat-Icon";
   BOOL hadIcon = [previous booleanForKey:LDOwnerKey] && [previous booleanForKey:LDIconOwnerKey];
   // Someone else's icon of that name stays, and the entry shows it.
   BOOL ownsIcon = !existingIcon || hadIcon || [existingIcon isEqualToData:icon];
+  // The icon first, so the shell never sees the entry without it. An entry
+  // without its icon still gives the app grid and Open With.
+  if (ownsIcon && icon && [manager createDirectoryAtPath:[[self iconPath] stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:NULL]) {
+    [icon writeToFile:[self iconPath] atomically:YES];
+  }
   if (![manager createDirectoryAtPath:[[self entryPath] stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:error]
       || ![[self entryTextOwningIcon:ownsIcon] writeToFile:[self entryPath] atomically:YES encoding:NSUTF8StringEncoding error:error]) {
     return NO;
-  }
-  // An entry without its icon still gives the app grid and Open With.
-  if (ownsIcon && icon && [manager createDirectoryAtPath:[[self iconPath] stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:NULL]) {
-    [icon writeToFile:[self iconPath] atomically:YES];
   }
   [self updateDesktopDatabase];
   return YES;
