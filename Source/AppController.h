@@ -46,6 +46,8 @@
   // From a scan's start until its tree is adopted: the session reports
   // finished on its own thread a moment before finishAsyncScan runs.
   BOOL _scanAwaitingAdoption;
+  // The results file being read in the background, until it arrives (#171).
+  id _resultsLoad;
   NSMenu *_cleanupMenu;
   // One per list: its header's column chooser.
   NSMutableArray *_columnChoosers;

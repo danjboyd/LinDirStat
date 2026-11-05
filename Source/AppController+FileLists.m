@@ -10,6 +10,7 @@
 #import "LDLargestFiles.h"
 #import "LDPlatformUI.h"
 #import "LDPreferences.h"
+#import "LDScanResults.h"
 #import "LDScanSession.h"
 #import "LDSearch.h"
 #import "LDSizeFormatter.h"
@@ -983,17 +984,54 @@ static NSString *const LDTabWatcher = @"watcher";
   [self loadResultsFromCSVFile:[[panel filenames] firstObject] ?: [panel filename]];
 }
 
+// A large file takes seconds to read and to total up, so that's done off the
+// main thread, as a scan is (#171). The tree shown until now stays until it
+// arrives. Anything that replaces the tree meanwhile clears _resultsLoad.
 - (void)loadResultsFromCSVFile:(NSString *)path
 {
-  NSError *error = nil;
-  LDFileNode *root = [LDCSV readTreeFromPath:path
-                            processHardLinks:[[LDPreferences sharedPreferences] processHardLinks]
-                                       error:&error];
+  BOOL processHardLinks = [[LDPreferences sharedPreferences] processHardLinks];
+  LDScanResultsRequest *request = [self scanResultsRequest];
+  id load = [[NSObject alloc] init];
+  _resultsLoad = load;
+  [self showStatus:[NSString stringWithFormat:LDLocalized(@"Loading %@…"), [path lastPathComponent]]];
+  [self refreshCommandState];
+  dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    NSError *error = nil;
+    __block LDFileNode *root = [LDCSV readTreeFromPath:path processHardLinks:processHardLinks error:&error];
+    if (root && [request metric] != LDSizeMetricPhysical) {
+      [root sortChildrenByMetric:[request metric]];
+    }
+    __block LDScanResults *results = root ? [LDScanResults resultsForRootNode:root request:request] : nil;
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (load != _resultsLoad) {
+        // A scan took over. Freeing the tree here would stall the main thread.
+        if (root) {
+          NSArray *dropped = @[root, results];
+          root = nil;
+          results = nil;
+          [self releaseInBackground:dropped];
+        }
+        return;
+      }
+      [self resultsLoadFinishedWithRoot:root results:results fromFile:path error:error];
+    });
+  });
+}
+
+- (void)resultsLoadFinishedWithRoot:(LDFileNode *)root
+                            results:(LDScanResults *)results
+                           fromFile:(NSString *)path
+                              error:(NSError *)error
+{
+  _resultsLoad = nil;
   if (!root) {
+    [self showSummaryStatus];
+    [self refreshCommandState];
     [LDDialogs showFailures:@[[error localizedDescription] ?: LDLocalized(@"Unknown error")] title:LDLocalized(@"Loading the results failed")];
     return;
   }
-  [self showLoadedTree:root fromFile:path];
+  // Sized by the setting when the load began, like a scan's.
+  [self showLoadedTree:root fromFile:path results:[[results request] metric] == _sizeMetric ? results : nil];
 }
 
 - (void)computeHash:(id)sender

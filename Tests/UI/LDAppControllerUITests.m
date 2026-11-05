@@ -18,6 +18,7 @@
 #import "LDHardLinks.h"
 #import "LDLocalization.h"
 #import "LDPreferences.h"
+#import "LDCSV.h"
 #import "LDOptionsWindowController.h"
 #import "LDScanSession.h"
 #import "LDSearch.h"
@@ -127,6 +128,8 @@
 - (NSArray *)largestFiles { return _largestFiles; }
 - (NSArray *)searchRows { return _searchRows; }
 - (NSArray *)duplicateGroups { return _duplicateGroups; }
+- (LDFileNode *)rootNodeForTesting { return _rootNode; }
+- (NSString *)loadedFileForTesting { return _loadedFile; }
 - (NSArray *)watcherRows { return _watcherRows; }
 - (NSSearchField *)watcherFilterField { return _watcherFilterField; }
 - (BOOL)isWatching { return _fileWatcher != nil; }
@@ -682,6 +685,62 @@
   [[_controller window] makeFirstResponder:[_controller treemap]];
   [[_controller treemap] setSelectedNode:[self node:@"c.bin"]];
   XCTAssertEqualObjects(@[[self node:@"c.bin"]], [_controller selectedNodes]);
+}
+
+// A results file loads off the main thread: the app stays busy meanwhile, then
+// shows it; a scan started meanwhile wins (#171).
+- (NSString *)savedResultsOfTree
+{
+  if (![self scanTree]) {
+    return nil;
+  }
+  NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:[[[NSProcessInfo processInfo] globallyUniqueString] stringByAppendingPathExtension:@"csv"]];
+  XCTAssertTrue([LDCSV writeTree:[_controller rootNodeForTesting] toPath:path includeOwner:NO error:NULL]);
+  return path;
+}
+
+- (void)testLoadingResultsDoesNotBlockTheMainThread
+{
+  if (!_controller) {
+    return;
+  }
+  NSString *path = [self savedResultsOfTree];
+  if (!path) {
+    return;
+  }
+  LDFileNode *before = [_controller rootNodeForTesting];
+  [_controller loadResultsFromCSVFile:path];
+  // Back here before the file has arrived: still the old tree, and busy.
+  XCTAssertTrue([_controller rootNodeForTesting] == before);
+  XCTAssertFalse([_controller validateAction:@selector(loadResultsFromCSV:)]);
+  LDUITestController *controller = _controller;
+  XCTAssertTrue([self waitFor:^BOOL { return [controller rootNodeForTesting] != before; } seconds:20.0]);
+  XCTAssertTrue([_controller validateAction:@selector(loadResultsFromCSV:)]);
+  XCTAssertEqual([before aggregateAllocatedSize], [[_controller rootNodeForTesting] aggregateAllocatedSize]);
+  [[NSFileManager defaultManager] removeItemAtPath:path error:NULL];
+}
+
+- (void)testAScanStartedDuringALoadWins
+{
+  if (!_controller) {
+    return;
+  }
+  NSString *path = [self savedResultsOfTree];
+  if (!path) {
+    return;
+  }
+  [_controller loadResultsFromCSVFile:path];
+  // The way a scan can start meanwhile: a folder from the desktop.
+  NSUInteger finished = [_controller scansFinished];
+  [_controller application:NSApp openFiles:@[_tree]];
+  LDUITestController *controller = _controller;
+  XCTAssertTrue([self waitFor:^BOOL { return [controller scansFinished] > finished && ![controller isBusy]; } seconds:20.0]);
+  // Long enough for the file to have arrived, were it still wanted.
+  LDFileNode *scanned = [_controller rootNodeForTesting];
+  [self waitFor:^BOOL { return NO; } seconds:2.0];
+  XCTAssertTrue([_controller rootNodeForTesting] == scanned);
+  XCTAssertNil([_controller loadedFileForTesting]);
+  [[NSFileManager defaultManager] removeItemAtPath:path error:NULL];
 }
 
 // WinDirStat 2.8: a whole duplicate group selected keeps the first copy and
