@@ -14,6 +14,8 @@ static NSString *const LDIconName = @"lindirstat.png";
 static NSString *const LDWindowClass = @"LinDirStat";
 // Marks an entry as ours, so only ours is ever rewritten or removed.
 static NSString *const LDOwnerKey = @"X-LinDirStat-Integration";
+// Marks the icon as ours too: an icon of that name may be someone else's.
+static NSString *const LDIconOwnerKey = @"X-LinDirStat-Icon";
 
 @implementation LDDesktopIntegration
 {
@@ -73,6 +75,11 @@ static NSString *const LDOwnerKey = @"X-LinDirStat-Integration";
 
 - (NSString *)entryText
 {
+  return [self entryTextOwningIcon:YES];
+}
+
+- (NSString *)entryTextOwningIcon:(BOOL)ownsIcon
+{
   return [@[
     @"[Desktop Entry]",
     @"Type=Application",
@@ -86,6 +93,7 @@ static NSString *const LDOwnerKey = @"X-LinDirStat-Integration";
     @"Categories=System;FileTools;",
     @"MimeType=inode/directory;",
     [LDOwnerKey stringByAppendingString:@"=true"],
+    [NSString stringWithFormat:@"%@=%@", LDIconOwnerKey, ownsIcon ? @"true" : @"false"],
     @""
   ] componentsJoinedByString:@"\n"];
 }
@@ -158,12 +166,17 @@ static NSString *const LDOwnerKey = @"X-LinDirStat-Integration";
 {
   NSFileManager *manager = [NSFileManager defaultManager];
   NSData *icon = [NSData dataWithContentsOfFile:[self iconSource] ?: @""];
+  NSData *existingIcon = [NSData dataWithContentsOfFile:[self iconPath]];
+  LDDesktopEntry *previous = [LDDesktopEntry entryWithContentsOfFile:[self entryPath] identifier:LDEntryName];
+  BOOL hadIcon = [previous booleanForKey:LDOwnerKey] && [previous booleanForKey:LDIconOwnerKey];
+  // Someone else's icon of that name stays, and the entry shows it.
+  BOOL ownsIcon = !existingIcon || hadIcon || [existingIcon isEqualToData:icon];
   if (![manager createDirectoryAtPath:[[self entryPath] stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:error]
-      || ![[self entryText] writeToFile:[self entryPath] atomically:YES encoding:NSUTF8StringEncoding error:error]) {
+      || ![[self entryTextOwningIcon:ownsIcon] writeToFile:[self entryPath] atomically:YES encoding:NSUTF8StringEncoding error:error]) {
     return NO;
   }
   // An entry without its icon still gives the app grid and Open With.
-  if (icon && [manager createDirectoryAtPath:[[self iconPath] stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:NULL]) {
+  if (ownsIcon && icon && [manager createDirectoryAtPath:[[self iconPath] stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:NULL]) {
     [icon writeToFile:[self iconPath] atomically:YES];
   }
   [self updateDesktopDatabase];
@@ -180,7 +193,9 @@ static NSString *const LDOwnerKey = @"X-LinDirStat-Integration";
   if (![manager removeItemAtPath:[self entryPath] error:error]) {
     return NO;
   }
-  [manager removeItemAtPath:[self iconPath] error:NULL];
+  if ([ours booleanForKey:LDIconOwnerKey]) {
+    [manager removeItemAtPath:[self iconPath] error:NULL];
+  }
   [self updateDesktopDatabase];
   return YES;
 }

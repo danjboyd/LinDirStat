@@ -147,6 +147,41 @@
   XCTAssertTrue([integration remove:NULL]);
 }
 
+- (void)writeIcon:(NSString *)text atPath:(NSString *)path
+{
+  [[NSFileManager defaultManager] createDirectoryAtPath:[path stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:NULL];
+  [[text dataUsingEncoding:NSUTF8StringEncoding] writeToFile:path atomically:NO];
+}
+
+// An icon of our name that we didn't write survives both Add and Remove.
+- (void)testSomeoneElsesIconIsLeftAlone
+{
+  LDDesktopIntegration *integration = [self integrationAt:@"/apps/LinDirStat.AppImage"];
+  [self writeIcon:@"theirs" atPath:[integration iconPath]];
+  NSData *theirs = [@"theirs" dataUsingEncoding:NSUTF8StringEncoding];
+  XCTAssertTrue([integration install:NULL]);
+  XCTAssertEqualObjects(theirs, [NSData dataWithContentsOfFile:[integration iconPath]]);
+  XCTAssertEqual(LDDesktopIntegrationInstalled, [integration state]);
+  // Reinstalling doesn't turn it into ours.
+  XCTAssertTrue([[self integrationAt:@"/new/LinDirStat.AppImage"] install:NULL]);
+  XCTAssertEqualObjects(theirs, [NSData dataWithContentsOfFile:[integration iconPath]]);
+  XCTAssertTrue([integration remove:NULL]);
+  XCTAssertFalse([[NSFileManager defaultManager] fileExistsAtPath:[integration entryPath]]);
+  XCTAssertEqualObjects(theirs, [NSData dataWithContentsOfFile:[integration iconPath]]);
+}
+
+// A later AppImage's different icon replaces ours, and Remove still takes it.
+- (void)testOurIconFollowsANewAppImage
+{
+  LDDesktopIntegration *integration = [self integrationAt:@"/apps/LinDirStat.AppImage"];
+  XCTAssertTrue([integration install:NULL]);
+  [[@"new icon" dataUsingEncoding:NSUTF8StringEncoding] writeToFile:[_root stringByAppendingPathComponent:@"appdir/lindirstat.png"] atomically:NO];
+  XCTAssertTrue([integration install:NULL]);
+  XCTAssertEqualObjects([@"new icon" dataUsingEncoding:NSUTF8StringEncoding], [NSData dataWithContentsOfFile:[integration iconPath]]);
+  XCTAssertTrue([integration remove:NULL]);
+  XCTAssertFalse([[NSFileManager defaultManager] fileExistsAtPath:[integration iconPath]]);
+}
+
 @end
 
 #endif
