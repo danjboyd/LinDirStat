@@ -343,7 +343,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 }
 
 // WinDirStat recalculates without rescanning; so does LinDirStat. While a
-// scan or refresh runs the setting is applied when it finishes.
+// scan, refresh or search runs the setting is applied when it finishes.
 - (void)toggleFreeSpace:(id)sender
 {
   (void)sender;
@@ -362,6 +362,9 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 - (void)applySpaceItems
 {
+  // Scans and refreshes update the space items when they finish; a search
+  // applies a pending change when its results arrive.
+  _spaceItemsPending = [self isBusy];
   if (_rootNode && ![self isBusy]) {
     [self updateSpaceItems];
     [self didChangeTree];
@@ -373,6 +376,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 // root for the Options menu settings.
 - (BOOL)updateSpaceItems
 {
+  _spaceItemsPending = NO;
   LDPreferences *preferences = [LDPreferences sharedPreferences];
   NSArray *volumes = [LDSpaceItems volumeNodesOfRoot:_rootNode];
   NSArray *removed = [LDSpaceItems updateVolumes:volumes
@@ -779,7 +783,7 @@ static NSString *const LDReportBugURL = @"https://github.com/danjboyd/LinDirStat
 
 - (BOOL)isBusy
 {
-  return [self isScanning] || _scanAwaitingAdoption || _refreshQueue != nil || _fileOperationRunning;
+  return [self isScanning] || _scanAwaitingAdoption || _refreshQueue != nil || _fileOperationRunning || _searchRunning;
 }
 
 - (BOOL)validateAction:(SEL)action

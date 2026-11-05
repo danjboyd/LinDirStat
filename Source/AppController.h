@@ -43,6 +43,8 @@
   NSMutableArray *_refreshQueue;
   LDScanSession *_refreshSession;
   BOOL _fileOperationRunning;
+  BOOL _searchRunning;
+  BOOL _spaceItemsPending;
   // From a scan's start until its tree is adopted: the session reports
   // finished on its own thread a moment before finishAsyncScan runs.
   BOOL _scanAwaitingAdoption;
