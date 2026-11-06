@@ -2,11 +2,14 @@
 #import "LDExtensionStats.h"
 #import "LDHardLinks.h"
 #import "LDPlatformUI.h"
+#import "LDProfiling.h"
 
 // WinDirStat's CTreeMapView::ZoomFrameWidth.
 static const int LDZoomFrameWidth = 4;
-// Delay before re-rendering after a resize; the stale bitmap is stretched meanwhile.
-static const NSTimeInterval LDResizeRenderDelay = 0.12;
+// Delay before re-rendering after a resize; the stale bitmap is stretched
+// meanwhile. Long enough that a drag paused only briefly doesn't lay out the
+// whole tree (#172).
+static const NSTimeInterval LDResizeRenderDelay = 0.3;
 
 // A system colour as treemap RGB, in the current appearance.
 static LDRGBColor LDThemeRGB(NSColor *color)
@@ -34,6 +37,7 @@ static LDRGBColor LDThemeRGB(NSColor *color)
     _needsRender = YES;
     _reselectStack = [[NSMutableArray alloc] init];
     _highlightColor = LDRGB(255, 255, 255);
+    _handledSize = frame.size;
   }
   return self;
 }
@@ -95,7 +99,7 @@ static LDRGBColor LDThemeRGB(NSColor *color)
   [self setRootNode:rootNode metric:metric colorIndexes:colorIndexes];
   NSSize size = [self renderSize];
   LDTreemapOptions options = [treemap options];
-  if (!treemap || [treemap rootNode] != rootNode || [treemap metric] != metric || _renderTimer
+  if (!treemap || [treemap rootNode] != rootNode || [treemap metric] != metric || [self isDeferringRender]
       || [treemap width] != (int)size.width || [treemap height] != (int)size.height
       || memcmp(&options, &_options, sizeof(options)) != 0 || options.showFolderFrames
       || options.gridColor == LDTreemapGridColorAuto
@@ -212,17 +216,32 @@ NSRect LDWholePixelRectInside(NSRect rect)
                     LDTreemapRectHeight(rect) / scale);
 }
 
+// AppKit's -setFrame: calls -setFrameSize:, but GNUstep's sets the frame
+// directly, which is how its resizes reach the view (#172): both lead here,
+// and the size check makes the second of AppKit's two calls a no-op.
 - (void)setFrameSize:(NSSize)size
 {
-  NSSize oldSize = [self frame].size;
   [super setFrameSize:size];
-  if (NSEqualSizes(oldSize, size)) {
+  [self frameSizeDidChange];
+}
+
+- (void)setFrame:(NSRect)frame
+{
+  [super setFrame:frame];
+  [self frameSizeDidChange];
+}
+
+- (void)frameSizeDidChange
+{
+  NSSize size = [self frame].size;
+  if (NSEqualSizes(_handledSize, size)) {
     return;
   }
+  _handledSize = size;
   _needsRender = YES;
   [_renderTimer invalidate];
   _renderTimer = nil;
-  if (_bitmap) {
+  if (_bitmap && ![self inLiveResize]) {
     // Keep resizing smooth on large trees: stretch the old bitmap until the
     // size settles, as WinDirStat does.
     _renderTimer = [NSTimer scheduledTimerWithTimeInterval:LDResizeRenderDelay
@@ -232,6 +251,25 @@ NSRect LDWholePixelRectInside(NSRect rect)
                                                    repeats:NO];
   }
   [self setNeedsDisplay:YES];
+}
+
+// During a live resize (macOS) the stale bitmap is stretched until the drag
+// ends, however long it pauses, and the tree is laid out once. GNUstep never
+// starts a live resize (-viewWillStartLiveResize is never sent), so there the
+// debounce above does it.
+- (BOOL)isDeferringRender
+{
+  return _renderTimer != nil || (_bitmap && _needsRender && [self inLiveResize]);
+}
+
+- (void)viewDidEndLiveResize
+{
+  [super viewDidEndLiveResize];
+  if (_needsRender) {
+    [_renderTimer invalidate];
+    _renderTimer = nil;
+    [self setNeedsDisplay:YES];
+  }
 }
 
 - (void)renderTimerFired:(NSTimer *)timer
@@ -270,9 +308,17 @@ NSRect LDWholePixelRectInside(NSRect rect)
       return [text sizeWithAttributes:attributes].width * scale;
     };
   }
+  NSTimeInterval started = [LDProfiling now];
   LDTreemap *treemap = [[LDTreemap alloc] initWithRootNode:root metric:_metric width:width height:height
                                                    options:_options folderStyle:style textWidth:textWidth];
+  NSTimeInterval laidOut = [LDProfiling now];
   [self adoptTreemap:treemap pixels:[treemap renderRGBAWithColorIndexes:_colorIndexes]];
+  if ([LDProfiling isEnabled]) {
+    NSTimeInterval rendered = [LDProfiling now];
+    [LDProfiling log:[NSString stringWithFormat:@"treemap render %dx%d, %lu cells: layout %.0f ms, pixels %.0f ms",
+                      width, height, (unsigned long)[treemap cellCount],
+                      (laidOut - started) * 1000.0, (rendered - laidOut) * 1000.0]];
+  }
 }
 
 // The folder headers' font: the system's small font, as WinDirStat uses
@@ -349,7 +395,8 @@ NSRect LDWholePixelRectInside(NSRect rect)
   NSSize pixels = [self pixelSizeOfArea:area];
   BOOL areaChanged = _bitmap && ([_bitmap pixelsWide] != (NSInteger)pixels.width
                                  || [_bitmap pixelsHigh] != (NSInteger)pixels.height);
-  if ((_needsRender || areaChanged) && !_renderTimer) {
+  BOOL deferring = [self isDeferringRender];
+  if ((_needsRender || areaChanged) && !deferring) {
     [self render];
   }
 
@@ -365,7 +412,7 @@ NSRect LDWholePixelRectInside(NSRect rect)
   // CTreeMap::DrawTreemap fills it with COLOR_WINDOW.
   if (_bitmap && ![_treemap isEmpty]) {
     [self drawBitmapInRect:area];
-    if (_options.showFolderFrames && !_renderTimer) {
+    if (_options.showFolderFrames && !deferring) {
       [self drawFolderHeaders];
     }
   }
@@ -375,7 +422,7 @@ NSRect LDWholePixelRectInside(NSRect rect)
   NSRectFill(NSMakeRect(NSMaxX(area), area.origin.y, 1.0, area.size.height + 1.0));
   NSRectFill(NSMakeRect(area.origin.x, NSMaxY(area), area.size.width + 1.0, 1.0));
 
-  if (!_renderTimer && _treemap) {
+  if (!deferring && _treemap) {
     if (_highlightedExtensionKey || _highlightedExtensionKeys) {
       [self drawExtensionHighlights];
     } else if (_selectedNode) {
@@ -383,7 +430,7 @@ NSRect LDWholePixelRectInside(NSRect rect)
     }
   }
 
-  if (_dimmed || _renderTimer) {
+  if (_dimmed || deferring) {
     [[NSColor colorWithCalibratedWhite:0.0 alpha:(175.0 / 255.0)] set];
     NSRectFillUsingOperation(area, NSCompositeSourceOver);
   }
