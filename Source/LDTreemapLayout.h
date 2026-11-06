@@ -118,6 +118,10 @@ typedef struct {
   struct LDTreemapFrame *_frames;
   NSUInteger _frameCount;
   NSMapTable *_branchIndexes;
+  // The Hilbert and Moore layouts' per-folder scratch, reused while laying
+  // out and freed after.
+  void *_curveScratch;
+  NSUInteger _curveScratchCapacity;
 }
 
 // Lays out rootNode (sizes from metric) in a width x height area at (0, 0).
