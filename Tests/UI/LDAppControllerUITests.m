@@ -2301,6 +2301,19 @@
   [self drawView:view];
   XCTAssertEqual(140, [[view treemap] width]);
 
+  // The same through -setFrame:, which is how GNUstep resizes a view (it
+  // doesn't go through -setFrameSize:).
+  [view setFrame:NSMakeRect(0, 0, 151, 81)];
+  [self drawView:view];
+  XCTAssertEqual(140, [[view treemap] width]);
+  [self spin:0.6];
+  [self drawView:view];
+  XCTAssertEqual(150, [[view treemap] width]);
+  [view setFrame:NSMakeRect(0, 0, 141, 81)];
+  [self spin:0.6];
+  [self drawView:view];
+  XCTAssertEqual(140, [[view treemap] width]);
+
   // A live resize: no layout during it, even after a long pause.
   view->_live = YES;
   [view setFrameSize:NSMakeSize(161, 81)];

@@ -31,6 +31,8 @@ FOUNDATION_EXPORT NSRect LDWholePixelRectInside(NSRect rect);
   LDTreemap *_treemap;
   NSBitmapImageRep *_bitmap;
   NSTimer *_renderTimer;
+  // The size the last resize was handled at (-setFrame: and -setFrameSize:).
+  NSSize _handledSize;
   BOOL _needsRender;
   BOOL _dimmed;
   LDFileNode *_hoverNode;

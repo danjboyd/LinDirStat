@@ -37,6 +37,7 @@ static LDRGBColor LDThemeRGB(NSColor *color)
     _needsRender = YES;
     _reselectStack = [[NSMutableArray alloc] init];
     _highlightColor = LDRGB(255, 255, 255);
+    _handledSize = frame.size;
   }
   return self;
 }
@@ -215,13 +216,28 @@ NSRect LDWholePixelRectInside(NSRect rect)
                     LDTreemapRectHeight(rect) / scale);
 }
 
+// AppKit's -setFrame: calls -setFrameSize:, but GNUstep's sets the frame
+// directly, which is how its resizes reach the view (#172): both lead here,
+// and the size check makes the second of AppKit's two calls a no-op.
 - (void)setFrameSize:(NSSize)size
 {
-  NSSize oldSize = [self frame].size;
   [super setFrameSize:size];
-  if (NSEqualSizes(oldSize, size)) {
+  [self frameSizeDidChange];
+}
+
+- (void)setFrame:(NSRect)frame
+{
+  [super setFrame:frame];
+  [self frameSizeDidChange];
+}
+
+- (void)frameSizeDidChange
+{
+  NSSize size = [self frame].size;
+  if (NSEqualSizes(_handledSize, size)) {
     return;
   }
+  _handledSize = size;
   _needsRender = YES;
   [_renderTimer invalidate];
   _renderTimer = nil;
