@@ -152,8 +152,13 @@ static const NSInteger LDLayoutDumpMaxRows = 40;
   NSMutableArray *rows = [NSMutableArray array];
   NSRect visible = [table visibleRect];
   NSRange range = [table rowsInRect:visible];
-  for (NSInteger row = (NSInteger)range.location;
-       row < (NSInteger)NSMaxRange(range) && [rows count] < (NSUInteger)LDLayoutDumpMaxRows; row++) {
+  // An empty GNUstep table can return {NSUIntegerMax, 1}. Do not turn
+  // that sentinel into row -1, or ask the data source for a nonexistent row.
+  NSUInteger rowCount = (NSUInteger)MAX((NSInteger)0, [table numberOfRows]);
+  NSUInteger firstRow = MIN(range.location, rowCount);
+  NSUInteger endRow = firstRow + MIN(range.length, rowCount - firstRow);
+  for (NSUInteger row = firstRow;
+       row < endRow && [rows count] < (NSUInteger)LDLayoutDumpMaxRows; row++) {
     NSRect rowRect = NSIntersectionRect([table rectOfRow:row], visible);
     [rows addObject:@{@"row": @(row),
                       @"rect": [self rect:rowRect ofView:table] ?: @[],
@@ -168,7 +173,7 @@ static const NSInteger LDLayoutDumpMaxRows = 40;
     @"rect": [self rectOfView:[table enclosingScrollView] ?: table] ?: @[],
     @"headerRect": [self rectOfView:[table headerView]] ?: @[],
     @"columns": columns,
-    @"rowCount": @([table numberOfRows]),
+    @"rowCount": @(rowCount),
     @"rows": rows,
     @"selectedRows": selected,
   };
