@@ -17,6 +17,7 @@
 #import "LDFileWatcher.h"
 #import "LDHardLinks.h"
 #import "LDLocalization.h"
+#import "LDLayoutDump.h"
 #import "LDPreferences.h"
 #import "LDOptionsWindowController.h"
 #import "LDScanSession.h"
@@ -312,6 +313,26 @@
     [[NSFileManager defaultManager] removeItemAtPath:_workRoot error:NULL];
   }
   [super tearDown];
+}
+
+// The layout observer runs before a scan has populated its visible lists.
+// GNUstep can report a no-row sentinel even for a visible empty table.
+- (void)testLayoutDumpDoesNotRequestLabelsForEmptyTables
+{
+  if (!_controller) {
+    return;
+  }
+  for (NSTableView *table in @[(NSTableView *)[_controller tree], [_controller extensionTable]]) {
+    XCTAssertEqual((NSInteger)0, [table numberOfRows]);
+    NSArray *labels = @[];
+    __block NSUInteger requests = 0;
+    NSDictionary *description = [LDLayoutDump describeTable:table rowLabels:^NSString *(NSInteger row) {
+      requests++;
+      return [labels objectAtIndex:(NSUInteger)row];
+    }];
+    XCTAssertEqual((NSUInteger)0, requests);
+    XCTAssertEqual((NSUInteger)0, [[description objectForKey:@"rows"] count]);
+  }
 }
 
 - (BOOL)waitFor:(BOOL (^)(void))condition seconds:(NSTimeInterval)seconds
